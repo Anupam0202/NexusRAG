@@ -31,7 +31,7 @@ A production-grade **Retrieval-Augmented Generation** platform that lets enterpr
 - **Semantic Cache** — Avoids redundant LLM calls for similar queries
 - **Multi-Query Expansion** — Generates alternative queries for better recall
 
-### 🔍 Cloud OCR (No PaddleOCR)
+### 🔍 Cloud OCR
 - **Gemini Vision** (primary) — understanding-based extraction
 - **Google Cloud Vision** (fallback) — pixel-level OCR
 - **Adaptive preprocessing** — upscaling, CLAHE, Otsu binarization
