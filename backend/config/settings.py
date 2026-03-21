@@ -102,6 +102,7 @@ class Settings(BaseSettings):
     api_port: int = Field(default=8000)
     api_cors_origins: str = Field(
         default="http://localhost:3000,http://127.0.0.1:3000",
+        description="Comma-separated allowed origins. Set to * for development.",
     )
     api_key: str = Field(
         default="",
@@ -131,8 +132,19 @@ class Settings(BaseSettings):
 
     @property
     def cors_origins(self) -> List[str]:
-        """Parse comma-separated CORS origins into a list."""
-        return [o.strip() for o in self.api_cors_origins.split(",") if o.strip()]
+        """Parse comma-separated CORS origins into a list.
+
+        Automatically includes the Render external URL if available.
+        Supports wildcard '*' for development.
+        """
+        raw = [o.strip() for o in self.api_cors_origins.split(",") if o.strip()]
+        if "*" in raw:
+            return ["*"]
+        # Auto-add Render external URL if set by the platform
+        render_url = os.environ.get("RENDER_EXTERNAL_URL", "")
+        if render_url and render_url not in raw:
+            raw.append(render_url)
+        return raw
 
     @property
     def fallback_models(self) -> List[str]:
