@@ -109,7 +109,7 @@ A production-grade **Retrieval-Augmented Generation** platform that lets enterpr
 ### 1. Clone & Setup Backend
 
 ```bash
-git clone https://github.com/your-username/nexus-rag.git
+git clone https://github.com/Anupam0202/NexusRAG.git
 cd nexus-rag/backend
 
 # Create virtual environment
