@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: nexus-rag-backend
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    envVars:
+      - key: GOOGLE_API_KEY
+        sync: false
+      - key: API_CORS_ORIGINS
+        value: https://your-app.vercel.app,http://localhost:3000
+    healthCheckPath: /health
+    plan: starter
+    autoDeploy: true

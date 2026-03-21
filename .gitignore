@@ -1,0 +1,92 @@
+# ═══════════════════════════════════════════════════════════════
+#  NexusRAG — .gitignore
+# ═══════════════════════════════════════════════════════════════
+
+# ─── Python ───────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+*.egg
+dist/
+build/
+.eggs/
+*.whl
+pip-wheel-metadata/
+
+# ─── Virtual environments ────────────────────────────────────
+.venv/
+venv/
+env/
+ENV/
+
+# ─── Environment & Secrets ───────────────────────────────────
+.env
+.env.local
+.env.production
+.env.*.local
+*.pem
+*.key
+secrets/
+
+# ─── IDE ─────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.settings/
+*.sublime-project
+*.sublime-workspace
+pyrightconfig.json
+
+# ─── OS ──────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+*.lnk
+
+# ─── Data & Storage (runtime artifacts) ─────────────────────
+backend/data/*
+!backend/data/.gitkeep
+backend/data/vector_store/
+backend/data/scientific_output/
+*.faiss
+*.pkl
+*.pickle
+*.npy
+vector_stores/
+uploaded_files/
+chroma_data/
+
+# ─── Testing & Coverage ─────────────────────────────────────
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+.tox/
+.nox/
+
+# ─── Logs ────────────────────────────────────────────────────
+*.log
+logs/
+
+# ─── Node / Next.js ──────────────────────────────────────────
+node_modules/
+frontend/.next/
+frontend/out/
+frontend/.env.local
+.turbo/
+
+# ─── Docker ──────────────────────────────────────────────────
+*.tar
+docker-compose.override.yml
+
+# ─── Misc ────────────────────────────────────────────────────
+*.bak
+*.tmp
+*.temp
+.cache/
