@@ -73,8 +73,18 @@ async def upload_document(
     if not valid:
         raise HTTPException(400, msg)
 
-    pipeline = IngestionPipeline(vector_store=vs, settings=settings)
-    result = pipeline.ingest(file_uploads=[{"filename": safe_name, "content": content}])
+    try:
+        pipeline = IngestionPipeline(vector_store=vs, settings=settings)
+        result = pipeline.ingest(file_uploads=[{"filename": safe_name, "content": content}])
+    except Exception as exc:
+        logger.error("upload_pipeline_error", file=safe_name, error=str(exc))
+        err_msg = str(exc).lower()
+        if any(kw in err_msg for kw in ("429", "quota", "resource_exhausted")):
+            raise HTTPException(
+                429,
+                "API quota exceeded. Please wait a few minutes or provide a new API key in Settings."
+            )
+        raise HTTPException(500, f"Processing error: {str(exc)[:200]}")
 
     if not result.success:
         errors = "; ".join(e.get("error", "") for e in result.errors)
