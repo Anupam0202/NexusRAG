@@ -13,6 +13,10 @@ services:
         value: "true"
       - key: DISABLE_CROSS_ENCODER
         value: "true"
+      - key: LLM_MODEL_NAME
+        value: "gemini-2.0-flash"
+      - key: SIMILARITY_THRESHOLD
+        value: "0.1"
     healthCheckPath: /health
     plan: starter
     autoDeploy: true
