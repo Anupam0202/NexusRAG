@@ -4,27 +4,21 @@ const config = {
   env: {
     NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000",
   },
-  // Vercel rewrites — proxy REST calls to the backend
-  // Upload is handled by the API route at /api/v1/documents/upload/route.ts
+  // Proxy REST calls to the backend via Vercel rewrites.
+  // File uploads bypass this entirely — they go directly to the backend
+  // from the browser (see src/lib/api.ts) to avoid Vercel's 60s timeout.
   async rewrites() {
     const backendUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-    return {
-      // These rewrites are checked BEFORE API routes
-      beforeFiles: [],
-      // These rewrites are checked AFTER API routes (so /api/v1/documents/upload goes to our route.ts)
-      afterFiles: [
-        {
-          source: "/api/v1/:path*",
-          destination: `${backendUrl}/api/v1/:path*`,
-        },
-        {
-          source: "/health",
-          destination: `${backendUrl}/health`,
-        },
-      ],
-      // Fallback rewrites
-      fallback: [],
-    };
+    return [
+      {
+        source: "/api/v1/:path*",
+        destination: `${backendUrl}/api/v1/:path*`,
+      },
+      {
+        source: "/health",
+        destination: `${backendUrl}/health`,
+      },
+    ];
   },
 };
 
