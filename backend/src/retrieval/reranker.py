@@ -130,7 +130,8 @@ class RerankerPipeline:
 
     On memory-constrained platforms (detected via RENDER env var or
     DISABLE_CROSS_ENCODER=true), skips the ~80MB cross-encoder model
-    and goes directly to the LLM reranker.
+    AND the LLM reranker (which burns API quota) — uses score-based
+    ordering from FAISS+BM25 hybrid search instead.
     """
 
     def __init__(self, settings: Optional[Settings] = None) -> None:
@@ -143,12 +144,13 @@ class RerankerPipeline:
             or os.environ.get("DISABLE_CROSS_ENCODER", "").lower() == "true"
         )
         if is_constrained:
-            logger.info("memory_constrained_mode — skipping cross-encoder, using LLM reranker")
+            logger.info("memory_constrained_mode — skipping cross-encoder and LLM reranker")
             self._cross_encoder: Optional[CrossEncoderReranker] = None
+            # Also skip LLM reranker to save API quota on free tier
+            self._llm_reranker: Optional[LLMReranker] = None
         else:
             self._cross_encoder = CrossEncoderReranker(s.rerank_model)
-
-        self._llm_reranker = LLMReranker(s)
+            self._llm_reranker = LLMReranker(s)
 
     def rerank(self, query: str, documents: List[Document], top_k: int) -> List[Document]:
         # Try cross-encoder (if available)
@@ -158,11 +160,12 @@ class RerankerPipeline:
             except Exception as exc:
                 logger.warning("cross_encoder_failed — trying LLM reranker", error=str(exc))
 
-        # Try LLM reranker
-        try:
-            return self._llm_reranker.rerank(query, documents, top_k)
-        except Exception as exc:
-            logger.warning("llm_reranker_failed — returning original order", error=str(exc))
+        # Try LLM reranker (if available)
+        if self._llm_reranker is not None:
+            try:
+                return self._llm_reranker.rerank(query, documents, top_k)
+            except Exception as exc:
+                logger.warning("llm_reranker_failed — returning original order", error=str(exc))
 
-        # Graceful fallback
+        # Graceful fallback — use score-based ordering from hybrid search
         return documents[:top_k]

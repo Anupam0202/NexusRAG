@@ -37,11 +37,11 @@ class Settings(BaseSettings):
         description="Google AI API key (required for Gemini models)",
     )
     llm_model_name: str = Field(
-        default="gemini-2.5-flash",
-        description="Primary LLM model identifier",
+        default="gemini-2.0-flash",
+        description="Primary LLM model identifier (gemini-2.0-flash has 1500 RPD free tier)",
     )
     llm_fallback_models: str = Field(
-        default="gemini-1.5-pro,gemini-1.5-flash,gemini-pro",
+        default="gemini-2.5-flash,gemini-1.5-flash,gemini-1.5-pro",
         description="Comma-separated fallback model names",
     )
     llm_temperature: float = Field(default=0.1, ge=0.0, le=2.0)
@@ -81,7 +81,7 @@ class Settings(BaseSettings):
 
     # ── Retrieval ─────────────────────────────────────────────────────────
     retrieval_top_k: int = Field(default=10, ge=1, le=100)
-    similarity_threshold: float = Field(default=0.3, ge=0.0, le=1.0)
+    similarity_threshold: float = Field(default=0.1, ge=0.0, le=1.0)
     hybrid_search_alpha: float = Field(
         default=0.6,
         ge=0.0,
