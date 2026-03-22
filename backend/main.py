@@ -5,6 +5,7 @@ FastAPI Application — Entry Point
 
 from __future__ import annotations
 
+import os
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
@@ -62,15 +63,35 @@ app = FastAPI(
 
 app.add_middleware(RequestLoggingMiddleware)
 app.add_middleware(RateLimitMiddleware, rpm=120)
+
+# Build CORS origins list — always include common patterns
+cors_origins = settings.cors_origins.copy()
+# On Render, also accept the Render URL itself
+render_url = os.environ.get("RENDER_EXTERNAL_URL", "")
+if render_url and render_url not in cors_origins:
+    cors_origins.append(render_url)
+# Log the origins for debugging
+logger.info("cors_origins_configured", origins=cors_origins)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.cors_origins,
+    allow_origins=cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["X-Request-ID"],
+    max_age=86400,  # Cache preflight for 24h
 )
 
 register_exception_handlers(app)
+
+# ── Root (Render health probe hits / first) ───────────────────────────────
+
+
+@app.get("/", tags=["system"], include_in_schema=False)
+async def root() -> dict:
+    return {"service": "NexusRAG API", "status": "ok", "version": "1.0.0"}
+
 
 # ── Health ────────────────────────────────────────────────────────────────
 

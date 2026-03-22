@@ -1,5 +1,9 @@
 /**
  * REST API client for the FastAPI backend.
+ *
+ * In production (Vercel), all calls go through Next.js rewrites as
+ * relative paths (e.g., `/api/v1/...`) so the browser never makes
+ * cross-origin requests.  Locally, falls back to http://localhost:8000.
  */
 
 import type {
@@ -12,13 +16,25 @@ import type {
   SettingsUpdate,
 } from "@/types";
 
-const BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+/**
+ * Determine the API base URL.
+ * - In the browser: use relative paths (works with Vercel rewrites).
+ * - On the server (SSR): use the full backend URL.
+ */
+function getBase(): string {
+  if (typeof window !== "undefined") {
+    // Client-side: use relative URL so Vercel rewrites proxy to backend
+    return "";
+  }
+  // Server-side (SSR): need the full URL
+  return process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+}
 
 async function request<T>(
   path: string,
   init?: RequestInit
 ): Promise<T> {
-  const url = `${BASE}${path}`;
+  const url = `${getBase()}${path}`;
   const res = await fetch(url, {
     ...init,
     headers: { "Content-Type": "application/json", ...init?.headers },
@@ -32,12 +48,20 @@ async function request<T>(
 
 // ── Documents ────────────────────────────────────────────────
 
+/**
+ * For file uploads, bypass Vercel rewrites and go DIRECTLY to the backend.
+ * Vercel rewrites have a 4.5MB body limit — files can be up to 100MB.
+ */
+function getDirectBase(): string {
+  return process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+}
+
 export async function uploadDocument(
   file: File
 ): Promise<DocumentUploadResponse> {
   const form = new FormData();
   form.append("file", file);
-  const res = await fetch(`${BASE}/api/v1/documents/upload`, {
+  const res = await fetch(`${getDirectBase()}/api/v1/documents/upload`, {
     method: "POST",
     body: form,
   });
