@@ -85,17 +85,10 @@ app.add_middleware(
 
 register_exception_handlers(app)
 
-<<<<<<< HEAD
-# ── Root (Render health probe hits / first) ───────────────────────────────
-
-
-@app.get("/", tags=["system"], include_in_schema=False)
-=======
 # ── Root (Render health probe hits / with HEAD first) ─────────────────────
 
 
 @app.api_route("/", methods=["GET", "HEAD"], tags=["system"], include_in_schema=False)
->>>>>>> 9f6de5d (fix: permanent fix for 'Failed to fetch' — relative URLs + HEAD endpoint)
 async def root() -> dict:
     return {"service": "NexusRAG API", "status": "ok", "version": "1.0.0"}
 
