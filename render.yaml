@@ -8,7 +8,11 @@ services:
       - key: GOOGLE_API_KEY
         sync: false
       - key: API_CORS_ORIGINS
-        value: https://your-app.vercel.app,http://localhost:3000
+        value: https://nexusrag.vercel.app,http://localhost:3000
+      - key: RENDER
+        value: "true"
+      - key: DISABLE_CROSS_ENCODER
+        value: "true"
     healthCheckPath: /health
     plan: starter
     autoDeploy: true

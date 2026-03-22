@@ -126,19 +126,37 @@ class LLMReranker(BaseReranker):
 
 
 class RerankerPipeline:
-    """Try cross-encoder first, fall back to LLM, then passthrough."""
+    """Try cross-encoder first, fall back to LLM, then passthrough.
+
+    On memory-constrained platforms (detected via RENDER env var or
+    DISABLE_CROSS_ENCODER=true), skips the ~80MB cross-encoder model
+    and goes directly to the LLM reranker.
+    """
 
     def __init__(self, settings: Optional[Settings] = None) -> None:
+        import os
+
         s = settings or get_settings()
-        self._cross_encoder = CrossEncoderReranker(s.rerank_model)
+        # Skip cross-encoder on Render / low-memory platforms
+        is_constrained = (
+            os.environ.get("RENDER", "")
+            or os.environ.get("DISABLE_CROSS_ENCODER", "").lower() == "true"
+        )
+        if is_constrained:
+            logger.info("memory_constrained_mode — skipping cross-encoder, using LLM reranker")
+            self._cross_encoder: Optional[CrossEncoderReranker] = None
+        else:
+            self._cross_encoder = CrossEncoderReranker(s.rerank_model)
+
         self._llm_reranker = LLMReranker(s)
 
     def rerank(self, query: str, documents: List[Document], top_k: int) -> List[Document]:
-        # Try cross-encoder
-        try:
-            return self._cross_encoder.rerank(query, documents, top_k)
-        except Exception as exc:
-            logger.warning("cross_encoder_failed — trying LLM reranker", error=str(exc))
+        # Try cross-encoder (if available)
+        if self._cross_encoder is not None:
+            try:
+                return self._cross_encoder.rerank(query, documents, top_k)
+            except Exception as exc:
+                logger.warning("cross_encoder_failed — trying LLM reranker", error=str(exc))
 
         # Try LLM reranker
         try:
