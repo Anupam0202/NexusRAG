@@ -13,7 +13,9 @@ import time
 from datetime import datetime
 from functools import wraps
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, TypeVar
+from typing import Any, Callable, Dict, Optional, TypeVar
+
+import pandas as pd
 
 from src.utils.logger import get_logger
 
@@ -28,20 +30,6 @@ T = TypeVar("T")
 def file_hash(content: bytes) -> str:
     """Return the SHA-256 hex digest of raw bytes (first 16 chars)."""
     return hashlib.sha256(content).hexdigest()[:16]
-
-
-def format_file_size(size_bytes: int) -> str:
-    """Human-readable file size string."""
-    for unit in ("B", "KB", "MB", "GB"):
-        if size_bytes < 1024:
-            return f"{size_bytes:.1f} {unit}"
-        size_bytes /= 1024
-    return f"{size_bytes:.1f} TB"
-
-
-def get_file_extension(filename: str) -> str:
-    """Return lowercased file extension including the dot."""
-    return Path(filename).suffix.lower()
 
 
 # ── Text Helpers ──────────────────────────────────────────────────────────
@@ -80,10 +68,6 @@ def truncate(text: str, max_len: int = 500, suffix: str = "…") -> str:
     return text[: max_len - len(suffix)] + suffix
 
 
-def word_count(text: str) -> int:
-    return len(text.split())
-
-
 # ── Timing Decorator ─────────────────────────────────────────────────────
 
 
@@ -108,46 +92,19 @@ def timed(func: Callable[..., T]) -> Callable[..., T]:
     return wrapper
 
 
-def async_timed(func: Callable) -> Callable:
-    """Decorator that logs execution time of async functions."""
-
-    @wraps(func)
-    async def wrapper(*args: Any, **kwargs: Any) -> Any:
-        start = time.perf_counter()
-        try:
-            result = await func(*args, **kwargs)
-            return result
-        finally:
-            elapsed = time.perf_counter() - start
-            level = "warning" if elapsed > 5.0 else "debug"
-            getattr(logger, level)(
-                "async_function_executed",
-                function=func.__name__,
-                elapsed_seconds=round(elapsed, 4),
-            )
-
-    return wrapper
-
-
 # ── Formatting Helpers ────────────────────────────────────────────────────
 
 
 def format_value(value: Any) -> str:
     """Format a cell value for text representation (Excel/CSV rows)."""
-    import pandas as pd
-
     if pd.isna(value):
         return "N/A"
     if isinstance(value, float):
         return str(int(value)) if value == int(value) else f"{value:,.2f}"
     if isinstance(value, (datetime,)):
         return value.strftime("%Y-%m-%d")
-    try:
-        import pandas as pd
-        if isinstance(value, pd.Timestamp):
-            return value.strftime("%Y-%m-%d")
-    except Exception:
-        pass
+    if isinstance(value, pd.Timestamp):
+        return value.strftime("%Y-%m-%d")
     return str(value)
 
 
