@@ -22,6 +22,7 @@ data/scientific_output
 *.pkl
 *.npy
 tests
+scripts
 .git
 .gitignore
 README.md

@@ -26,7 +26,7 @@ import pandas as pd
 from langchain_core.documents import Document
 
 from config.settings import Settings, get_settings
-from src.utils.helpers import build_metadata, clean_text, format_value, truncate
+from src.utils.helpers import clean_text, format_value, truncate
 from src.utils.logger import get_logger
 
 logger = get_logger(__name__)
