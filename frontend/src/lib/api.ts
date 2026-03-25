@@ -19,7 +19,7 @@ import type {
 /**
  * Direct backend URL — used for uploads and long-running requests.
  * NEXT_PUBLIC_* vars are inlined at build time, so this resolves to
- * the actual Render URL in production (e.g., https://nexusrag.onrender.com).
+ * the actual backend URL in production (e.g., https://nexusrag.up.railway.app).
  */
 const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
@@ -49,7 +49,7 @@ export async function uploadDocument(
 
   // Upload DIRECTLY to backend — bypasses Vercel's 60s serverless timeout.
   // PDFs with images can take 60-120s for OCR processing.
-  // CORS is configured on Render to accept requests from nexusrag.vercel.app.
+  // CORS is configured on the backend to accept requests from the Vercel domain.
   const res = await fetch(`${BACKEND_URL}/api/v1/documents/upload`, {
     method: "POST",
     body: form,
