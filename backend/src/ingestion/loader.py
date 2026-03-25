@@ -142,8 +142,10 @@ class PDFLoader(BaseLoader):
             pages_text, tables_text, page_count = [], [], 0
 
         # If pdfplumber yielded very little text, try Gemini Vision OCR
+        # (500 chars threshold — below this, it's almost certainly scanned)
         total_chars = sum(len(t) for t in pages_text)
-        if total_chars < 200 and (self._gemini or self._cloud):
+        used_cloud_ocr = False
+        if total_chars < 500 and (self._gemini or self._cloud):
             try:
                 pdf_bytes = content if content else (
                     file_path.read_bytes() if file_path.exists() else b""
@@ -154,19 +156,36 @@ class PDFLoader(BaseLoader):
                         pages_text = ocr_text
                         tables_text = ocr_tables
                         base_meta["extraction_method"] = "gemini_vision"
+                        used_cloud_ocr = True
                         if page_count == 0:
                             page_count = len(ocr_text)
             except Exception as exc:
                 logger.warning("cloud_ocr_extraction_failed", error=str(exc))
 
-        # Last fallback: pypdf
+        # Last fallback: pypdf (rewind BytesIO first!)
         if not pages_text:
             try:
+                if isinstance(source, io.BytesIO):
+                    source.seek(0)
                 pages_text, page_count = self._extract_pypdf(source)
                 base_meta["extraction_method"] = "pypdf"
             except Exception as exc:
                 logger.error("all_pdf_extraction_failed", error=str(exc))
                 return []
+
+        # ALWAYS extract embedded images and OCR them, even if we got text
+        # (common case: PDFs with text + embedded figures/charts/diagrams)
+        if not used_cloud_ocr and (self._gemini or self._cloud):
+            try:
+                pdf_bytes = content if content else (
+                    file_path.read_bytes() if file_path.exists() else b""
+                )
+                if pdf_bytes:
+                    pages_text = self._extract_embedded_images(
+                        pdf_bytes, pages_text
+                    )
+            except Exception as exc:
+                logger.debug("embedded_image_extraction_failed", error=str(exc))
 
         base_meta.setdefault("extraction_method", "pdfplumber")
         base_meta["page_count"] = page_count
@@ -273,36 +292,67 @@ class PDFLoader(BaseLoader):
             tables_text.append("")  # Tables are embedded in the OCR text
 
         doc_pdf.close()
+        return pages_text, tables_text
 
-        # Also extract embedded images and OCR them
+    def _extract_embedded_images(
+        self, pdf_bytes: bytes, pages_text: List[str]
+    ) -> List[str]:
+        """Extract embedded images from a PDF and OCR them.
+
+        This handles the common case where the PDF has digital text
+        PLUS embedded figures, charts, or diagrams with text in them.
+        Each extracted image is OCR'd and appended to the corresponding page.
+        """
+        import fitz  # PyMuPDF
+
+        # Copy the list so we don't mutate the caller's data
+        result = list(pages_text)
+
         try:
-            doc_pdf2 = fitz.open("pdf", pdf_bytes)
-            for page_num, page_obj in enumerate(doc_pdf2):
+            doc_pdf = fitz.open("pdf", pdf_bytes)
+            for page_num, page_obj in enumerate(doc_pdf):
                 image_list = page_obj.get_images(full=True)
                 for img_info in image_list:
                     xref = img_info[0]
                     try:
-                        base_image = doc_pdf2.extract_image(xref)
+                        base_image = doc_pdf.extract_image(xref)
                         if not base_image or not base_image.get("image"):
                             continue
                         image_bytes = base_image["image"]
                         from PIL import Image as PILImage
                         pil_img = PILImage.open(io.BytesIO(image_bytes)).convert("RGB")
                         w, h = pil_img.size
-                        if w < 50 or h < 50:
-                            continue  # Skip tiny images
+                        # Skip tiny images (icons, bullets, decorations)
+                        if w < 80 or h < 80:
+                            continue
+                        # Skip very small area images (< ~100x100)
+                        if w * h < 10000:
+                            continue
                         img_arr = np.array(pil_img)
                         img_text, _ = ocr_image(img_arr)
-                        if img_text.strip() and len(img_text.strip()) > 10:
-                            if page_num < len(pages_text):
-                                pages_text[page_num] += f"\n\n[Embedded Image OCR]:\n{img_text}"
-                    except Exception:
+                        if img_text.strip() and len(img_text.strip()) > 15:
+                            if page_num < len(result):
+                                result[page_num] += f"\n\n[Embedded Image OCR]:\n{img_text}"
+                            else:
+                                result.append(f"[Embedded Image OCR]:\n{img_text}")
+                            logger.debug(
+                                "embedded_image_ocr",
+                                page=page_num + 1,
+                                size=f"{w}x{h}",
+                                chars=len(img_text),
+                            )
+                    except Exception as e:
+                        logger.debug(
+                            "embedded_image_extraction_error",
+                            page=page_num + 1,
+                            error=str(e),
+                        )
                         continue
-            doc_pdf2.close()
-        except Exception:
-            pass
+            doc_pdf.close()
+        except Exception as exc:
+            logger.debug("embedded_image_pass_failed", error=str(exc))
 
-        return pages_text, tables_text
+        return result
 
     def _extract_pypdf(self, source: Any):
         """Last-resort extraction with pypdf."""

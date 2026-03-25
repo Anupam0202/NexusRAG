@@ -280,6 +280,11 @@ async def set_api_key(
     provider = get_llm_provider()
     provider._model = None  # Force re-init on next call
     provider._settings = settings
+    # Rebuild the candidates list so all fallback models are available again
+    fallbacks = [m.strip() for m in settings.llm_fallback_models.split(",") if m.strip()]
+    candidates = [settings.llm_model_name] + fallbacks
+    seen = set()
+    provider._candidates = [x for x in candidates if not (x in seen or seen.add(x))]
 
     # Reset the OCR manager singletons so they use the new key
     try:
@@ -305,10 +310,16 @@ async def analytics_summary(
 ) -> AnalyticsSummary:
     docs = vs.list_documents()
     cache = chain.cache_stats
+    metrics = chain.query_metrics
+    total_queries = max(
+        metrics.get("total_queries", 0),
+        cache.get("hits", 0) + cache.get("misses", 0),
+    )
     return AnalyticsSummary(
         total_documents=len(docs),
         total_chunks=vs.total_chunks,
-        total_queries=cache.get("hits", 0) + cache.get("misses", 0),
-        avg_response_time=0.0,
-        avg_confidence=0.0,
+        total_queries=total_queries,
+        avg_response_time=metrics.get("avg_response_time", 0.0),
+        avg_confidence=metrics.get("avg_confidence", 0.0),
+        queries_today=metrics.get("queries_today", 0),
     )

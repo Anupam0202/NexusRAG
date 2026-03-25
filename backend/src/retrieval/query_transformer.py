@@ -45,28 +45,29 @@ Alternative queries:"""
 
 
 class QueryTransformer:
-    """Transform user queries for better retrieval."""
+    """Transform user queries for better retrieval.
+
+    Uses the shared ``LLMProvider`` from ``generation.llm`` so that
+    query transformations benefit from the same model-failover engine
+    as the main RAG pipeline.
+    """
 
     def __init__(self, settings: Optional[Settings] = None) -> None:
         self._settings = settings or get_settings()
-        self._llm = None
+        self._llm_provider = None
 
-    def _get_llm(self):
-        if self._llm is not None:
-            return self._llm
+    def _get_provider(self):
+        """Get the shared LLMProvider (with failover engine)."""
+        if self._llm_provider is not None:
+            return self._llm_provider
         if not self._settings.google_api_key:
             return None
-
-        from langchain_google_genai import ChatGoogleGenerativeAI
-
-        s = self._settings
-        self._llm = ChatGoogleGenerativeAI(
-            model=s.llm_model_name,
-            temperature=0.3,
-            max_tokens=256,
-            google_api_key=s.google_api_key,
-        )
-        return self._llm
+        try:
+            from src.generation.llm import get_llm_provider
+            self._llm_provider = get_llm_provider()
+            return self._llm_provider
+        except Exception:
+            return None
 
     def transform(
         self,
@@ -101,8 +102,8 @@ class QueryTransformer:
     # ── strategies ────────────────────────────────────────────────────
 
     def _reformulate(self, query: str, history: List[Dict[str, str]]) -> str:
-        llm = self._get_llm()
-        if llm is None:
+        provider = self._get_provider()
+        if provider is None:
             return query
 
         history_text = "\n".join(
@@ -112,9 +113,8 @@ class QueryTransformer:
 
         try:
             prompt = _REFORMULATE_PROMPT.format(history=history_text, question=query)
-            resp = llm.invoke(prompt)
-            text = resp.content if hasattr(resp, "content") else str(resp)
-            result = text.strip()
+            result = provider.invoke(prompt)
+            result = result.strip()
             if result and len(result) > 5:
                 logger.debug("query_reformulated", original=query, reformulated=result)
                 return result
@@ -124,14 +124,13 @@ class QueryTransformer:
         return query
 
     def _multi_query(self, query: str) -> List[str]:
-        llm = self._get_llm()
-        if llm is None:
+        provider = self._get_provider()
+        if provider is None:
             return []
 
         try:
             prompt = _MULTI_QUERY_PROMPT.format(question=query)
-            resp = llm.invoke(prompt)
-            text = resp.content if hasattr(resp, "content") else str(resp)
+            text = provider.invoke(prompt)
             lines = [l.strip().lstrip("0123456789.-) ") for l in text.strip().split("\n") if l.strip()]
             return [l for l in lines if len(l) > 10][:3]
         except Exception as exc:

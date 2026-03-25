@@ -8,27 +8,34 @@ const WS_BASE =
     .replace("http://", "ws://")
     .replace("https://", "wss://");
 
+const RECONNECT_BASE_MS = 1000;
+const RECONNECT_MAX_MS = 30_000;
+
 /**
  * Low-level WebSocket hook — manages connection lifecycle,
- * reconnection, and typed frame parsing.
+ * exponential-backoff reconnection, and typed frame parsing.
  *
  * Higher-level `useChat` is built on top of this.
  */
 export function useWebSocket(path: string = "/ws/chat") {
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimer = useRef<ReturnType<typeof setTimeout>>();
+  const retriesRef = useRef(0);
+  const mountedRef = useRef(true);
   const [connected, setConnected] = useState(false);
   const [lastFrame, setLastFrame] = useState<WSFrame | null>(null);
 
   const listenersRef = useRef<Set<(frame: WSFrame) => void>>(new Set());
 
   const connect = useCallback(() => {
+    if (!mountedRef.current) return;
     if (wsRef.current?.readyState === WebSocket.OPEN) return;
 
     const ws = new WebSocket(`${WS_BASE}${path}`);
 
     ws.onopen = () => {
       setConnected(true);
+      retriesRef.current = 0; // Reset backoff on successful connection
     };
 
     ws.onmessage = (evt) => {
@@ -47,18 +54,27 @@ export function useWebSocket(path: string = "/ws/chat") {
 
     ws.onclose = () => {
       setConnected(false);
-      // Reconnect after 3 seconds
-      reconnectTimer.current = setTimeout(connect, 3000);
+      if (!mountedRef.current) return;
+      // Exponential backoff: 1s, 2s, 4s, 8s, ... capped at 30s
+      const delay = Math.min(
+        RECONNECT_BASE_MS * Math.pow(2, retriesRef.current),
+        RECONNECT_MAX_MS
+      );
+      retriesRef.current++;
+      reconnectTimer.current = setTimeout(connect, delay);
     };
 
     wsRef.current = ws;
   }, [path]);
 
   useEffect(() => {
+    mountedRef.current = true;
     connect();
     return () => {
+      mountedRef.current = false;
       if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
       wsRef.current?.close();
+      wsRef.current = null;
     };
   }, [connect]);
 

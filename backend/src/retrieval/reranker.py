@@ -128,19 +128,22 @@ class LLMReranker(BaseReranker):
 class RerankerPipeline:
     """Try cross-encoder first, fall back to LLM, then passthrough.
 
-    On memory-constrained platforms (detected via RENDER env var or
-    DISABLE_CROSS_ENCODER=true), skips the ~80MB cross-encoder model
-    AND the LLM reranker (which burns API quota) — uses score-based
-    ordering from FAISS+BM25 hybrid search instead.
+    On memory-constrained platforms (detected via RAILWAY_ENVIRONMENT,
+    RENDER, CONSTRAINED_MEMORY, or DISABLE_CROSS_ENCODER=true), skips
+    the ~80MB cross-encoder model AND the LLM reranker (which burns
+    API quota) — uses score-based ordering from FAISS+BM25 hybrid
+    search instead.
     """
 
     def __init__(self, settings: Optional[Settings] = None) -> None:
         import os
 
         s = settings or get_settings()
-        # Skip cross-encoder on Render / low-memory platforms
+        # Skip cross-encoder on cloud platforms or low-memory environments
         is_constrained = (
-            os.environ.get("RENDER", "")
+            os.environ.get("RAILWAY_ENVIRONMENT", "")
+            or os.environ.get("RENDER", "")
+            or os.environ.get("CONSTRAINED_MEMORY", "").lower() == "true"
             or os.environ.get("DISABLE_CROSS_ENCODER", "").lower() == "true"
         )
         if is_constrained:

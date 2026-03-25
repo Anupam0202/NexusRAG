@@ -13,7 +13,10 @@ provided.  The streaming path is used by the WebSocket endpoint.
 
 from __future__ import annotations
 
+import threading
 import time
+from collections import deque
+from datetime import date
 from typing import Any, AsyncIterator, Dict, List, Optional
 
 from langchain_core.documents import Document
@@ -59,6 +62,12 @@ class RAGChain:
         self._prompts = PromptManager()
         self._cache = SemanticCache(settings=self._settings)
         self._memory_store = SessionMemoryStore(ttl_seconds=7200)
+
+        # In-memory query metrics (rolling window)
+        self._metrics_lock = threading.Lock()
+        self._response_times: deque[float] = deque(maxlen=1000)
+        self._confidences: deque[float] = deque(maxlen=1000)
+        self._daily_queries: Dict[str, int] = {}
 
     # ══════════════════════════════════════════════════════════════════
     #  BLOCKING QUERY
@@ -137,6 +146,9 @@ class RAGChain:
 
         # Cache
         self._cache.set(safe_q, result)
+
+        # Track metrics
+        self._record_metric(result["response_time_seconds"], result["confidence"])
 
         logger.info(
             "query_complete",
@@ -226,6 +238,9 @@ class RAGChain:
         }
         yield {"type": "done", "metadata": metadata}
 
+        # Track metrics
+        self._record_metric(elapsed, metadata["confidence"])
+
         # Cache
         self._cache.set(safe_q, {
             "answer": full_answer,
@@ -295,3 +310,26 @@ class RAGChain:
     @property
     def cache_stats(self) -> Dict[str, Any]:
         return self._cache.stats
+
+    def _record_metric(self, response_time: float, confidence: float) -> None:
+        """Record query metrics for analytics."""
+        with self._metrics_lock:
+            self._response_times.append(response_time)
+            self._confidences.append(confidence)
+            today = date.today().isoformat()
+            self._daily_queries[today] = self._daily_queries.get(today, 0) + 1
+
+    @property
+    def query_metrics(self) -> Dict[str, Any]:
+        """Aggregate metrics for the analytics endpoint."""
+        with self._metrics_lock:
+            rt_list = list(self._response_times)
+            cf_list = list(self._confidences)
+            today = date.today().isoformat()
+            queries_today = self._daily_queries.get(today, 0)
+        return {
+            "avg_response_time": round(sum(rt_list) / len(rt_list), 3) if rt_list else 0.0,
+            "avg_confidence": round(sum(cf_list) / len(cf_list), 3) if cf_list else 0.0,
+            "total_queries": len(rt_list),
+            "queries_today": queries_today,
+        }

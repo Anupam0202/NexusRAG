@@ -99,7 +99,7 @@ class Settings(BaseSettings):
 
     # ── API ────────────────────────────────────────────────────────────────
     api_host: str = Field(default="0.0.0.0")
-    api_port: int = Field(default=8000)
+    api_port: int = Field(default=int(os.environ.get("PORT", "8000")), ge=1, le=65535)
     api_cors_origins: str = Field(
         default="http://localhost:3000,http://127.0.0.1:3000",
         description="Comma-separated allowed origins. Set to * for development.",
@@ -134,7 +134,8 @@ class Settings(BaseSettings):
     def cors_origins(self) -> List[str]:
         """Parse comma-separated CORS origins into a list.
 
-        Automatically includes the Render external URL if available.
+        Automatically includes the platform external URL if available
+        (supports both Render and Railway).
         Supports wildcard '*' for development.
         """
         raw = [o.strip() for o in self.api_cors_origins.split(",") if o.strip()]
@@ -144,6 +145,12 @@ class Settings(BaseSettings):
         render_url = os.environ.get("RENDER_EXTERNAL_URL", "")
         if render_url and render_url not in raw:
             raw.append(render_url)
+        # Auto-add Railway public domain if set by the platform
+        railway_domain = os.environ.get("RAILWAY_PUBLIC_DOMAIN", "")
+        if railway_domain:
+            railway_url = f"https://{railway_domain}"
+            if railway_url not in raw:
+                raw.append(railway_url)
         return raw
 
     @property

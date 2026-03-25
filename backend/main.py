@@ -70,6 +70,12 @@ cors_origins = settings.cors_origins.copy()
 render_url = os.environ.get("RENDER_EXTERNAL_URL", "")
 if render_url and render_url not in cors_origins:
     cors_origins.append(render_url)
+# On Railway, accept the Railway public domain
+railway_domain = os.environ.get("RAILWAY_PUBLIC_DOMAIN", "")
+if railway_domain:
+    railway_url = f"https://{railway_domain}"
+    if railway_url not in cors_origins:
+        cors_origins.append(railway_url)
 # Log the origins for debugging
 logger.info("cors_origins_configured", origins=cors_origins)
 
@@ -85,7 +91,7 @@ app.add_middleware(
 
 register_exception_handlers(app)
 
-# ── Root (Render health probe hits / with HEAD first) ─────────────────────
+# ── Root (Railway / Render health probe hits / with HEAD first) ───────────
 
 
 @app.api_route("/", methods=["GET", "HEAD"], tags=["system"], include_in_schema=False)
