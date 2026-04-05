@@ -130,6 +130,8 @@ class GeminiVisionOCR:
         self._model = None
         self._available = False
         self._api_key = os.environ.get("GOOGLE_API_KEY", "")
+        self._disabled_at: Optional[float] = None
+        self._cooldown_seconds: float = 300.0  # 5 minutes
         if self._api_key:
             self._init_model()
 
@@ -219,6 +221,15 @@ class GeminiVisionOCR:
 
     def _send(self, image: np.ndarray, prompt: str) -> Tuple[str, float]:
         """Send image + prompt to Gemini, return (cleaned_text, confidence)."""
+        # Auto-recover from temporary quota exhaustion after cooldown
+        if not self._available and self._disabled_at is not None:
+            import time as _time
+            elapsed = _time.time() - self._disabled_at
+            if elapsed > self._cooldown_seconds:
+                self._available = True
+                self._disabled_at = None
+                logger.info("gemini_ocr_recovered", cooldown_s=round(elapsed, 1))
+
         if not self._available or self._model is None:
             return "", 0.0
         try:
@@ -257,8 +268,10 @@ class GeminiVisionOCR:
             # If quota exhausted, disable OCR for the rest of this session
             # to avoid cascading 429 retries on every subsequent page
             if any(kw in err_msg for kw in ("429", "quota", "resource_exhausted", "resource exhausted")):
-                logger.warning("gemini_ocr_quota_exhausted — disabling for session")
+                logger.warning("gemini_ocr_quota_exhausted — disabling for cooldown")
                 self._available = False
+                import time as _time
+                self._disabled_at = _time.time()
             else:
                 logger.warning("gemini_ocr_error", error=str(exc))
             return "", 0.0

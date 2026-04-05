@@ -198,6 +198,19 @@ class FileValidator:
         if ext == ".pdf" and not content[:5] == b"%PDF-":
             return False, "Invalid PDF file (bad magic bytes)"
 
+        # Image magic bytes validation
+        _IMAGE_MAGIC = {
+            ".png": (b"\x89PNG", 4),
+            ".jpg": (b"\xff\xd8\xff", 3),
+            ".jpeg": (b"\xff\xd8\xff", 3),
+            ".gif": (b"GIF8", 4),
+            ".bmp": (b"BM", 2),
+        }
+        if ext in _IMAGE_MAGIC:
+            expected, length = _IMAGE_MAGIC[ext]
+            if content[:length] != expected:
+                return False, f"Invalid {ext} file (bad magic bytes)"
+
         return True, "Valid"
 
     @staticmethod

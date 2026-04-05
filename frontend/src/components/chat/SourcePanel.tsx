@@ -1,6 +1,7 @@
 "use client";
 
 import type { SourceChunk } from "@/types";
+import { motion } from "framer-motion";
 import { X, ExternalLink } from "lucide-react";
 import { fileIcon } from "@/lib/utils";
 
@@ -13,13 +14,25 @@ export function SourcePanel({ sources, onClose }: Props) {
   return (
     <>
       {/* Mobile: full-screen overlay */}
-      <div className="fixed inset-0 z-50 lg:hidden bg-black/40 backdrop-blur-sm" onClick={onClose} />
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 z-50 lg:hidden bg-black/40 backdrop-blur-sm"
+        onClick={onClose}
+      />
 
-      <aside
+      <motion.aside
+        initial={{ x: "100%" }}
+        animate={{ x: 0 }}
+        exit={{ x: "100%" }}
+        transition={{ type: "spring", damping: 28, stiffness: 300 }}
+        role="complementary"
+        aria-label="Source documents"
         className={
           "fixed right-0 top-0 bottom-0 z-50 w-full sm:w-96 " +
           "lg:relative lg:z-auto lg:w-96 " +
-          "border-l border-[var(--border)] bg-[var(--bg-secondary)] flex flex-col animate-fade-in"
+          "border-l border-[var(--border)] bg-[var(--bg-secondary)] flex flex-col"
         }
       >
         <div className="flex items-center justify-between border-b border-[var(--border)] px-4 py-3">
@@ -27,7 +40,7 @@ export function SourcePanel({ sources, onClose }: Props) {
             <ExternalLink size={14} className="text-brand-500" />
             <h3 className="text-sm font-semibold">Sources ({sources.length})</h3>
           </div>
-          <button onClick={onClose} className="rounded-lg p-1.5 hover:bg-[var(--bg-hover)] transition">
+          <button onClick={onClose} aria-label="Close sources panel" className="rounded-lg p-1.5 hover:bg-[var(--bg-hover)] transition">
             <X size={16} />
           </button>
         </div>
@@ -72,7 +85,7 @@ export function SourcePanel({ sources, onClose }: Props) {
             </div>
           ))}
         </div>
-      </aside>
+      </motion.aside>
     </>
   );
 }

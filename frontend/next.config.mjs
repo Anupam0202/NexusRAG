@@ -1,8 +1,13 @@
 /** @type {import('next').NextConfig} */
 const config = {
   output: "standalone",
+  reactStrictMode: true,
+  poweredByHeader: false,
   env: {
     NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000",
+  },
+  images: {
+    formats: ["image/avif", "image/webp"],
   },
   // Proxy REST calls to the backend via Vercel rewrites.
   // File uploads bypass this entirely — they go directly to the backend

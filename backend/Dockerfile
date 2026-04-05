@@ -3,7 +3,7 @@ FROM python:3.11-slim AS builder
 
 WORKDIR /app
 
-# System deps for FAISS and PDF processing
+# System deps for FAISS, PDF processing, and image OCR
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     libglib2.0-0 \
@@ -37,18 +37,17 @@ COPY --from=builder /usr/local/bin /usr/local/bin
 
 COPY . .
 
-RUN mkdir -p /app/data
+RUN mkdir -p /app/data/vector_store /app/data/uploads /app/data/scientific_output
 
 # Pre-download the embedding model at build time (avoids runtime OOM from download spikes)
 RUN python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')" 2>/dev/null || true
 
 EXPOSE 8000
 
-# Use --workers 1 and limit memory with environment
+# Tuned for Railway's memory-constrained environment
 ENV MALLOC_TRIM_THRESHOLD_=100000
 ENV PYTHONUNBUFFERED=1
-# Railway injects PORT; Render uses 8000 by default
+# Railway injects PORT dynamically
 ENV PORT=8000
 
-CMD uvicorn main:app --host 0.0.0.0 --port $PORT --workers 1
-
+CMD uvicorn main:app --host 0.0.0.0 --port $PORT --workers 1 --timeout-keep-alive 120

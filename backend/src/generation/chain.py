@@ -289,14 +289,30 @@ class RAGChain:
 
     @staticmethod
     def _estimate_confidence(docs: List[Document], answer: str) -> float:
+        """Estimate response confidence using actual retrieval scores."""
         if not docs:
             return 0.1
-        base = min(0.5 + len(docs) * 0.05, 0.85)
+
+        # Use actual relevance scores from retrieval
+        scores = [doc.metadata.get("score", 0.0) for doc in docs]
+        valid_scores = [s for s in scores if s > 0]
+
+        if valid_scores:
+            top_score = max(valid_scores)
+            avg_score = sum(valid_scores) / len(valid_scores)
+            score_component = 0.6 * top_score + 0.4 * avg_score
+        else:
+            score_component = min(0.3 + len(docs) * 0.05, 0.6)
+
+        # Answer quality signals
+        answer_bonus = 0.0
         if len(answer) > 200:
-            base = min(base + 0.05, 0.95)
-        if "[Source" in answer:
-            base = min(base + 0.05, 0.95)
-        return round(base, 3)
+            answer_bonus += 0.05
+        if len(answer) > 50 and not answer.lower().startswith("i don't"):
+            answer_bonus += 0.05
+
+        confidence = min(score_component + answer_bonus, 0.95)
+        return round(max(confidence, 0.1), 3)
 
     # ── Session management ────────────────────────────────────────────
 

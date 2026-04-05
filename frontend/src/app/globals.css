@@ -127,7 +127,7 @@
 }
 .glass-input:focus-within {
   @apply border-brand-400 dark:border-brand-500;
-  box-shadow: var(--glow), var(--shadow-md);
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1), 0 0 20px rgba(102, 126, 234, 0.15), var(--shadow-md);
 }
 
 /* ── Gradient text ────────────────────────────────────────────── */

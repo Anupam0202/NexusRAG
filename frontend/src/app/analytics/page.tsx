@@ -84,13 +84,25 @@ export default function AnalyticsPage() {
         </div>
 
         {/* Metrics */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-          <Metric icon={<BarChart3 size={18} />} label="Queries" value={data?.total_queries ?? 0} color="brand" />
-          <Metric icon={<FileText size={18} />} label="Documents" value={data?.total_documents ?? 0} color="green" />
-          <Metric icon={<Database size={18} />} label="Chunks" value={data?.total_chunks ?? health?.total_chunks ?? 0} color="purple" />
-          <Metric icon={<Clock size={18} />} label="Avg Response" value={data?.avg_response_time ? `${data.avg_response_time.toFixed(1)}s` : "—"} color="orange" />
-          <Metric icon={<Target size={18} />} label="Confidence" value={data?.avg_confidence ? `${(data.avg_confidence * 100).toFixed(0)}%` : "—"} color="blue" />
-        </div>
+        {loading && !data ? (
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="rounded-xl bg-[var(--bg-secondary)] p-3 md:p-4 animate-pulse">
+                <div className="h-5 w-5 rounded bg-[var(--bg-hover)] mb-2" />
+                <div className="h-7 w-16 rounded bg-[var(--bg-hover)] mb-1" />
+                <div className="h-3 w-12 rounded bg-[var(--bg-hover)]" />
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+            <Metric icon={<BarChart3 size={18} />} label="Queries" value={data?.total_queries ?? 0} color="brand" />
+            <Metric icon={<FileText size={18} />} label="Documents" value={data?.total_documents ?? 0} color="green" />
+            <Metric icon={<Database size={18} />} label="Chunks" value={data?.total_chunks ?? health?.total_chunks ?? 0} color="purple" />
+            <Metric icon={<Clock size={18} />} label="Avg Response" value={data?.avg_response_time ? `${data.avg_response_time.toFixed(1)}s` : "—"} color="orange" />
+            <Metric icon={<Target size={18} />} label="Confidence" value={data?.avg_confidence ? `${(data.avg_confidence * 100).toFixed(0)}%` : "—"} color="blue" />
+          </div>
+        )}
 
         {/* Queries today */}
         {data && data.queries_today > 0 && (

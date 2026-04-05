@@ -30,7 +30,7 @@ export function Header() {
   }, []);
 
   return (
-    <header className="flex items-center justify-between border-b border-[var(--border)] bg-[var(--bg-primary)]/80 backdrop-blur-xl px-4 sm:px-6 h-14 shrink-0 sticky top-0 z-30">
+    <header className="flex items-center justify-between border-b border-white/10 dark:border-white/5 bg-white/70 dark:bg-[#0a0e1a]/70 backdrop-blur-xl px-4 sm:px-6 h-14 shrink-0 sticky top-0 z-30 shadow-[0_1px_3px_rgba(0,0,0,0.05)]">
       <div className="flex items-center gap-3">
         {/* Spacer for mobile hamburger */}
         <div className="w-9 lg:hidden" />
@@ -52,6 +52,7 @@ export function Header() {
         {/* Dark mode toggle */}
         <button
           onClick={() => store.toggleDark()}
+          aria-label="Toggle dark mode"
           className="flex h-9 w-9 items-center justify-center rounded-xl hover:bg-[var(--bg-hover)] text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-all hover:scale-105 active:scale-95"
           title="Toggle theme"
         >

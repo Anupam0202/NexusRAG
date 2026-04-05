@@ -3,6 +3,7 @@ import "./globals.css";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Header } from "@/components/layout/Header";
 import { ThemeProvider } from "@/components/layout/ThemeProvider";
+import { PageTransition } from "@/components/layout/PageTransition";
 import { Toaster } from "sonner";
 import { ApiKeyModal } from "@/components/chat/ApiKeyModal";
 
@@ -35,7 +36,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <Sidebar />
           <div className="flex flex-1 flex-col overflow-hidden min-w-0">
             <Header />
-            <main className="flex-1 overflow-hidden">{children}</main>
+            <PageTransition>{children}</PageTransition>
           </div>
           <ApiKeyModal />
           <Toaster
