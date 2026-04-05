@@ -1,14 +1,16 @@
 "use client";
 
 import { useRef, useEffect, useState, useCallback } from "react";
+import Link from "next/link";
 import { useChat } from "@/hooks/useChat";
 import { MessageBubble } from "./MessageBubble";
 import { SourcePanel } from "./SourcePanel";
 import type { SourceChunk, UIMessage } from "@/types";
 import {
   Send, ArrowDown, Sparkles, FileSearch, Brain,
-  MessageSquare, Trash2, Zap, BookOpen, Search,
+  MessageSquare, Trash2, Zap, BookOpen, Search, Upload,
 } from "lucide-react";
+import { AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { useStore } from "@/hooks/useStore";
 
@@ -89,7 +91,7 @@ export default function ChatInterface() {
       {/* Chat area */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Messages */}
-        <div ref={scrollRef} className="flex-1 overflow-y-auto px-3 sm:px-6 py-4 relative">
+        <div ref={scrollRef} className="flex-1 overflow-y-auto px-3 sm:px-6 py-4 relative" role="log" aria-live="polite">
           {isEmpty ? (
             <EmptyState
               docCount={docCount}
@@ -138,6 +140,7 @@ export default function ChatInterface() {
                 placeholder={docCount > 0 ? "Ask about your documents..." : "Upload documents to start chatting..."}
                 rows={1}
                 disabled={isStreaming}
+                aria-label="Chat message"
                 className="flex-1 bg-transparent resize-none text-sm leading-relaxed placeholder:text-[var(--text-muted)] focus:outline-none min-h-[24px] max-h-[150px] disabled:opacity-50"
               />
 
@@ -155,6 +158,7 @@ export default function ChatInterface() {
                 <button
                   onClick={handleSend}
                   disabled={!input.trim() || isStreaming}
+                  aria-label="Send message"
                   className={cn(
                     "flex h-9 w-9 items-center justify-center rounded-xl transition-all duration-200",
                     input.trim() && !isStreaming
@@ -179,12 +183,14 @@ export default function ChatInterface() {
       </div>
 
       {/* Source panel */}
-      {activeSources && (
-        <SourcePanel
-          sources={activeSources}
-          onClose={() => setActiveSources(null)}
-        />
-      )}
+      <AnimatePresence>
+        {activeSources && (
+          <SourcePanel
+            sources={activeSources}
+            onClose={() => setActiveSources(null)}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -216,6 +222,16 @@ function EmptyState({
           ? `${docCount} document${docCount > 1 ? "s" : ""} loaded. Ask anything about your content.`
           : "Upload documents first, then ask questions to get AI-powered answers grounded in your content."}
       </p>
+
+      {docCount === 0 && (
+        <Link
+          href="/documents"
+          className="mb-8 inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-brand-500 to-purple-600 text-white px-5 py-2.5 text-sm font-semibold shadow-md hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all"
+        >
+          <Upload size={16} />
+          Upload Documents
+        </Link>
+      )}
 
       {docCount > 0 && (
         <div className="grid grid-cols-2 gap-2.5 w-full max-w-md">

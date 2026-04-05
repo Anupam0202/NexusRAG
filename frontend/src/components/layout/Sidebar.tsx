@@ -6,6 +6,7 @@ import {
   MessageSquare, FileText, BarChart3, Settings, ChevronLeft,
   ChevronRight, Sparkles, Menu, X,
 } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { useStore } from "@/hooks/useStore";
 import { useState, useEffect } from "react";
@@ -32,6 +33,8 @@ export function Sidebar() {
       {/* Mobile menu button */}
       <button
         onClick={() => setMobileOpen(true)}
+        aria-label="Open navigation menu"
+        aria-expanded={mobileOpen}
         className="lg:hidden fixed top-3 left-3 z-50 flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--bg-card)] border border-[var(--border)] shadow-md text-[var(--text-secondary)] hover:text-brand-500 transition"
       >
         <Menu size={18} />
@@ -64,12 +67,20 @@ export function Sidebar() {
           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-brand-500 via-purple-500 to-pink-500 shadow-md">
             <Sparkles size={16} className="text-white" />
           </div>
-          {!collapsed && (
-            <div className="overflow-hidden animate-fade-in">
-              <p className="text-sm font-bold leading-tight gradient-text">NexusRAG</p>
-              <p className="text-[10px] text-[var(--text-muted)] font-medium">Enterprise Document Intelligence</p>
-            </div>
-          )}
+          <AnimatePresence>
+            {!collapsed && (
+              <motion.div
+                initial={{ opacity: 0, width: 0 }}
+                animate={{ opacity: 1, width: "auto" }}
+                exit={{ opacity: 0, width: 0 }}
+                transition={{ duration: 0.2 }}
+                className="overflow-hidden"
+              >
+                <p className="text-sm font-bold leading-tight gradient-text">NexusRAG</p>
+                <p className="text-[10px] text-[var(--text-muted)] font-medium whitespace-nowrap">Enterprise Document Intelligence</p>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* Mobile close */}
           {mobileOpen && (
@@ -80,7 +91,7 @@ export function Sidebar() {
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-1">
+        <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-1" role="navigation" aria-label="Main navigation">
           {NAV.map((item) => {
             const active = pathname === item.href || pathname.startsWith(item.href + "/");
             const Icon = item.icon;

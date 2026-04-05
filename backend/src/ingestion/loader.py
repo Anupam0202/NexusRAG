@@ -740,6 +740,61 @@ class JSONLoader(BaseLoader):
 
 
 # ═══════════════════════════════════════════════════════════════════════════
+#  IMAGE LOADER — standalone image files via OCR
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class ImageLoader(BaseLoader):
+    """Loader for standalone image files (PNG, JPG, GIF, WebP, BMP, TIFF).
+
+    Uses the cloud OCR pipeline (Gemini Vision / Cloud Vision) to extract
+    text from images.  Supports adaptive preprocessing for low-quality scans.
+    """
+
+    def load(self, file_path: Path, content: Optional[bytes] = None) -> List[Document]:
+        base_meta = self._base_metadata(file_path, content)
+        base_meta["file_type"] = "image"
+
+        raw = content if content else file_path.read_bytes()
+
+        try:
+            from PIL import Image as PILImage
+
+            pil = PILImage.open(io.BytesIO(raw)).convert("RGB")
+            img_arr = np.array(pil)
+        except Exception as exc:
+            logger.error("image_load_failed", filename=file_path.name, error=str(exc))
+            return []
+
+        w, h = pil.size
+        base_meta["image_size"] = f"{w}x{h}"
+
+        # Run OCR through the full Gemini Vision / Cloud Vision pipeline
+        text, confidence = ocr_image(img_arr)
+
+        if not text or not text.strip():
+            logger.warning("image_ocr_empty", filename=file_path.name)
+            return []
+
+        base_meta["extraction_method"] = "ocr"
+        base_meta["ocr_confidence"] = round(confidence, 3)
+
+        doc = Document(
+            page_content=f"# Image: {file_path.name}\nSize: {w}x{h}\n\n{clean_text(text)}",
+            metadata={**base_meta, "document_type": "full_data", "priority": "high"},
+        )
+
+        logger.info(
+            "image_loaded",
+            filename=file_path.name,
+            size=f"{w}x{h}",
+            chars=len(text),
+            confidence=round(confidence, 3),
+        )
+        return [doc]
+
+
+# ═══════════════════════════════════════════════════════════════════════════
 #  FACTORY
 # ═══════════════════════════════════════════════════════════════════════════
 
@@ -760,6 +815,7 @@ class LoaderFactory:
                 "text": TextLoader(),
                 "markdown": TextLoader(),
                 "json": JSONLoader(),
+                "image": ImageLoader(),
             }
 
     @classmethod

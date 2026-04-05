@@ -5,6 +5,7 @@ import type { UIMessage } from "@/types";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { cn } from "@/lib/utils";
+import { motion } from "framer-motion";
 import {
   ChevronDown, ChevronUp, Clock, Target, Layers,
   FileText, User, Bot, Copy, Check,
@@ -28,7 +29,12 @@ export function MessageBubble({ message, onShowSources }: Props) {
   };
 
   return (
-    <div className={cn("flex gap-2.5 sm:gap-3 animate-slide-up", isUser ? "flex-row-reverse" : "")}>
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3, ease: "easeOut" }}
+      className={cn("flex gap-2.5 sm:gap-3", isUser ? "flex-row-reverse" : "")}
+    >
       {/* Avatar */}
       <div
         className={cn(
@@ -76,7 +82,7 @@ export function MessageBubble({ message, onShowSources }: Props) {
                 <button
                   onClick={handleCopy}
                   className="flex items-center gap-1 rounded-full bg-[var(--bg-secondary)] px-2 py-0.5 text-[11px] font-medium text-[var(--text-muted)] hover:text-[var(--text-primary)] transition opacity-0 group-hover/bubble:opacity-100"
-                  title="Copy response"
+                  aria-label="Copy response to clipboard"
                 >
                   {copied ? <Check size={11} className="text-green-500" /> : <Copy size={11} />}
                   {copied ? "Copied" : "Copy"}
@@ -136,7 +142,7 @@ export function MessageBubble({ message, onShowSources }: Props) {
           </div>
         )}
       </div>
-    </div>
+    </motion.div>
   );
 }
 

@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useStore } from "@/hooks/useStore";
 import { setApiKey } from "@/lib/api";
+import { motion, AnimatePresence } from "framer-motion";
 import { Key, X, Loader2, CheckCircle2, AlertTriangle, ExternalLink, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 
@@ -18,8 +19,6 @@ export function ApiKeyModal() {
       setTimeout(() => inputRef.current?.focus(), 150);
     }
   }, [showApiKeyModal]);
-
-  if (!showApiKeyModal) return null;
 
   const handleSubmit = async () => {
     const trimmed = key.trim();
@@ -52,15 +51,26 @@ export function ApiKeyModal() {
   };
 
   return (
-    <>
-      {/* Backdrop */}
-      <div
-        className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm animate-fade-in"
-        onClick={() => setShowApiKeyModal(false)}
-      />
+    <AnimatePresence>
+      {showApiKeyModal && (
+        <>
+          {/* Backdrop */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm"
+            onClick={() => setShowApiKeyModal(false)}
+          />
 
-      {/* Modal */}
-      <div className="fixed inset-0 z-[101] flex items-center justify-center p-4 animate-scale-in">
+          {/* Modal */}
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: 10 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 10 }}
+            transition={{ type: "spring", damping: 25, stiffness: 350 }}
+            className="fixed inset-0 z-[101] flex items-center justify-center p-4"
+          >
         <div
           className="relative w-full max-w-md rounded-2xl bg-[var(--bg-primary)] border border-[var(--border)] shadow-2xl overflow-hidden"
           onClick={(e) => e.stopPropagation()}
@@ -186,7 +196,9 @@ export function ApiKeyModal() {
             </p>
           </div>
         </div>
-      </div>
-    </>
+      </motion.div>
+        </>
+      )}
+    </AnimatePresence>
   );
 }

@@ -16,6 +16,12 @@ const ACCEPTED: Record<string, string[]> = {
   "text/plain": [".txt"],
   "text/markdown": [".md"],
   "application/json": [".json"],
+  "image/png": [".png"],
+  "image/jpeg": [".jpg", ".jpeg"],
+  "image/gif": [".gif"],
+  "image/webp": [".webp"],
+  "image/bmp": [".bmp"],
+  "image/tiff": [".tiff"],
 };
 
 interface Props {
@@ -84,7 +90,7 @@ export function UploadZone({ onUpload, uploading }: Props) {
             {isDragActive ? "Drop files here" : "Drag & drop files, or tap to browse"}
           </p>
           <p className="text-xs text-[var(--text-muted)] text-center">
-            PDF · DOCX · Excel · CSV · TXT · MD · JSON — up to 100 MB
+            PDF · DOCX · Excel · CSV · TXT · MD · JSON · Images — up to 100 MB
           </p>
         </>
       )}

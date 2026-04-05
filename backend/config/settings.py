@@ -81,7 +81,7 @@ class Settings(BaseSettings):
 
     # ── Retrieval ─────────────────────────────────────────────────────────
     retrieval_top_k: int = Field(default=10, ge=1, le=100)
-    similarity_threshold: float = Field(default=0.1, ge=0.0, le=1.0)
+    similarity_threshold: float = Field(default=0.25, ge=0.0, le=1.0)
     hybrid_search_alpha: float = Field(
         default=0.6,
         ge=0.0,
@@ -214,6 +214,13 @@ class Settings(BaseSettings):
         ".txt": "text",
         ".md": "markdown",
         ".json": "json",
+        ".png": "image",
+        ".jpg": "image",
+        ".jpeg": "image",
+        ".gif": "image",
+        ".webp": "image",
+        ".bmp": "image",
+        ".tiff": "image",
     }
 
 
