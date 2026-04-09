@@ -5,7 +5,6 @@ FastAPI Application — Entry Point
 
 from __future__ import annotations
 
-import os
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
@@ -64,29 +63,17 @@ app = FastAPI(
 app.add_middleware(RequestLoggingMiddleware)
 app.add_middleware(RateLimitMiddleware, rpm=120)
 
-# Build CORS origins list — always include common patterns
-cors_origins = settings.cors_origins.copy()
-# On Render, also accept the Render URL itself
-render_url = os.environ.get("RENDER_EXTERNAL_URL", "")
-if render_url and render_url not in cors_origins:
-    cors_origins.append(render_url)
-# On Railway, accept the Railway public domain
-railway_domain = os.environ.get("RAILWAY_PUBLIC_DOMAIN", "")
-if railway_domain:
-    railway_url = f"https://{railway_domain}"
-    if railway_url not in cors_origins:
-        cors_origins.append(railway_url)
-# Log the origins for debugging
-logger.info("cors_origins_configured", origins=cors_origins)
+# CORS — settings.cors_origins already handles Render/Railway auto-detection
+logger.info("cors_origins_configured", origins=settings.cors_origins)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=cors_origins,
+    allow_origins=settings.cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
     expose_headers=["X-Request-ID"],
-    max_age=86400,  # Cache preflight for 24h
+    max_age=86400,
 )
 
 register_exception_handlers(app)

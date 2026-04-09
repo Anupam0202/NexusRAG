@@ -35,12 +35,14 @@ class TestQueryClassification:
 
 class TestVectorStoreManager:
     def test_add_and_search(self, sample_documents: List[Document], tmp_path):
-        import os
-
-        os.environ["VECTOR_STORE_PATH"] = str(tmp_path / "vs")
         vs = VectorStoreManager()
         vs._persist_dir = tmp_path / "vs"
         vs._persist_dir.mkdir(parents=True, exist_ok=True)
+        # Start fresh
+        vs._documents = []
+        vs._raw_embeddings = []
+        vs._index = None
+        vs._bm25 = None
 
         added = vs.add_documents(sample_documents)
         assert added == 3
@@ -51,12 +53,13 @@ class TestVectorStoreManager:
         assert results[0].document.metadata["filename"] == "report.pdf"
 
     def test_delete_by_filename(self, sample_documents: List[Document], tmp_path):
-        import os
-
-        os.environ["VECTOR_STORE_PATH"] = str(tmp_path / "vs")
         vs = VectorStoreManager()
         vs._persist_dir = tmp_path / "vs"
         vs._persist_dir.mkdir(parents=True, exist_ok=True)
+        vs._documents = []
+        vs._raw_embeddings = []
+        vs._index = None
+        vs._bm25 = None
 
         vs.add_documents(sample_documents)
         removed = vs.delete_by_filename("report.pdf")
@@ -64,12 +67,13 @@ class TestVectorStoreManager:
         assert vs.total_chunks == 2
 
     def test_list_documents(self, sample_documents: List[Document], tmp_path):
-        import os
-
-        os.environ["VECTOR_STORE_PATH"] = str(tmp_path / "vs")
         vs = VectorStoreManager()
         vs._persist_dir = tmp_path / "vs"
         vs._persist_dir.mkdir(parents=True, exist_ok=True)
+        vs._documents = []
+        vs._raw_embeddings = []
+        vs._index = None
+        vs._bm25 = None
 
         vs.add_documents(sample_documents)
         listing = vs.list_documents()

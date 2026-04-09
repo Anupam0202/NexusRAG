@@ -9,11 +9,11 @@ install: ## Install all dependencies
 	cd frontend && npm install
 
 dev: ## Run both backend and frontend in dev mode
-	@echo "Starting backend..."
-	cd backend && uvicorn main:app --reload --port 8000 &
-	@echo "Starting frontend..."
+	@echo "Starting backend on :8000..."
+	cd backend && uvicorn main:app --reload --host 0.0.0.0 --port 8000 &
+	@echo "Starting frontend on :3000..."
 	cd frontend && npm run dev &
-	@echo "Backend: http://localhost:8000"
+	@echo "Backend:  http://localhost:8000"
 	@echo "Frontend: http://localhost:3000"
 
 backend: ## Run backend only
@@ -29,7 +29,7 @@ test: ## Run backend tests
 	cd backend && pytest -v --cov=src --cov-report=term-missing
 
 lint: ## Lint and format
-	cd backend && ruff check src/ --fix && black src/
+	cd backend && ruff check src/ --fix && ruff format src/
 
 clean: ## Clean generated files
 	find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
