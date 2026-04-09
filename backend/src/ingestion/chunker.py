@@ -38,7 +38,12 @@ class ChunkingStrategy(ABC):
 class RecursiveChunker(ChunkingStrategy):
     def __init__(self, settings: Optional[Settings] = None) -> None:
         s = settings or get_settings()
-        separators = s.chunk_separators.split("|")
+        # Decode escaped separators (e.g. "\\n" -> actual newline)
+        raw_seps = s.chunk_separators.split("|")
+        separators = [
+            sep.encode().decode("unicode_escape") if "\\" in sep else sep
+            for sep in raw_seps
+        ]
         self._splitter = RecursiveCharacterTextSplitter(
             chunk_size=s.chunk_size,
             chunk_overlap=s.chunk_overlap,

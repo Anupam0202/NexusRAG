@@ -88,7 +88,11 @@ async def upload_document(
 
     if not result.success:
         errors = "; ".join(e.get("error", "") for e in result.errors)
-        raise HTTPException(422, f"Ingestion failed: {errors}")
+        if result.chunks_created > 0:
+            # Partial success — some content was extracted even if not everything
+            logger.warning("upload_partial_success", file=safe_name, errors=errors)
+        else:
+            raise HTTPException(422, f"Ingestion failed: {errors}")
 
     doc_meta = DocumentMetadata(
         document_id=str(uuid.uuid4())[:12],
