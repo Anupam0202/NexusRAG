@@ -127,17 +127,22 @@ class IngestionPipeline:
         ext = path.suffix.lower()
 
         if ext == ".pdf" and self._settings.enable_scientific_mode:
-            return self._load_scientific_pdf(path, content, result)
+            docs = self._load_scientific_pdf(path, content, result)
+        else:
+            docs = LoaderFactory.load_file(path, content)
 
-        docs = LoaderFactory.load_file(path, content)
         if not docs:
-            result.errors.append({"file": path.name, "error": "No documents extracted"})
+            logger.warning("no_documents_extracted", file=path.name)
         return docs
 
     def _load_scientific_pdf(
         self, path: Path, content: Optional[bytes], result: IngestionResult
     ) -> List[Document]:
-        """Parse PDF through the full scientific pipeline."""
+        """Parse PDF through the full scientific pipeline.
+
+        Falls back to the standard PDF loader on any error,
+        so ingestion never fails due to scientific parsing issues.
+        """
         from src.ingestion.scientific import ScientificPDFParser
 
         raw = content if content else path.read_bytes()
@@ -154,11 +159,17 @@ class IngestionPipeline:
 
             if docs:
                 return docs
+            logger.info("scientific_parser_empty — falling back to standard loader")
         except Exception as exc:
             logger.warning("scientific_parse_failed — falling back", error=str(exc))
 
-        # Fallback to standard loader
-        return LoaderFactory.load_file(path, content)
+        # Fallback to standard loader — always succeeds for valid PDFs
+        try:
+            return LoaderFactory.load_file(path, content)
+        except Exception as exc:
+            logger.error("pdf_fallback_load_failed", file=path.name, error=str(exc))
+            result.errors.append({"file": path.name, "error": str(exc)})
+            return []
 
     @staticmethod
     def _build_items(

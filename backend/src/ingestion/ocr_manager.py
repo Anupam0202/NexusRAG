@@ -611,19 +611,37 @@ _cloud_instance: Optional[CloudVisionOCR] = None
 
 
 def get_gemini_ocr() -> Optional[GeminiVisionOCR]:
-    """Return a singleton GeminiVisionOCR (or None if unavailable)."""
+    """Return a singleton GeminiVisionOCR (or None if unavailable).
+
+    Re-creates the instance if the API key has changed since last init
+    (e.g. after the user provides their own key via the Settings modal).
+    """
     global _gemini_instance
+    current_key = os.environ.get("GOOGLE_API_KEY", "")
+
     if _gemini_instance is not None:
+        # If key changed, recreate
+        if current_key and current_key != _gemini_instance._api_key:
+            _gemini_instance = GeminiVisionOCR()
         return _gemini_instance if _gemini_instance.available else None
+
     _gemini_instance = GeminiVisionOCR()
     return _gemini_instance if _gemini_instance.available else None
 
 
 def get_cloud_vision() -> Optional[CloudVisionOCR]:
-    """Return a singleton CloudVisionOCR (or None if unavailable)."""
+    """Return a singleton CloudVisionOCR (or None if unavailable).
+
+    Re-creates the instance if the API key has changed since last init.
+    """
     global _cloud_instance
+    current_key = os.environ.get("GOOGLE_API_KEY", "")
+
     if _cloud_instance is not None:
+        if current_key and current_key != getattr(_cloud_instance, '_api_key', ''):
+            _cloud_instance = CloudVisionOCR()
         return _cloud_instance if _cloud_instance.available else None
+
     _cloud_instance = CloudVisionOCR()
     return _cloud_instance if _cloud_instance.available else None
 

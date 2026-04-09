@@ -7,6 +7,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 from typing import List
+from unittest.mock import MagicMock
 
 import pytest
 from fastapi.testclient import TestClient
@@ -72,7 +73,23 @@ def sample_pdf_bytes() -> bytes:
 
 @pytest.fixture
 def test_client() -> TestClient:
-    """FastAPI test client (no real LLM calls)."""
+    """FastAPI test client with mocked RAG chain (no real LLM calls)."""
+    from src.api.dependencies import get_rag_chain
     from main import app
 
-    return TestClient(app)
+    # Create a mock RAG chain that satisfies the dependency
+    mock_chain = MagicMock()
+    mock_chain.cache_stats = {"entries": 0, "hits": 0, "misses": 0, "hit_rate": 0.0}
+    mock_chain.query_metrics = {
+        "avg_response_time": 0.0,
+        "avg_confidence": 0.0,
+        "total_queries": 0,
+        "queries_today": 0,
+    }
+
+    app.dependency_overrides[get_rag_chain] = lambda: mock_chain
+
+    client = TestClient(app)
+    yield client
+
+    app.dependency_overrides.clear()
