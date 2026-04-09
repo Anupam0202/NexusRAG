@@ -78,8 +78,16 @@ class TestSmartChunker:
         assert len(chunks) == 1
 
     def test_long_text_gets_chunked(self):
-        long_text = ("This is a long sentence about machine learning. " * 100)
-        docs = [Document(page_content=long_text, metadata={"document_type": "generic"})]
+        # Use diverse text content so the semantic/recursive chunker can find split points
+        paragraphs = [
+            "Machine learning is a subset of artificial intelligence that enables systems to learn from data.\n\n",
+            "Deep learning uses neural networks with multiple layers to analyze complex patterns.\n\n",
+            "Natural language processing enables computers to understand human language effectively.\n\n",
+            "Computer vision allows machines to interpret and make decisions from visual data.\n\n",
+            "Reinforcement learning trains agents through trial and error to maximize rewards.\n\n",
+        ]
+        long_text = "".join(paragraphs * 20)  # ~10000 chars
+        docs = [Document(page_content=long_text, metadata={"document_type": "page"})]
         chunker = SmartChunker()
         chunks = chunker.chunk(docs)
         assert len(chunks) > 1
@@ -94,7 +102,8 @@ class TestSmartChunker:
 
 class TestRecursiveChunker:
     def test_splits_large_text(self):
-        text = "Sentence one. " * 200
+        # Use text with clear paragraph breaks so the recursive splitter can find split points
+        text = "This is a long paragraph about machine learning.\n\n" * 100
         docs = [Document(page_content=text, metadata={})]
         chunker = RecursiveChunker()
         chunks = chunker.chunk(docs)

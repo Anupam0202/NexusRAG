@@ -116,12 +116,18 @@ class PDFLoader(BaseLoader):
     """
 
     def __init__(self) -> None:
-        self._gemini = get_gemini_ocr()
-        self._cloud = get_cloud_vision()
-        if self._gemini:
-            logger.info("pdf_loader_ocr_ready", backend="gemini_vision")
-        elif self._cloud:
-            logger.info("pdf_loader_ocr_ready", backend="cloud_vision")
+        # OCR references are resolved lazily via properties so that
+        # hot-swapping the API key (which resets the singletons) takes
+        # effect without needing to recreate the PDFLoader.
+        pass
+
+    @property
+    def _gemini(self):
+        return get_gemini_ocr()
+
+    @property
+    def _cloud(self):
+        return get_cloud_vision()
 
     # ── public API ────────────────────────────────────────────────────
 
@@ -748,7 +754,8 @@ class ImageLoader(BaseLoader):
     """Loader for standalone image files (PNG, JPG, GIF, WebP, BMP, TIFF).
 
     Uses the cloud OCR pipeline (Gemini Vision / Cloud Vision) to extract
-    text from images.  Supports adaptive preprocessing for low-quality scans.
+    text from images.  When OCR is unavailable (no API key or quota exhausted),
+    falls back to storing image metadata so the document is still indexed.
     """
 
     def load(self, file_path: Path, content: Optional[bytes] = None) -> List[Document]:
@@ -769,18 +776,33 @@ class ImageLoader(BaseLoader):
         w, h = pil.size
         base_meta["image_size"] = f"{w}x{h}"
 
-        # Run OCR through the full Gemini Vision / Cloud Vision pipeline
-        text, confidence = ocr_image(img_arr)
+        # Try OCR through the full Gemini Vision / Cloud Vision pipeline
+        text = ""
+        confidence = 0.0
+        try:
+            text, confidence = ocr_image(img_arr)
+        except Exception as exc:
+            logger.warning("image_ocr_error", filename=file_path.name, error=str(exc))
 
-        if not text or not text.strip():
-            logger.warning("image_ocr_empty", filename=file_path.name)
-            return []
-
-        base_meta["extraction_method"] = "ocr"
-        base_meta["ocr_confidence"] = round(confidence, 3)
+        if text and text.strip():
+            base_meta["extraction_method"] = "ocr"
+            base_meta["ocr_confidence"] = round(confidence, 3)
+            page_content = f"# Image: {file_path.name}\nSize: {w}x{h}\n\n{clean_text(text)}"
+        else:
+            # Fallback: index the image with metadata only so it appears in the document list
+            base_meta["extraction_method"] = "metadata_only"
+            page_content = (
+                f"# Image: {file_path.name}\n"
+                f"Size: {w}x{h} pixels\n"
+                f"Format: {pil.format or file_path.suffix.lstrip('.')}\n"
+                f"Mode: {pil.mode}\n\n"
+                f"[Image uploaded — OCR text extraction was not available. "
+                f"Provide a Google API key to enable Gemini Vision OCR.]"
+            )
+            logger.info("image_loaded_metadata_only", filename=file_path.name, size=f"{w}x{h}")
 
         doc = Document(
-            page_content=f"# Image: {file_path.name}\nSize: {w}x{h}\n\n{clean_text(text)}",
+            page_content=page_content,
             metadata={**base_meta, "document_type": "full_data", "priority": "high"},
         )
 
@@ -789,7 +811,7 @@ class ImageLoader(BaseLoader):
             filename=file_path.name,
             size=f"{w}x{h}",
             chars=len(text),
-            confidence=round(confidence, 3),
+            method=base_meta.get("extraction_method"),
         )
         return [doc]
 
