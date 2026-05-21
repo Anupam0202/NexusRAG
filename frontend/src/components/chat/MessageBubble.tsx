@@ -23,9 +23,13 @@ export function MessageBubble({ message, onShowSources }: Props) {
   const hasSources = (message.sources?.length ?? 0) > 0;
 
   const handleCopy = async () => {
-    await navigator.clipboard.writeText(message.content);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    try {
+      await navigator.clipboard.writeText(message.content);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Clipboard access denied — silently ignore
+    }
   };
 
   return (

@@ -4,9 +4,6 @@ Tests for the retrieval module.
 
 from __future__ import annotations
 
-from typing import List
-
-import pytest
 from langchain_core.documents import Document
 
 from src.retrieval.retriever import QueryType, classify_query
@@ -34,7 +31,7 @@ class TestQueryClassification:
 
 
 class TestVectorStoreManager:
-    def test_add_and_search(self, sample_documents: List[Document], tmp_path):
+    def test_add_and_search(self, sample_documents: list[Document], tmp_path):
         vs = VectorStoreManager()
         vs._persist_dir = tmp_path / "vs"
         vs._persist_dir.mkdir(parents=True, exist_ok=True)
@@ -52,7 +49,7 @@ class TestVectorStoreManager:
         assert len(results) >= 1
         assert results[0].document.metadata["filename"] == "report.pdf"
 
-    def test_delete_by_filename(self, sample_documents: List[Document], tmp_path):
+    def test_delete_by_filename(self, sample_documents: list[Document], tmp_path):
         vs = VectorStoreManager()
         vs._persist_dir = tmp_path / "vs"
         vs._persist_dir.mkdir(parents=True, exist_ok=True)
@@ -66,7 +63,7 @@ class TestVectorStoreManager:
         assert removed >= 1
         assert vs.total_chunks == 2
 
-    def test_list_documents(self, sample_documents: List[Document], tmp_path):
+    def test_list_documents(self, sample_documents: list[Document], tmp_path):
         vs = VectorStoreManager()
         vs._persist_dir = tmp_path / "vs"
         vs._persist_dir.mkdir(parents=True, exist_ok=True)
@@ -80,3 +77,18 @@ class TestVectorStoreManager:
         filenames = {d["filename"] for d in listing}
         assert "report.pdf" in filenames
         assert "employees.xlsx" in filenames
+        report = next(d for d in listing if d["filename"] == "report.pdf")
+        assert report["file_type"] == "pdf"
+
+    def test_duplicate_chunks_are_skipped(self, sample_documents: list[Document], tmp_path):
+        vs = VectorStoreManager()
+        vs._persist_dir = tmp_path / "vs"
+        vs._persist_dir.mkdir(parents=True, exist_ok=True)
+        vs._documents = []
+        vs._raw_embeddings = []
+        vs._index = None
+        vs._bm25 = None
+
+        assert vs.add_documents(sample_documents) == 3
+        assert vs.add_documents(sample_documents) == 0
+        assert vs.total_chunks == 3

@@ -1,0 +1,58 @@
+services:
+  - type: web
+    name: nexusrag-backend
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    plan: free
+    healthCheckPath: /health
+    numInstances: 1
+    autoDeploy: true
+    envVars:
+      # Render injects PORT dynamically; 8000 is the local/default fallback.
+      - key: PORT
+        value: "8000"
+
+      # Python runtime tuning
+      - key: PYTHONUNBUFFERED
+        value: "1"
+      - key: MALLOC_TRIM_THRESHOLD_
+        value: "100000"
+
+      # Logging
+      - key: LOG_FORMAT
+        value: json
+      - key: LOG_LEVEL
+        value: INFO
+
+      # Set this secret in the Render dashboard.
+      - key: GOOGLE_API_KEY
+        sync: false
+
+      # Add your Vercel frontend URL in the Render dashboard.
+      # e.g. https://nexusrag.vercel.app
+      - key: API_CORS_ORIGINS
+        sync: false
+
+      # Memory guard: skip the 80 MB cross-encoder on Render's free tier
+      # Set to "false" on a paid plan if you want re-ranking enabled
+      - key: DISABLE_CROSS_ENCODER
+        value: "true"
+
+      # RAG pipeline settings (override in dashboard if needed)
+      - key: CHUNK_SIZE
+        value: "1000"
+      - key: CHUNK_OVERLAP
+        value: "200"
+      - key: RETRIEVAL_TOP_K
+        value: "10"
+      - key: SIMILARITY_THRESHOLD
+        value: "0.25"
+      - key: ENABLE_RERANKING
+        value: "true"
+      - key: ENABLE_SEMANTIC_CHUNKING
+        value: "true"
+      - key: ENABLE_CONTEXTUAL_ENRICHMENT
+        value: "true"
+      - key: MAX_UPLOAD_SIZE_MB
+        value: "100"

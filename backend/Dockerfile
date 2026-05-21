@@ -44,10 +44,10 @@ RUN python -c "from sentence_transformers import SentenceTransformer; SentenceTr
 
 EXPOSE 8000
 
-# Tuned for Railway's memory-constrained environment
+# Tuned for memory-constrained cloud environments (Render free tier)
 ENV MALLOC_TRIM_THRESHOLD_=100000
 ENV PYTHONUNBUFFERED=1
-# Railway injects PORT dynamically
+# PORT is injected dynamically by Render (and most cloud platforms)
 ENV PORT=8000
 
 CMD uvicorn main:app --host 0.0.0.0 --port $PORT --workers 1 --timeout-keep-alive 120

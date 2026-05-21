@@ -15,10 +15,8 @@ from __future__ import annotations
 
 import re
 from collections import defaultdict
-from enum import Enum
-from typing import Any, Dict, List, Optional
-
-from langchain_core.documents import Document
+from enum import StrEnum
+from typing import Any
 
 from config.settings import Settings, get_settings
 from src.retrieval.query_transformer import QueryTransformer
@@ -32,7 +30,7 @@ logger = get_logger(__name__)
 # ── Query type classification (regex, no LLM cost) ──────────────────────
 
 
-class QueryType(str, Enum):
+class QueryType(StrEnum):
     LIST_ALL = "list_all"
     AGGREGATION = "aggregation"
     FILTER = "filter"
@@ -42,14 +40,21 @@ class QueryType(str, Enum):
     GENERAL = "general"
 
 
-_QUERY_PATTERNS: Dict[QueryType, List[re.Pattern]] = {  # type: ignore
+_QUERY_PATTERNS: dict[QueryType, list[re.Pattern]] = {  # type: ignore
     QueryType.LIST_ALL: [
-        re.compile(r"\b(show|list|display|get|give|provide)\s+(me\s+)?(all|every|complete|full)\b", re.I),
+        re.compile(
+            r"\b(show|list|display|get|give|provide)\s+(me\s+)?"
+            r"(all|every|complete|full)\b",
+            re.I,
+        ),
         re.compile(r"\ball\s+(the\s+)?(data|records|rows|entries|employees|items)\b", re.I),
         re.compile(r"\b(everything|complete\s+list)\b", re.I),
     ],
     QueryType.AGGREGATION: [
-        re.compile(r"\b(total|sum|average|avg|mean|count|how\s+many|maximum|minimum|max|min)\b", re.I),
+        re.compile(
+            r"\b(total|sum|average|avg|mean|count|how\s+many|maximum|minimum|max|min)\b",
+            re.I,
+        ),
     ],
     QueryType.FILTER: [
         re.compile(r"\b(where|with|having|in|at|from|filter|only|just)\b", re.I),
@@ -63,7 +68,7 @@ _QUERY_PATTERNS: Dict[QueryType, List[re.Pattern]] = {  # type: ignore
     ],
 }
 
-_K_BY_TYPE: Dict[QueryType, int] = {
+_K_BY_TYPE: dict[QueryType, int] = {
     QueryType.LIST_ALL: 50,
     QueryType.AGGREGATION: 30,
     QueryType.FILTER: 25,
@@ -76,7 +81,7 @@ _K_BY_TYPE: Dict[QueryType, int] = {
 
 def classify_query(query: str) -> QueryType:
     """Classify a query using regex patterns (zero LLM cost)."""
-    scores: Dict[QueryType, int] = defaultdict(int)
+    scores: dict[QueryType, int] = defaultdict(int)
     for qt, patterns in _QUERY_PATTERNS.items():
         for p in patterns:
             if p.search(query):
@@ -103,7 +108,7 @@ class HybridRetriever:
     def __init__(
         self,
         vector_store: VectorStoreManager,
-        settings: Optional[Settings] = None,
+        settings: Settings | None = None,
     ) -> None:
         s = settings or get_settings()
         self._store = vector_store
@@ -117,10 +122,10 @@ class HybridRetriever:
         self,
         query: str,
         *,
-        history: Optional[List[Dict[str, str]]] = None,
-        top_k: Optional[int] = None,
-        use_reranking: Optional[bool] = None,
-    ) -> Dict[str, Any]:
+        history: list[dict[str, str]] | None = None,
+        top_k: int | None = None,
+        use_reranking: bool | None = None,
+    ) -> dict[str, Any]:
         """Full retrieval pipeline.
 
         Returns:
@@ -137,14 +142,14 @@ class HybridRetriever:
         queries = transformed["queries"]  # list of query strings
 
         # 3. Retrieve for every query variant
-        all_hits: List[SearchHit] = []
+        all_hits: list[SearchHit] = []
         for q in queries:
             hits = self._store.search(q, top_k=effective_k)
             all_hits.extend(hits)
 
         # 4. Deduplicate
         seen_ids: set = set()
-        unique_hits: List[SearchHit] = []
+        unique_hits: list[SearchHit] = []
         for h in all_hits:
             cid = id(h.document)
             if cid not in seen_ids:
@@ -154,15 +159,18 @@ class HybridRetriever:
         # Sort by score descending
         unique_hits.sort(key=lambda h: h.score, reverse=True)
 
+        # Attach retrieval scores to document metadata so downstream components
+        # (confidence estimation, source display) can use actual relevance scores
+        for h in unique_hits[:effective_k]:
+            h.document.metadata["score"] = round(float(h.score), 4)
+
         # 5. Re-rank (optional, graceful fallback)
         should_rerank = use_reranking if use_reranking is not None else self._enable_rerank
         docs = [h.document for h in unique_hits[:effective_k]]
 
         if should_rerank and docs:
             try:
-                docs = self._reranker.rerank(
-                    query=query, documents=docs, top_k=self._rerank_top_k
-                )
+                docs = self._reranker.rerank(query=query, documents=docs, top_k=self._rerank_top_k)
             except Exception as exc:
                 logger.warning("reranking_failed — using base results", error=str(exc))
                 docs = docs[: self._rerank_top_k]

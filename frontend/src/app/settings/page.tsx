@@ -21,6 +21,8 @@ export default function SettingsPage() {
           enable_reranking: s.enable_reranking,
           hybrid_search_alpha: s.hybrid_search_alpha,
           context_window_messages: s.context_window_messages,
+          enable_semantic_chunking: s.enable_semantic_chunking,
+          enable_contextual_enrichment: s.enable_contextual_enrichment,
         });
       })
       .catch((err) => toast.error(err.message));
@@ -73,23 +75,26 @@ export default function SettingsPage() {
             value={draft.context_window_messages ?? settings.context_window_messages} min={1} max={30} step={1}
             onChange={(v) => setDraft((d) => ({ ...d, context_window_messages: v }))} />
 
-          {/* Re-ranking toggle */}
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium">Re-ranking</p>
-              <p className="text-xs text-[var(--text-muted)]">Cross-encoder re-scoring</p>
-            </div>
-            <button
-              onClick={() => setDraft((d) => ({ ...d, enable_reranking: !(d.enable_reranking ?? settings.enable_reranking) }))}
-              className={`relative h-6 w-11 rounded-full transition ${
-                (draft.enable_reranking ?? settings.enable_reranking) ? "bg-brand-500" : "bg-gray-300 dark:bg-gray-600"
-              }`}
-            >
-              <span className={`absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${
-                (draft.enable_reranking ?? settings.enable_reranking) ? "translate-x-5" : ""
-              }`} />
-            </button>
-          </div>
+          <Toggle
+            label="Re-ranking"
+            desc="Cross-encoder re-scoring"
+            checked={draft.enable_reranking ?? settings.enable_reranking}
+            onChange={(checked) => setDraft((d) => ({ ...d, enable_reranking: checked }))}
+          />
+
+          <Toggle
+            label="Semantic Chunking"
+            desc="Embedding-aware split points for long text"
+            checked={draft.enable_semantic_chunking ?? settings.enable_semantic_chunking}
+            onChange={(checked) => setDraft((d) => ({ ...d, enable_semantic_chunking: checked }))}
+          />
+
+          <Toggle
+            label="Contextual Enrichment"
+            desc="LLM-generated chunk context before embedding"
+            checked={draft.enable_contextual_enrichment ?? settings.enable_contextual_enrichment}
+            onChange={(checked) => setDraft((d) => ({ ...d, enable_contextual_enrichment: checked }))}
+          />
 
           <hr className="border-[var(--border)]" />
 
@@ -98,8 +103,7 @@ export default function SettingsPage() {
             <Info label="Model" value={settings.llm_model_name} />
             <Info label="Embedding" value={settings.embedding_model.split("/").pop() ?? ""} />
             <Info label="Chunk Size" value={`${settings.chunk_size}`} />
-            <Info label="Semantic Chunking" value={settings.enable_semantic_chunking ? "On" : "Off"} />
-            <Info label="Contextual Enrichment" value={settings.enable_contextual_enrichment ? "On" : "Off"} />
+            <Info label="Chunk Overlap" value={`${settings.chunk_overlap}`} />
           </div>
         </div>
 
@@ -133,6 +137,35 @@ function Slider({ label, desc, value, min, max, step, onChange }: {
       <input type="range" min={min} max={max} step={step} value={value}
         onChange={(e) => onChange(parseFloat(e.target.value))}
         className="w-full h-1.5 rounded-full appearance-none bg-gray-200 dark:bg-gray-700 accent-brand-500 cursor-pointer" />
+    </div>
+  );
+}
+
+function Toggle({ label, desc, checked, onChange }: {
+  label: string;
+  desc: string;
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-4">
+      <div>
+        <p className="text-sm font-medium">{label}</p>
+        <p className="text-xs text-[var(--text-muted)]">{desc}</p>
+      </div>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={checked}
+        onClick={() => onChange(!checked)}
+        className={`relative h-6 w-11 rounded-full transition ${
+          checked ? "bg-brand-500" : "bg-gray-300 dark:bg-gray-600"
+        }`}
+      >
+        <span className={`absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${
+          checked ? "translate-x-5" : ""
+        }`} />
+      </button>
     </div>
   );
 }

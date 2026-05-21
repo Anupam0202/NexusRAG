@@ -5,8 +5,6 @@ Shared pytest fixtures for the entire test suite.
 from __future__ import annotations
 
 import os
-from pathlib import Path
-from typing import List
 from unittest.mock import MagicMock
 
 import pytest
@@ -27,7 +25,7 @@ def _set_test_env(monkeypatch):
 
 
 @pytest.fixture
-def sample_documents() -> List[Document]:
+def sample_documents() -> list[Document]:
     """A small set of LangChain Documents for unit tests."""
     return [
         Document(
@@ -74,8 +72,8 @@ def sample_pdf_bytes() -> bytes:
 @pytest.fixture
 def test_client() -> TestClient:
     """FastAPI test client with mocked RAG chain (no real LLM calls)."""
-    from src.api.dependencies import get_rag_chain
     from main import app
+    from src.api.dependencies import get_rag_chain
 
     # Create a mock RAG chain that satisfies the dependency
     mock_chain = MagicMock()

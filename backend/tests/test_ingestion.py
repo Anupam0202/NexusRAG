@@ -5,14 +5,11 @@ Tests for the ingestion module.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import List
 
-import pytest
 from langchain_core.documents import Document
 
-from src.ingestion.chunker import RecursiveChunker, SemanticChunker, SmartChunker
+from src.ingestion.chunker import RecursiveChunker, SmartChunker
 from src.ingestion.loader import LoaderFactory
-
 
 # ═══════════════════════════════════════════════════════════════════════════
 #  LOADER TESTS
@@ -80,9 +77,18 @@ class TestSmartChunker:
     def test_long_text_gets_chunked(self):
         # Use diverse text content so the semantic/recursive chunker can find split points
         paragraphs = [
-            "Machine learning is a subset of artificial intelligence that enables systems to learn from data.\n\n",
-            "Deep learning uses neural networks with multiple layers to analyze complex patterns.\n\n",
-            "Natural language processing enables computers to understand human language effectively.\n\n",
+            (
+                "Machine learning is a subset of artificial intelligence that enables "
+                "systems to learn from data.\n\n"
+            ),
+            (
+                "Deep learning uses neural networks with multiple layers to analyze "
+                "complex patterns.\n\n"
+            ),
+            (
+                "Natural language processing enables computers to understand human "
+                "language effectively.\n\n"
+            ),
             "Computer vision allows machines to interpret and make decisions from visual data.\n\n",
             "Reinforcement learning trains agents through trial and error to maximize rewards.\n\n",
         ]

@@ -10,7 +10,6 @@ configurable batch size.
 from __future__ import annotations
 
 from functools import lru_cache
-from typing import List, Optional
 
 from langchain_huggingface import HuggingFaceEmbeddings
 
@@ -27,13 +26,13 @@ class Embedder:
     lifetime of the instance.
     """
 
-    def __init__(self, settings: Optional[Settings] = None) -> None:
+    def __init__(self, settings: Settings | None = None) -> None:
         s = settings or get_settings()
         self._model_name = s.embedding_model
         self._device = s.embedding_device
         self._normalize = s.embedding_normalize
         self._batch_size = s.embedding_batch_size
-        self._model: Optional[HuggingFaceEmbeddings] = None
+        self._model: HuggingFaceEmbeddings | None = None
 
     @property
     def model(self) -> HuggingFaceEmbeddings:
@@ -48,7 +47,7 @@ class Embedder:
             logger.info("embedding_model_loaded")
         return self._model
 
-    def embed_texts(self, texts: List[str]) -> List[List[float]]:
+    def embed_texts(self, texts: list[str]) -> list[list[float]]:
         """Embed a list of texts in batches.
 
         Args:
@@ -57,7 +56,7 @@ class Embedder:
         Returns:
             List of embedding vectors (each a list of floats).
         """
-        all_embeddings: List[List[float]] = []
+        all_embeddings: list[list[float]] = []
         total = len(texts)
 
         for start in range(0, total, self._batch_size):
@@ -67,7 +66,7 @@ class Embedder:
 
         return all_embeddings
 
-    def embed_query(self, query: str) -> List[float]:
+    def embed_query(self, query: str) -> list[float]:
         """Embed a single query string."""
         return self.model.embed_query(query)
 

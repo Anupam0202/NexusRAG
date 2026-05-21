@@ -62,7 +62,7 @@ Use the bold term + dash pattern:
 ## QUALITY STANDARDS
 - Be precise and specific — avoid vague language like "various" or "several" when exact data exists
 - Preserve exact values, dates, and proper nouns from the source documents
-- For ambiguous questions, briefly acknowledge the ambiguity, then answer the most likely interpretation
+- For ambiguous questions, acknowledge the ambiguity, then answer the most likely interpretation
 - Keep responses scannable — use whitespace, headings, and formatting generously
 """
 

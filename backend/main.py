@@ -63,7 +63,7 @@ app = FastAPI(
 app.add_middleware(RequestLoggingMiddleware)
 app.add_middleware(RateLimitMiddleware, rpm=120)
 
-# CORS — settings.cors_origins already handles Render/Railway auto-detection
+# CORS — settings.cors_origins auto-includes RENDER_EXTERNAL_URL when set
 logger.info("cors_origins_configured", origins=settings.cors_origins)
 
 app.add_middleware(
@@ -78,7 +78,7 @@ app.add_middleware(
 
 register_exception_handlers(app)
 
-# ── Root (Railway / Render health probe hits / with HEAD first) ───────────
+# ── Root (Render health probe hits / with HEAD first) ────────────────────
 
 
 @app.api_route("/", methods=["GET", "HEAD"], tags=["system"], include_in_schema=False)

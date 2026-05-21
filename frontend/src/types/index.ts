@@ -86,6 +86,7 @@ export interface WSDoneFrame {
 export interface WSErrorFrame {
   type: "error";
   content: string;
+  error_code?: string;
 }
 
 export type WSFrame = WSTokenFrame | WSSourcesFrame | WSDoneFrame | WSErrorFrame;
@@ -112,6 +113,8 @@ export interface SettingsUpdate {
   enable_reranking?: boolean;
   hybrid_search_alpha?: number;
   context_window_messages?: number;
+  enable_semantic_chunking?: boolean;
+  enable_contextual_enrichment?: boolean;
 }
 
 // ── Analytics ────────────────────────────────────────────────
@@ -123,6 +126,25 @@ export interface AnalyticsSummary {
   avg_response_time: number;
   avg_confidence: number;
   queries_today: number;
+  cache_hits: number;
+  cache_misses: number;
+  cache_entries: number;
+  llm_model_name: string;
+  embedding_model: string;
+}
+
+export interface SystemStatusResponse {
+  service: string;
+  status: string;
+  version: string;
+  total_documents: number;
+  total_chunks: number;
+  api_key_configured: boolean;
+  llm_model_name: string;
+  embedding_model: string;
+  cache: Record<string, unknown>;
+  settings: Record<string, unknown>;
+  capabilities: Record<string, boolean>;
 }
 
 // ── UI state ─────────────────────────────────────────────────

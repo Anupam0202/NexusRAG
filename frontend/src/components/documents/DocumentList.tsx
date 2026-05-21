@@ -3,7 +3,7 @@
 import type { DocumentMetadata } from "@/types";
 import { motion } from "framer-motion";
 import { RefreshCw, Trash2, FileText } from "lucide-react";
-import { cn, formatBytes, fileIcon, timeAgo } from "@/lib/utils";
+import { cn, formatBytes, fileIcon } from "@/lib/utils";
 
 interface Props {
   documents: DocumentMetadata[];
@@ -67,7 +67,7 @@ export function DocumentList({ documents, loading, onDelete, onRefresh }: Props)
               <button
                 onClick={() => onDelete(doc.filename)}
                 aria-label={`Delete ${doc.filename}`}
-                className="rounded-lg p-2 text-[var(--text-muted)] hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 opacity-0 group-hover:opacity-100 transition-all shrink-0"
+                className="rounded-lg p-2 text-[var(--text-muted)] hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all shrink-0"
               >
                 <Trash2 size={15} />
               </button>

@@ -16,7 +16,6 @@ Reference: https://www.anthropic.com/news/contextual-retrieval
 from __future__ import annotations
 
 import hashlib
-from typing import Dict, List, Optional
 
 from langchain_core.documents import Document
 
@@ -50,12 +49,12 @@ class ContextualEnricher:
 
     def __init__(
         self,
-        llm: Optional[object] = None,
-        settings: Optional[Settings] = None,
+        llm: object | None = None,
+        settings: Settings | None = None,
     ) -> None:
         self._settings = settings or get_settings()
         self._llm = llm
-        self._cache: Dict[str, str] = {}  # chunk_hash → context
+        self._cache: dict[str, str] = {}  # chunk_hash → context
 
     def _get_llm(self):
         """Lazy-load LLM only when needed."""
@@ -70,14 +69,15 @@ class ContextualEnricher:
             temperature=0.0,
             max_tokens=256,
             google_api_key=s.google_api_key,
+            max_retries=0,  # fail fast — no internal retries so quota is detected immediately
         )
         return self._llm
 
     def enrich(
         self,
-        chunks: List[Document],
-        source_docs: List[Document],
-    ) -> List[Document]:
+        chunks: list[Document],
+        source_docs: list[Document],
+    ) -> list[Document]:
         """Enrich every chunk with document-level context.
 
         Args:
@@ -100,7 +100,7 @@ class ContextualEnricher:
         # Build source → summary map (truncated full-data docs)
         summaries = self._build_summaries(source_docs)
 
-        enriched: List[Document] = []
+        enriched: list[Document] = []
         success = 0
         skipped = 0
         quota_hit = False
@@ -147,9 +147,9 @@ class ContextualEnricher:
 
     # ── internals ─────────────────────────────────────────────────────
 
-    def _build_summaries(self, source_docs: List[Document]) -> Dict[str, str]:
+    def _build_summaries(self, source_docs: list[Document]) -> dict[str, str]:
         """Map filename → truncated document text (max 4000 chars)."""
-        summaries: Dict[str, str] = {}
+        summaries: dict[str, str] = {}
         for doc in source_docs:
             fname = doc.metadata.get("filename", "")
             if fname and fname not in summaries:
@@ -164,8 +164,6 @@ class ContextualEnricher:
             (context_text, quota_hit) — quota_hit is True when a rate-limit
             error is detected so the caller can skip remaining enrichments.
         """
-        import time as _time
-
         try:
             llm = self._get_llm()
             prompt = _CONTEXT_PROMPT.format(
@@ -174,16 +172,19 @@ class ContextualEnricher:
             )
             response = llm.invoke(prompt)
             text = response.content if hasattr(response, "content") else str(response)
-
-            # Throttle to stay under free-tier RPM limit (5 RPM = 12s apart)
-            _time.sleep(2)
-
             return text.strip()[:500], False
         except Exception as exc:
             err_msg = str(exc).lower()
-            is_quota = any(kw in err_msg for kw in (
-                "429", "quota", "rate limit", "resource_exhausted", "resource exhausted",
-            ))
+            is_quota = any(
+                kw in err_msg
+                for kw in (
+                    "429",
+                    "quota",
+                    "rate limit",
+                    "resource_exhausted",
+                    "resource exhausted",
+                )
+            )
             if is_quota:
                 logger.warning("context_generation_quota_hit — skipping remaining")
                 return "", True

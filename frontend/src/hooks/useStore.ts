@@ -31,8 +31,13 @@ interface AppState {
   // Quota / API key
   showApiKeyModal: boolean;
   setShowApiKeyModal: (show: boolean) => void;
+  isQuotaBlocked: boolean;
+  setIsQuotaBlocked: (blocked: boolean) => void;
   userApiKey: string | null;
   setUserApiKey: (key: string | null) => void;
+
+  connectionStatus: "checking" | "online" | "reconnecting" | "offline";
+  setConnectionStatus: (status: AppState["connectionStatus"]) => void;
 }
 
 export const useStore = create<AppState>((set) => ({
@@ -94,6 +99,11 @@ export const useStore = create<AppState>((set) => ({
   // Quota / API key
   showApiKeyModal: false,
   setShowApiKeyModal: (show) => set({ showApiKeyModal: show }),
+  isQuotaBlocked: false,
+  setIsQuotaBlocked: (blocked) => set({ isQuotaBlocked: blocked }),
   userApiKey: null,
   setUserApiKey: (key) => set({ userApiKey: key }),
+
+  connectionStatus: "checking",
+  setConnectionStatus: (status) => set({ connectionStatus: status }),
 }));

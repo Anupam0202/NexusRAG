@@ -20,7 +20,6 @@ Protocol::
 from __future__ import annotations
 
 import json
-import traceback
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from starlette.websockets import WebSocketState
@@ -47,7 +46,22 @@ async def _safe_send(ws: WebSocket, data: dict) -> bool:
 @router.websocket("/ws/chat")
 async def chat_stream(ws: WebSocket) -> None:
     await ws.accept()
-    chain = get_rag_chain()
+    try:
+        chain = get_rag_chain()
+    except Exception:
+        await _safe_send(
+            ws,
+            {
+                "type": "error",
+                "content": (
+                    "Service unavailable - API key not configured. "
+                    "Please provide your Google API key."
+                ),
+                "error_code": "QUOTA_EXCEEDED",
+            },
+        )
+        await ws.close(code=1011)
+        return
     logger.info("websocket_connected")
 
     try:
@@ -67,9 +81,7 @@ async def chat_stream(ws: WebSocket) -> None:
             session_id = data.get("session_id", "ws-default")
             history = data.get("conversation_history", [])
             history_dicts = (
-                [{"role": m["role"], "content": m["content"]} for m in history]
-                if history
-                else None
+                [{"role": m["role"], "content": m["content"]} for m in history] if history else None
             )
 
             try:
@@ -91,16 +103,29 @@ async def chat_stream(ws: WebSocket) -> None:
                 err_msg = str(exc)
                 if not err_msg:
                     err_msg = type(exc).__name__ or "Unknown error"
-                is_quota = any(kw in err_msg.lower() for kw in (
-                    "429", "quota", "rate limit", "resource_exhausted", "resource exhausted"
-                ))
+                is_quota = any(
+                    kw in err_msg.lower()
+                    for kw in (
+                        "429",
+                        "quota",
+                        "rate limit",
+                        "resource_exhausted",
+                        "resource exhausted",
+                    )
+                )
                 logger.error("stream_error", error=err_msg, is_quota=is_quota)
                 if is_quota:
-                    await _safe_send(ws, {
-                        "type": "error",
-                        "content": "API quota exceeded. Please provide your own Google API key to continue.",
-                        "error_code": "QUOTA_EXCEEDED",
-                    })
+                    await _safe_send(
+                        ws,
+                        {
+                            "type": "error",
+                            "content": (
+                                "API quota exceeded. Please provide your own "
+                                "Google API key to continue."
+                            ),
+                            "error_code": "QUOTA_EXCEEDED",
+                        },
+                    )
                 else:
                     await _safe_send(ws, {"type": "error", "content": err_msg})
 

@@ -10,9 +10,8 @@ and ``FileValidator`` with additions for enterprise use.
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
 
 from src.utils.logger import get_logger
 
@@ -28,7 +27,7 @@ class SanitisationResult:
 
     text: str
     is_safe: bool
-    warnings: Tuple[str, ...] = ()
+    warnings: tuple[str, ...] = ()
 
 
 class InputSanitizer:
@@ -45,13 +44,20 @@ class InputSanitizer:
     MAX_LENGTH: int = 10_000
     MAX_CHAR_REPEAT: int = 50
 
-    _DANGEROUS_PATTERNS: List[Tuple[re.Pattern[str], str]] = [
+    _DANGEROUS_PATTERNS: list[tuple[re.Pattern[str], str]] = [
         # Instruction overrides
         (re.compile(r"ignore\s+(all\s+)?previous\s+instructions?", re.I), "instruction_override"),
         (re.compile(r"disregard\s+(all\s+)?above", re.I), "instruction_override"),
         (re.compile(r"forget\s+(everything|all)", re.I), "context_manipulation"),
         # System prompt exposure
-        (re.compile(r"(show|reveal|output|repeat)\s+(your\s+)?(system\s+)?(prompt|instructions)", re.I), "prompt_exposure"),
+        (
+            re.compile(
+                r"(show|reveal|output|repeat)\s+(your\s+)?"
+                r"(system\s+)?(prompt|instructions)",
+                re.I,
+            ),
+            "prompt_exposure",
+        ),
         # Credential extraction
         (re.compile(r"(api|access)\s*key", re.I), "credential_extraction"),
         # XSS / code injection
@@ -63,12 +69,13 @@ class InputSanitizer:
         (re.compile(r";?\s*DROP\s+TABLE", re.I), "sql_injection"),
         # Role manipulation
         (re.compile(r"you\s+are\s+now\s+(a\s+)?(developer|admin|root)", re.I), "role_manipulation"),
-        (re.compile(r"(enter|switch\s+to)\s+(developer|admin|debug)\s+mode", re.I), "mode_manipulation"),
+        (
+            re.compile(r"(enter|switch\s+to)\s+(developer|admin|debug)\s+mode", re.I),
+            "mode_manipulation",
+        ),
     ]
 
-    _DANGEROUS_UNICODE = frozenset(
-        "\u200b\u200c\u200d\u202a\u202b\u202c\u202d\u202e\ufeff"
-    )
+    _DANGEROUS_UNICODE = frozenset("\u200b\u200c\u200d\u202a\u202b\u202c\u202d\u202e\ufeff")
 
     @classmethod
     def sanitize(cls, text: str, *, strict: bool = False) -> SanitisationResult:
@@ -84,7 +91,7 @@ class InputSanitizer:
         if not text or not text.strip():
             return SanitisationResult(text="", is_safe=False, warnings=("Empty input",))
 
-        warnings: List[str] = []
+        warnings: list[str] = []
         is_safe = True
 
         # Length
@@ -124,8 +131,8 @@ class InputSanitizer:
 
     @classmethod
     def _reduce_repetition(cls, text: str) -> str:
-        result: List[str] = []
-        prev_char: Optional[str] = None
+        result: list[str] = []
+        prev_char: str | None = None
         count = 0
         for ch in text:
             if ch == prev_char:
@@ -141,7 +148,7 @@ class InputSanitizer:
 
 # ── PII Redaction ─────────────────────────────────────────────────────────
 
-_PII_PATTERNS: List[Tuple[re.Pattern[str], str]] = [
+_PII_PATTERNS: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b"), "[EMAIL]"),
     (re.compile(r"\b\d{3}[-.]?\d{3}[-.]?\d{4}\b"), "[PHONE]"),
     (re.compile(r"\b\d{3}-\d{2}-\d{4}\b"), "[SSN]"),
@@ -167,9 +174,9 @@ class FileValidator:
         filename: str,
         content: bytes,
         *,
-        allowed_extensions: Optional[set[str]] = None,
+        allowed_extensions: set[str] | None = None,
         max_size_bytes: int = 100 * 1024 * 1024,
-    ) -> Tuple[bool, str]:
+    ) -> tuple[bool, str]:
         """Validate a file by name, content, and size.
 
         Returns:
@@ -199,15 +206,15 @@ class FileValidator:
             return False, "Invalid PDF file (bad magic bytes)"
 
         # Image magic bytes validation
-        _IMAGE_MAGIC = {
+        image_magic = {
             ".png": (b"\x89PNG", 4),
             ".jpg": (b"\xff\xd8\xff", 3),
             ".jpeg": (b"\xff\xd8\xff", 3),
             ".gif": (b"GIF8", 4),
             ".bmp": (b"BM", 2),
         }
-        if ext in _IMAGE_MAGIC:
-            expected, length = _IMAGE_MAGIC[ext]
+        if ext in image_magic:
+            expected, length = image_magic[ext]
             if content[:length] != expected:
                 return False, f"Invalid {ext} file (bad magic bytes)"
 

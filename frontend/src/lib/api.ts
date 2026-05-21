@@ -14,12 +14,13 @@ import type {
   QueryRequest,
   QueryResponse,
   SettingsUpdate,
+  SystemStatusResponse,
 } from "@/types";
 
 /**
  * Direct backend URL — used for uploads and long-running requests.
  * NEXT_PUBLIC_* vars are inlined at build time, so this resolves to
- * the actual backend URL in production (e.g., https://nexusrag.up.railway.app).
+ * the actual backend URL in production (e.g., https://nexusrag-backend.onrender.com).
  */
 const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
@@ -110,6 +111,10 @@ export async function updateSettings(
 
 export async function getAnalytics(): Promise<AnalyticsSummary> {
   return request("/api/v1/analytics/summary");
+}
+
+export async function getSystemStatus(): Promise<SystemStatusResponse> {
+  return request("/api/v1/status");
 }
 
 // ── Health ────────────────────────────────────────────────────

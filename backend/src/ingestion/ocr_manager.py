@@ -21,9 +21,9 @@ import io
 import json
 import os
 import re
-import urllib.request
 import urllib.error
-from typing import Any, Dict, List, Optional, Tuple
+import urllib.request
+from typing import Any
 
 import numpy as np
 from PIL import Image, ImageEnhance
@@ -36,6 +36,7 @@ logger = get_logger(__name__)
 # ═══════════════════════════════════════════════════════════════════════════
 #  GEMINI VISION OCR  (Primary Backend)
 # ═══════════════════════════════════════════════════════════════════════════
+
 
 class GeminiVisionOCR:
     """Primary extraction backend using Google Gemini multimodal LLM.
@@ -77,7 +78,7 @@ class GeminiVisionOCR:
         "- Do NOT repeat or duplicate any line — each item EXACTLY ONCE"
     )
 
-    TYPED_PROMPTS: Dict[str, str] = {
+    TYPED_PROMPTS: dict[str, str] = {
         "id_card": (
             "OCR this ID card / government document. "
             "Output every field as 'Label: Value', one per line. "
@@ -127,34 +128,33 @@ class GeminiVisionOCR:
     )
 
     def __init__(self) -> None:
-        self._model = None
+        self._client = None
+        self._model_name: str = ""
         self._available = False
         self._api_key = os.environ.get("GOOGLE_API_KEY", "")
-        self._disabled_at: Optional[float] = None
+        self._disabled_at: float | None = None
         self._cooldown_seconds: float = 300.0  # 5 minutes
         if self._api_key:
             self._init_model()
 
     def _init_model(self) -> None:
         try:
-            import google.generativeai as genai
-            genai.configure(api_key=self._api_key)
+            import google.genai as genai
 
+            self._client = genai.Client(api_key=self._api_key)
+            # Store the first available model name (validated lazily on first call)
             for name in [
                 "gemini-2.0-flash",
-                "gemini-1.5-flash", "gemini-1.5-pro",
-                "gemini-pro-vision",
+                "gemini-2.0-flash-lite",
+                "gemini-1.5-pro",
             ]:
-                try:
-                    self._model = genai.GenerativeModel(name)
-                    self._available = True
-                    logger.info("gemini_vision_ready", model=name)
-                    return
-                except Exception:
-                    continue
+                self._model_name = name
+                self._available = True
+                logger.info("gemini_vision_ready", model=name)
+                return
             logger.warning("gemini_no_model_available")
         except ImportError:
-            logger.info("google_generativeai_not_installed")
+            logger.info("google_genai_not_installed")
         except Exception as exc:
             logger.warning("gemini_init_failed", error=str(exc))
 
@@ -174,7 +174,8 @@ class GeminiVisionOCR:
             re.compile(
                 r"^(here\s+(is|are)\s+the|the\s+extracted|below\s+is|"
                 r"this\s+(document|image|is\s+a)|i\s+can\s+see|"
-                r"the\s+following\s+text|output:)", re.I
+                r"the\s+following\s+text|output:)",
+                re.I,
             ),
             re.compile(r"^```"),
             re.compile(r"^\*\*\s*(note|n/?a)\s*", re.I),
@@ -219,73 +220,72 @@ class GeminiVisionOCR:
 
     # ── Core extraction ──────────────────────────────────────────
 
-    def _send(self, image: np.ndarray, prompt: str) -> Tuple[str, float]:
+    def _send(self, image: np.ndarray, prompt: str) -> tuple[str, float]:
         """Send image + prompt to Gemini, return (cleaned_text, confidence)."""
         # Auto-recover from temporary quota exhaustion after cooldown
         if not self._available and self._disabled_at is not None:
             import time as _time
+
             elapsed = _time.time() - self._disabled_at
             if elapsed > self._cooldown_seconds:
                 self._available = True
                 self._disabled_at = None
                 logger.info("gemini_ocr_recovered", cooldown_s=round(elapsed, 1))
 
-        if not self._available or self._model is None:
+        if not self._available or self._client is None:
             return "", 0.0
         try:
+            from google.genai import types
+
             pil = Image.fromarray(image)
             w, h = pil.size
             if max(w, h) > 4096:
                 scale = 4096 / max(w, h)
-                pil = pil.resize(
-                    (int(w * scale), int(h * scale)), Image.LANCZOS
-                )
+                pil = pil.resize((int(w * scale), int(h * scale)), Image.LANCZOS)
 
-            resp = self._model.generate_content(
-                [prompt, pil],
-                generation_config={
-                    "temperature": 0.1,
-                    "max_output_tokens": 4096,
-                },
-                request_options={"timeout": 30},
+            # Convert to JPEG bytes for the genai SDK
+            buf = io.BytesIO()
+            pil.save(buf, format="JPEG", quality=85)
+            img_bytes = buf.getvalue()
+
+            resp = self._client.models.generate_content(
+                model=self._model_name,
+                contents=[
+                    types.Part.from_text(text=prompt),
+                    types.Part.from_bytes(data=img_bytes, mime_type="image/jpeg"),
+                ],
+                config=types.GenerateContentConfig(
+                    temperature=0.1,
+                    max_output_tokens=4096,
+                ),
             )
 
-            raw = ""
-            # Handle both string and parts-based responses
-            try:
-                raw = resp.text.strip()
-            except Exception:
-                if hasattr(resp, "candidates") and resp.candidates:
-                    parts = resp.candidates[0].content.parts
-                    raw = "".join(
-                        p.text for p in parts if hasattr(p, "text")
-                    ).strip()
-
+            raw = resp.text.strip() if resp.text else ""
             text = self._clean(raw)
             return (text, 0.95) if text else ("", 0.0)
         except Exception as exc:
             err_msg = str(exc).lower()
             # If quota exhausted, disable OCR for the rest of this session
             # to avoid cascading 429 retries on every subsequent page
-            if any(kw in err_msg for kw in ("429", "quota", "resource_exhausted", "resource exhausted")):
+            quota_markers = ("429", "quota", "resource_exhausted", "resource exhausted")
+            if any(kw in err_msg for kw in quota_markers):
                 logger.warning("gemini_ocr_quota_exhausted — disabling for cooldown")
                 self._available = False
                 import time as _time
+
                 self._disabled_at = _time.time()
             else:
                 logger.warning("gemini_ocr_error", error=str(exc))
             return "", 0.0
 
-    def extract_text(self, image: np.ndarray) -> Tuple[str, float]:
+    def extract_text(self, image: np.ndarray) -> tuple[str, float]:
         """Universal extraction — works for ANY document type."""
         text, conf = self._send(image, self.UNIVERSAL_PROMPT)
         if text:
             logger.debug("gemini_extracted", chars=len(text))
         return text, conf
 
-    def extract_typed(
-        self, image: np.ndarray, doc_type: str
-    ) -> Tuple[str, float]:
+    def extract_typed(self, image: np.ndarray, doc_type: str) -> tuple[str, float]:
         """Type-specific extraction for improved structure."""
         base = self.TYPED_PROMPTS.get(doc_type)
         if not base:
@@ -296,11 +296,11 @@ class GeminiVisionOCR:
             logger.debug("gemini_typed_extracted", doc_type=doc_type, chars=len(text))
         return text, conf
 
-    def extract_table(self, image: np.ndarray) -> Tuple[str, float]:
+    def extract_table(self, image: np.ndarray) -> tuple[str, float]:
         """Table-specific extraction."""
         return self._send(image, self.TABLE_PROMPT)
 
-    def extract_figure(self, image: np.ndarray) -> Tuple[str, float]:
+    def extract_figure(self, image: np.ndarray) -> tuple[str, float]:
         """Figure description extraction."""
         return self._send(image, self.FIGURE_PROMPT)
 
@@ -308,6 +308,7 @@ class GeminiVisionOCR:
 # ═══════════════════════════════════════════════════════════════════════════
 #  GOOGLE CLOUD VISION OCR  (Fallback Backend)
 # ═══════════════════════════════════════════════════════════════════════════
+
 
 class CloudVisionOCR:
     """Fallback extraction using Google Cloud Vision API.
@@ -320,7 +321,7 @@ class CloudVisionOCR:
     def __init__(self) -> None:
         self._available = False
         self._verified = False
-        self._method: Optional[str] = None
+        self._method: str | None = None
         self._client: Any = None
         self._api_key = ""
 
@@ -334,6 +335,7 @@ class CloudVisionOCR:
             return
         try:
             from google.cloud import vision  # type: ignore
+
             self._client = vision.ImageAnnotatorClient()
             self._method = "library"
             self._available = True
@@ -365,7 +367,7 @@ class CloudVisionOCR:
         pil.save(buf, format="PNG", optimize=True)
         return buf.getvalue()
 
-    def _extract_library(self, image_bytes: bytes) -> Tuple[str, float]:
+    def _extract_library(self, image_bytes: bytes) -> tuple[str, float]:
         from google.cloud import vision  # type: ignore
 
         image = vision.Image(content=image_bytes)
@@ -390,37 +392,35 @@ class CloudVisionOCR:
         avg = sum(confs) / len(confs) if confs else 0.85
         return text.strip(), avg
 
-    def _extract_rest(self, image_bytes: bytes) -> Tuple[str, float]:
-        url = (
-            "https://vision.googleapis.com/v1/images:annotate"
-            f"?key={self._api_key}"
-        )
-        payload = json.dumps({
-            "requests": [{
-                "image": {
-                    "content": base64.b64encode(image_bytes).decode(),
-                },
-                "features": [{"type": "DOCUMENT_TEXT_DETECTION"}],
-                "imageContext": {"languageHints": ["en", "hi"]},
-            }]
-        }).encode("utf-8")
+    def _extract_rest(self, image_bytes: bytes) -> tuple[str, float]:
+        url = f"https://vision.googleapis.com/v1/images:annotate?key={self._api_key}"
+        payload = json.dumps(
+            {
+                "requests": [
+                    {
+                        "image": {
+                            "content": base64.b64encode(image_bytes).decode(),
+                        },
+                        "features": [{"type": "DOCUMENT_TEXT_DETECTION"}],
+                        "imageContext": {"languageHints": ["en", "hi"]},
+                    }
+                ]
+            }
+        ).encode("utf-8")
 
         req = urllib.request.Request(
-            url, data=payload,
+            url,
+            data=payload,
             headers={"Content-Type": "application/json"},
         )
         with urllib.request.urlopen(req, timeout=60) as resp:
             result = json.loads(resp.read())
 
         if "error" in result:
-            raise RuntimeError(
-                result["error"].get("message", "Unknown error")
-            )
+            raise RuntimeError(result["error"].get("message", "Unknown error"))
         response = result.get("responses", [{}])[0]
         if "error" in response:
-            raise RuntimeError(
-                response["error"].get("message", "Unknown error")
-            )
+            raise RuntimeError(response["error"].get("message", "Unknown error"))
 
         annotation = response.get("fullTextAnnotation", {})
         text = annotation.get("text", "")
@@ -435,7 +435,7 @@ class CloudVisionOCR:
         avg = sum(confs) / len(confs) if confs else 0.85
         return text.strip(), avg
 
-    def extract_text(self, image: np.ndarray) -> Tuple[str, float]:
+    def extract_text(self, image: np.ndarray) -> tuple[str, float]:
         """Extract text using Cloud Vision API."""
         if not self._available:
             return "", 0.0
@@ -463,7 +463,9 @@ class CloudVisionOCR:
                 if "PERMISSION_DENIED" in err or "403" in err:
                     logger.warning(
                         "cloud_vision_not_enabled",
-                        hint="Enable at console.cloud.google.com/apis/library/vision.googleapis.com",
+                        hint=(
+                            "Enable at console.cloud.google.com/apis/library/vision.googleapis.com"
+                        ),
                     )
                 else:
                     logger.warning("cloud_vision_api_error", error=err)
@@ -476,6 +478,7 @@ class CloudVisionOCR:
 #  IMAGE PREPROCESSING  (for Cloud Vision fallback)
 # ═══════════════════════════════════════════════════════════════════════════
 
+
 class Preprocessor:
     """Multiple preprocessing strategies.
     The extractor tries each and keeps whichever produces the most text.
@@ -486,6 +489,7 @@ class Preprocessor:
     @staticmethod
     def upscale(image: np.ndarray, target: int = 3000) -> np.ndarray:
         import cv2
+
         h, w = image.shape[:2]
         if max(h, w) >= target:
             return image
@@ -495,6 +499,7 @@ class Preprocessor:
     @staticmethod
     def standard(image: np.ndarray) -> np.ndarray:
         import cv2
+
         img = Preprocessor.upscale(image, 3000)
         img = cv2.bilateralFilter(img, 9, 75, 75)
         lab = cv2.cvtColor(img, cv2.COLOR_RGB2LAB)
@@ -517,12 +522,11 @@ class Preprocessor:
     @staticmethod
     def grayscale_otsu(image: np.ndarray) -> np.ndarray:
         import cv2
+
         img = Preprocessor.upscale(image, 3000)
         gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
         gray = cv2.GaussianBlur(gray, (3, 3), 0)
-        _, binary = cv2.threshold(
-            gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU
-        )
+        _, binary = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
         kernel = np.ones((2, 2), np.uint8)
         binary = cv2.morphologyEx(binary, cv2.MORPH_CLOSE, kernel)
         return cv2.cvtColor(binary, cv2.COLOR_GRAY2RGB)
@@ -539,15 +543,21 @@ class Preprocessor:
 #  CONTENT-BASED DOCUMENT TYPE DETECTION
 # ═══════════════════════════════════════════════════════════════════════════
 
+
 def detect_type_from_text(text: str) -> str:
     """Detect document type from extracted text content."""
     t = text.lower()
 
     id_patterns = [
-        r"permanent\s*account\s*number", r"pan\s*(card|number)",
-        r"aadhaar", r"voter\s*id", r"driving\s*licen[cs]e",
-        r"passport\s*no", r"income\s*tax\s*department",
-        r"unique\s*identification", r"election\s*commission",
+        r"permanent\s*account\s*number",
+        r"pan\s*(card|number)",
+        r"aadhaar",
+        r"voter\s*id",
+        r"driving\s*licen[cs]e",
+        r"passport\s*no",
+        r"income\s*tax\s*department",
+        r"unique\s*identification",
+        r"election\s*commission",
         r"(father|mother|husband).*name",
         r"date\s*of\s*birth.*\d{2}[/\-]\d{2}[/\-]\d{4}",
     ]
@@ -561,7 +571,8 @@ def detect_type_from_text(text: str) -> str:
         r"(university|institute|college).*hereby",
         r"(bachelor|master|doctor|diploma)\s*(of|in)",
         r"(cgpa|dgpa|sgpa|percentage|grade\s*point)",
-        r"convocation", r"registrar",
+        r"convocation",
+        r"registrar",
     ]
     if sum(1 for p in cert_patterns if re.search(p, t)) >= 2:
         return "certificate"
@@ -578,11 +589,16 @@ def detect_type_from_text(text: str) -> str:
         return "invoice"
 
     sci_patterns = [
-        r"abstract", r"introduction", r"methodology|methods",
+        r"abstract",
+        r"introduction",
+        r"methodology|methods",
         r"results?\s*(and|&)\s*discussion",
-        r"conclusion", r"references\s*$",
-        r"et\s+al\.", r"\[\d+\]",
-        r"equation\s*\(?\d", r"fig(ure)?\s*\d",
+        r"conclusion",
+        r"references\s*$",
+        r"et\s+al\.",
+        r"\[\d+\]",
+        r"equation\s*\(?\d",
+        r"fig(ure)?\s*\d",
     ]
     if sum(1 for p in sci_patterns if re.search(p, t)) >= 3:
         return "scientific"
@@ -606,11 +622,11 @@ def _unique_line_count(text: str) -> int:
 #  SINGLETON INSTANCES (process-wide)
 # ═══════════════════════════════════════════════════════════════════════════
 
-_gemini_instance: Optional[GeminiVisionOCR] = None
-_cloud_instance: Optional[CloudVisionOCR] = None
+_gemini_instance: GeminiVisionOCR | None = None
+_cloud_instance: CloudVisionOCR | None = None
 
 
-def get_gemini_ocr() -> Optional[GeminiVisionOCR]:
+def get_gemini_ocr() -> GeminiVisionOCR | None:
     """Return a singleton GeminiVisionOCR (or None if unavailable).
 
     Re-creates the instance if the API key has changed since last init
@@ -629,7 +645,7 @@ def get_gemini_ocr() -> Optional[GeminiVisionOCR]:
     return _gemini_instance if _gemini_instance.available else None
 
 
-def get_cloud_vision() -> Optional[CloudVisionOCR]:
+def get_cloud_vision() -> CloudVisionOCR | None:
     """Return a singleton CloudVisionOCR (or None if unavailable).
 
     Re-creates the instance if the API key has changed since last init.
@@ -638,7 +654,7 @@ def get_cloud_vision() -> Optional[CloudVisionOCR]:
     current_key = os.environ.get("GOOGLE_API_KEY", "")
 
     if _cloud_instance is not None:
-        if current_key and current_key != getattr(_cloud_instance, '_api_key', ''):
+        if current_key and current_key != getattr(_cloud_instance, "_api_key", ""):
             _cloud_instance = CloudVisionOCR()
         return _cloud_instance if _cloud_instance.available else None
 
@@ -646,13 +662,13 @@ def get_cloud_vision() -> Optional[CloudVisionOCR]:
     return _cloud_instance if _cloud_instance.available else None
 
 
-def ocr_image(image: np.ndarray) -> Tuple[str, float]:
+def ocr_image(image: np.ndarray) -> tuple[str, float]:
     """One-shot OCR: try Gemini first, then Cloud Vision with preprocessing.
 
     Returns (text, confidence).
     """
-    MIN_CHARS = 20
-    SPARSE_CHARS = 50
+    min_chars = 20
+    sparse_chars = 50
     best_text: str = ""
     best_conf: float = 0.0
 
@@ -662,18 +678,18 @@ def ocr_image(image: np.ndarray) -> Tuple[str, float]:
         text, conf = gemini.extract_text(image)
         if text.strip():
             best_text, best_conf = text, conf
-            if len(text.strip()) >= SPARSE_CHARS:
+            if len(text.strip()) >= sparse_chars:
                 return best_text, best_conf
 
         # Strategy 2: type-specific Gemini prompt
-        if len(best_text.strip()) >= MIN_CHARS:
+        if len(best_text.strip()) >= min_chars:
             doc_type = detect_type_from_text(best_text)
             if doc_type != "document":
                 typed_text, typed_conf = gemini.extract_typed(image, doc_type)
                 if _unique_line_count(typed_text) >= _unique_line_count(best_text) * 0.8:
                     best_text, best_conf = typed_text, typed_conf
 
-        if len(best_text.strip()) >= SPARSE_CHARS:
+        if len(best_text.strip()) >= sparse_chars:
             return best_text, best_conf
 
     # Strategy 3: Cloud Vision
@@ -684,9 +700,9 @@ def ocr_image(image: np.ndarray) -> Tuple[str, float]:
             best_text, best_conf = text, conf
 
         # Strategy 4: Cloud Vision + preprocessing
-        if len(best_text.strip()) < SPARSE_CHARS:
+        if len(best_text.strip()) < sparse_chars:
             for name, fn in Preprocessor.ALL:
-                if len(best_text.strip()) >= SPARSE_CHARS:
+                if len(best_text.strip()) >= sparse_chars:
                     break
                 try:
                     processed = fn(image)
