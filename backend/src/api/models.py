@@ -7,24 +7,23 @@ Every model is strictly typed, has examples, and is serialization-ready.
 
 from __future__ import annotations
 
-from datetime import datetime
-from enum import Enum
-from typing import Any, Dict, List, Optional
+from datetime import UTC, datetime
+from enum import StrEnum
+from typing import Any
 
 from pydantic import BaseModel, Field
-
 
 # ── Enums ─────────────────────────────────────────────────────────────────
 
 
-class DocumentStatus(str, Enum):
+class DocumentStatus(StrEnum):
     PENDING = "pending"
     PROCESSING = "processing"
     READY = "ready"
     ERROR = "error"
 
 
-class QueryType(str, Enum):
+class QueryType(StrEnum):
     LIST_ALL = "list_all"
     SPECIFIC = "specific"
     AGGREGATION = "aggregation"
@@ -47,21 +46,21 @@ class DocumentMetadata(BaseModel):
     page_count: int = 0
     chunk_count: int = 0
     status: DocumentStatus = DocumentStatus.PENDING
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     processing_time_seconds: float = 0.0
     extraction_method: str = ""
-    extra: Dict[str, Any] = Field(default_factory=dict)
+    extra: dict[str, Any] = Field(default_factory=dict)
 
 
 class DocumentListResponse(BaseModel):
-    documents: List[DocumentMetadata]
+    documents: list[DocumentMetadata]
     total: int
 
 
 class DocumentUploadResponse(BaseModel):
     success: bool
     message: str
-    document: Optional[DocumentMetadata] = None
+    document: DocumentMetadata | None = None
 
 
 class DocumentDeleteResponse(BaseModel):
@@ -76,7 +75,7 @@ class DocumentDeleteResponse(BaseModel):
 class ChatMessage(BaseModel):
     role: str = Field(..., pattern="^(user|assistant|system)$")
     content: str
-    timestamp: Optional[str] = None
+    timestamp: str | None = None
 
 
 class SourceChunk(BaseModel):
@@ -88,35 +87,39 @@ class SourceChunk(BaseModel):
     chunk_index: int = 0
     relevance_score: float = 0.0
     document_type: str = ""
-    metadata: Dict[str, Any] = Field(default_factory=dict)
+    metadata: dict[str, Any] = Field(default_factory=dict)
 
 
 class QueryRequest(BaseModel):
     """Incoming chat query."""
 
     question: str = Field(..., min_length=1, max_length=10000)
-    session_id: Optional[str] = None
-    conversation_history: List[ChatMessage] = Field(default_factory=list)
-    top_k: Optional[int] = None
-    use_reranking: Optional[bool] = None
+    session_id: str | None = None
+    conversation_history: list[ChatMessage] = Field(default_factory=list)
+    top_k: int | None = None
+    use_reranking: bool | None = None
 
-    model_config = {"json_schema_extra": {"examples": [
-        {
-            "question": "What are the key findings in the report?",
-            "session_id": "abc-123",
+    model_config = {
+        "json_schema_extra": {
+            "examples": [
+                {
+                    "question": "What are the key findings in the report?",
+                    "session_id": "abc-123",
+                }
+            ]
         }
-    ]}}
+    }
 
 
 class QueryResponse(BaseModel):
     """Response to a chat query."""
 
     answer: str
-    sources: List[SourceChunk] = Field(default_factory=list)
+    sources: list[SourceChunk] = Field(default_factory=list)
     query_type: QueryType = QueryType.GENERAL
     confidence: float = 0.0
     response_time_seconds: float = 0.0
-    metadata: Dict[str, Any] = Field(default_factory=dict)
+    metadata: dict[str, Any] = Field(default_factory=dict)
 
 
 class StreamToken(BaseModel):
@@ -128,8 +131,8 @@ class StreamToken(BaseModel):
         description="Message type: token (text delta), sources, done, error",
     )
     content: str = ""
-    sources: List[SourceChunk] = Field(default_factory=list)
-    metadata: Dict[str, Any] = Field(default_factory=dict)
+    sources: list[SourceChunk] = Field(default_factory=list)
+    metadata: dict[str, Any] = Field(default_factory=dict)
 
 
 # ── Collections ───────────────────────────────────────────────────────────
@@ -140,7 +143,7 @@ class CollectionInfo(BaseModel):
     name: str
     document_count: int = 0
     chunk_count: int = 0
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
 # ── Analytics ─────────────────────────────────────────────────────────────
@@ -153,6 +156,25 @@ class AnalyticsSummary(BaseModel):
     avg_response_time: float = 0.0
     avg_confidence: float = 0.0
     queries_today: int = 0
+    cache_hits: int = 0
+    cache_misses: int = 0
+    cache_entries: int = 0
+    llm_model_name: str = ""
+    embedding_model: str = ""
+
+
+class SystemStatusResponse(BaseModel):
+    service: str = "NexusRAG API"
+    status: str = "healthy"
+    version: str = "1.0.0"
+    total_documents: int = 0
+    total_chunks: int = 0
+    api_key_configured: bool = False
+    llm_model_name: str = ""
+    embedding_model: str = ""
+    cache: dict[str, Any] = Field(default_factory=dict)
+    settings: dict[str, Any] = Field(default_factory=dict)
+    capabilities: dict[str, bool] = Field(default_factory=dict)
 
 
 # ── Settings ──────────────────────────────────────────────────────────────
@@ -161,11 +183,13 @@ class AnalyticsSummary(BaseModel):
 class SettingsUpdateRequest(BaseModel):
     """Subset of settings the user can update at runtime."""
 
-    llm_temperature: Optional[float] = Field(None, ge=0.0, le=2.0)
-    retrieval_top_k: Optional[int] = Field(None, ge=1, le=100)
-    enable_reranking: Optional[bool] = None
-    hybrid_search_alpha: Optional[float] = Field(None, ge=0.0, le=1.0)
-    context_window_messages: Optional[int] = Field(None, ge=1, le=50)
+    llm_temperature: float | None = Field(None, ge=0.0, le=2.0)
+    retrieval_top_k: int | None = Field(None, ge=1, le=100)
+    enable_reranking: bool | None = None
+    hybrid_search_alpha: float | None = Field(None, ge=0.0, le=1.0)
+    context_window_messages: int | None = Field(None, ge=1, le=50)
+    enable_semantic_chunking: bool | None = None
+    enable_contextual_enrichment: bool | None = None
 
 
 class SettingsResponse(BaseModel):

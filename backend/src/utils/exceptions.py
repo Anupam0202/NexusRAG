@@ -8,10 +8,10 @@ Every exception carries a machine-readable ``code`` and an optional
 
 from __future__ import annotations
 
-from typing import Any, Dict, Optional
+from typing import Any
 
 
-class RAGException(Exception):
+class RAGException(Exception):  # noqa: N818
     """Base exception for the NexusRAG system.
 
     Args:
@@ -24,18 +24,19 @@ class RAGException(Exception):
         self,
         message: str = "An internal error occurred",
         code: str = "RAG_ERROR",
-        details: Optional[Dict[str, Any]] = None,
+        details: dict[str, Any] | None = None,
     ) -> None:
         self.message = message
         self.code = code
         self.details = details or {}
         super().__init__(self.message)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {"code": self.code, "message": self.message, "details": self.details}
 
 
 # ── Ingestion Errors ──────────────────────────────────────────────────────
+
 
 class DocumentLoadError(RAGException):
     """Raised when a document cannot be loaded or parsed."""
@@ -60,6 +61,7 @@ class EmbeddingError(RAGException):
 
 # ── Retrieval Errors ──────────────────────────────────────────────────────
 
+
 class RetrievalError(RAGException):
     """Raised when retrieval from the vector store fails."""
 
@@ -76,6 +78,7 @@ class VectorStoreError(RAGException):
 
 # ── Generation Errors ─────────────────────────────────────────────────────
 
+
 class GenerationError(RAGException):
     """Raised when LLM generation fails."""
 
@@ -87,11 +90,12 @@ class RateLimitError(GenerationError):
     """Raised when an LLM provider rate-limits the request."""
 
     def __init__(self, message: str = "Rate limit exceeded", **kw: Any) -> None:
+        kw.setdefault("code", "RATE_LIMIT_ERROR")
         super().__init__(message, **kw)
-        self.code = "RATE_LIMIT_ERROR"
 
 
 # ── Configuration / Auth Errors ───────────────────────────────────────────
+
 
 class ConfigurationError(RAGException):
     """Raised for invalid or missing configuration."""

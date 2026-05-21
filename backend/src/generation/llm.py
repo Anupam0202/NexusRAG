@@ -15,12 +15,11 @@ The ``LLMProvider`` is a singleton obtained through ``get_llm_provider()``.
 
 from __future__ import annotations
 
-import asyncio
+from collections.abc import AsyncIterator
 from functools import lru_cache
-from typing import Any, AsyncIterator, Dict, List, Optional
+from typing import Any
 
-from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage
-from langchain_core.outputs import ChatGenerationChunk
+from langchain_core.messages import BaseMessage
 from tenacity import (
     retry,
     retry_if_exception_type,
@@ -48,20 +47,18 @@ class LLMProvider:
             print(token, end="")
     """
 
-    def __init__(self, settings: Optional[Settings] = None) -> None:
+    def __init__(self, settings: Settings | None = None) -> None:
         self._settings = settings or get_settings()
         self._model = None
         self._model_name: str = ""
-        
+        self._had_quota_error: bool = False  # track if any candidate hit quota
+
         # Build candidate list
         s = self._settings
-        fallbacks = (
-            s.llm_fallback_models.split(",") 
-            if hasattr(s, "llm_fallback_models") else []
-        )
-        candidates_raw = getattr(s, "fallback_models", fallbacks) # handle old/new config names
+        fallbacks = s.llm_fallback_models.split(",") if hasattr(s, "llm_fallback_models") else []
+        candidates_raw = getattr(s, "fallback_models", fallbacks)
         candidates = [s.llm_model_name] + [name.strip() for name in candidates_raw if name.strip()]
-        
+
         seen = set()
         self._candidates = [x for x in candidates if not (x in seen or seen.add(x))]
 
@@ -77,7 +74,7 @@ class LLMProvider:
         from langchain_google_genai import ChatGoogleGenerativeAI
 
         s = self._settings
-        name = self._candidates[0] # Active candidate is the head of the list
+        name = self._candidates[0]  # Active candidate is the head of the list
 
         try:
             logger.info("loading_model", model=name)
@@ -95,18 +92,28 @@ class LLMProvider:
         except Exception as exc:
             logger.warning("model_init_failed", model=name, error=str(exc))
             self._rotate_candidate(exc)
-            
+
     def _rotate_candidate(self, exc: Exception) -> None:
         """Removes the failing candidate and resets the model for failover."""
+        # Track if any candidate hit quota — used to give better error when all fail
+        err_msg = str(exc).lower()
+        if any(kw in err_msg for kw in ("429", "quota", "rate limit", "resource exhausted")):
+            self._had_quota_error = True
+
         old_name = self._candidates.pop(0) if self._candidates else self._model_name
         self._model = None
         if not self._candidates:
+            # If quota was the root cause, surface that so the UI shows the API key modal
+            if self._had_quota_error:
+                raise RateLimitError(
+                    "All LLM candidates exhausted — quota exceeded on primary model."
+                )
             self._classify_and_raise(exc)
         logger.warning(
-            "model_failover_initiated", 
-            failed_model=old_name, 
-            next_model=self._candidates[0], 
-            error=str(exc)
+            "model_failover_initiated",
+            failed_model=old_name,
+            next_model=self._candidates[0],
+            error=str(exc),
         )
 
     @property
@@ -117,7 +124,8 @@ class LLMProvider:
     # ── Public API ────────────────────────────────────────────────────
 
     @retry(
-        retry=retry_if_exception_type((GenerationError,)),  # Do NOT retry RateLimitError at tenacity level (we failover via while loop instead)
+        # RateLimitError is handled by the model failover loop, not tenacity.
+        retry=retry_if_exception_type((GenerationError,)),
         stop=stop_after_attempt(2),
         wait=wait_exponential(multiplier=1, min=1, max=10),
         reraise=True,
@@ -128,7 +136,7 @@ class LLMProvider:
             self._ensure_model()
             try:
                 resp = self._model.invoke(prompt, **kwargs)  # type: ignore[union-attr]
-                return resp.content if hasattr(resp, "content") else str(resp) # type: ignore
+                return resp.content if hasattr(resp, "content") else str(resp)  # type: ignore
             except Exception as exc:
                 self._rotate_candidate(exc)
         raise GenerationError("All LLM candidates exhausted on invoke.")
@@ -139,13 +147,13 @@ class LLMProvider:
         wait=wait_exponential(multiplier=1, min=1, max=10),
         reraise=True,
     )
-    def invoke_messages(self, messages: List[BaseMessage], **kwargs: Any) -> str:
+    def invoke_messages(self, messages: list[BaseMessage], **kwargs: Any) -> str:
         """Invoke with a list of LangChain messages."""
         while self._candidates:
             self._ensure_model()
             try:
                 resp = self._model.invoke(messages, **kwargs)  # type: ignore[union-attr]
-                return resp.content if hasattr(resp, "content") else str(resp) # type: ignore
+                return resp.content if hasattr(resp, "content") else str(resp)  # type: ignore
             except Exception as exc:
                 self._rotate_candidate(exc)
         raise GenerationError("All LLM candidates exhausted on invoke_messages.")
@@ -160,21 +168,21 @@ class LLMProvider:
                 token = self._extract_token(first_chunk)
                 if token:
                     yield token
-                
+
                 # If the first chunk succeeds, the model is working. Yield the rest.
                 async for chunk in iterator:
                     token = self._extract_token(chunk)
                     if token:
                         yield token
-                return # Success, exit stream
+                return  # Success, exit stream
             except StopAsyncIteration:
-                return # Empty stream
+                return  # Empty stream
             except Exception as exc:
                 self._rotate_candidate(exc)
         raise GenerationError("All LLM candidates exhausted on stream.")
 
     async def stream_messages(
-        self, messages: List[BaseMessage], **kwargs: Any
+        self, messages: list[BaseMessage], **kwargs: Any
     ) -> AsyncIterator[str]:
         """Async streaming with message list."""
         while self._candidates:
@@ -185,12 +193,12 @@ class LLMProvider:
                 token = self._extract_token(first_chunk)
                 if token:
                     yield token
-                
+
                 async for chunk in iterator:
                     token = self._extract_token(chunk)
                     if token:
                         yield token
-                return 
+                return
             except StopAsyncIteration:
                 return
             except Exception as exc:

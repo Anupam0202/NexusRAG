@@ -14,7 +14,6 @@ from __future__ import annotations
 
 import re
 from abc import ABC, abstractmethod
-from typing import List, Optional
 
 import numpy as np
 from langchain_core.documents import Document
@@ -28,32 +27,31 @@ logger = get_logger(__name__)
 
 class ChunkingStrategy(ABC):
     @abstractmethod
-    def chunk(self, documents: List[Document]) -> List[Document]:
-        ...
+    def chunk(self, documents: list[Document]) -> list[Document]: ...
 
 
 # ── Recursive ─────────────────────────────────────────────────────────────
 
 
 class RecursiveChunker(ChunkingStrategy):
-    def __init__(self, settings: Optional[Settings] = None) -> None:
+    def __init__(self, settings: Settings | None = None) -> None:
         s = settings or get_settings()
-        # Decode escaped separators (e.g. "\\n" -> actual newline)
+        # Decode only Python whitespace escapes (\n, \t, \r) — leave regex escapes intact
         raw_seps = s.chunk_separators.split("|")
         separators = [
-            sep.encode().decode("unicode_escape") if "\\" in sep else sep
-            for sep in raw_seps
+            sep.replace("\\n", "\n").replace("\\t", "\t").replace("\\r", "\r") for sep in raw_seps
         ]
         self._splitter = RecursiveCharacterTextSplitter(
             chunk_size=s.chunk_size,
             chunk_overlap=s.chunk_overlap,
             separators=separators,
+            is_separator_regex=True,
             length_function=len,
         )
         self._min_len = s.min_chunk_length
 
-    def chunk(self, documents: List[Document]) -> List[Document]:
-        chunks: List[Document] = []
+    def chunk(self, documents: list[Document]) -> list[Document]:
+        chunks: list[Document] = []
         for doc in documents:
             splits = self._splitter.split_documents([doc])
             for i, s in enumerate(splits):
@@ -67,7 +65,7 @@ class RecursiveChunker(ChunkingStrategy):
 
 
 class SemanticChunker(ChunkingStrategy):
-    def __init__(self, settings: Optional[Settings] = None) -> None:
+    def __init__(self, settings: Settings | None = None) -> None:
         s = settings or get_settings()
         self._min_chunk = s.min_chunk_length
         self._max_chunk = s.chunk_size * 2
@@ -77,14 +75,15 @@ class SemanticChunker(ChunkingStrategy):
     def _get_model(self):
         if self._model is None:
             from sentence_transformers import SentenceTransformer
+
             name = self._model_name
             if name.startswith("models/"):
                 name = "sentence-transformers/all-MiniLM-L6-v2"
             self._model = SentenceTransformer(name)
         return self._model
 
-    def chunk(self, documents: List[Document]) -> List[Document]:
-        chunks: List[Document] = []
+    def chunk(self, documents: list[Document]) -> list[Document]:
+        chunks: list[Document] = []
         for doc in documents:
             text = doc.page_content
             if len(text) < self._min_chunk * 2:
@@ -96,19 +95,21 @@ class SemanticChunker(ChunkingStrategy):
                 segments = [text]
             for i, seg in enumerate(segments):
                 if len(seg.strip()) >= self._min_chunk:
-                    chunks.append(Document(
-                        page_content=seg,
-                        metadata={**doc.metadata, "chunk_index": i, "chunking": "semantic"},
-                    ))
+                    chunks.append(
+                        Document(
+                            page_content=seg,
+                            metadata={**doc.metadata, "chunk_index": i, "chunking": "semantic"},
+                        )
+                    )
         return chunks
 
-    def _semantic_split(self, text: str) -> List[str]:
+    def _semantic_split(self, text: str) -> list[str]:
         sentences = self._split_sentences(text)
         if len(sentences) <= 3:
             return [text]
         model = self._get_model()
         embeddings = model.encode(sentences, show_progress_bar=False, batch_size=128)
-        sims: List[float] = []
+        sims: list[float] = []
         for i in range(len(embeddings) - 1):
             a, b = embeddings[i], embeddings[i + 1]
             cos = float(np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b) + 1e-10))
@@ -116,10 +117,10 @@ class SemanticChunker(ChunkingStrategy):
         mean_sim, std_sim = float(np.mean(sims)), float(np.std(sims))
         threshold = max(0.25, mean_sim - std_sim)
         breakpoints = [i for i, s in enumerate(sims) if s < threshold]
-        segments: List[str] = []
+        segments: list[str] = []
         start = 0
         for bp in breakpoints:
-            seg = " ".join(sentences[start: bp + 1]).strip()
+            seg = " ".join(sentences[start : bp + 1]).strip()
             if seg:
                 segments.append(seg)
             start = bp + 1
@@ -127,7 +128,7 @@ class SemanticChunker(ChunkingStrategy):
             seg = " ".join(sentences[start:]).strip()
             if seg:
                 segments.append(seg)
-        merged: List[str] = []
+        merged: list[str] = []
         buf = ""
         for seg in segments:
             if len(buf) + len(seg) < self._max_chunk:
@@ -141,7 +142,7 @@ class SemanticChunker(ChunkingStrategy):
         return merged if merged else [text]
 
     @staticmethod
-    def _split_sentences(text: str) -> List[str]:
+    def _split_sentences(text: str) -> list[str]:
         raw = re.split(r"(?<=[.!?])\s+(?=[A-Z])", text)
         return [s.strip() for s in raw if s.strip() and len(s.strip()) > 10]
 
@@ -157,13 +158,13 @@ class HierarchicalChunker(ChunkingStrategy):
     split with ``RecursiveChunker``.
     """
 
-    def __init__(self, settings: Optional[Settings] = None) -> None:
+    def __init__(self, settings: Settings | None = None) -> None:
         s = settings or get_settings()
         self._recursive = RecursiveChunker(s)
         self._max_chunk = s.chunk_size
 
-    def chunk(self, documents: List[Document]) -> List[Document]:
-        chunks: List[Document] = []
+    def chunk(self, documents: list[Document]) -> list[Document]:
+        chunks: list[Document] = []
         for doc in documents:
             section_title = doc.metadata.get("section_title", "")
             content = doc.page_content
@@ -189,7 +190,7 @@ class HierarchicalChunker(ChunkingStrategy):
 
 
 class TabularPassthrough(ChunkingStrategy):
-    def chunk(self, documents: List[Document]) -> List[Document]:
+    def chunk(self, documents: list[Document]) -> list[Document]:
         return documents
 
 
@@ -201,14 +202,22 @@ class TabularPassthrough(ChunkingStrategy):
 class SmartChunker:
     """Routes each document to the best chunking strategy."""
 
-    _PASSTHROUGH_TYPES = frozenset({
-        "full_data", "rows", "row", "summary", "column",
-        "array_item", "figure", "equation",
-    })
+    _PASSTHROUGH_TYPES = frozenset(
+        {
+            "full_data",
+            "rows",
+            "row",
+            "summary",
+            "column",
+            "array_item",
+            "figure",
+            "equation",
+        }
+    )
 
     _HIERARCHICAL_TYPES = frozenset({"section"})
 
-    def __init__(self, settings: Optional[Settings] = None) -> None:
+    def __init__(self, settings: Settings | None = None) -> None:
         s = settings or get_settings()
         self._semantic_enabled = s.enable_semantic_chunking
         self._chunk_size = s.chunk_size
@@ -218,10 +227,10 @@ class SmartChunker:
         self._hierarchical = HierarchicalChunker(s)
         self._passthrough = TabularPassthrough()
 
-    def chunk(self, documents: List[Document]) -> List[Document]:
-        passthrough: List[Document] = []
-        hierarchical: List[Document] = []
-        text_docs: List[Document] = []
+    def chunk(self, documents: list[Document]) -> list[Document]:
+        passthrough: list[Document] = []
+        hierarchical: list[Document] = []
+        text_docs: list[Document] = []
 
         for doc in documents:
             doc_type = doc.metadata.get("document_type", "")

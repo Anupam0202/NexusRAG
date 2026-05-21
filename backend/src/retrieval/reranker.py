@@ -15,7 +15,6 @@ degradation).
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import List, Optional, Tuple
 
 from langchain_core.documents import Document
 
@@ -27,8 +26,7 @@ logger = get_logger(__name__)
 
 class BaseReranker(ABC):
     @abstractmethod
-    def rerank(self, query: str, documents: List[Document], top_k: int) -> List[Document]:
-        ...
+    def rerank(self, query: str, documents: list[Document], top_k: int) -> list[Document]: ...
 
 
 # ── Cross-Encoder ─────────────────────────────────────────────────────────
@@ -49,16 +47,12 @@ class CrossEncoderReranker(BaseReranker):
             logger.info("cross_encoder_loaded", model=self._model_name)
         return self._model
 
-    def rerank(self, query: str, documents: List[Document], top_k: int) -> List[Document]:
+    def rerank(self, query: str, documents: list[Document], top_k: int) -> list[Document]:
         model = self._load_model()
-        pairs: List[Tuple[str, str]] = [
-            (query, doc.page_content[:1000]) for doc in documents
-        ]
+        pairs: list[tuple[str, str]] = [(query, doc.page_content[:1000]) for doc in documents]
         scores = model.predict(pairs)  # type: ignore
 
-        scored = sorted(
-            zip(documents, scores), key=lambda x: x[1], reverse=True
-        )
+        scored = sorted(zip(documents, scores), key=lambda x: x[1], reverse=True)
         reranked = [doc for doc, _ in scored[:top_k]]
         logger.debug("cross_encoder_reranked", top_k=top_k, input=len(documents))
         return reranked
@@ -70,7 +64,7 @@ class CrossEncoderReranker(BaseReranker):
 class LLMReranker(BaseReranker):
     """Ask the LLM to rank passages by relevance (more expensive)."""
 
-    def __init__(self, settings: Optional[Settings] = None) -> None:
+    def __init__(self, settings: Settings | None = None) -> None:
         self._settings = settings or get_settings()
         self._llm = None
 
@@ -87,7 +81,7 @@ class LLMReranker(BaseReranker):
             )
         return self._llm
 
-    def rerank(self, query: str, documents: List[Document], top_k: int) -> List[Document]:
+    def rerank(self, query: str, documents: list[Document], top_k: int) -> list[Document]:
         import json
         import re as _re
 
@@ -105,7 +99,7 @@ class LLMReranker(BaseReranker):
             match = _re.search(r"\[[\d,\s]+\]", text)
             if match:
                 ranking = json.loads(match.group())
-                reranked: List[Document] = []
+                reranked: list[Document] = []
                 for idx in ranking:
                     if 1 <= idx <= len(documents):
                         reranked.append(documents[idx - 1])
@@ -128,34 +122,32 @@ class LLMReranker(BaseReranker):
 class RerankerPipeline:
     """Try cross-encoder first, fall back to LLM, then passthrough.
 
-    On memory-constrained platforms (detected via RAILWAY_ENVIRONMENT,
-    RENDER, CONSTRAINED_MEMORY, or DISABLE_CROSS_ENCODER=true), skips
-    the ~80MB cross-encoder model AND the LLM reranker (which burns
-    API quota) — uses score-based ordering from FAISS+BM25 hybrid
-    search instead.
+    On memory-constrained platforms (detected via RENDER, CONSTRAINED_MEMORY,
+    or DISABLE_CROSS_ENCODER=true), skips the ~80MB cross-encoder model AND
+    the LLM reranker (which burns API quota) — uses score-based ordering from
+    FAISS+BM25 hybrid search instead.
     """
 
-    def __init__(self, settings: Optional[Settings] = None) -> None:
+    def __init__(self, settings: Settings | None = None) -> None:
         import os
 
         s = settings or get_settings()
         # Skip cross-encoder on cloud platforms or low-memory environments
         is_constrained = (
-            os.environ.get("RAILWAY_ENVIRONMENT", "")
-            or os.environ.get("RENDER", "")
+            os.environ.get("RENDER", "")
             or os.environ.get("CONSTRAINED_MEMORY", "").lower() == "true"
             or os.environ.get("DISABLE_CROSS_ENCODER", "").lower() == "true"
         )
         if is_constrained:
             logger.info("memory_constrained_mode — skipping cross-encoder and LLM reranker")
-            self._cross_encoder: Optional[CrossEncoderReranker] = None
+            self._cross_encoder: CrossEncoderReranker | None = None
             # Also skip LLM reranker to save API quota on free tier
-            self._llm_reranker: Optional[LLMReranker] = None
+            self._llm_reranker: LLMReranker | None = None
         else:
             self._cross_encoder = CrossEncoderReranker(s.rerank_model)
             self._llm_reranker = LLMReranker(s)
 
-    def rerank(self, query: str, documents: List[Document], top_k: int) -> List[Document]:
+    def rerank(self, query: str, documents: list[Document], top_k: int) -> list[Document]:
         # Try cross-encoder (if available)
         if self._cross_encoder is not None:
             try:

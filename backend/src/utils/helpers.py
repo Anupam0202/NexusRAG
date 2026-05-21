@@ -10,10 +10,11 @@ from __future__ import annotations
 import hashlib
 import re
 import time
+from collections.abc import Callable
 from datetime import datetime
 from functools import wraps
 from pathlib import Path
-from typing import Any, Callable, Dict, Optional, TypeVar
+from typing import Any, TypeVar
 
 import pandas as pd
 
@@ -41,12 +42,15 @@ def clean_text(text: str) -> str:
         return ""
 
     replacements = {
-        "\u2018": "'", "\u2019": "'",
-        "\u201c": '"', "\u201d": '"',
-        "\u2013": "-", "\u2014": "--",
+        "\u2018": "'",
+        "\u2019": "'",
+        "\u201c": '"',
+        "\u201d": '"',
+        "\u2013": "-",
+        "\u2014": "--",
         "\u2026": "...",
-        "\u200b": "",   # zero-width space
-        "\xa0": " ",    # non-breaking space
+        "\u200b": "",  # zero-width space
+        "\xa0": " ",  # non-breaking space
     }
     for old, new in replacements.items():
         text = text.replace(old, new)
@@ -111,11 +115,11 @@ def format_value(value: Any) -> str:
 def build_metadata(
     file_path: Path,
     *,
-    extra: Optional[Dict[str, Any]] = None,
-) -> Dict[str, Any]:
+    extra: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     """Build standard metadata dict for a file."""
     stat = file_path.stat() if file_path.exists() else None
-    meta: Dict[str, Any] = {
+    meta: dict[str, Any] = {
         "source": str(file_path),
         "filename": file_path.name,
         "file_extension": file_path.suffix.lower(),

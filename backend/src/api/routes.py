@@ -18,10 +18,9 @@ Endpoints:
 
 from __future__ import annotations
 
-import time
+import asyncio
 import uuid
 from pathlib import Path
-from typing import List
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from pydantic import BaseModel, Field
@@ -40,6 +39,7 @@ from src.api.models import (
     SettingsResponse,
     SettingsUpdateRequest,
     SourceChunk,
+    SystemStatusResponse,
 )
 from src.generation.chain import RAGChain
 from src.ingestion.pipeline import IngestionPipeline
@@ -69,20 +69,29 @@ async def upload_document(
 
     content = await file.read()
     safe_name = FileValidator.sanitize_filename(file.filename)
-    valid, msg = FileValidator.validate(safe_name, content, max_size_bytes=settings.max_upload_bytes)
+    valid, msg = FileValidator.validate(
+        safe_name,
+        content,
+        max_size_bytes=settings.max_upload_bytes,
+    )
     if not valid:
         raise HTTPException(400, msg)
 
     try:
         pipeline = IngestionPipeline(vector_store=vs, settings=settings)
-        result = pipeline.ingest(file_uploads=[{"filename": safe_name, "content": content}])
+        loop = asyncio.get_event_loop()
+        result = await loop.run_in_executor(
+            None,
+            lambda: pipeline.ingest(file_uploads=[{"filename": safe_name, "content": content}]),
+        )
     except Exception as exc:
         logger.error("upload_pipeline_error", file=safe_name, error=str(exc))
         err_msg = str(exc).lower()
         if any(kw in err_msg for kw in ("429", "quota", "resource_exhausted")):
             raise HTTPException(
                 429,
-                "API quota exceeded. Please wait a few minutes or provide a new API key in Settings."
+                "API quota exceeded. Please wait a few minutes or provide a new API "
+                "key in Settings.",
             )
         raise HTTPException(500, f"Processing error: {str(exc)[:200]}")
 
@@ -95,7 +104,7 @@ async def upload_document(
             raise HTTPException(422, f"Ingestion failed: {errors}")
 
     doc_meta = DocumentMetadata(
-        document_id=str(uuid.uuid4())[:12],
+        document_id=str(uuid.uuid4()),
         filename=safe_name,
         file_type=Path(safe_name).suffix.lower().lstrip("."),
         file_size_bytes=len(content),
@@ -121,10 +130,12 @@ async def list_documents(
         DocumentMetadata(
             document_id=d["filename"],
             filename=d["filename"],
-            file_type=Path(d["filename"]).suffix.lower().lstrip("."),
-            file_size_bytes=0,
+            file_type=d.get("file_type") or Path(d["filename"]).suffix.lower().lstrip("."),
+            file_size_bytes=d.get("file_size_bytes", 0),
+            page_count=d.get("page_count", 0),
             chunk_count=d["chunk_count"],
             status=DocumentStatus.READY,
+            extraction_method=d.get("extraction_method", ""),
         )
         for d in docs_raw
     ]
@@ -218,6 +229,7 @@ async def update_settings(
     if body.llm_temperature is not None:
         settings.llm_temperature = body.llm_temperature
         from src.generation.llm import get_llm_provider
+
         get_llm_provider().update_temperature(body.llm_temperature)
 
     if body.retrieval_top_k is not None:
@@ -228,6 +240,10 @@ async def update_settings(
         settings.hybrid_search_alpha = body.hybrid_search_alpha
     if body.context_window_messages is not None:
         settings.context_window_messages = body.context_window_messages
+    if body.enable_semantic_chunking is not None:
+        settings.enable_semantic_chunking = body.enable_semantic_chunking
+    if body.enable_contextual_enrichment is not None:
+        settings.enable_contextual_enrichment = body.enable_contextual_enrichment
 
     return await get_current_settings(settings)
 
@@ -258,10 +274,10 @@ async def set_api_key(
     # Validate the key using a FREE metadata call (list_models doesn't
     # count toward the RPM quota, unlike generate_content).
     try:
-        import google.generativeai as genai
-        genai.configure(api_key=new_key)
-        # list_models is free and proves the key is valid
-        models = list(genai.list_models())
+        import google.genai as genai
+
+        client = genai.Client(api_key=new_key)
+        models = list(client.models.list())
         if not models:
             raise HTTPException(400, "Invalid API key — no models accessible.")
     except HTTPException:
@@ -281,6 +297,7 @@ async def set_api_key(
 
     # Reset the LLM provider singleton so it picks up the new key
     from src.generation.llm import get_llm_provider
+
     provider = get_llm_provider()
     provider._model = None  # Force re-init on next call
     provider._settings = settings
@@ -293,6 +310,7 @@ async def set_api_key(
     # Reset the OCR manager singletons so they use the new key
     try:
         import src.ingestion.ocr_manager as ocr_mgr
+
         ocr_mgr._gemini_instance = None
         ocr_mgr._cloud_instance = None
     except Exception:
@@ -310,14 +328,46 @@ async def set_api_key(
 @router.get("/analytics/summary", response_model=AnalyticsSummary)
 async def analytics_summary(
     vs: VectorStoreManager = Depends(get_vector_store),
-    chain: RAGChain = Depends(get_rag_chain),
 ) -> AnalyticsSummary:
     docs = vs.list_documents()
-    cache = chain.cache_stats
-    metrics = chain.query_metrics
+    settings_instance = get_settings()
+
+    # Retrieve chain metrics only if chain is initialised (requires API key)
+    cache: dict = {"hits": 0, "misses": 0, "entries": 0}
+    metrics: dict = {
+        "total_queries": 0,
+        "avg_response_time": 0.0,
+        "avg_confidence": 0.0,
+        "queries_today": 0,
+    }
+    try:
+        from src.api.dependencies import get_rag_chain as _get_chain
+
+        chain = _get_chain()
+        raw_cache = chain.cache_stats
+        cache = {
+            "hits": raw_cache.get("hits", 0),
+            "misses": raw_cache.get("misses", 0),
+            "entries": raw_cache.get("entries", 0),
+        }
+        metrics = chain.query_metrics
+    except Exception:
+        pass
+
+    # Active model — use already-initialised provider name when available
+    llm_model = settings_instance.llm_model_name
+    try:
+        from src.generation.llm import get_llm_provider
+
+        provider = get_llm_provider()
+        if provider._model_name:
+            llm_model = provider._model_name
+    except Exception:
+        pass
+
     total_queries = max(
         metrics.get("total_queries", 0),
-        cache.get("hits", 0) + cache.get("misses", 0),
+        cache["hits"] + cache["misses"],
     )
     return AnalyticsSummary(
         total_documents=len(docs),
@@ -326,4 +376,51 @@ async def analytics_summary(
         avg_response_time=metrics.get("avg_response_time", 0.0),
         avg_confidence=metrics.get("avg_confidence", 0.0),
         queries_today=metrics.get("queries_today", 0),
+        cache_hits=cache["hits"],
+        cache_misses=cache["misses"],
+        cache_entries=cache["entries"],
+        llm_model_name=llm_model,
+        embedding_model=settings_instance.embedding_model,
+    )
+
+
+@router.get("/status", response_model=SystemStatusResponse)
+async def system_status(
+    settings: Settings = Depends(get_settings),
+    vs: VectorStoreManager = Depends(get_vector_store),
+) -> SystemStatusResponse:
+    """Operational status payload for dashboards and deployment smoke tests."""
+    docs = vs.list_documents()
+    cache: dict = {"hits": 0, "misses": 0, "entries": 0, "hit_rate": 0.0}
+    try:
+        from src.api.dependencies import get_rag_chain as _get_chain
+
+        cache = _get_chain().cache_stats
+    except Exception:
+        pass
+
+    return SystemStatusResponse(
+        total_documents=len(docs),
+        total_chunks=vs.total_chunks,
+        api_key_configured=bool(settings.google_api_key),
+        llm_model_name=settings.llm_model_name,
+        embedding_model=settings.embedding_model,
+        cache=cache,
+        settings={
+            "retrieval_top_k": settings.retrieval_top_k,
+            "enable_reranking": settings.enable_reranking,
+            "hybrid_search_alpha": settings.hybrid_search_alpha,
+            "enable_semantic_chunking": settings.enable_semantic_chunking,
+            "enable_contextual_enrichment": settings.enable_contextual_enrichment,
+            "max_upload_size_mb": settings.max_upload_size_mb,
+        },
+        capabilities={
+            "streaming": True,
+            "hybrid_search": True,
+            "semantic_cache": settings.enable_cache,
+            "reranking": settings.enable_reranking,
+            "semantic_chunking": settings.enable_semantic_chunking,
+            "contextual_enrichment": settings.enable_contextual_enrichment,
+            "ocr": bool(settings.google_api_key),
+        },
     )

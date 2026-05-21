@@ -14,7 +14,7 @@ export function formatBytes(bytes: number): string {
 }
 
 export function generateId(): string {
-  return Math.random().toString(36).substring(2, 10);
+  return crypto.randomUUID();
 }
 
 export function timeAgo(dateStr: string): string {
@@ -38,6 +38,13 @@ const FILE_ICONS: Record<string, string> = {
   txt: "📝",
   md: "📑",
   json: "🔧",
+  png: "🖼️",
+  jpg: "🖼️",
+  jpeg: "🖼️",
+  gif: "🖼️",
+  webp: "🖼️",
+  bmp: "🖼️",
+  tiff: "🖼️",
 };
 
 export function fileIcon(filename: string): string {

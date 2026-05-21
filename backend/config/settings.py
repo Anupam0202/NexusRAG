@@ -37,11 +37,11 @@ class Settings(BaseSettings):
         description="Google AI API key (required for Gemini models)",
     )
     llm_model_name: str = Field(
-        default="gemini-2.0-flash",
-        description="Primary LLM model identifier (gemini-2.0-flash has 1500 RPD free tier)",
+        default="gemini-1.5-pro",
+        description="Primary LLM model identifier",
     )
     llm_fallback_models: str = Field(
-        default="gemini-2.5-flash,gemini-1.5-flash,gemini-1.5-pro",
+        default="gemini-2.0-flash,gemini-2.5-flash,gemini-2.0-flash-lite",
         description="Comma-separated fallback model names",
     )
     llm_temperature: float = Field(default=0.1, ge=0.0, le=2.0)
@@ -64,7 +64,7 @@ class Settings(BaseSettings):
     enable_contextual_enrichment: bool = Field(default=True)
     min_chunk_length: int = Field(default=50, ge=10)
     chunk_separators: str = Field(
-        default=r"\n\n\n|\n\n|\n|\.\ |!\ |\?\ |;\ |,\ |\ ",
+        default=r"\n\n\n|\n\n|\n|\. |! |\? |; |, | ",
         description="Pipe-separated regex separators for recursive splitting",
     )
 
@@ -134,8 +134,8 @@ class Settings(BaseSettings):
     def cors_origins(self) -> List[str]:
         """Parse comma-separated CORS origins into a list.
 
-        Automatically includes the platform external URL if available
-        (supports both Render and Railway).
+        Automatically includes the Render external URL if available
+        (set by the platform as RENDER_EXTERNAL_URL).
         Supports wildcard '*' for development.
         """
         raw = [o.strip() for o in self.api_cors_origins.split(",") if o.strip()]
@@ -145,12 +145,6 @@ class Settings(BaseSettings):
         render_url = os.environ.get("RENDER_EXTERNAL_URL", "")
         if render_url and render_url not in raw:
             raw.append(render_url)
-        # Auto-add Railway public domain if set by the platform
-        railway_domain = os.environ.get("RAILWAY_PUBLIC_DOMAIN", "")
-        if railway_domain:
-            railway_url = f"https://{railway_domain}"
-            if railway_url not in raw:
-                raw.append(railway_url)
         return raw
 
     @property

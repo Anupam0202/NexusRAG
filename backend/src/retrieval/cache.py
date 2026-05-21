@@ -14,12 +14,12 @@ from __future__ import annotations
 import threading
 import time
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import numpy as np
 
 from config.settings import Settings, get_settings
-from src.ingestion.embedder import Embedder, get_embedder
+from src.ingestion.embedder import get_embedder
 from src.utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -31,7 +31,7 @@ class CacheEntry:
 
     query: str
     query_embedding: np.ndarray
-    response: Dict[str, Any]
+    response: dict[str, Any]
     created_at: float = field(default_factory=time.time)
 
 
@@ -50,7 +50,7 @@ class SemanticCache:
 
     def __init__(
         self,
-        settings: Optional[Settings] = None,
+        settings: Settings | None = None,
         similarity_threshold: float = 0.95,
         max_entries: int = 500,
     ) -> None:
@@ -61,14 +61,14 @@ class SemanticCache:
         self._threshold = similarity_threshold
         self._max_entries = max_entries
 
-        self._entries: List[CacheEntry] = []
+        self._entries: list[CacheEntry] = []
         self._lock = threading.Lock()
 
         # Stats
         self.hits = 0
         self.misses = 0
 
-    def get(self, query: str) -> Optional[Dict[str, Any]]:
+    def get(self, query: str) -> dict[str, Any] | None:
         """Look up a semantically similar cached response.
 
         Returns:
@@ -82,7 +82,7 @@ class SemanticCache:
         now = time.time()
 
         best_score = 0.0
-        best_entry: Optional[CacheEntry] = None
+        best_entry: CacheEntry | None = None
 
         with self._lock:
             for entry in self._entries:
@@ -105,7 +105,7 @@ class SemanticCache:
         self.misses += 1
         return None
 
-    def set(self, query: str, response: Dict[str, Any]) -> None:
+    def set(self, query: str, response: dict[str, Any]) -> None:
         """Store a query–response pair in the cache."""
         if not self._enabled:
             return
@@ -117,7 +117,7 @@ class SemanticCache:
             self._entries.append(entry)
             # Evict oldest if over limit
             if len(self._entries) > self._max_entries:
-                self._entries = self._entries[-self._max_entries:]
+                self._entries = self._entries[-self._max_entries :]
 
     def clear(self) -> None:
         with self._lock:
@@ -136,7 +136,7 @@ class SemanticCache:
         return removed
 
     @property
-    def stats(self) -> Dict[str, Any]:
+    def stats(self) -> dict[str, Any]:
         total = self.hits + self.misses
         return {
             "entries": len(self._entries),

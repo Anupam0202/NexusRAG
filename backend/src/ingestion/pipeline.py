@@ -6,16 +6,16 @@ Ingestion Pipeline Orchestrator — v2 (+ scientific mode)
 from __future__ import annotations
 
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any
 
 from langchain_core.documents import Document
 
 from config.settings import Settings, get_settings
 from src.ingestion.chunker import SmartChunker
 from src.ingestion.contextualizer import ContextualEnricher
-from src.ingestion.embedder import get_embedder
 from src.ingestion.loader import LoaderFactory
 from src.utils.logger import get_logger
 
@@ -29,11 +29,11 @@ class IngestionResult:
     success: bool = True
     documents_loaded: int = 0
     chunks_created: int = 0
-    files_processed: List[str] = field(default_factory=list)
-    errors: List[Dict[str, str]] = field(default_factory=list)
+    files_processed: list[str] = field(default_factory=list)
+    errors: list[dict[str, str]] = field(default_factory=list)
     processing_time_seconds: float = 0.0
-    chunks: List[Document] = field(default_factory=list, repr=False)
-    source_docs: List[Document] = field(default_factory=list, repr=False)
+    chunks: list[Document] = field(default_factory=list, repr=False)
+    source_docs: list[Document] = field(default_factory=list, repr=False)
     scientific_figures: int = 0
     scientific_tables: int = 0
     scientific_equations: int = 0
@@ -42,9 +42,9 @@ class IngestionResult:
 class IngestionPipeline:
     def __init__(
         self,
-        vector_store: Optional[Any] = None,
-        settings: Optional[Settings] = None,
-        progress_callback: Optional[ProgressCallback] = None,
+        vector_store: Any | None = None,
+        settings: Settings | None = None,
+        progress_callback: ProgressCallback | None = None,
     ) -> None:
         self._settings = settings or get_settings()
         self._vector_store = vector_store
@@ -58,14 +58,14 @@ class IngestionPipeline:
 
     def ingest(
         self,
-        file_paths: Optional[List[Path]] = None,
-        file_uploads: Optional[List[Dict[str, Any]]] = None,
+        file_paths: list[Path] | None = None,
+        file_uploads: list[dict[str, Any]] | None = None,
     ) -> IngestionResult:
         t0 = time.perf_counter()
         result = IngestionResult()
         items = self._build_items(file_paths, file_uploads)
         total = len(items)
-        all_docs: List[Document] = []
+        all_docs: list[Document] = []
 
         self._report("Loading documents…", 0.05)
 
@@ -105,6 +105,7 @@ class IngestionPipeline:
             except Exception as exc:
                 logger.error("vector_store_error", error=str(exc))
                 result.errors.append({"file": "vector_store", "error": str(exc)})
+                result.success = False
 
         result.chunks_created = len(chunks)
         result.chunks = chunks
@@ -121,8 +122,8 @@ class IngestionPipeline:
         return result
 
     def _load_single(
-        self, path: Path, content: Optional[bytes], result: IngestionResult
-    ) -> List[Document]:
+        self, path: Path, content: bytes | None, result: IngestionResult
+    ) -> list[Document]:
         """Load a file — use scientific parser for PDFs when enabled."""
         ext = path.suffix.lower()
 
@@ -136,8 +137,8 @@ class IngestionPipeline:
         return docs
 
     def _load_scientific_pdf(
-        self, path: Path, content: Optional[bytes], result: IngestionResult
-    ) -> List[Document]:
+        self, path: Path, content: bytes | None, result: IngestionResult
+    ) -> list[Document]:
         """Parse PDF through the full scientific pipeline.
 
         Falls back to the standard PDF loader on any error,
@@ -173,10 +174,10 @@ class IngestionPipeline:
 
     @staticmethod
     def _build_items(
-        file_paths: Optional[List[Path]],
-        file_uploads: Optional[List[Dict[str, Any]]],
-    ) -> List[tuple[Path, Optional[bytes]]]:
-        items: List[tuple[Path, Optional[bytes]]] = []
+        file_paths: list[Path] | None,
+        file_uploads: list[dict[str, Any]] | None,
+    ) -> list[tuple[Path, bytes | None]]:
+        items: list[tuple[Path, bytes | None]] = []
         if file_paths:
             for p in file_paths:
                 items.append((p, None))

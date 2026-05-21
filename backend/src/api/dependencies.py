@@ -8,7 +8,6 @@ Provides singleton instances of all heavy components.
 from __future__ import annotations
 
 from functools import lru_cache
-from typing import Optional
 
 from fastapi import Depends, Header, HTTPException, status
 
@@ -24,7 +23,7 @@ logger = get_logger(__name__)
 
 
 async def verify_api_key(
-    x_api_key: Optional[str] = Header(None),
+    x_api_key: str | None = Header(None),
     settings: Settings = Depends(get_settings),
 ) -> None:
     if settings.api_key and settings.api_key.strip():

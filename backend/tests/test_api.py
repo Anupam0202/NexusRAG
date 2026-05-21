@@ -6,9 +6,6 @@ These tests use the TestClient and mock heavy components where needed.
 
 from __future__ import annotations
 
-import json
-
-import pytest
 from fastapi.testclient import TestClient
 
 
@@ -87,3 +84,13 @@ class TestAnalytics:
         data = resp.json()
         assert "total_documents" in data
         assert "total_chunks" in data
+
+
+class TestSystemStatus:
+    def test_system_status(self, test_client: TestClient):
+        resp = test_client.get("/api/v1/status")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["service"] == "NexusRAG API"
+        assert "capabilities" in data
+        assert "settings" in data

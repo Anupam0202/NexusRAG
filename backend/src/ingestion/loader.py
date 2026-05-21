@@ -19,26 +19,24 @@ import re
 from abc import ABC, abstractmethod
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import numpy as np
 import pandas as pd
 from langchain_core.documents import Document
 
-from config.settings import Settings, get_settings
-from src.utils.helpers import clean_text, format_value, truncate
+from config.settings import get_settings
+from src.ingestion.ocr_manager import (
+    get_cloud_vision,
+    get_gemini_ocr,
+    ocr_image,
+)
+from src.utils.helpers import clean_text, format_value
 from src.utils.logger import get_logger
 
 logger = get_logger(__name__)
 
 # ── Cloud OCR (Gemini Vision + Cloud Vision) ──────────────────────────────
-
-from src.ingestion.ocr_manager import (
-    OCR_AVAILABLE as _OCR_AVAILABLE,
-    get_gemini_ocr,
-    get_cloud_vision,
-    ocr_image,
-)
 
 try:
     from rank_bm25 import BM25Okapi  # noqa: F401 — verify install
@@ -64,8 +62,8 @@ class BaseLoader(ABC):
     def load(
         self,
         file_path: Path,
-        content: Optional[bytes] = None,
-    ) -> List[Document]:
+        content: bytes | None = None,
+    ) -> list[Document]:
         """Load a file and return one or more ``Document`` objects.
 
         Args:
@@ -81,9 +79,9 @@ class BaseLoader(ABC):
         ...
 
     @staticmethod
-    def _base_metadata(file_path: Path, content: Optional[bytes] = None) -> Dict[str, Any]:
+    def _base_metadata(file_path: Path, content: bytes | None = None) -> dict[str, Any]:
         """Build base metadata common to every document."""
-        meta: Dict[str, Any] = {
+        meta: dict[str, Any] = {
             "source": str(file_path),
             "filename": file_path.name,
             "file_extension": file_path.suffix.lower(),
@@ -134,12 +132,12 @@ class PDFLoader(BaseLoader):
     def load(
         self,
         file_path: Path,
-        content: Optional[bytes] = None,
-    ) -> List[Document]:
+        content: bytes | None = None,
+    ) -> list[Document]:
         base_meta = self._base_metadata(file_path, content)
         source = io.BytesIO(content) if content else file_path
 
-        documents: List[Document] = []
+        documents: list[Document] = []
 
         try:
             pages_text, tables_text, page_count = self._extract_pdfplumber(source)
@@ -153,8 +151,8 @@ class PDFLoader(BaseLoader):
         used_cloud_ocr = False
         if total_chars < 500 and (self._gemini or self._cloud):
             try:
-                pdf_bytes = content if content else (
-                    file_path.read_bytes() if file_path.exists() else b""
+                pdf_bytes = (
+                    content if content else (file_path.read_bytes() if file_path.exists() else b"")
                 )
                 if pdf_bytes:
                     ocr_text, ocr_tables = self._extract_cloud_ocr(pdf_bytes)
@@ -183,13 +181,11 @@ class PDFLoader(BaseLoader):
         # (common case: PDFs with text + embedded figures/charts/diagrams)
         if not used_cloud_ocr and (self._gemini or self._cloud):
             try:
-                pdf_bytes = content if content else (
-                    file_path.read_bytes() if file_path.exists() else b""
+                pdf_bytes = (
+                    content if content else (file_path.read_bytes() if file_path.exists() else b"")
                 )
                 if pdf_bytes:
-                    pages_text = self._extract_embedded_images(
-                        pdf_bytes, pages_text
-                    )
+                    pages_text = self._extract_embedded_images(pdf_bytes, pages_text)
             except Exception as exc:
                 logger.debug("embedded_image_extraction_failed", error=str(exc))
 
@@ -198,9 +194,7 @@ class PDFLoader(BaseLoader):
         base_meta["file_type"] = "pdf"
 
         # Build full-document Document
-        full_content = "\n\n---\n\n".join(
-            t for t in pages_text if t and t.strip()
-        )
+        full_content = "\n\n---\n\n".join(t for t in pages_text if t and t.strip())
         if full_content.strip():
             documents.append(
                 Document(
@@ -244,8 +238,8 @@ class PDFLoader(BaseLoader):
         """Extract text + tables with pdfplumber."""
         import pdfplumber
 
-        pages_text: List[str] = []
-        tables_text: List[str] = []
+        pages_text: list[str] = []
+        tables_text: list[str] = []
         page_count = 0
 
         with pdfplumber.open(source) as pdf:
@@ -256,14 +250,12 @@ class PDFLoader(BaseLoader):
 
                 # Extract tables as formatted text
                 page_tables = page.extract_tables()
-                tbl_parts: List[str] = []
+                tbl_parts: list[str] = []
                 if page_tables:
                     for i, table in enumerate(page_tables, 1):
                         tbl_parts.append(f"[Table {i}]")
                         for row in table:
-                            row_str = " | ".join(
-                                str(c) if c else "" for c in row
-                            )
+                            row_str = " | ".join(str(c) if c else "" for c in row)
                             tbl_parts.append(row_str)
                 tables_text.append("\n".join(tbl_parts))
 
@@ -277,32 +269,29 @@ class PDFLoader(BaseLoader):
         """
         import fitz  # PyMuPDF
 
-        doc_pdf = fitz.open("pdf", pdf_bytes)
-        pages_text: List[str] = []
-        tables_text: List[str] = []
+        with fitz.open("pdf", pdf_bytes) as doc_pdf:
+            pages_text: list[str] = []
+            tables_text: list[str] = []
 
-        for page_obj in doc_pdf:
-            # Render page at 300 DPI
-            pix = page_obj.get_pixmap(dpi=300)
-            img_np = np.frombuffer(pix.samples, dtype=np.uint8).reshape(
-                pix.height, pix.width, pix.n
-            )
-            if img_np.shape[2] == 4:
-                img_np = img_np[:, :, :3]  # drop alpha
-            elif img_np.shape[2] == 1:
-                img_np = np.stack([img_np.squeeze()] * 3, axis=-1)
+            for page_obj in doc_pdf:
+                # Render page at 300 DPI
+                pix = page_obj.get_pixmap(dpi=300)
+                img_np = np.frombuffer(pix.samples, dtype=np.uint8).reshape(
+                    pix.height, pix.width, pix.n
+                )
+                if img_np.shape[2] == 4:
+                    img_np = img_np[:, :, :3]  # drop alpha
+                elif img_np.shape[2] == 1:
+                    img_np = np.stack([img_np.squeeze()] * 3, axis=-1)
 
-            # Run cloud OCR
-            text, conf = ocr_image(img_np)
-            pages_text.append(clean_text(text))
-            tables_text.append("")  # Tables are embedded in the OCR text
+                # Run cloud OCR
+                text, conf = ocr_image(img_np)
+                pages_text.append(clean_text(text))
+                tables_text.append("")  # Tables are embedded in the OCR text
 
-        doc_pdf.close()
         return pages_text, tables_text
 
-    def _extract_embedded_images(
-        self, pdf_bytes: bytes, pages_text: List[str]
-    ) -> List[str]:
+    def _extract_embedded_images(self, pdf_bytes: bytes, pages_text: list[str]) -> list[str]:
         """Extract embedded images from a PDF and OCR them.
 
         This handles the common case where the PDF has digital text
@@ -315,46 +304,48 @@ class PDFLoader(BaseLoader):
         result = list(pages_text)
 
         try:
-            doc_pdf = fitz.open("pdf", pdf_bytes)
-            for page_num, page_obj in enumerate(doc_pdf):
-                image_list = page_obj.get_images(full=True)
-                for img_info in image_list:
-                    xref = img_info[0]
-                    try:
-                        base_image = doc_pdf.extract_image(xref)
-                        if not base_image or not base_image.get("image"):
-                            continue
-                        image_bytes = base_image["image"]
-                        from PIL import Image as PILImage
-                        pil_img = PILImage.open(io.BytesIO(image_bytes)).convert("RGB")
-                        w, h = pil_img.size
-                        # Skip tiny images (icons, bullets, decorations)
-                        if w < 80 or h < 80:
-                            continue
-                        # Skip very small area images (< ~100x100)
-                        if w * h < 10000:
-                            continue
-                        img_arr = np.array(pil_img)
-                        img_text, _ = ocr_image(img_arr)
-                        if img_text.strip() and len(img_text.strip()) > 15:
-                            if page_num < len(result):
-                                result[page_num] += f"\n\n[Embedded Image OCR]:\n{img_text}"
-                            else:
-                                result.append(f"[Embedded Image OCR]:\n{img_text}")
+            import fitz  # PyMuPDF
+
+            with fitz.open("pdf", pdf_bytes) as doc_pdf:
+                for page_num, page_obj in enumerate(doc_pdf):
+                    image_list = page_obj.get_images(full=True)
+                    for img_info in image_list:
+                        xref = img_info[0]
+                        try:
+                            base_image = doc_pdf.extract_image(xref)
+                            if not base_image or not base_image.get("image"):
+                                continue
+                            image_bytes = base_image["image"]
+                            from PIL import Image as PILImage
+
+                            pil_img = PILImage.open(io.BytesIO(image_bytes)).convert("RGB")
+                            w, h = pil_img.size
+                            # Skip tiny images (icons, bullets, decorations)
+                            if w < 80 or h < 80:
+                                continue
+                            # Skip very small area images (< ~100x100)
+                            if w * h < 10000:
+                                continue
+                            img_arr = np.array(pil_img)
+                            img_text, _ = ocr_image(img_arr)
+                            if img_text.strip() and len(img_text.strip()) > 15:
+                                if page_num < len(result):
+                                    result[page_num] += f"\n\n[Embedded Image OCR]:\n{img_text}"
+                                else:
+                                    result.append(f"[Embedded Image OCR]:\n{img_text}")
+                                logger.debug(
+                                    "embedded_image_ocr",
+                                    page=page_num + 1,
+                                    size=f"{w}x{h}",
+                                    chars=len(img_text),
+                                )
+                        except Exception as e:
                             logger.debug(
-                                "embedded_image_ocr",
+                                "embedded_image_extraction_error",
                                 page=page_num + 1,
-                                size=f"{w}x{h}",
-                                chars=len(img_text),
+                                error=str(e),
                             )
-                    except Exception as e:
-                        logger.debug(
-                            "embedded_image_extraction_error",
-                            page=page_num + 1,
-                            error=str(e),
-                        )
-                        continue
-            doc_pdf.close()
+                            continue
         except Exception as exc:
             logger.debug("embedded_image_pass_failed", error=str(exc))
 
@@ -395,7 +386,7 @@ class PDFLoader(BaseLoader):
 class DocxLoader(BaseLoader):
     """Word document loader — paragraphs + tables."""
 
-    def load(self, file_path: Path, content: Optional[bytes] = None) -> List[Document]:
+    def load(self, file_path: Path, content: bytes | None = None) -> list[Document]:
         from docx import Document as DocxDocument
 
         base_meta = self._base_metadata(file_path, content)
@@ -410,7 +401,7 @@ class DocxLoader(BaseLoader):
             logger.error("docx_load_failed", filename=file_path.name, error=str(exc))
             return []
 
-        parts: List[str] = [f"# Word Document: {file_path.name}\n"]
+        parts: list[str] = [f"# Word Document: {file_path.name}\n"]
 
         for para in doc.paragraphs:
             text = para.text.strip()
@@ -434,6 +425,7 @@ class DocxLoader(BaseLoader):
                 if "image" in getattr(rel, "reltype", ""):
                     blob = rel.target_part.blob
                     from PIL import Image as PILImage
+
                     pil = PILImage.open(io.BytesIO(blob)).convert("RGB")
                     arr = np.array(pil)
                     text, _ = ocr_image(arr)
@@ -470,10 +462,10 @@ class ExcelLoader(BaseLoader):
 
     MAX_ROWS_PER_CHUNK: int = 50
 
-    def load(self, file_path: Path, content: Optional[bytes] = None) -> List[Document]:
+    def load(self, file_path: Path, content: bytes | None = None) -> list[Document]:
         base_meta = self._base_metadata(file_path, content)
         base_meta["file_type"] = "excel"
-        documents: List[Document] = []
+        documents: list[Document] = []
 
         try:
             engine = "openpyxl" if file_path.suffix.lower() == ".xlsx" else "xlrd"
@@ -499,9 +491,7 @@ class ExcelLoader(BaseLoader):
 
     # ── representation builders ───────────────────────────────────────
 
-    def _full_data_doc(
-        self, fname: str, sheet: str, df: pd.DataFrame, base: Dict
-    ) -> Document:
+    def _full_data_doc(self, fname: str, sheet: str, df: pd.DataFrame, base: dict) -> Document:
         lines = [
             f"# COMPLETE DATA: {fname}",
             f"## Sheet: {sheet}",
@@ -526,9 +516,7 @@ class ExcelLoader(BaseLoader):
             },
         )
 
-    def _summary_doc(
-        self, fname: str, sheet: str, df: pd.DataFrame, base: Dict
-    ) -> Document:
+    def _summary_doc(self, fname: str, sheet: str, df: pd.DataFrame, base: dict) -> Document:
         lines = [
             f"# DATA SUMMARY: {fname} - {sheet}",
             "",
@@ -541,15 +529,17 @@ class ExcelLoader(BaseLoader):
             data = df[col].dropna()
             if data.empty:
                 continue
-            lines.extend([
-                f"\n### {col}",
-                f"- Count: {len(data)}",
-                f"- Sum: {data.sum():,.2f}",
-                f"- Mean: {data.mean():,.2f}",
-                f"- Min: {data.min():,.2f}",
-                f"- Max: {data.max():,.2f}",
-            ])
-        for col in df.select_dtypes(include=["object"]).columns[:5]:
+            lines.extend(
+                [
+                    f"\n### {col}",
+                    f"- Count: {len(data)}",
+                    f"- Sum: {data.sum():,.2f}",
+                    f"- Mean: {data.mean():,.2f}",
+                    f"- Min: {data.min():,.2f}",
+                    f"- Max: {data.max():,.2f}",
+                ]
+            )
+        for col in df.select_dtypes(include=["str", "object"]).columns[:5]:
             vc = df[col].value_counts().head(5)
             lines.append(f"\n### {col} — {df[col].nunique()} unique")
             for val, cnt in vc.items():
@@ -559,10 +549,8 @@ class ExcelLoader(BaseLoader):
             metadata={**base, "document_type": "summary", "sheet_name": sheet},
         )
 
-    def _row_docs(
-        self, fname: str, sheet: str, df: pd.DataFrame, base: Dict
-    ) -> List[Document]:
-        docs: List[Document] = []
+    def _row_docs(self, fname: str, sheet: str, df: pd.DataFrame, base: dict) -> list[Document]:
+        docs: list[Document] = []
         total = len(df)
         for start in range(0, total, self.MAX_ROWS_PER_CHUNK):
             end = min(start + self.MAX_ROWS_PER_CHUNK, total)
@@ -585,24 +573,29 @@ class ExcelLoader(BaseLoader):
             )
         return docs
 
-    def _column_docs(
-        self, fname: str, sheet: str, df: pd.DataFrame, base: Dict
-    ) -> List[Document]:
-        docs: List[Document] = []
+    def _column_docs(self, fname: str, sheet: str, df: pd.DataFrame, base: dict) -> list[Document]:
+        docs: list[Document] = []
         for col in df.columns:
             data = df[col].dropna()
             if data.empty:
                 continue
-            lines = [f"# COLUMN DATA: {col}", f"Source: {fname} - {sheet}", f"Total Values: {len(data)}", ""]
+            lines = [
+                f"# COLUMN DATA: {col}",
+                f"Source: {fname} - {sheet}",
+                f"Total Values: {len(data)}",
+                "",
+            ]
             if pd.api.types.is_numeric_dtype(data):
-                lines.extend([
-                    f"Sum: {data.sum():,.2f}",
-                    f"Mean: {data.mean():,.2f}",
-                    f"Min: {data.min():,.2f}",
-                    f"Max: {data.max():,.2f}",
-                    "",
-                    "## All Values:",
-                ])
+                lines.extend(
+                    [
+                        f"Sum: {data.sum():,.2f}",
+                        f"Mean: {data.mean():,.2f}",
+                        f"Min: {data.min():,.2f}",
+                        f"Max: {data.max():,.2f}",
+                        "",
+                        "## All Values:",
+                    ]
+                )
                 for idx, val in data.items():
                     lines.append(f"Row {idx + 1}: {format_value(val)}")
             else:
@@ -613,7 +606,12 @@ class ExcelLoader(BaseLoader):
             docs.append(
                 Document(
                     page_content="\n".join(lines),
-                    metadata={**base, "document_type": "column", "sheet_name": sheet, "column_name": col},
+                    metadata={
+                        **base,
+                        "document_type": "column",
+                        "sheet_name": sheet,
+                        "column_name": col,
+                    },
                 )
             )
         return docs
@@ -629,7 +627,7 @@ class CSVLoader(BaseLoader):
 
     ENCODINGS = ("utf-8", "latin-1", "cp1252", "iso-8859-1", "utf-16")
 
-    def load(self, file_path: Path, content: Optional[bytes] = None) -> List[Document]:
+    def load(self, file_path: Path, content: bytes | None = None) -> list[Document]:
         df = self._read(file_path, content)
         if df is None or df.empty:
             logger.warning("csv_empty", filename=file_path.name)
@@ -641,7 +639,7 @@ class CSVLoader(BaseLoader):
 
         excel = ExcelLoader()
         fname = file_path.name
-        docs: List[Document] = [
+        docs: list[Document] = [
             excel._full_data_doc(fname, "CSV", df, base_meta),
             excel._summary_doc(fname, "CSV", df, base_meta),
             *excel._row_docs(fname, "CSV", df, base_meta),
@@ -653,7 +651,7 @@ class CSVLoader(BaseLoader):
         logger.info("csv_loaded", filename=file_path.name, documents=len(docs))
         return docs
 
-    def _read(self, path: Path, content: Optional[bytes]) -> Optional[pd.DataFrame]:
+    def _read(self, path: Path, content: bytes | None) -> pd.DataFrame | None:
         for enc in self.ENCODINGS:
             try:
                 src = io.BytesIO(content) if content else path
@@ -673,12 +671,12 @@ class CSVLoader(BaseLoader):
 class TextLoader(BaseLoader):
     """Plain text and Markdown loader."""
 
-    def load(self, file_path: Path, content: Optional[bytes] = None) -> List[Document]:
+    def load(self, file_path: Path, content: bytes | None = None) -> list[Document]:
         base_meta = self._base_metadata(file_path, content)
         ext = file_path.suffix.lower()
         base_meta["file_type"] = "markdown" if ext == ".md" else "text"
 
-        text: Optional[str] = None
+        text: str | None = None
         raw = content if content else None
 
         for enc in ("utf-8", "latin-1", "cp1252"):
@@ -712,7 +710,7 @@ class TextLoader(BaseLoader):
 class JSONLoader(BaseLoader):
     """JSON loader — arrays are split into per-item documents."""
 
-    def load(self, file_path: Path, content: Optional[bytes] = None) -> List[Document]:
+    def load(self, file_path: Path, content: bytes | None = None) -> list[Document]:
         base_meta = self._base_metadata(file_path, content)
         base_meta["file_type"] = "json"
 
@@ -723,12 +721,19 @@ class JSONLoader(BaseLoader):
             logger.error("json_load_failed", filename=file_path.name, error=str(exc))
             return []
 
-        docs: List[Document] = []
-        full = f"# JSON: {file_path.name}\n\n{json.dumps(data, indent=2, default=str, ensure_ascii=False)}"
+        docs: list[Document] = []
+        full = (
+            f"# JSON: {file_path.name}\n\n"
+            f"{json.dumps(data, indent=2, default=str, ensure_ascii=False)}"
+        )
         docs.append(
             Document(
                 page_content=full,
-                metadata={**base_meta, "document_type": "full_data", "json_type": type(data).__name__},
+                metadata={
+                    **base_meta,
+                    "document_type": "full_data",
+                    "json_type": type(data).__name__,
+                },
             )
         )
 
@@ -736,7 +741,9 @@ class JSONLoader(BaseLoader):
             for i, item in enumerate(data):
                 docs.append(
                     Document(
-                        page_content=f"[JSON Item {i + 1}]\n{json.dumps(item, indent=2, default=str)}",
+                        page_content=(
+                            f"[JSON Item {i + 1}]\n{json.dumps(item, indent=2, default=str)}"
+                        ),
                         metadata={**base_meta, "document_type": "array_item", "item_index": i},
                     )
                 )
@@ -758,7 +765,7 @@ class ImageLoader(BaseLoader):
     falls back to storing image metadata so the document is still indexed.
     """
 
-    def load(self, file_path: Path, content: Optional[bytes] = None) -> List[Document]:
+    def load(self, file_path: Path, content: bytes | None = None) -> list[Document]:
         base_meta = self._base_metadata(file_path, content)
         base_meta["file_type"] = "image"
 
@@ -824,7 +831,7 @@ class ImageLoader(BaseLoader):
 class LoaderFactory:
     """Resolve and invoke the correct loader for a given file type."""
 
-    _LOADERS: Dict[str, BaseLoader] = {}
+    _LOADERS: dict[str, BaseLoader] = {}
 
     @classmethod
     def _ensure_loaders(cls) -> None:
@@ -844,8 +851,8 @@ class LoaderFactory:
     def load_file(
         cls,
         file_path: Path,
-        content: Optional[bytes] = None,
-    ) -> List[Document]:
+        content: bytes | None = None,
+    ) -> list[Document]:
         """Load a file, selecting the correct loader automatically.
 
         Args:

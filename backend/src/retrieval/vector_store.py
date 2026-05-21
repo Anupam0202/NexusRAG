@@ -16,7 +16,7 @@ import re
 import threading
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import faiss
 import numpy as np
@@ -30,6 +30,7 @@ logger = get_logger(__name__)
 
 try:
     from rank_bm25 import BM25Okapi
+
     _BM25_OK = True
 except ImportError:
     _BM25_OK = False
@@ -45,7 +46,7 @@ class SearchHit:
 class VectorStoreManager:
     """Hybrid FAISS + BM25 store with CRUD and persistence."""
 
-    def __init__(self, settings: Optional[Settings] = None) -> None:
+    def __init__(self, settings: Settings | None = None) -> None:
         s = settings or get_settings()
         self._embedder: Embedder = get_embedder()
         self._persist_dir = s.vector_store_dir
@@ -53,10 +54,10 @@ class VectorStoreManager:
         self._sim_threshold = s.similarity_threshold
         self._dim: int = 0
 
-        self._documents: List[Document] = []
-        self._raw_embeddings: List[np.ndarray] = []
-        self._index: Optional[faiss.IndexFlatIP] = None
-        self._bm25: Optional[BM25Okapi] = None
+        self._documents: list[Document] = []
+        self._raw_embeddings: list[np.ndarray] = []
+        self._index: faiss.IndexFlatIP | None = None
+        self._bm25: BM25Okapi | None = None
         self._lock = threading.Lock()
 
         self._load()
@@ -65,35 +66,65 @@ class VectorStoreManager:
     #  CRUD
     # ══════════════════════════════════════════════════════════════════
 
-    def add_documents(self, documents: List[Document]) -> int:
+    def add_documents(self, documents: list[Document]) -> int:
         if not documents:
             return 0
-        texts = [d.page_content for d in documents]
+
+        with self._lock:
+            existing_ids = {self._doc_identity(d) for d in self._documents}
+            incoming_ids: set[str] = set()
+            documents_to_add: list[Document] = []
+            for doc in documents:
+                doc_id = self._doc_identity(doc)
+                if doc_id in existing_ids or doc_id in incoming_ids:
+                    continue
+                incoming_ids.add(doc_id)
+                documents_to_add.append(doc)
+
+        if not documents_to_add:
+            logger.info("documents_skipped_duplicates", requested=len(documents))
+            return 0
+
+        texts = [d.page_content for d in documents_to_add]
         embeddings = self._embedder.embed_texts(texts)
         vectors = np.array(embeddings, dtype="float32")
         faiss.normalize_L2(vectors)
 
         with self._lock:
+            existing_ids = {self._doc_identity(d) for d in self._documents}
+            filtered: list[tuple[Document, np.ndarray]] = [
+                (doc, vec)
+                for doc, vec in zip(documents_to_add, vectors)
+                if self._doc_identity(doc) not in existing_ids
+            ]
+            if not filtered:
+                logger.info("documents_skipped_duplicates", requested=len(documents))
+                return 0
+
+            documents_to_add = [item[0] for item in filtered]
+            vectors = np.array([item[1] for item in filtered], dtype="float32")
+
             if self._dim == 0:
                 self._dim = vectors.shape[1]
             if self._index is None:
                 self._index = faiss.IndexFlatIP(self._dim)
 
             self._index.add(vectors)
-            for doc, vec in zip(documents, vectors):
+            for doc, vec in zip(documents_to_add, vectors):
                 self._documents.append(doc)
                 self._raw_embeddings.append(vec)
             self._rebuild_bm25()
             self._save()
 
-        logger.info("documents_added", count=len(documents), total=len(self._documents))
-        return len(documents)
+        logger.info("documents_added", count=len(documents_to_add), total=len(self._documents))
+        return len(documents_to_add)
 
     def delete_by_filename(self, filename: str) -> int:
         with self._lock:
             before = len(self._documents)
             keep = [
-                (d, e) for d, e in zip(self._documents, self._raw_embeddings)
+                (d, e)
+                for d, e in zip(self._documents, self._raw_embeddings)
                 if d.metadata.get("filename") != filename
             ]
             if len(keep) == before:
@@ -107,10 +138,37 @@ class VectorStoreManager:
         logger.info("documents_deleted", filename=filename, removed=removed)
         return removed
 
-    def list_documents(self) -> List[Dict[str, Any]]:
-        from collections import Counter
-        counter = Counter(d.metadata.get("filename", "unknown") for d in self._documents)
-        return [{"filename": f, "chunk_count": c} for f, c in counter.items()]
+    def list_documents(self) -> list[dict[str, Any]]:
+        summaries: dict[str, dict[str, Any]] = {}
+        for doc in self._documents:
+            metadata = doc.metadata
+            filename = metadata.get("filename", "unknown")
+            item = summaries.setdefault(
+                filename,
+                {
+                    "filename": filename,
+                    "chunk_count": 0,
+                    "file_size_bytes": 0,
+                    "file_type": "",
+                    "page_count": 0,
+                    "extraction_method": "",
+                },
+            )
+            item["chunk_count"] += 1
+            item["file_size_bytes"] = max(
+                item["file_size_bytes"],
+                int(metadata.get("file_size_bytes") or 0),
+            )
+            item["page_count"] = max(item["page_count"], int(metadata.get("page_count") or 0))
+            if not item["file_type"]:
+                item["file_type"] = (
+                    metadata.get("file_type")
+                    or str(metadata.get("file_extension", "")).lstrip(".")
+                    or Path(filename).suffix.lower().lstrip(".")
+                )
+            if not item["extraction_method"]:
+                item["extraction_method"] = metadata.get("extraction_method", "")
+        return sorted(summaries.values(), key=lambda d: d["filename"].lower())
 
     @property
     def total_chunks(self) -> int:
@@ -120,7 +178,7 @@ class VectorStoreManager:
     #  SEARCH
     # ══════════════════════════════════════════════════════════════════
 
-    def search(self, query: str, top_k: int = 10) -> List[SearchHit]:
+    def search(self, query: str, top_k: int = 10) -> list[SearchHit]:
         if not self._documents:
             return []
         dense = self._dense_search(query, top_k * 2)
@@ -129,22 +187,22 @@ class VectorStoreManager:
             return dense[:top_k]
         return self._fuse(dense, sparse, top_k)
 
-    def _dense_search(self, query: str, top_k: int) -> List[SearchHit]:
+    def _dense_search(self, query: str, top_k: int) -> list[SearchHit]:
         if self._index is None or self._index.ntotal == 0:
             return []
         q_emb = np.array([self._embedder.embed_query(query)], dtype="float32")
         faiss.normalize_L2(q_emb)
         k = min(top_k, self._index.ntotal)
         scores, indices = self._index.search(q_emb, k)
-        results: List[SearchHit] = []
+        results: list[SearchHit] = []
         for score, idx in zip(scores[0], indices[0]):
             if idx >= 0 and score >= self._sim_threshold:
-                results.append(SearchHit(
-                    document=self._documents[idx], score=float(score), method="dense"
-                ))
+                results.append(
+                    SearchHit(document=self._documents[idx], score=float(score), method="dense")
+                )
         return results
 
-    def _sparse_search(self, query: str, top_k: int) -> List[SearchHit]:
+    def _sparse_search(self, query: str, top_k: int) -> list[SearchHit]:
         if not self._bm25:
             return []
         tokens = self._tokenize(query)
@@ -152,21 +210,22 @@ class VectorStoreManager:
         top_idx = np.argsort(raw_scores)[::-1][:top_k]
         return [
             SearchHit(document=self._documents[i], score=float(raw_scores[i]), method="sparse")
-            for i in top_idx if raw_scores[i] > 0
+            for i in top_idx
+            if raw_scores[i] > 0
         ]
 
-    def _fuse(self, dense: List[SearchHit], sparse: List[SearchHit], top_k: int) -> List[SearchHit]:
-        K = 60
-        rrf: Dict[str, float] = {}
-        doc_map: Dict[str, SearchHit] = {}
+    def _fuse(self, dense: list[SearchHit], sparse: list[SearchHit], top_k: int) -> list[SearchHit]:
+        rrf_k = 60
+        rrf: dict[str, float] = {}
+        doc_map: dict[str, SearchHit] = {}
         for rank, hit in enumerate(dense):
             key = self._doc_hash(hit.document)
-            rrf[key] = rrf.get(key, 0) + 1 / (K + rank + 1)
+            rrf[key] = rrf.get(key, 0) + 1 / (rrf_k + rank + 1)
             if key not in doc_map:
                 doc_map[key] = hit
         for rank, hit in enumerate(sparse):
             key = self._doc_hash(hit.document)
-            rrf[key] = rrf.get(key, 0) + 1 / (K + rank + 1)
+            rrf[key] = rrf.get(key, 0) + 1 / (rrf_k + rank + 1)
             if key not in doc_map:
                 doc_map[key] = hit
         sorted_keys = sorted(rrf, key=rrf.get, reverse=True)  # type: ignore[arg-type]
@@ -177,7 +236,14 @@ class VectorStoreManager:
 
     @staticmethod
     def _doc_hash(doc: Document) -> str:
-        return hashlib.md5(doc.page_content[:300].encode()).hexdigest()
+        return VectorStoreManager._doc_identity(doc)
+
+    @staticmethod
+    def _doc_identity(doc: Document) -> str:
+        filename = doc.metadata.get("filename", "")
+        chunk_index = doc.metadata.get("chunk_index", "")
+        digest = hashlib.sha256(doc.page_content.encode("utf-8", "ignore")).hexdigest()
+        return f"{filename}:{chunk_index}:{digest}"
 
     # ══════════════════════════════════════════════════════════════════
     #  PERSISTENCE
@@ -203,10 +269,13 @@ class VectorStoreManager:
         try:
             meta_path = self._persist_dir / "store_meta.pkl"
             with open(meta_path, "wb") as f:
-                pickle.dump({
-                    "documents": self._documents,
-                    "embeddings": self._raw_embeddings,
-                }, f)
+                pickle.dump(
+                    {
+                        "documents": self._documents,
+                        "embeddings": self._raw_embeddings,
+                    },
+                    f,
+                )
             if self._index is not None:
                 idx_path = str(self._persist_dir / "faiss.index")
                 faiss.write_index(self._index, idx_path)
@@ -235,5 +304,5 @@ class VectorStoreManager:
             logger.warning("vector_store_load_failed", error=str(exc))
 
     @staticmethod
-    def _tokenize(text: str) -> List[str]:
+    def _tokenize(text: str) -> list[str]:
         return re.sub(r"[^\w\s]", " ", text.lower()).split()

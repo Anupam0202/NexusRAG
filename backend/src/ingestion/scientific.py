@@ -21,31 +21,26 @@ from __future__ import annotations
 
 import hashlib
 import io
-import os
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import cv2
 import numpy as np
 import pandas as pd
 from PIL import Image
 
+from src.ingestion.ocr_manager import (
+    get_cloud_vision,
+    get_gemini_ocr,
+    ocr_image,
+)
 from src.utils.logger import get_logger
 
 logger = get_logger(__name__)
 
 # ── Cloud OCR (Gemini Vision + Cloud Vision) ─────────────────────────────
-
-from src.ingestion.ocr_manager import (
-    OCR_AVAILABLE,
-    get_gemini_ocr,
-    get_cloud_vision,
-    ocr_image,
-    detect_type_from_text,
-)
-
 
 # ── Data structures ───────────────────────────────────────────────────────
 
@@ -53,8 +48,9 @@ from src.ingestion.ocr_manager import (
 @dataclass
 class Section:
     """A logical section in a scientific document."""
+
     title: str = ""
-    content: List[str] = field(default_factory=list)
+    content: list[str] = field(default_factory=list)
     level: int = 1
     page: int = 0
 
@@ -62,8 +58,9 @@ class Section:
 @dataclass
 class Figure:
     """An extracted figure/image."""
+
     path: str = ""
-    bbox: Tuple[int, int, int, int] = (0, 0, 0, 0)
+    bbox: tuple[int, int, int, int] = (0, 0, 0, 0)
     page: int = 0
     caption: str = ""
     ocr_text: str = ""
@@ -72,10 +69,11 @@ class Figure:
 @dataclass
 class Table:
     """An extracted table."""
+
     text: str = ""
-    dataframe: Optional[pd.DataFrame] = None
+    dataframe: pd.DataFrame | None = None
     path: str = ""
-    bbox: Tuple[int, int, int, int] = (0, 0, 0, 0)
+    bbox: tuple[int, int, int, int] = (0, 0, 0, 0)
     page: int = 0
     caption: str = ""
 
@@ -83,32 +81,35 @@ class Table:
 @dataclass
 class Equation:
     """An extracted equation region."""
+
     image_path: str = ""
     latex: str = ""
     ocr_text: str = ""
-    bbox: Tuple[int, int, int, int] = (0, 0, 0, 0)
+    bbox: tuple[int, int, int, int] = (0, 0, 0, 0)
     page: int = 0
 
 
 @dataclass
 class ParsedPage:
     """Intermediate per-page parse results."""
-    sections: List[Section] = field(default_factory=list)
-    figures: List[Figure] = field(default_factory=list)
-    tables: List[Table] = field(default_factory=list)
-    equations: List[Equation] = field(default_factory=list)
-    captions: List[Dict[str, Any]] = field(default_factory=list)
+
+    sections: list[Section] = field(default_factory=list)
+    figures: list[Figure] = field(default_factory=list)
+    tables: list[Table] = field(default_factory=list)
+    equations: list[Equation] = field(default_factory=list)
+    captions: list[dict[str, Any]] = field(default_factory=list)
 
 
 @dataclass
 class ScientificDocument:
     """Full parsed scientific document."""
-    sections: List[Section] = field(default_factory=list)
-    figures: List[Figure] = field(default_factory=list)
-    tables: List[Table] = field(default_factory=list)
-    equations: List[Equation] = field(default_factory=list)
+
+    sections: list[Section] = field(default_factory=list)
+    figures: list[Figure] = field(default_factory=list)
+    tables: list[Table] = field(default_factory=list)
+    equations: list[Equation] = field(default_factory=list)
     total_pages: int = 0
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 # =====================================================================
@@ -154,9 +155,7 @@ class ScientificPDFParser:
 
         for page_num, page_obj in enumerate(doc_pdf, 1):
             pix = page_obj.get_pixmap(dpi=300)
-            img = np.frombuffer(pix.samples, dtype=np.uint8).reshape(
-                pix.height, pix.width, pix.n
-            )
+            img = np.frombuffer(pix.samples, dtype=np.uint8).reshape(pix.height, pix.width, pix.n)
             if img.shape[2] == 4:
                 img = cv2.cvtColor(img, cv2.COLOR_RGBA2RGB)
             elif img.shape[2] == 1:
@@ -222,12 +221,14 @@ class ScientificPDFParser:
                     if w < 50 or h < 50:
                         continue
 
-                    doc.figures.append(Figure(
-                        path=path,
-                        bbox=(0, 0, w, h),
-                        page=page_num,
-                        ocr_text=ocr_text,
-                    ))
+                    doc.figures.append(
+                        Figure(
+                            path=path,
+                            bbox=(0, 0, w, h),
+                            page=page_num,
+                            ocr_text=ocr_text,
+                        )
+                    )
                 except Exception:
                     continue
 
@@ -264,12 +265,10 @@ class ScientificPDFParser:
 
         return result
 
-    def _parse_text_structure(
-        self, text: str, page_num: int, result: ParsedPage
-    ) -> None:
+    def _parse_text_structure(self, text: str, page_num: int, result: ParsedPage) -> None:
         """Parse section hierarchy from OCR text output."""
         lines = text.strip().splitlines()
-        current_section: Optional[Section] = None
+        current_section: Section | None = None
 
         for line in lines:
             stripped = line.strip()
@@ -279,30 +278,28 @@ class ScientificPDFParser:
             # Detect headings
             if self._is_heading(stripped):
                 level = self._detect_heading_level(stripped)
-                current_section = Section(
-                    title=stripped, level=level, page=page_num
-                )
+                current_section = Section(title=stripped, level=level, page=page_num)
                 result.sections.append(current_section)
                 continue
 
             # Detect captions
             cap_type = self._detect_caption(stripped)
             if cap_type:
-                result.captions.append({
-                    "type": cap_type,
-                    "text": stripped,
-                    "bbox": (0, 0, 0, 0),
-                    "page": page_num,
-                })
+                result.captions.append(
+                    {
+                        "type": cap_type,
+                        "text": stripped,
+                        "bbox": (0, 0, 0, 0),
+                        "page": page_num,
+                    }
+                )
                 continue
 
             # Regular text -> add to current section
             if current_section:
                 current_section.content.append(stripped)
             else:
-                current_section = Section(
-                    title="", content=[stripped], page=page_num
-                )
+                current_section = Section(title="", content=[stripped], page=page_num)
                 result.sections.append(current_section)
 
     def _detect_equations_in_page(
@@ -333,9 +330,7 @@ class ScientificPDFParser:
                 if eq:
                     result.equations.append(eq)
 
-    def _detect_figures_in_page(
-        self, image: np.ndarray, page_num: int, result: ParsedPage
-    ) -> None:
+    def _detect_figures_in_page(self, image: np.ndarray, page_num: int, result: ParsedPage) -> None:
         """Detect figure regions using contour analysis."""
         h, w = image.shape[:2]
         gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
@@ -373,10 +368,20 @@ class ScientificPDFParser:
             return True
         # Keywords
         heading_keywords = [
-            "abstract", "introduction", "conclusion", "references",
-            "acknowledgment", "acknowledgement", "methodology", "methods",
-            "results", "discussion", "related work", "background",
-            "appendix", "supplementary",
+            "abstract",
+            "introduction",
+            "conclusion",
+            "references",
+            "acknowledgment",
+            "acknowledgement",
+            "methodology",
+            "methods",
+            "results",
+            "discussion",
+            "related work",
+            "background",
+            "appendix",
+            "supplementary",
         ]
         return t.lower().rstrip(":") in heading_keywords
 
@@ -394,7 +399,7 @@ class ScientificPDFParser:
         return 2
 
     @staticmethod
-    def _detect_caption(text: str) -> Optional[str]:
+    def _detect_caption(text: str) -> str | None:
         t = text.strip().lower()
         if re.match(r"^(figure|fig\.?)\s*\d", t):
             return "figure"
@@ -404,24 +409,18 @@ class ScientificPDFParser:
 
     # ── Equation detection (Canny edge density) ──────────────────────
 
-    def _is_equation_region(
-        self, image: np.ndarray, bbox: Tuple[int, int, int, int]
-    ) -> bool:
+    def _is_equation_region(self, image: np.ndarray, bbox: tuple[int, int, int, int]) -> bool:
         region = self._crop(image, bbox)
         if region.size == 0 or region.shape[0] < 15 or region.shape[1] < 30:
             return False
-        gray = (
-            cv2.cvtColor(region, cv2.COLOR_BGR2GRAY)
-            if len(region.shape) == 3
-            else region
-        )
+        gray = cv2.cvtColor(region, cv2.COLOR_BGR2GRAY) if len(region.shape) == 3 else region
         edges = cv2.Canny(gray, 50, 150)
         density = float(np.sum(edges > 0)) / (edges.shape[0] * edges.shape[1])
         return density > self.EQUATION_EDGE_THRESHOLD
 
     def _extract_equation(
-        self, image: np.ndarray, bbox: Tuple[int, int, int, int], page: int
-    ) -> Optional[Equation]:
+        self, image: np.ndarray, bbox: tuple[int, int, int, int], page: int
+    ) -> Equation | None:
         region = self._crop(image, bbox)
         if region.size == 0:
             return None
@@ -442,8 +441,8 @@ class ScientificPDFParser:
     # ── Figure extraction ─────────────────────────────────────────────
 
     def _extract_figure(
-        self, image: np.ndarray, bbox: Tuple[int, int, int, int], page: int
-    ) -> Optional[Figure]:
+        self, image: np.ndarray, bbox: tuple[int, int, int, int], page: int
+    ) -> Figure | None:
         region = self._crop(image, bbox)
         if region.size == 0:
             return None
@@ -471,9 +470,7 @@ class ScientificPDFParser:
     # ── Utility ───────────────────────────────────────────────────────
 
     @staticmethod
-    def _crop(
-        image: np.ndarray, bbox: Tuple[int, int, int, int]
-    ) -> np.ndarray:
+    def _crop(image: np.ndarray, bbox: tuple[int, int, int, int]) -> np.ndarray:
         x1, y1, x2, y2 = bbox
         h, w = image.shape[:2]
         x1, y1 = max(0, int(x1)), max(0, int(y1))
@@ -484,13 +481,11 @@ class ScientificPDFParser:
 
     # ── Convert to LangChain Documents ────────────────────────────────
 
-    def to_documents(
-        self, sci_doc: ScientificDocument, filename: str
-    ) -> List:
+    def to_documents(self, sci_doc: ScientificDocument, filename: str) -> list:
         """Convert a ``ScientificDocument`` into LangChain Documents."""
         from langchain_core.documents import Document
 
-        docs: List[Document] = []
+        docs: list[Document] = []
         base_meta = {
             "filename": filename,
             "file_type": "pdf",
@@ -507,31 +502,41 @@ class ScientificPDFParser:
             text = f"{prefix}{body}".strip()
             if not text:
                 continue
-            docs.append(Document(
-                page_content=f"[{filename} | Section: {sec.title or 'Untitled'} | Page {sec.page}]\n\n{text}",
-                metadata={
-                    **base_meta,
-                    "document_type": "section",
-                    "section_title": sec.title,
-                    "section_level": sec.level,
-                    "page_number": sec.page,
-                    "section_index": i,
-                },
-            ))
+            docs.append(
+                Document(
+                    page_content=(
+                        f"[{filename} | Section: {sec.title or 'Untitled'} "
+                        f"| Page {sec.page}]\n\n{text}"
+                    ),
+                    metadata={
+                        **base_meta,
+                        "document_type": "section",
+                        "section_title": sec.title,
+                        "section_level": sec.level,
+                        "page_number": sec.page,
+                        "section_index": i,
+                    },
+                )
+            )
 
         # Tables
         for i, tbl in enumerate(sci_doc.tables):
             caption_line = f"Caption: {tbl.caption}\n" if tbl.caption else ""
-            docs.append(Document(
-                page_content=f"[{filename} | Table {i + 1} | Page {tbl.page}]\n{caption_line}\n{tbl.text}",
-                metadata={
-                    **base_meta,
-                    "document_type": "table",
-                    "page_number": tbl.page,
-                    "has_caption": bool(tbl.caption),
-                    "table_path": tbl.path,
-                },
-            ))
+            docs.append(
+                Document(
+                    page_content=(
+                        f"[{filename} | Table {i + 1} | Page {tbl.page}]\n"
+                        f"{caption_line}\n{tbl.text}"
+                    ),
+                    metadata={
+                        **base_meta,
+                        "document_type": "table",
+                        "page_number": tbl.page,
+                        "has_caption": bool(tbl.caption),
+                        "table_path": tbl.path,
+                    },
+                )
+            )
 
         # Figures (OCR text + caption)
         for i, fig in enumerate(sci_doc.figures):
@@ -541,37 +546,47 @@ class ScientificPDFParser:
             if fig.ocr_text:
                 parts.append(f"Text in figure: {fig.ocr_text}")
             if len(parts) > 1:
-                docs.append(Document(
-                    page_content="\n".join(parts),
-                    metadata={
-                        **base_meta,
-                        "document_type": "figure",
-                        "page_number": fig.page,
-                        "figure_path": fig.path,
-                        "has_caption": bool(fig.caption),
-                    },
-                ))
+                docs.append(
+                    Document(
+                        page_content="\n".join(parts),
+                        metadata={
+                            **base_meta,
+                            "document_type": "figure",
+                            "page_number": fig.page,
+                            "figure_path": fig.path,
+                            "has_caption": bool(fig.caption),
+                        },
+                    )
+                )
 
         # Equations
         for i, eq in enumerate(sci_doc.equations):
             if eq.ocr_text:
-                docs.append(Document(
-                    page_content=f"[{filename} | Equation | Page {eq.page}]\n{eq.ocr_text}",
-                    metadata={
-                        **base_meta,
-                        "document_type": "equation",
-                        "page_number": eq.page,
-                        "equation_image": eq.image_path,
-                    },
-                ))
+                docs.append(
+                    Document(
+                        page_content=f"[{filename} | Equation | Page {eq.page}]\n{eq.ocr_text}",
+                        metadata={
+                            **base_meta,
+                            "document_type": "equation",
+                            "page_number": eq.page,
+                            "equation_image": eq.image_path,
+                        },
+                    )
+                )
 
         # Full-document composite (high priority for contextualiser)
         all_text = "\n\n".join(d.page_content for d in docs[:30])
         if all_text:
-            docs.insert(0, Document(
-                page_content=f"# Scientific Paper: {filename}\nPages: {sci_doc.total_pages}\n\n{all_text[:8000]}",
-                metadata={**base_meta, "document_type": "full_data", "priority": "high"},
-            ))
+            docs.insert(
+                0,
+                Document(
+                    page_content=(
+                        f"# Scientific Paper: {filename}\n"
+                        f"Pages: {sci_doc.total_pages}\n\n{all_text[:8000]}"
+                    ),
+                    metadata={**base_meta, "document_type": "full_data", "priority": "high"},
+                ),
+            )
 
         logger.info(
             "scientific_documents_created",

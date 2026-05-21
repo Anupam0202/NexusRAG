@@ -2,9 +2,9 @@
   <img src="https://img.shields.io/badge/Python-3.11+-blue?logo=python&logoColor=white" alt="Python" />
   <img src="https://img.shields.io/badge/Next.js-14-black?logo=next.js&logoColor=white" alt="Next.js" />
   <img src="https://img.shields.io/badge/FastAPI-0.111+-009688?logo=fastapi&logoColor=white" alt="FastAPI" />
-  <img src="https://img.shields.io/badge/Gemini_2.5-Flash-4285F4?logo=google&logoColor=white" alt="Gemini" />
+  <img src="https://img.shields.io/badge/Gemini_1.5-Pro-4285F4?logo=google&logoColor=white" alt="Gemini" />
   <img src="https://img.shields.io/badge/FAISS-Vector_Search-FF6F00" alt="FAISS" />
-  <img src="https://img.shields.io/badge/Deploy-Railway_+_Vercel-000?logo=vercel&logoColor=white" alt="Deploy" />
+  <img src="https://img.shields.io/badge/Deploy-Render_+_Vercel-000?logo=vercel&logoColor=white" alt="Deploy" />
   <img src="https://img.shields.io/badge/License-MIT-green" alt="MIT" />
 </p>
 
@@ -92,7 +92,7 @@ A production-grade **Retrieval-Augmented Generation** platform that lets enterpr
    wss://│        POST │         GET │       PATCH│
         ▼             ▼             ▼            ▼
 ┌───────────────────────────────────────────────────────┐
-│              FastAPI Backend (Railway)                  │
+│              FastAPI Backend (Render)                   │
 │                                                       │
 │  ┌──────────────┐  ┌──────────────┐  ┌─────────────┐ │
 │  │  WebSocket    │  │  REST Routes │  │  Middleware  │ │
@@ -125,7 +125,7 @@ A production-grade **Retrieval-Augmented Generation** platform that lets enterpr
 
 | Layer | Technology |
 |-------|-----------|
-| **LLM** | Google Gemini 2.5 Flash (with fallback chain) |
+| **LLM** | Google Gemini 1.5 Pro (with fallback chain) |
 | **Embeddings** | Sentence Transformers (all-MiniLM-L6-v2) |
 | **Re-ranker** | Cross-encoder (ms-marco-MiniLM-L-6-v2) |
 | **OCR** | Gemini Vision + Google Cloud Vision |
@@ -133,7 +133,7 @@ A production-grade **Retrieval-Augmented Generation** platform that lets enterpr
 | **Frontend** | Next.js 14, React 18, TailwindCSS, Zustand, Framer Motion |
 | **Vector Store** | FAISS (IndexFlatIP) + BM25Okapi |
 | **Streaming** | WebSocket (native JSON frames) |
-| **Deploy** | Railway (backend) + Vercel (frontend) |
+| **Deploy** | Render (backend) + Vercel (frontend) |
 | **Styling** | TailwindCSS 3, Inter font, Lucide icons |
 
 ---
@@ -203,22 +203,24 @@ docker-compose up --build
 
 ## Deployment
 
-### Backend → Railway
+### Backend → Render
 
-1. Connect your GitHub repo to [Railway](https://railway.app)
-2. Set the root directory to the repo root (Railway uses `railway.json`)
-3. Add environment variables:
+1. Connect your GitHub repo to [Render](https://render.com)
+2. Create a **New Web Service** and select your repository
+3. Render auto-detects `render.yaml` — click **Apply** to provision the service
+4. Set the following environment variables in the Render dashboard (**Environment** tab):
    - `GOOGLE_API_KEY` — your Google API key
    - `API_CORS_ORIGINS` — your Vercel frontend URL (e.g., `https://nexusrag.vercel.app`)
-   - `DISABLE_CROSS_ENCODER` — set to `true` to save memory on free tier
-4. Railway auto-detects the Dockerfile and deploys
+5. Click **Deploy** — Render builds the Docker image and starts the service
+
+> **Free-tier note:** Render free web services spin down after 15 minutes of inactivity and take ~30–60s to cold-start. Set `DISABLE_CROSS_ENCODER=true` (already in `render.yaml`) to stay within the 512 MB RAM limit.
 
 ### Frontend → Vercel
 
 1. Import the repo on [Vercel](https://vercel.com)
 2. Set the root directory to `frontend`
 3. Add environment variable:
-   - `NEXT_PUBLIC_API_URL` — your Railway backend URL (e.g., `https://nexusrag-production.up.railway.app`)
+   - `NEXT_PUBLIC_API_URL` — your Render backend URL (e.g., `https://nexusrag-backend.onrender.com`)
 4. Vercel auto-detects Next.js and deploys
 
 ### Connecting Frontend ↔ Backend
@@ -227,11 +229,11 @@ The frontend proxies REST calls through Next.js rewrites (`/api/v1/*` → backen
 
 | Connection | Path | Notes |
 |---|---|---|
-| REST API | Vercel → rewrite → Railway | Proxied, same-origin |
-| File upload | Browser → Railway directly | Bypasses Vercel timeout |
-| WebSocket | Browser → Railway directly | Vercel doesn't proxy WS |
+| REST API | Vercel → rewrite → Render | Proxied, same-origin |
+| File upload | Browser → Render directly | Bypasses Vercel timeout |
+| WebSocket | Browser → Render directly | Vercel doesn't proxy WS |
 
-Make sure `API_CORS_ORIGINS` on Railway includes your Vercel domain.
+Make sure `API_CORS_ORIGINS` on Render includes your Vercel domain.
 
 ---
 
@@ -301,7 +303,7 @@ NexusRAG/
 │   ├── vercel.json
 │   └── Dockerfile
 ├── docker-compose.yml
-├── railway.json
+├── render.yaml
 ├── Makefile
 └── .gitignore
 ```
@@ -315,7 +317,7 @@ NexusRAG/
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `GOOGLE_API_KEY` | — | Google Gemini API key **(required)** |
-| `LLM_MODEL_NAME` | `gemini-2.0-flash` | Primary LLM model |
+| `LLM_MODEL_NAME` | `gemini-1.5-pro` | Primary LLM model |
 | `LLM_FALLBACK_MODELS` | `gemini-2.5-flash,...` | Comma-separated fallback chain |
 | `EMBEDDING_MODEL` | `all-MiniLM-L6-v2` | Sentence transformer model |
 | `CHUNK_SIZE` | `1000` | Target characters per chunk |
@@ -425,7 +427,7 @@ Question → Input Sanitization → Semantic Cache Check
 
 ### Model Failover Chain
 ```
-gemini-2.0-flash → gemini-2.5-flash → gemini-1.5-flash → gemini-1.5-pro
+gemini-1.5-pro → gemini-2.0-flash → gemini-2.5-flash → gemini-2.0-flash-lite
 ```
 Each model is tried in order. On failure (quota, auth, network), the next is used automatically.
 

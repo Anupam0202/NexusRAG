@@ -13,6 +13,7 @@ import {
 import { AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { useStore } from "@/hooks/useStore";
+import { clearSession } from "@/lib/api";
 
 const SUGGESTIONS = [
   { icon: <FileSearch size={15} />, text: "Summarize this document" },
@@ -82,12 +83,13 @@ export default function ChatInterface() {
   const clearChat = () => {
     store.clearMessages?.();
     setActiveSources(null);
+    clearSession(store.sessionId).catch(() => {/* best-effort */ });
   };
 
   const isEmpty = messages.length === 0;
 
   return (
-    <div className="flex h-full overflow-hidden">
+    <div className="flex h-full w-full min-w-0 overflow-hidden">
       {/* Chat area */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Messages */}
@@ -205,7 +207,7 @@ function EmptyState({
   onSuggestion: (text: string) => void;
 }) {
   return (
-    <div className="flex flex-col items-center justify-center h-full max-w-lg mx-auto text-center px-4 animate-fade-in">
+    <div className="flex h-full w-full max-w-lg flex-col items-center justify-center mx-auto text-center px-4 animate-fade-in">
       {/* Logo */}
       <div className="relative mb-6">
         <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-500 via-purple-500 to-pink-500 shadow-lg">
@@ -217,7 +219,7 @@ function EmptyState({
       <h2 className="text-xl sm:text-2xl font-bold mb-2">
         <span className="gradient-text">NexusRAG</span> Chat
       </h2>
-      <p className="text-sm text-[var(--text-muted)] mb-8 max-w-sm leading-relaxed">
+      <p className="text-sm text-[var(--text-muted)] mb-8 max-w-xs sm:max-w-sm leading-relaxed">
         {docCount > 0
           ? `${docCount} document${docCount > 1 ? "s" : ""} loaded. Ask anything about your content.`
           : "Upload documents first, then ask questions to get AI-powered answers grounded in your content."}

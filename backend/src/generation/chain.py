@@ -16,15 +16,16 @@ from __future__ import annotations
 import threading
 import time
 from collections import deque
+from collections.abc import AsyncIterator
 from datetime import date
-from typing import Any, AsyncIterator, Dict, List, Optional
+from typing import Any
 
 from langchain_core.documents import Document
 from langchain_core.messages import HumanMessage, SystemMessage
 
 from config.settings import Settings, get_settings
-from src.generation.llm import LLMProvider, get_llm_provider
-from src.generation.memory import ConversationMemory, SessionMemoryStore
+from src.generation.llm import get_llm_provider
+from src.generation.memory import SessionMemoryStore
 from src.generation.prompts import PromptManager
 from src.retrieval.cache import SemanticCache
 from src.retrieval.retriever import HybridRetriever, QueryType
@@ -54,7 +55,7 @@ class RAGChain:
     def __init__(
         self,
         vector_store: VectorStoreManager,
-        settings: Optional[Settings] = None,
+        settings: Settings | None = None,
     ) -> None:
         self._settings = settings or get_settings()
         self._retriever = HybridRetriever(vector_store, settings=self._settings)
@@ -67,7 +68,7 @@ class RAGChain:
         self._metrics_lock = threading.Lock()
         self._response_times: deque[float] = deque(maxlen=1000)
         self._confidences: deque[float] = deque(maxlen=1000)
-        self._daily_queries: Dict[str, int] = {}
+        self._daily_queries: dict[str, int] = {}
 
     # ══════════════════════════════════════════════════════════════════
     #  BLOCKING QUERY
@@ -77,11 +78,11 @@ class RAGChain:
         self,
         question: str,
         *,
-        session_id: Optional[str] = None,
-        conversation_history: Optional[List[Dict[str, str]]] = None,
-        top_k: Optional[int] = None,
-        use_reranking: Optional[bool] = None,
-    ) -> Dict[str, Any]:
+        session_id: str | None = None,
+        conversation_history: list[dict[str, str]] | None = None,
+        top_k: int | None = None,
+        use_reranking: bool | None = None,
+    ) -> dict[str, Any]:
         """Full blocking RAG query → returns structured response dict."""
         t0 = time.perf_counter()
         safe_q = InputSanitizer.sanitize_for_prompt(question)
@@ -105,7 +106,7 @@ class RAGChain:
         retrieval = self._retriever.retrieve(
             safe_q, history=history_msgs, top_k=top_k, use_reranking=use_reranking
         )
-        docs: List[Document] = retrieval["documents"]
+        docs: list[Document] = retrieval["documents"]
         query_type: QueryType = retrieval["query_type"]
 
         # Build prompt
@@ -166,11 +167,11 @@ class RAGChain:
         self,
         question: str,
         *,
-        session_id: Optional[str] = None,
-        conversation_history: Optional[List[Dict[str, str]]] = None,
-        top_k: Optional[int] = None,
-        use_reranking: Optional[bool] = None,
-    ) -> AsyncIterator[Dict[str, Any]]:
+        session_id: str | None = None,
+        conversation_history: list[dict[str, str]] | None = None,
+        top_k: int | None = None,
+        use_reranking: bool | None = None,
+    ) -> AsyncIterator[dict[str, Any]]:
         """Async streaming RAG query — yields dicts suitable for WebSocket.
 
         Yields:
@@ -242,19 +243,22 @@ class RAGChain:
         self._record_metric(elapsed, metadata["confidence"])
 
         # Cache
-        self._cache.set(safe_q, {
-            "answer": full_answer,
-            "sources": sources,
-            "metadata": metadata,
-        })
+        self._cache.set(
+            safe_q,
+            {
+                "answer": full_answer,
+                "sources": sources,
+                "metadata": metadata,
+            },
+        )
 
     # ══════════════════════════════════════════════════════════════════
     #  HELPERS
     # ══════════════════════════════════════════════════════════════════
 
     @staticmethod
-    def _format_context(docs: List[Document]) -> str:
-        parts: List[str] = []
+    def _format_context(docs: list[Document]) -> str:
+        parts: list[str] = []
         for i, doc in enumerate(docs, 1):
             src = doc.metadata.get("filename", "Unknown")
             page = doc.metadata.get("page_number", "")
@@ -269,26 +273,28 @@ class RAGChain:
         return "\n".join(parts)
 
     @staticmethod
-    def _build_sources(docs: List[Document]) -> List[Dict[str, Any]]:
-        sources: List[Dict[str, Any]] = []
+    def _build_sources(docs: list[Document]) -> list[dict[str, Any]]:
+        sources: list[dict[str, Any]] = []
         for doc in docs:
-            sources.append({
-                "content": truncate(doc.page_content, 500),
-                "filename": doc.metadata.get("filename", "Unknown"),
-                "page_number": doc.metadata.get("page_number", 0),
-                "chunk_index": doc.metadata.get("chunk_index", 0),
-                "document_type": doc.metadata.get("document_type", ""),
-                "relevance_score": doc.metadata.get("score", 0.0),
-                "metadata": {
-                    k: v
-                    for k, v in doc.metadata.items()
-                    if k not in ("source", "filename", "page_number", "chunk_index")
-                },
-            })
+            sources.append(
+                {
+                    "content": truncate(doc.page_content, 500),
+                    "filename": doc.metadata.get("filename", "Unknown"),
+                    "page_number": doc.metadata.get("page_number", 0),
+                    "chunk_index": doc.metadata.get("chunk_index", 0),
+                    "document_type": doc.metadata.get("document_type", ""),
+                    "relevance_score": doc.metadata.get("score", 0.0),
+                    "metadata": {
+                        k: v
+                        for k, v in doc.metadata.items()
+                        if k not in ("source", "filename", "page_number", "chunk_index")
+                    },
+                }
+            )
         return sources
 
     @staticmethod
-    def _estimate_confidence(docs: List[Document], answer: str) -> float:
+    def _estimate_confidence(docs: list[Document], answer: str) -> float:
         """Estimate response confidence using actual retrieval scores."""
         if not docs:
             return 0.1
@@ -319,12 +325,12 @@ class RAGChain:
     def clear_session(self, session_id: str) -> None:
         self._memory_store.delete(session_id)
 
-    def get_session_history(self, session_id: str) -> List[Dict[str, Any]]:
+    def get_session_history(self, session_id: str) -> list[dict[str, Any]]:
         memory = self._memory_store.get(session_id)
         return memory.get_full_history()
 
     @property
-    def cache_stats(self) -> Dict[str, Any]:
+    def cache_stats(self) -> dict[str, Any]:
         return self._cache.stats
 
     def _record_metric(self, response_time: float, confidence: float) -> None:
@@ -336,7 +342,7 @@ class RAGChain:
             self._daily_queries[today] = self._daily_queries.get(today, 0) + 1
 
     @property
-    def query_metrics(self) -> Dict[str, Any]:
+    def query_metrics(self) -> dict[str, Any]:
         """Aggregate metrics for the analytics endpoint."""
         with self._metrics_lock:
             rt_list = list(self._response_times)

@@ -17,7 +17,7 @@ returns the original query unchanged.
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from config.settings import Settings, get_settings
 from src.utils.logger import get_logger
@@ -52,7 +52,7 @@ class QueryTransformer:
     as the main RAG pipeline.
     """
 
-    def __init__(self, settings: Optional[Settings] = None) -> None:
+    def __init__(self, settings: Settings | None = None) -> None:
         self._settings = settings or get_settings()
         self._llm_provider = None
 
@@ -64,6 +64,7 @@ class QueryTransformer:
             return None
         try:
             from src.generation.llm import get_llm_provider
+
             self._llm_provider = get_llm_provider()
             return self._llm_provider
         except Exception:
@@ -73,8 +74,8 @@ class QueryTransformer:
         self,
         query: str,
         *,
-        history: Optional[List[Dict[str, str]]] = None,
-    ) -> Dict[str, Any]:
+        history: list[dict[str, str]] | None = None,
+    ) -> dict[str, Any]:
         """Apply all transformations and return variant queries.
 
         Returns:
@@ -101,7 +102,7 @@ class QueryTransformer:
 
     # ── strategies ────────────────────────────────────────────────────
 
-    def _reformulate(self, query: str, history: List[Dict[str, str]]) -> str:
+    def _reformulate(self, query: str, history: list[dict[str, str]]) -> str:
         provider = self._get_provider()
         if provider is None:
             return query
@@ -123,7 +124,7 @@ class QueryTransformer:
 
         return query
 
-    def _multi_query(self, query: str) -> List[str]:
+    def _multi_query(self, query: str) -> list[str]:
         provider = self._get_provider()
         if provider is None:
             return []
@@ -131,8 +132,12 @@ class QueryTransformer:
         try:
             prompt = _MULTI_QUERY_PROMPT.format(question=query)
             text = provider.invoke(prompt)
-            lines = [l.strip().lstrip("0123456789.-) ") for l in text.strip().split("\n") if l.strip()]
-            return [l for l in lines if len(l) > 10][:3]
+            lines = [
+                line.strip().lstrip("0123456789.-) ")
+                for line in text.strip().split("\n")
+                if line.strip()
+            ]
+            return [line for line in lines if len(line) > 10][:3]
         except Exception as exc:
             logger.debug("multi_query_failed", error=str(exc))
 

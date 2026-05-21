@@ -14,7 +14,7 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: -6 }}
         transition={{ duration: 0.2, ease: "easeInOut" }}
-        className="flex-1 overflow-hidden"
+        className="flex-1 min-w-0 overflow-hidden"
       >
         {children}
       </motion.main>

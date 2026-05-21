@@ -14,7 +14,7 @@ from __future__ import annotations
 import threading
 import time
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from config.settings import Settings, get_settings
 from src.utils.logger import get_logger
@@ -27,7 +27,7 @@ class Message:
     role: str  # "user" | "assistant"
     content: str
     timestamp: float = field(default_factory=time.time)
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 class ConversationMemory:
@@ -38,16 +38,16 @@ class ConversationMemory:
     so they can be exported, but they are **not** sent to the LLM.
     """
 
-    def __init__(self, settings: Optional[Settings] = None) -> None:
+    def __init__(self, settings: Settings | None = None) -> None:
         s = settings or get_settings()
         self._max_messages = s.context_window_messages * 2  # user + assistant pairs
         self._max_chars = s.max_context_chars
-        self._history: List[Message] = []
+        self._history: list[Message] = []
 
     def add(self, role: str, content: str, **meta: Any) -> None:
         self._history.append(Message(role=role, content=content[:5000], metadata=meta))
 
-    def get_context_messages(self) -> List[Dict[str, str]]:
+    def get_context_messages(self) -> list[dict[str, str]]:
         """Return the most recent messages that fit the context window."""
         recent = self._history[-self._max_messages :]
         total_chars = sum(len(m.content) for m in recent)
@@ -67,7 +67,7 @@ class ConversationMemory:
             parts.append(f"{label}: {m['content']}")
         return "\n".join(parts)
 
-    def get_full_history(self) -> List[Dict[str, Any]]:
+    def get_full_history(self) -> list[dict[str, Any]]:
         """Return the complete history (for export)."""
         return [
             {
@@ -95,8 +95,8 @@ class SessionMemoryStore:
     """
 
     def __init__(self, ttl_seconds: int = 7200) -> None:
-        self._memories: Dict[str, ConversationMemory] = {}
-        self._last_access: Dict[str, float] = {}
+        self._memories: dict[str, ConversationMemory] = {}
+        self._last_access: dict[str, float] = {}
         self._ttl = ttl_seconds
         self._lock = threading.Lock()
 
@@ -116,9 +116,7 @@ class SessionMemoryStore:
 
     def _evict_expired(self) -> None:
         now = time.time()
-        expired = [
-            sid for sid, ts in self._last_access.items() if now - ts > self._ttl
-        ]
+        expired = [sid for sid, ts in self._last_access.items() if now - ts > self._ttl]
         for sid in expired:
             del self._memories[sid]
             del self._last_access[sid]

@@ -2,8 +2,9 @@
 
 import { useCallback, useEffect, useRef } from "react";
 import { createChatSocket } from "@/lib/websocket";
+import { chatQuery } from "@/lib/api";
 import { useStore } from "@/hooks/useStore";
-import type { WSFrame, SourceChunk } from "@/types";
+import type { QueryRequest, WSFrame, SourceChunk } from "@/types";
 import { generateId } from "@/lib/utils";
 
 export function useChat() {
@@ -46,20 +47,64 @@ export function useChat() {
 
         if (isQuota) {
           store.setError(id, "API quota exceeded — please provide your own Google API key.");
+          store.setIsQuotaBlocked(true);
           store.setShowApiKeyModal(true);
         } else {
           store.setError(id, frame.content);
         }
         currentAsstId.current = null;
+        sourcesBuffer.current = [];
         break;
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const handleQuotaError = useCallback((id: string) => {
+    store.setError(id, "API quota exceeded - please provide your own Google API key.");
+    store.setIsQuotaBlocked(true);
+    store.setShowApiKeyModal(true);
+    currentAsstId.current = null;
+    sourcesBuffer.current = [];
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const runRestFallback = useCallback(async (id: string, req: QueryRequest) => {
+    try {
+      const response = await chatQuery(req);
+      store.appendToken(id, response.answer);
+      store.finishAssistant(id, {
+        sources: response.sources,
+        queryType: response.query_type,
+        confidence: response.confidence,
+        responseTime: response.response_time_seconds,
+      });
+      store.setConnectionStatus("online");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to reach the backend";
+      if (/quota|rate.limit|429|resource.exhausted/i.test(message)) {
+        handleQuotaError(id);
+      } else {
+        store.setError(id, `Backend connection failed: ${message}`);
+        store.setConnectionStatus("offline");
+      }
+    } finally {
+      currentAsstId.current = null;
+      sourcesBuffer.current = [];
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [handleQuotaError]);
+
   useEffect(() => {
-    socketRef.current = createChatSocket(handleFrame);
+    store.setConnectionStatus("checking");
+    socketRef.current = createChatSocket(
+      handleFrame,
+      () => store.setConnectionStatus("reconnecting"),
+      undefined,
+      (status) => store.setConnectionStatus(status)
+    );
     return () => { socketRef.current?.close(); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [handleFrame]);
 
   const sendMessage = useCallback((text: string) => {
@@ -73,13 +118,19 @@ export function useChat() {
       .filter((m) => !m.isStreaming)
       .map((m) => ({ role: m.role, content: m.content }));
 
-    socketRef.current?.send({
+    const request: QueryRequest = {
       question: text,
       session_id: store.sessionId,
       conversation_history: history,
-    });
+    };
+
+    const sent = socketRef.current?.send(request) ?? false;
+    if (!sent) {
+      store.setConnectionStatus("reconnecting");
+      void runRestFallback(asstId, request);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [store.sessionId]);
+  }, [store.sessionId, runRestFallback]);
 
   return { sendMessage, messages: store.messages };
 }

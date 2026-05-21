@@ -12,10 +12,11 @@ from __future__ import annotations
 import time
 import uuid
 from collections import defaultdict
-from typing import Callable, Dict
+from collections.abc import Callable
 
 import structlog
 from fastapi import FastAPI, Request, Response
+from fastapi.exceptions import HTTPException
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
@@ -58,7 +59,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
     def __init__(self, app: FastAPI, rpm: int = 60) -> None:
         super().__init__(app)
         self._rpm = rpm
-        self._buckets: Dict[str, list] = defaultdict(list)
+        self._buckets: dict[str, list] = defaultdict(list)
 
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
         ip = request.client.host if request.client else "unknown"
@@ -81,6 +82,10 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 
 
 def register_exception_handlers(app: FastAPI) -> None:
+    @app.exception_handler(HTTPException)
+    async def http_exception_handler(request: Request, exc: HTTPException) -> JSONResponse:
+        return JSONResponse({"detail": exc.detail}, status_code=exc.status_code)
+
     @app.exception_handler(RAGException)
     async def rag_exception_handler(request: Request, exc: RAGException) -> JSONResponse:
         logger.error("rag_exception", code=exc.code, message=exc.message)
@@ -89,6 +94,8 @@ def register_exception_handlers(app: FastAPI) -> None:
 
     @app.exception_handler(Exception)
     async def generic_handler(request: Request, exc: Exception) -> JSONResponse:
+        if isinstance(exc, HTTPException):
+            return JSONResponse({"detail": exc.detail}, status_code=exc.status_code)
         logger.error("unhandled_exception", error=str(exc), type=type(exc).__name__)
         return JSONResponse(
             {"code": "INTERNAL_ERROR", "message": "An internal error occurred."},
