@@ -18,6 +18,10 @@ export const metadata: Metadata = {
   title: "NexusRAG",
   description: "NexusRAG — Enterprise Document Intelligence Platform. Upload documents and ask AI-powered questions.",
   keywords: ["RAG", "AI", "document intelligence", "enterprise", "retrieval augmented generation", "NexusRAG"],
+  icons: {
+    icon: "/favicon.svg",
+    shortcut: "/favicon.svg",
+  },
 };
 
 export const viewport: Viewport = {
