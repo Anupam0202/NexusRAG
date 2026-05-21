@@ -34,8 +34,8 @@ export default function SettingsPage() {
       const updated = await updateSettings(draft);
       setSettings(updated);
       toast.success("Settings saved successfully");
-    } catch (err: any) {
-      toast.error(err.message);
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Failed to save settings");
     } finally {
       setSaving(false);
     }
