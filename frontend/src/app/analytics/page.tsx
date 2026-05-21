@@ -242,7 +242,6 @@ export default function AnalyticsPage() {
                   label="LLM"
                   value={data.llm_model_name || "—"}
                   badge="Primary"
-                  badgeColor="brand"
                 />
                 <ModelRow
                   icon={<TrendingUp size={13} className="text-purple-500" />}
@@ -340,13 +339,12 @@ function MetricCard({
 }
 
 function ModelRow({
-  icon, label, value, badge, badgeColor,
+  icon, label, value, badge,
 }: {
   icon: React.ReactNode;
   label: string;
   value: string;
   badge?: string;
-  badgeColor?: string;
 }) {
   return (
     <div className="flex items-center justify-between gap-2">

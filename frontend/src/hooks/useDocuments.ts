@@ -7,7 +7,10 @@ import {
   deleteDocument,
 } from "@/lib/api";
 import { useStore } from "@/hooks/useStore";
-import type { DocumentMetadata } from "@/types";
+
+function getErrorMessage(err: unknown, fallback: string) {
+  return err instanceof Error ? err.message : fallback;
+}
 
 export function useDocuments() {
   const { documents, setDocuments, addDocument, removeDocument } = useStore();
@@ -21,8 +24,8 @@ export function useDocuments() {
       const resp = await listDocuments();
       setDocuments(resp.documents);
       setError(null);
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, "Failed to load documents"));
     } finally {
       setLoading(false);
     }
@@ -42,8 +45,8 @@ export function useDocuments() {
           addDocument(resp.document);
         }
         return resp;
-      } catch (err: any) {
-        setError(err.message);
+      } catch (err: unknown) {
+        setError(getErrorMessage(err, "Upload failed"));
         throw err;
       } finally {
         setUploading(false);
@@ -57,8 +60,8 @@ export function useDocuments() {
       try {
         await deleteDocument(filename);
         removeDocument(filename);
-      } catch (err: any) {
-        setError(err.message);
+      } catch (err: unknown) {
+        setError(getErrorMessage(err, "Delete failed"));
       }
     },
     [removeDocument]

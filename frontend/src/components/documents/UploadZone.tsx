@@ -44,9 +44,9 @@ export function UploadZone({ onUpload, uploading }: Props) {
           setStatus("error");
           toast.error(resp.message);
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         setStatus("error");
-        toast.error(err.message);
+        toast.error(err instanceof Error ? err.message : "Upload failed");
       }
     }
   }, [onUpload]);

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useChat } from "@/hooks/useChat";
 import { MessageBubble } from "./MessageBubble";
 import { SourcePanel } from "./SourcePanel";
-import type { SourceChunk, UIMessage } from "@/types";
+import type { SourceChunk } from "@/types";
 import {
   Send, ArrowDown, Sparkles, FileSearch, Brain,
   MessageSquare, Trash2, Zap, BookOpen, Search, Upload,
