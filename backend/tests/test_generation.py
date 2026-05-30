@@ -15,7 +15,6 @@ from src.generation.llm import LLMProvider
 from src.generation.memory import ConversationMemory, SessionMemoryStore
 from src.generation.prompts import PromptManager
 from src.retrieval.retriever import QueryType
-from src.utils.exceptions import GenerationError
 
 
 class TestConversationMemory:
@@ -134,7 +133,7 @@ class TestRAGChain:
             _model_name = "fake-model"
 
             def invoke_messages(self, messages):
-                raise GenerationError("All LLM candidates exhausted on invoke_messages.")
+                raise RuntimeError("All LLM candidates exhausted on invoke_messages.")
 
         monkeypatch.setattr("src.generation.chain.get_llm_provider", lambda: FakeLLM())
 
