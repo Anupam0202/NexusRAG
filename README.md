@@ -220,16 +220,16 @@ docker-compose up --build
 1. Import the repo on [Vercel](https://vercel.com)
 2. Set the root directory to `frontend`
 3. Add environment variable:
-   - `NEXT_PUBLIC_API_URL` — your Render backend URL (e.g., `https://nexusrag-backend.onrender.com`)
+   - `NEXT_PUBLIC_API_URL` — your actual Render backend URL (e.g., `https://your-render-service.onrender.com`)
 4. Vercel auto-detects Next.js and deploys
 
-### Connecting Frontend ↔ Backend
+### Connecting Frontend and Backend
 
-The frontend proxies REST calls through Next.js rewrites (`/api/v1/*` → backend). File uploads and WebSocket connections go directly to the backend URL to bypass Vercel's 60-second serverless timeout.
+The frontend calls the Render backend directly for REST requests, uploads, and WebSocket chat streaming. This keeps every backend workflow on the same service and avoids Vercel's serverless timeout/proxy limitations.
 
 | Connection | Path | Notes |
 |---|---|---|
-| REST API | Vercel → rewrite → Render | Proxied, same-origin |
+| REST API | Browser → Render directly | Requires `NEXT_PUBLIC_API_URL` |
 | File upload | Browser → Render directly | Bypasses Vercel timeout |
 | WebSocket | Browser → Render directly | Vercel doesn't proxy WS |
 
@@ -336,7 +336,7 @@ NexusRAG/
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `NEXT_PUBLIC_API_URL` | `http://localhost:8000` | Backend URL |
+| `NEXT_PUBLIC_API_URL` | `http://localhost:8000` locally | Render backend URL in Vercel |
 
 ---
 

@@ -30,7 +30,11 @@ export default function ChatInterface() {
   const [input, setInput] = useState("");
   const [activeSources, setActiveSources] = useState<SourceChunk[] | null>(null);
   const [showScrollBtn, setShowScrollBtn] = useState(false);
-  const { documents, loading: documentsLoading } = useDocuments();
+  const {
+    documents,
+    loading: documentsLoading,
+    error: documentsError,
+  } = useDocuments();
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -100,6 +104,7 @@ export default function ChatInterface() {
             <EmptyState
               docCount={docCount}
               loading={documentsLoading}
+              error={documentsError}
               onSuggestion={(text) => {
                 setInput(text);
                 inputRef.current?.focus();
@@ -211,10 +216,12 @@ export default function ChatInterface() {
 function EmptyState({
   docCount,
   loading,
+  error,
   onSuggestion,
 }: {
   docCount: number;
   loading: boolean;
+  error: string | null;
   onSuggestion: (text: string) => void;
 }) {
   return (
@@ -231,14 +238,16 @@ function EmptyState({
         <span className="gradient-text">NexusRAG</span> Chat
       </h2>
       <p className="text-sm text-[var(--text-muted)] mb-8 max-w-xs sm:max-w-sm leading-relaxed">
-        {loading
+        {error
+          ? error
+          : loading
           ? "Checking your document library..."
           : docCount > 0
           ? `${docCount} document${docCount > 1 ? "s" : ""} loaded. Ask anything about your content.`
           : "Upload documents first, then ask questions to get AI-powered answers grounded in your content."}
       </p>
 
-      {!loading && docCount === 0 && (
+      {!error && !loading && docCount === 0 && (
         <Link
           href="/documents"
           className="mb-8 inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-brand-500 to-purple-600 text-white px-5 py-2.5 text-sm font-semibold shadow-md hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all"

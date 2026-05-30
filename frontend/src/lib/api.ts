@@ -1,9 +1,9 @@
 /**
  * REST API client for the FastAPI backend.
  *
- * - Small JSON requests: relative paths → Vercel rewrites → backend
- * - File uploads: direct to backend (bypasses Vercel's 60s timeout)
- * - WebSocket: direct to backend (Vercel doesn't proxy WS)
+ * All browser API traffic goes directly to the configured backend. This keeps
+ * REST, uploads, and WebSockets on the same Render service instead of relying
+ * on Vercel rewrites, which cannot proxy WebSockets.
  */
 
 import type {
@@ -16,20 +16,13 @@ import type {
   SettingsUpdate,
   SystemStatusResponse,
 } from "@/types";
-
-/**
- * Direct backend URL — used for uploads and long-running requests.
- * NEXT_PUBLIC_* vars are inlined at build time, so this resolves to
- * the actual backend URL in production (e.g., https://nexusrag-backend.onrender.com).
- */
-const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+import { buildBackendUrl } from "@/lib/backend-url";
 
 async function request<T>(
   path: string,
   init?: RequestInit
 ): Promise<T> {
-  // Use relative URL — proxied by Vercel rewrites (fast, same-origin)
-  const res = await fetch(path, {
+  const res = await fetch(buildBackendUrl(path), {
     ...init,
     headers: { "Content-Type": "application/json", ...init?.headers },
   });
@@ -40,7 +33,7 @@ async function request<T>(
   return res.json();
 }
 
-// ── Documents ────────────────────────────────────────────────
+// Documents
 
 export async function uploadDocument(
   file: File
@@ -48,10 +41,7 @@ export async function uploadDocument(
   const form = new FormData();
   form.append("file", file);
 
-  // Upload DIRECTLY to backend — bypasses Vercel's 60s serverless timeout.
-  // PDFs with images can take 60-120s for OCR processing.
-  // CORS is configured on the backend to accept requests from the Vercel domain.
-  const res = await fetch(`${BACKEND_URL}/api/v1/documents/upload`, {
+  const res = await fetch(buildBackendUrl("/api/v1/documents/upload"), {
     method: "POST",
     body: form,
   });
@@ -75,7 +65,7 @@ export async function deleteDocument(
   });
 }
 
-// ── Chat ─────────────────────────────────────────────────────
+// Chat
 
 export async function chatQuery(body: QueryRequest): Promise<QueryResponse> {
   return request("/api/v1/chat", {
@@ -92,7 +82,7 @@ export async function clearSession(
   });
 }
 
-// ── Settings ─────────────────────────────────────────────────
+// Settings
 
 export async function getSettings(): Promise<AppSettings> {
   return request("/api/v1/settings");
@@ -107,7 +97,7 @@ export async function updateSettings(
   });
 }
 
-// ── Analytics ────────────────────────────────────────────────
+// Analytics
 
 export async function getAnalytics(): Promise<AnalyticsSummary> {
   return request("/api/v1/analytics/summary");
@@ -117,7 +107,7 @@ export async function getSystemStatus(): Promise<SystemStatusResponse> {
   return request("/api/v1/status");
 }
 
-// ── Health ────────────────────────────────────────────────────
+// Health
 
 export async function healthCheck(): Promise<{
   status: string;
@@ -126,7 +116,7 @@ export async function healthCheck(): Promise<{
   return request("/health");
 }
 
-// ── API Key ──────────────────────────────────────────────────
+// API Key
 
 export async function setApiKey(
   apiKey: string
