@@ -27,6 +27,14 @@ export default function DocumentsPage() {
           maxImageMegapixels:
             Number(settings.max_image_megapixels) ||
             DEFAULT_UPLOAD_LIMITS.maxImageMegapixels,
+          pdfEmbeddedImageOcr:
+            typeof settings.enable_pdf_embedded_image_ocr === "boolean"
+              ? settings.enable_pdf_embedded_image_ocr
+              : DEFAULT_UPLOAD_LIMITS.pdfEmbeddedImageOcr,
+          docxEmbeddedImageOcr:
+            typeof settings.enable_docx_embedded_image_ocr === "boolean"
+              ? settings.enable_docx_embedded_image_ocr
+              : DEFAULT_UPLOAD_LIMITS.docxEmbeddedImageOcr,
         });
       })
       .catch(() => setLimits(DEFAULT_UPLOAD_LIMITS));

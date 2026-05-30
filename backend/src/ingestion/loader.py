@@ -415,6 +415,7 @@ class DocxLoader(BaseLoader):
     def load(self, file_path: Path, content: bytes | None = None) -> list[Document]:
         from docx import Document as DocxDocument
 
+        settings = get_settings()
         base_meta = self._base_metadata(file_path, content)
         base_meta["file_type"] = "docx"
 
@@ -445,20 +446,35 @@ class DocxLoader(BaseLoader):
                 row_text = " | ".join(cell.text.strip() for cell in row.cells)
                 parts.append(row_text)
 
-        # OCR embedded images using cloud OCR
-        try:
-            for rel in doc.part.rels.values():
-                if "image" in getattr(rel, "reltype", ""):
-                    blob = rel.target_part.blob
-                    from PIL import Image as PILImage
+        if settings.enable_docx_embedded_image_ocr and not settings.memory_constrained:
+            processed_images = 0
+            try:
+                for rel in doc.part.rels.values():
+                    if processed_images >= settings.max_docx_embedded_images:
+                        logger.info(
+                            "docx_embedded_image_ocr_limit_reached",
+                            max_images=settings.max_docx_embedded_images,
+                        )
+                        break
+                    if "image" in getattr(rel, "reltype", ""):
+                        blob = rel.target_part.blob
+                        from PIL import Image as PILImage
 
-                    pil = PILImage.open(io.BytesIO(blob)).convert("RGB")
-                    arr = np.array(pil)
-                    text, _ = ocr_image(arr)
-                    if text.strip():
-                        parts.append(f"\n[Embedded Image]: {text}")
-        except Exception:
-            pass
+                        pil = PILImage.open(io.BytesIO(blob)).convert("RGB")
+                        arr = np.array(pil)
+                        processed_images += 1
+                        text, _ = ocr_image(arr)
+                        if text.strip():
+                            parts.append(f"\n[Embedded Image]: {text}")
+                        del arr, pil
+            except Exception as exc:
+                logger.debug("docx_embedded_image_ocr_failed", error=str(exc))
+        else:
+            logger.info(
+                "docx_embedded_image_ocr_skipped",
+                filename=file_path.name,
+                memory_constrained=settings.memory_constrained,
+            )
 
         full_text = "\n".join(parts)
         documents = [

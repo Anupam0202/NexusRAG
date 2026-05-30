@@ -215,7 +215,7 @@ docker-compose up --build
 
 `API_CORS_ORIGINS` is preconfigured in `render.yaml` for the Vercel production domains. Update it if you add a custom frontend domain.
 
-> `render.yaml` uses lightweight hash embeddings and disables scientific PDF parsing, semantic chunking, contextual enrichment, reranking, and embedded PDF image OCR on the free tier, while keeping normal text PDFs and bounded scanned-PDF OCR available.
+> `render.yaml` uses lightweight hash embeddings and disables scientific PDF parsing, semantic chunking, contextual enrichment, reranking, and embedded PDF/DOCX image OCR on the free tier, while keeping normal text PDFs, DOCX text, and bounded scanned-PDF OCR available.
 
 > **Free-tier note:** Render free web services spin down after 15 minutes of inactivity and take ~30–60s to cold-start. Set `DISABLE_CROSS_ENCODER=true` (already in `render.yaml`) to stay within the 512 MB RAM limit.
 
@@ -333,6 +333,7 @@ NexusRAG/
 | `ENABLE_CONTEXTUAL_ENRICHMENT` | `true` | LLM chunk enrichment |
 | `ENABLE_SEMANTIC_CHUNKING` | `true` | Smart chunking routing |
 | `ENABLE_LIGHTWEIGHT_EMBEDDINGS` | `false` | Use deterministic hash embeddings instead of local transformer embeddings |
+| `CONSTRAINED_MEMORY` | `false` | Enables free-tier memory guards for Render-sized instances |
 | `API_CORS_ORIGINS` | `localhost:3000` | Allowed CORS origins |
 | `ENABLE_CACHE` | `true` | Semantic query cache |
 | `MAX_UPLOAD_SIZE_MB` | `100` | Max file upload size |
@@ -340,7 +341,9 @@ NexusRAG/
 | `MAX_PDF_OCR_PAGES` | `12` | Max pages for OCR-heavy or scanned PDFs |
 | `PDF_OCR_DPI` | `150` | DPI used when rasterizing PDF pages for OCR |
 | `ENABLE_PDF_EMBEDDED_IMAGE_OCR` | `true` | OCR embedded PDF figures/images when the instance has enough memory |
+| `ENABLE_DOCX_EMBEDDED_IMAGE_OCR` | `true` | OCR embedded DOCX images when the instance has enough memory |
 | `MAX_PDF_EMBEDDED_IMAGES` | `8` | Max embedded PDF images OCRed per upload |
+| `MAX_DOCX_EMBEDDED_IMAGES` | `8` | Max embedded DOCX images OCRed per upload |
 | `MAX_IMAGE_MEGAPIXELS` | `25` | Max standalone image size accepted for OCR |
 | `ENABLE_SCIENTIFIC_MODE` | `true` | Advanced PDF parser; disabled in `render.yaml` for Render free tier stability |
 

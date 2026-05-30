@@ -18,6 +18,8 @@ services:
         value: "1"
       - key: MALLOC_TRIM_THRESHOLD_
         value: "100000"
+      - key: CONSTRAINED_MEMORY
+        value: "true"
 
       # Logging
       - key: LOG_FORMAT
@@ -62,6 +64,8 @@ services:
         value: "false"
       - key: ENABLE_PDF_EMBEDDED_IMAGE_OCR
         value: "false"
+      - key: ENABLE_DOCX_EMBEDDED_IMAGE_OCR
+        value: "false"
       - key: MAX_PDF_PAGES
         value: "40"
       - key: MAX_PDF_OCR_PAGES
@@ -69,6 +73,8 @@ services:
       - key: PDF_OCR_DPI
         value: "150"
       - key: MAX_PDF_EMBEDDED_IMAGES
+        value: "4"
+      - key: MAX_DOCX_EMBEDDED_IMAGES
         value: "4"
       - key: MAX_IMAGE_MEGAPIXELS
         value: "25"
