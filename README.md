@@ -25,6 +25,7 @@ A production-grade **Retrieval-Augmented Generation** platform that lets enterpr
 - **Images** (PNG, JPG, GIF, WebP, BMP, TIFF) — full OCR via Gemini Vision
 - **TXT, Markdown, JSON** — with multi-encoding support
 - Drag-and-drop upload with real-time progress
+- Upload preflight returns clear limits for large PDFs, scanned PDFs, and high-resolution images before processing starts
 
 ### Advanced RAG Pipeline
 - **Hybrid Retrieval** — BM25 keyword + FAISS vector semantic search with RRF fusion
@@ -49,6 +50,7 @@ A production-grade **Retrieval-Augmented Generation** platform that lets enterpr
 - Table extraction via Gemini Vision
 - Figure detection with contour analysis + OCR
 - Embedded image extraction via PyMuPDF
+- Automatically falls back to the standard PDF loader on memory-constrained Render instances
 
 ### Real-Time Streaming Chat
 - WebSocket-based token streaming with typed JSON frames
@@ -213,6 +215,8 @@ docker-compose up --build
 
 `API_CORS_ORIGINS` is preconfigured in `render.yaml` for the Vercel production domains. Update it if you add a custom frontend domain.
 
+> `render.yaml` disables scientific PDF parsing and embedded PDF image OCR on the free tier, while keeping normal text PDFs and bounded scanned-PDF OCR available.
+
 > **Free-tier note:** Render free web services spin down after 15 minutes of inactivity and take ~30–60s to cold-start. Set `DISABLE_CROSS_ENCODER=true` (already in `render.yaml`) to stay within the 512 MB RAM limit.
 
 ### Frontend → Vercel
@@ -331,6 +335,13 @@ NexusRAG/
 | `API_CORS_ORIGINS` | `localhost:3000` | Allowed CORS origins |
 | `ENABLE_CACHE` | `true` | Semantic query cache |
 | `MAX_UPLOAD_SIZE_MB` | `100` | Max file upload size |
+| `MAX_PDF_PAGES` | `40` | Max pages accepted per PDF upload |
+| `MAX_PDF_OCR_PAGES` | `12` | Max pages for OCR-heavy or scanned PDFs |
+| `PDF_OCR_DPI` | `150` | DPI used when rasterizing PDF pages for OCR |
+| `ENABLE_PDF_EMBEDDED_IMAGE_OCR` | `true` | OCR embedded PDF figures/images when the instance has enough memory |
+| `MAX_PDF_EMBEDDED_IMAGES` | `8` | Max embedded PDF images OCRed per upload |
+| `MAX_IMAGE_MEGAPIXELS` | `25` | Max standalone image size accepted for OCR |
+| `ENABLE_SCIENTIFIC_MODE` | `true` | Advanced PDF parser; disabled in `render.yaml` for Render free tier stability |
 
 ### Frontend Environment (`frontend/.env.local`)
 
@@ -386,6 +397,8 @@ GET /health → { "status": "healthy", "version": "1.0.0", "total_chunks": 26 }
 | Images | `.png`, `.jpg`, `.jpeg`, `.gif`, `.webp`, `.bmp`, `.tif`, `.tiff` | Gemini Vision + Cloud Vision OCR |
 | Text | `.txt`, `.md` | Direct text with encoding detection |
 | JSON | `.json` | Structured + per-item documents |
+
+PDF uploads are preflighted before ingestion. Normal text PDFs use the standard loader first; scanned PDFs use bounded OCR; scientific parsing and embedded PDF image OCR should be enabled only on larger backend instances.
 
 ---
 

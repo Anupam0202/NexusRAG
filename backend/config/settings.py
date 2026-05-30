@@ -109,6 +109,40 @@ class Settings(BaseSettings):
         description="Optional API key to protect endpoints (empty = disabled)",
     )
     max_upload_size_mb: int = Field(default=100, ge=1, le=500)
+    max_pdf_pages: int = Field(
+        default=40,
+        ge=1,
+        le=500,
+        description="Maximum PDF pages accepted by the upload endpoint",
+    )
+    max_pdf_ocr_pages: int = Field(
+        default=12,
+        ge=0,
+        le=200,
+        description="Maximum low-text PDF pages that can be OCR processed",
+    )
+    pdf_ocr_dpi: int = Field(
+        default=150,
+        ge=72,
+        le=300,
+        description="DPI used when rendering PDF pages for OCR",
+    )
+    enable_pdf_embedded_image_ocr: bool = Field(
+        default=True,
+        description="OCR embedded images in PDFs when enough memory is available",
+    )
+    max_pdf_embedded_images: int = Field(
+        default=8,
+        ge=0,
+        le=200,
+        description="Maximum embedded PDF images to OCR per upload",
+    )
+    max_image_megapixels: int = Field(
+        default=25,
+        ge=1,
+        le=200,
+        description="Maximum standalone image size accepted for OCR",
+    )
 
     # ── Performance ───────────────────────────────────────────────────────
     enable_cache: bool = Field(default=True)
@@ -155,6 +189,18 @@ class Settings(BaseSettings):
     @property
     def max_upload_bytes(self) -> int:
         return self.max_upload_size_mb * 1024 * 1024
+
+    @property
+    def max_image_pixels(self) -> int:
+        return self.max_image_megapixels * 1_000_000
+
+    @property
+    def memory_constrained(self) -> bool:
+        return (
+            bool(os.environ.get("RENDER"))
+            or os.environ.get("CONSTRAINED_MEMORY", "").lower() == "true"
+            or os.environ.get("DISABLE_CROSS_ENCODER", "").lower() == "true"
+        )
 
     @property
     def vector_store_dir(self) -> Path:

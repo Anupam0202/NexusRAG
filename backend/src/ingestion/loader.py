@@ -134,6 +134,7 @@ class PDFLoader(BaseLoader):
         file_path: Path,
         content: bytes | None = None,
     ) -> list[Document]:
+        settings = get_settings()
         base_meta = self._base_metadata(file_path, content)
         source = io.BytesIO(content) if content else file_path
 
@@ -177,9 +178,13 @@ class PDFLoader(BaseLoader):
                 logger.error("all_pdf_extraction_failed", error=str(exc))
                 return []
 
-        # ALWAYS extract embedded images and OCR them, even if we got text
-        # (common case: PDFs with text + embedded figures/charts/diagrams)
-        if not used_cloud_ocr and (self._gemini or self._cloud):
+        # Optionally OCR embedded images when the deployment has memory headroom
+        # (common case: PDFs with text + embedded figures/charts/diagrams).
+        if (
+            not used_cloud_ocr
+            and settings.enable_pdf_embedded_image_ocr
+            and (self._gemini or self._cloud)
+        ):
             try:
                 pdf_bytes = (
                     content if content else (file_path.read_bytes() if file_path.exists() else b"")
@@ -269,13 +274,18 @@ class PDFLoader(BaseLoader):
         """
         import fitz  # PyMuPDF
 
+        settings = get_settings()
         with fitz.open("pdf", pdf_bytes) as doc_pdf:
+            if len(doc_pdf) > settings.max_pdf_ocr_pages:
+                raise ValueError(
+                    f"PDF OCR is limited to {settings.max_pdf_ocr_pages} pages; "
+                    f"received {len(doc_pdf)} pages."
+                )
             pages_text: list[str] = []
             tables_text: list[str] = []
 
             for page_obj in doc_pdf:
-                # Render page at 300 DPI
-                pix = page_obj.get_pixmap(dpi=300)
+                pix = page_obj.get_pixmap(dpi=settings.pdf_ocr_dpi, alpha=False)
                 img_np = np.frombuffer(pix.samples, dtype=np.uint8).reshape(
                     pix.height, pix.width, pix.n
                 )
@@ -288,6 +298,7 @@ class PDFLoader(BaseLoader):
                 text, conf = ocr_image(img_np)
                 pages_text.append(clean_text(text))
                 tables_text.append("")  # Tables are embedded in the OCR text
+                del img_np, pix
 
         return pages_text, tables_text
 
@@ -300,16 +311,29 @@ class PDFLoader(BaseLoader):
         """
         import fitz  # PyMuPDF
 
+        settings = get_settings()
+        if not settings.enable_pdf_embedded_image_ocr or settings.max_pdf_embedded_images == 0:
+            return pages_text
+
         # Copy the list so we don't mutate the caller's data
         result = list(pages_text)
+        processed_images = 0
 
         try:
             import fitz  # PyMuPDF
 
             with fitz.open("pdf", pdf_bytes) as doc_pdf:
                 for page_num, page_obj in enumerate(doc_pdf):
+                    if processed_images >= settings.max_pdf_embedded_images:
+                        logger.info(
+                            "embedded_image_ocr_limit_reached",
+                            max_images=settings.max_pdf_embedded_images,
+                        )
+                        return result
                     image_list = page_obj.get_images(full=True)
                     for img_info in image_list:
+                        if processed_images >= settings.max_pdf_embedded_images:
+                            return result
                         xref = img_info[0]
                         try:
                             base_image = doc_pdf.extract_image(xref)
@@ -327,6 +351,7 @@ class PDFLoader(BaseLoader):
                             if w * h < 10000:
                                 continue
                             img_arr = np.array(pil_img)
+                            processed_images += 1
                             img_text, _ = ocr_image(img_arr)
                             if img_text.strip() and len(img_text.strip()) > 15:
                                 if page_num < len(result):
@@ -339,6 +364,7 @@ class PDFLoader(BaseLoader):
                                     size=f"{w}x{h}",
                                     chars=len(img_text),
                                 )
+                            del img_arr, pil_img
                         except Exception as e:
                             logger.debug(
                                 "embedded_image_extraction_error",
@@ -775,12 +801,22 @@ class ImageLoader(BaseLoader):
             from PIL import Image as PILImage
 
             pil = PILImage.open(io.BytesIO(raw)).convert("RGB")
+            w, h = pil.size
+            settings = get_settings()
+            pixels = w * h
+            if pixels > settings.max_image_pixels:
+                logger.warning(
+                    "image_too_large_for_ocr",
+                    filename=file_path.name,
+                    pixels=pixels,
+                    limit=settings.max_image_pixels,
+                )
+                return []
             img_arr = np.array(pil)
         except Exception as exc:
             logger.error("image_load_failed", filename=file_path.name, error=str(exc))
             return []
 
-        w, h = pil.size
         base_meta["image_size"] = f"{w}x{h}"
 
         # Try OCR through the full Gemini Vision / Cloud Vision pipeline

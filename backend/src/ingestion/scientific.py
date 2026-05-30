@@ -31,6 +31,7 @@ import numpy as np
 import pandas as pd
 from PIL import Image
 
+from config.settings import get_settings
 from src.ingestion.ocr_manager import (
     get_cloud_vision,
     get_gemini_ocr,
@@ -150,11 +151,18 @@ class ScientificPDFParser:
         """Parse an entire PDF into structured scientific components."""
         import fitz  # PyMuPDF
 
+        settings = get_settings()
         doc_pdf = fitz.open("pdf", pdf_bytes)
         doc = ScientificDocument(total_pages=len(doc_pdf))
+        if doc.total_pages > settings.max_pdf_ocr_pages:
+            doc_pdf.close()
+            raise ValueError(
+                f"Scientific parsing is limited to {settings.max_pdf_ocr_pages} pages "
+                f"for OCR-heavy PDFs; received {doc.total_pages} pages."
+            )
 
         for page_num, page_obj in enumerate(doc_pdf, 1):
-            pix = page_obj.get_pixmap(dpi=300)
+            pix = page_obj.get_pixmap(dpi=settings.pdf_ocr_dpi, alpha=False)
             img = np.frombuffer(pix.samples, dtype=np.uint8).reshape(pix.height, pix.width, pix.n)
             if img.shape[2] == 4:
                 img = cv2.cvtColor(img, cv2.COLOR_RGBA2RGB)
@@ -166,6 +174,7 @@ class ScientificPDFParser:
             doc.figures.extend(parsed.figures)
             doc.tables.extend(parsed.tables)
             doc.equations.extend(parsed.equations)
+            del img, pix, parsed
 
         # Also extract embedded images via PyMuPDF
         self._extract_embedded_images(doc_pdf, doc)

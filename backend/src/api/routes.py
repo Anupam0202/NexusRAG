@@ -19,6 +19,7 @@ Endpoints:
 from __future__ import annotations
 
 import asyncio
+import io
 import uuid
 from pathlib import Path
 
@@ -52,6 +53,104 @@ logger = get_logger(__name__)
 router = APIRouter(tags=["rag"], dependencies=[Depends(verify_api_key)])
 
 
+def _preflight_upload_limits(filename: str, content: bytes, settings: Settings) -> None:
+    """Reject expensive uploads before processing can exhaust Render memory."""
+    ext = Path(filename).suffix.lower()
+    if ext == ".pdf":
+        _preflight_pdf_limits(filename, content, settings)
+    elif ext in {".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp", ".tif", ".tiff"}:
+        _preflight_image_limits(filename, content, settings)
+
+
+def _preflight_pdf_limits(filename: str, content: bytes, settings: Settings) -> None:
+    try:
+        import fitz  # PyMuPDF
+    except Exception as exc:
+        logger.warning("pdf_preflight_unavailable", file=filename, error=str(exc))
+        return
+
+    try:
+        with fitz.open("pdf", content) as doc:
+            page_count = len(doc)
+            if page_count > settings.max_pdf_pages:
+                raise HTTPException(
+                    status_code=413,
+                    detail=(
+                        f"PDF has {page_count} pages. This deployment accepts up to "
+                        f"{settings.max_pdf_pages} pages per PDF. Split the document "
+                        "or increase MAX_PDF_PAGES on a larger backend instance."
+                    ),
+                )
+
+            sample_pages = min(page_count, 5)
+            text_chars = 0
+            for index in range(sample_pages):
+                text_chars += len((doc[index].get_text("text") or "").strip())
+
+            avg_chars = text_chars / max(sample_pages, 1)
+            looks_scanned = avg_chars < 40
+            if looks_scanned and page_count > settings.max_pdf_ocr_pages:
+                raise HTTPException(
+                    status_code=413,
+                    detail=(
+                        f"This looks like a scanned PDF with {page_count} pages. OCR is "
+                        f"limited to {settings.max_pdf_ocr_pages} pages on this deployment "
+                        "to keep the backend stable. Split the PDF or use a larger Render "
+                        "instance for heavier OCR jobs."
+                    ),
+                )
+
+            logger.info(
+                "pdf_preflight_ok",
+                file=filename,
+                pages=page_count,
+                sample_text_chars=text_chars,
+                scanned=looks_scanned,
+            )
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.warning("pdf_preflight_failed", file=filename, error=str(exc))
+
+
+def _preflight_image_limits(filename: str, content: bytes, settings: Settings) -> None:
+    try:
+        from PIL import Image
+
+        with Image.open(io.BytesIO(content)) as image:
+            width, height = image.size
+    except Exception as exc:
+        logger.warning("image_preflight_failed", file=filename, error=str(exc))
+        return
+
+    pixels = width * height
+    if pixels > settings.max_image_pixels:
+        megapixels = pixels / 1_000_000
+        raise HTTPException(
+            status_code=413,
+            detail=(
+                f"Image is {megapixels:.1f} megapixels. This deployment accepts images "
+                f"up to {settings.max_image_megapixels} megapixels for OCR. Resize the "
+                "image or increase MAX_IMAGE_MEGAPIXELS on a larger backend instance."
+            ),
+        )
+
+
+def _metadata_from_ingestion(result) -> tuple[int, str]:
+    candidates = [*result.source_docs, *result.chunks]
+    page_count = 0
+    extraction_method = "pipeline"
+    for doc in candidates:
+        meta = doc.metadata
+        page_count = max(
+            page_count,
+            int(meta.get("page_count") or meta.get("total_pages") or meta.get("page_number") or 0),
+        )
+        if extraction_method == "pipeline" and meta.get("extraction_method"):
+            extraction_method = str(meta["extraction_method"])
+    return page_count, extraction_method
+
+
 # ═══════════════════════════════════════════════════════════════════════════
 #  DOCUMENTS
 # ═══════════════════════════════════════════════════════════════════════════
@@ -76,6 +175,7 @@ async def upload_document(
     )
     if not valid:
         raise HTTPException(400, msg)
+    _preflight_upload_limits(safe_name, content, settings)
 
     try:
         pipeline = IngestionPipeline(vector_store=vs, settings=settings)
@@ -103,15 +203,17 @@ async def upload_document(
         else:
             raise HTTPException(422, f"Ingestion failed: {errors}")
 
+    page_count, extraction_method = _metadata_from_ingestion(result)
     doc_meta = DocumentMetadata(
         document_id=str(uuid.uuid4()),
         filename=safe_name,
         file_type=Path(safe_name).suffix.lower().lstrip("."),
         file_size_bytes=len(content),
+        page_count=page_count,
         chunk_count=result.chunks_created,
         status=DocumentStatus.READY,
         processing_time_seconds=result.processing_time_seconds,
-        extraction_method="pipeline",
+        extraction_method=extraction_method,
     )
 
     return DocumentUploadResponse(
@@ -413,6 +515,12 @@ async def system_status(
             "enable_semantic_chunking": settings.enable_semantic_chunking,
             "enable_contextual_enrichment": settings.enable_contextual_enrichment,
             "max_upload_size_mb": settings.max_upload_size_mb,
+            "max_pdf_pages": settings.max_pdf_pages,
+            "max_pdf_ocr_pages": settings.max_pdf_ocr_pages,
+            "pdf_ocr_dpi": settings.pdf_ocr_dpi,
+            "enable_pdf_embedded_image_ocr": settings.enable_pdf_embedded_image_ocr,
+            "max_pdf_embedded_images": settings.max_pdf_embedded_images,
+            "max_image_megapixels": settings.max_image_megapixels,
         },
         capabilities={
             "streaming": True,

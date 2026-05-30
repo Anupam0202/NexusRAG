@@ -18,17 +18,33 @@ import type {
 } from "@/types";
 import { buildBackendUrl } from "@/lib/backend-url";
 
+async function readErrorMessage(res: Response, fallback: string) {
+  const body = await res.json().catch(() => ({}));
+  const detail = body.detail ?? body.message;
+  if (typeof detail === "string") return detail;
+  if (Array.isArray(detail) && detail.length > 0) {
+    return detail
+      .map((item) => item?.msg ?? item?.message ?? String(item))
+      .join("; ");
+  }
+  return fallback;
+}
+
 async function request<T>(
   path: string,
   init?: RequestInit
 ): Promise<T> {
-  const res = await fetch(buildBackendUrl(path), {
-    ...init,
-    headers: { "Content-Type": "application/json", ...init?.headers },
-  });
+  let res: Response;
+  try {
+    res = await fetch(buildBackendUrl(path), {
+      ...init,
+      headers: { "Content-Type": "application/json", ...init?.headers },
+    });
+  } catch {
+    throw new Error("Backend connection was interrupted. Please retry after the service is live.");
+  }
   if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error(body.detail ?? body.message ?? `HTTP ${res.status}`);
+    throw new Error(await readErrorMessage(res, `HTTP ${res.status}`));
   }
   return res.json();
 }
@@ -41,14 +57,22 @@ export async function uploadDocument(
   const form = new FormData();
   form.append("file", file);
 
-  const res = await fetch(buildBackendUrl("/api/v1/documents/upload"), {
-    method: "POST",
-    body: form,
-  });
+  let res: Response;
+  try {
+    res = await fetch(buildBackendUrl("/api/v1/documents/upload"), {
+      method: "POST",
+      body: form,
+    });
+  } catch {
+    throw new Error(
+      "Upload connection was interrupted before the backend returned a response. " +
+        "This usually means the backend restarted or the file exceeded processing limits. " +
+        "Try again after the Backend live badge appears, or split large/scanned PDFs."
+    );
+  }
 
   if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error(body.detail ?? `Upload failed (${res.status})`);
+    throw new Error(await readErrorMessage(res, `Upload failed (${res.status})`));
   }
   return res.json();
 }
