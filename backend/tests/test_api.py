@@ -159,3 +159,17 @@ class TestSystemStatus:
         assert data["settings"]["max_pdf_ocr_pages"] >= 0
         assert "enable_docx_embedded_image_ocr" in data["settings"]
         assert data["settings"]["max_docx_embedded_images"] >= 0
+
+    def test_system_status_reports_effective_query_expansion(
+        self, test_client: TestClient, monkeypatch
+    ):
+        monkeypatch.setenv("CONSTRAINED_MEMORY", "true")
+        monkeypatch.setenv("ENABLE_QUERY_EXPANSION", "true")
+        get_settings.cache_clear()
+        try:
+            resp = test_client.get("/api/v1/status")
+        finally:
+            get_settings.cache_clear()
+
+        assert resp.status_code == 200
+        assert resp.json()["settings"]["enable_query_expansion"] is False
