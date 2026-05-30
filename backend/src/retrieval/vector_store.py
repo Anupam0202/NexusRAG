@@ -255,10 +255,13 @@ class VectorStoreManager:
         if top_sparse_score > 0.01:
             min_sparse_score = top_sparse_score * 0.15
             sparse = [hit for hit in sparse if hit.score >= min_sparse_score]
+            candidates = sparse
+        else:
+            candidates = [*sparse, *dense]
 
         merged: list[SearchHit] = []
         seen: set[str] = set()
-        for hit in [*sparse, *dense]:
+        for hit in candidates:
             key = self._doc_hash(hit.document)
             if key in seen:
                 continue
