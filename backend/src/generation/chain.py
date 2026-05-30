@@ -30,7 +30,6 @@ from src.generation.prompts import PromptManager
 from src.retrieval.cache import SemanticCache
 from src.retrieval.retriever import HybridRetriever, QueryType
 from src.retrieval.vector_store import VectorStoreManager
-from src.utils.exceptions import GenerationError, RateLimitError
 from src.utils.helpers import truncate
 from src.utils.logger import get_logger
 from src.utils.security import InputSanitizer
@@ -127,9 +126,9 @@ class RAGChain:
         generation_error = ""
         try:
             answer = self._llm.invoke_messages(messages)
-        except (GenerationError, RateLimitError) as exc:
+        except Exception as exc:
             generation_fallback = True
-            generation_error = exc.message
+            generation_error = getattr(exc, "message", str(exc))
             logger.warning("generation_fallback_used", error=generation_error)
             answer = self._build_extractive_fallback_answer(docs, generation_error)
 
@@ -233,9 +232,9 @@ class RAGChain:
             async for token in self._llm.stream_messages(messages):
                 full_answer += token
                 yield {"type": "token", "content": token}
-        except (GenerationError, RateLimitError) as exc:
+        except Exception as exc:
             generation_fallback = True
-            generation_error = exc.message
+            generation_error = getattr(exc, "message", str(exc))
             logger.warning("stream_generation_fallback_used", error=generation_error)
             full_answer = self._build_extractive_fallback_answer(docs, generation_error)
             yield {"type": "token", "content": full_answer}
