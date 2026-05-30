@@ -118,6 +118,34 @@ class TestVectorStoreManager:
 
         assert results[0].document.metadata["filename"] == "plantpal_comprehensive_guide.md"
 
+    def test_lightweight_search_ignores_generic_source_terms(self, tmp_path):
+        vs = VectorStoreManager()
+        vs._persist_dir = tmp_path / "vs"
+        vs._persist_dir.mkdir(parents=True, exist_ok=True)
+        vs._use_lightweight = True
+        vs._documents = [
+            Document(
+                page_content="PlantPal product features include weather-aware recommendations.",
+                metadata={"filename": "PlantPal_new_features.txt"},
+            ),
+            Document(
+                page_content="Uploaded source filename document metadata and file records.",
+                metadata={"filename": "Annapurna_Yojana_Family_Level_Data_Collection_Form.pdf"},
+            ),
+        ]
+        vs._raw_embeddings = []
+        vs._index = None
+        vs._rebuild_bm25()
+
+        results = vs.search(
+            "From the uploaded PlantPal files, name source filenames and summarize features",
+            top_k=5,
+        )
+
+        assert [hit.document.metadata["filename"] for hit in results] == [
+            "PlantPal_new_features.txt"
+        ]
+
     def test_lightweight_sparse_matches_do_not_pad_with_dense_noise(self):
         vs = VectorStoreManager()
         sparse_doc = Document(

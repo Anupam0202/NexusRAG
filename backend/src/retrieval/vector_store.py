@@ -28,6 +28,42 @@ from src.utils.logger import get_logger
 
 logger = get_logger(__name__)
 
+_SEARCH_STOPWORDS = {
+    "a",
+    "an",
+    "and",
+    "are",
+    "as",
+    "at",
+    "be",
+    "by",
+    "for",
+    "from",
+    "in",
+    "is",
+    "it",
+    "name",
+    "of",
+    "on",
+    "or",
+    "the",
+    "to",
+    "what",
+    "which",
+    "with",
+}
+
+_SEARCH_NOISE_TERMS = {
+    "file",
+    "files",
+    "filename",
+    "filenames",
+    "source",
+    "sources",
+    "uploaded",
+    "upload",
+}
+
 try:
     from rank_bm25 import BM25Okapi
 
@@ -253,7 +289,7 @@ class VectorStoreManager:
     ) -> list[SearchHit]:
         top_sparse_score = max((hit.score for hit in sparse), default=0.0)
         if top_sparse_score > 0.01:
-            min_sparse_score = top_sparse_score * 0.15
+            min_sparse_score = top_sparse_score * 0.5
             sparse = [hit for hit in sparse if hit.score >= min_sparse_score]
             candidates = sparse
         else:
@@ -342,7 +378,12 @@ class VectorStoreManager:
 
     @staticmethod
     def _tokenize(text: str) -> list[str]:
-        return re.sub(r"[^a-z0-9]+", " ", text.lower()).split()
+        tokens = re.sub(r"[^a-z0-9]+", " ", text.lower()).split()
+        return [
+            token
+            for token in tokens
+            if token not in _SEARCH_STOPWORDS and token not in _SEARCH_NOISE_TERMS
+        ]
 
     @staticmethod
     def _bm25_text(doc: Document) -> str:
