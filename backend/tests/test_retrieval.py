@@ -92,3 +92,26 @@ class TestVectorStoreManager:
         assert vs.add_documents(sample_documents) == 3
         assert vs.add_documents(sample_documents) == 0
         assert vs.total_chunks == 3
+
+    def test_lightweight_search_prefers_sparse_filename_matches(self, tmp_path):
+        vs = VectorStoreManager()
+        vs._persist_dir = tmp_path / "vs"
+        vs._persist_dir.mkdir(parents=True, exist_ok=True)
+        vs._use_lightweight = True
+        vs._documents = [
+            Document(
+                page_content="Seasonal planting calendar and plant health scanner.",
+                metadata={"filename": "plantpal_comprehensive_guide.md", "file_type": "md"},
+            ),
+            Document(
+                page_content="Family income, ration card, and applicant address fields.",
+                metadata={"filename": "Annapurna_Yojana_Family_Level_Data_Collection_Form.pdf"},
+            ),
+        ]
+        vs._raw_embeddings = []
+        vs._index = None
+        vs._rebuild_bm25()
+
+        results = vs.search("PlantPal features", top_k=2)
+
+        assert results[0].document.metadata["filename"] == "plantpal_comprehensive_guide.md"

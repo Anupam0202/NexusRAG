@@ -52,6 +52,7 @@ class VectorStoreManager:
         self._persist_dir = s.vector_store_dir
         self._alpha = s.hybrid_search_alpha
         self._sim_threshold = s.similarity_threshold
+        self._use_lightweight = s.use_lightweight_embeddings
         self._dim: int = 0
 
         self._documents: list[Document] = []
@@ -183,6 +184,8 @@ class VectorStoreManager:
             return []
         dense = self._dense_search(query, top_k * 2)
         sparse = self._sparse_search(query, top_k * 2) if _BM25_OK else []
+        if self._use_lightweight and sparse:
+            return self._merge_sparse_first(sparse, dense, top_k)
         if not sparse:
             return dense[:top_k]
         return self._fuse(dense, sparse, top_k)
@@ -206,13 +209,21 @@ class VectorStoreManager:
         if not self._bm25:
             return []
         tokens = self._tokenize(query)
+        token_set = set(tokens)
         raw_scores = self._bm25.get_scores(tokens)
         top_idx = np.argsort(raw_scores)[::-1][:top_k]
-        return [
-            SearchHit(document=self._documents[i], score=float(raw_scores[i]), method="sparse")
-            for i in top_idx
-            if raw_scores[i] > 0
-        ]
+        results: list[SearchHit] = []
+        for i in top_idx:
+            doc_tokens = set(self._tokenize(self._bm25_text(self._documents[i])))
+            if raw_scores[i] > 0 or token_set.intersection(doc_tokens):
+                results.append(
+                    SearchHit(
+                        document=self._documents[i],
+                        score=max(float(raw_scores[i]), 0.001),
+                        method="sparse",
+                    )
+                )
+        return results
 
     def _fuse(self, dense: list[SearchHit], sparse: list[SearchHit], top_k: int) -> list[SearchHit]:
         rrf_k = 60
@@ -233,6 +244,29 @@ class VectorStoreManager:
             SearchHit(document=doc_map[k].document, score=rrf[k], method="hybrid")
             for k in sorted_keys[:top_k]
         ]
+
+    def _merge_sparse_first(
+        self,
+        sparse: list[SearchHit],
+        dense: list[SearchHit],
+        top_k: int,
+    ) -> list[SearchHit]:
+        top_sparse_score = max((hit.score for hit in sparse), default=0.0)
+        if top_sparse_score > 0.01:
+            min_sparse_score = top_sparse_score * 0.15
+            sparse = [hit for hit in sparse if hit.score >= min_sparse_score]
+
+        merged: list[SearchHit] = []
+        seen: set[str] = set()
+        for hit in [*sparse, *dense]:
+            key = self._doc_hash(hit.document)
+            if key in seen:
+                continue
+            seen.add(key)
+            merged.append(hit)
+            if len(merged) >= top_k:
+                break
+        return merged
 
     @staticmethod
     def _doc_hash(doc: Document) -> str:
@@ -262,7 +296,7 @@ class VectorStoreManager:
         if not _BM25_OK or not self._documents:
             self._bm25 = None
             return
-        tokenized = [self._tokenize(d.page_content) for d in self._documents]
+        tokenized = [self._tokenize(self._bm25_text(d)) for d in self._documents]
         self._bm25 = BM25Okapi(tokenized)
 
     def _save(self) -> None:
@@ -305,4 +339,12 @@ class VectorStoreManager:
 
     @staticmethod
     def _tokenize(text: str) -> list[str]:
-        return re.sub(r"[^\w\s]", " ", text.lower()).split()
+        return re.sub(r"[^a-z0-9]+", " ", text.lower()).split()
+
+    @staticmethod
+    def _bm25_text(doc: Document) -> str:
+        metadata = doc.metadata
+        filename = str(metadata.get("filename", ""))
+        file_type = str(metadata.get("file_type", ""))
+        document_type = str(metadata.get("document_type", ""))
+        return f"{filename} {file_type} {document_type}\n{doc.page_content}"
