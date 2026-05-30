@@ -515,6 +515,7 @@ async def system_status(
             "enable_semantic_chunking": settings.enable_semantic_chunking,
             "enable_contextual_enrichment": settings.enable_contextual_enrichment,
             "max_upload_size_mb": settings.max_upload_size_mb,
+            "use_lightweight_embeddings": settings.use_lightweight_embeddings,
             "max_pdf_pages": settings.max_pdf_pages,
             "max_pdf_ocr_pages": settings.max_pdf_ocr_pages,
             "pdf_ocr_dpi": settings.pdf_ocr_dpi,
