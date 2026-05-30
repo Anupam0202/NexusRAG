@@ -85,7 +85,7 @@ class QueryTransformer:
         reformulated = query
 
         # 1. History-aware reformulation
-        if history:
+        if history and not self._settings.memory_constrained:
             reformulated = self._reformulate(query, history)
 
         # 2. Multi-query expansion
@@ -125,6 +125,9 @@ class QueryTransformer:
         return query
 
     def _multi_query(self, query: str) -> list[str]:
+        if self._settings.memory_constrained or not self._settings.enable_query_expansion:
+            return []
+
         provider = self._get_provider()
         if provider is None:
             return []

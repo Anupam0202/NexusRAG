@@ -520,6 +520,7 @@ async def system_status(
             "hybrid_search_alpha": settings.hybrid_search_alpha,
             "enable_semantic_chunking": settings.enable_semantic_chunking,
             "enable_contextual_enrichment": settings.enable_contextual_enrichment,
+            "enable_query_expansion": settings.enable_query_expansion,
             "max_upload_size_mb": settings.max_upload_size_mb,
             "use_lightweight_embeddings": settings.use_lightweight_embeddings,
             "max_pdf_pages": settings.max_pdf_pages,

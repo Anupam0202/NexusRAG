@@ -332,6 +332,7 @@ NexusRAG/
 | `ENABLE_RERANKING` | `true` | Cross-encoder re-ranking |
 | `ENABLE_CONTEXTUAL_ENRICHMENT` | `true` | LLM chunk enrichment |
 | `ENABLE_SEMANTIC_CHUNKING` | `true` | Smart chunking routing |
+| `ENABLE_QUERY_EXPANSION` | `true` | LLM query variants for broader retrieval recall |
 | `ENABLE_LIGHTWEIGHT_EMBEDDINGS` | `false` | Use deterministic hash embeddings instead of local transformer embeddings |
 | `CONSTRAINED_MEMORY` | `false` | Enables free-tier memory guards for Render-sized instances |
 | `API_CORS_ORIGINS` | `localhost:3000` | Allowed CORS origins |

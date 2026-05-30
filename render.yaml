@@ -58,6 +58,8 @@ services:
         value: "false"
       - key: ENABLE_CONTEXTUAL_ENRICHMENT
         value: "false"
+      - key: ENABLE_QUERY_EXPANSION
+        value: "false"
       - key: ENABLE_LIGHTWEIGHT_EMBEDDINGS
         value: "true"
       - key: ENABLE_SCIENTIFIC_MODE

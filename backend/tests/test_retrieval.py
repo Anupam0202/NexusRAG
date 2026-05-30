@@ -6,6 +6,8 @@ from __future__ import annotations
 
 from langchain_core.documents import Document
 
+from config.settings import get_settings
+from src.retrieval.query_transformer import QueryTransformer
 from src.retrieval.retriever import QueryType, classify_query
 from src.retrieval.vector_store import VectorStoreManager
 
@@ -115,3 +117,16 @@ class TestVectorStoreManager:
         results = vs.search("PlantPal features", top_k=2)
 
         assert results[0].document.metadata["filename"] == "plantpal_comprehensive_guide.md"
+
+
+class TestQueryTransformer:
+    def test_constrained_memory_disables_query_expansion(self, monkeypatch):
+        monkeypatch.setenv("CONSTRAINED_MEMORY", "true")
+        monkeypatch.setenv("ENABLE_QUERY_EXPANSION", "true")
+        get_settings.cache_clear()
+        try:
+            result = QueryTransformer(settings=get_settings()).transform("PlantPal features")
+        finally:
+            get_settings.cache_clear()
+
+        assert result["queries"] == ["PlantPal features"]

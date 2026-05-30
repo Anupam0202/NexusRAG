@@ -154,6 +154,7 @@ class TestSystemStatus:
         assert "capabilities" in data
         assert "settings" in data
         assert "use_lightweight_embeddings" in data["settings"]
+        assert "enable_query_expansion" in data["settings"]
         assert data["settings"]["max_pdf_pages"] >= 1
         assert data["settings"]["max_pdf_ocr_pages"] >= 0
         assert "enable_docx_embedded_image_ocr" in data["settings"]
