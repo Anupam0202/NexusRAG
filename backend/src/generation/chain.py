@@ -325,6 +325,9 @@ class RAGChain:
     def clear_session(self, session_id: str) -> None:
         self._memory_store.delete(session_id)
 
+    def clear_cache(self) -> None:
+        self._cache.clear()
+
     def get_session_history(self, session_id: str) -> list[dict[str, Any]]:
         memory = self._memory_store.get(session_id)
         return memory.get_full_history()

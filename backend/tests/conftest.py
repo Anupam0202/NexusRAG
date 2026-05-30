@@ -88,6 +88,7 @@ def test_client() -> TestClient:
     app.dependency_overrides[get_rag_chain] = lambda: mock_chain
 
     client = TestClient(app)
+    client.mock_chain = mock_chain  # type: ignore[attr-defined]
     yield client
 
     app.dependency_overrides.clear()
