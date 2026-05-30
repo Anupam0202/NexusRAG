@@ -8,6 +8,22 @@ from __future__ import annotations
 
 from fastapi.testclient import TestClient
 
+from config.settings import get_settings
+
+
+def _pdf_bytes(pages: int, *, with_text: bool) -> bytes:
+    import fitz
+
+    doc = fitz.open()
+    try:
+        for index in range(pages):
+            page = doc.new_page()
+            if with_text:
+                page.insert_text((72, 72), f"Test PDF page {index + 1}")
+        return doc.tobytes()
+    finally:
+        doc.close()
+
 
 class TestHealthEndpoint:
     def test_health(self, test_client: TestClient):
@@ -35,6 +51,49 @@ class TestDocumentEndpoints:
             files={"file": ("bad.xyz", b"content", "application/octet-stream")},
         )
         assert resp.status_code == 400
+
+    def test_upload_rejects_pdf_over_page_limit(self, test_client: TestClient, monkeypatch):
+        monkeypatch.setenv("MAX_PDF_PAGES", "1")
+        get_settings.cache_clear()
+        try:
+            resp = test_client.post(
+                "/api/v1/documents/upload",
+                files={
+                    "file": (
+                        "too_many_pages.pdf",
+                        _pdf_bytes(2, with_text=True),
+                        "application/pdf",
+                    )
+                },
+            )
+        finally:
+            get_settings.cache_clear()
+
+        assert resp.status_code == 413
+        assert "accepts up to 1 pages" in resp.json()["detail"]
+
+    def test_upload_rejects_scanned_pdf_over_ocr_limit(
+        self, test_client: TestClient, monkeypatch
+    ):
+        monkeypatch.setenv("MAX_PDF_PAGES", "10")
+        monkeypatch.setenv("MAX_PDF_OCR_PAGES", "1")
+        get_settings.cache_clear()
+        try:
+            resp = test_client.post(
+                "/api/v1/documents/upload",
+                files={
+                    "file": (
+                        "scanned.pdf",
+                        _pdf_bytes(2, with_text=False),
+                        "application/pdf",
+                    )
+                },
+            )
+        finally:
+            get_settings.cache_clear()
+
+        assert resp.status_code == 413
+        assert "scanned PDF" in resp.json()["detail"]
 
     def test_list_documents(self, test_client: TestClient):
         # Upload first
@@ -94,3 +153,5 @@ class TestSystemStatus:
         assert data["service"] == "NexusRAG API"
         assert "capabilities" in data
         assert "settings" in data
+        assert data["settings"]["max_pdf_pages"] >= 1
+        assert data["settings"]["max_pdf_ocr_pages"] >= 0

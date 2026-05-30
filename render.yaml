@@ -56,5 +56,19 @@ services:
         value: "true"
       - key: ENABLE_CONTEXTUAL_ENRICHMENT
         value: "true"
+      - key: ENABLE_SCIENTIFIC_MODE
+        value: "false"
+      - key: ENABLE_PDF_EMBEDDED_IMAGE_OCR
+        value: "false"
+      - key: MAX_PDF_PAGES
+        value: "40"
+      - key: MAX_PDF_OCR_PAGES
+        value: "12"
+      - key: PDF_OCR_DPI
+        value: "150"
+      - key: MAX_PDF_EMBEDDED_IMAGES
+        value: "4"
+      - key: MAX_IMAGE_MEGAPIXELS
+        value: "25"
       - key: MAX_UPLOAD_SIZE_MB
         value: "100"

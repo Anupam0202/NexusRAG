@@ -128,7 +128,15 @@ class IngestionPipeline:
         ext = path.suffix.lower()
 
         if ext == ".pdf" and self._settings.enable_scientific_mode:
-            docs = self._load_scientific_pdf(path, content, result)
+            if self._settings.memory_constrained:
+                logger.info(
+                    "scientific_pdf_skipped_memory_constrained",
+                    file=path.name,
+                    reason="standard_pdf_loader_used",
+                )
+                docs = LoaderFactory.load_file(path, content)
+            else:
+                docs = self._load_scientific_pdf(path, content, result)
         else:
             docs = LoaderFactory.load_file(path, content)
 
