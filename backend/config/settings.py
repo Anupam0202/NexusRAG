@@ -214,6 +214,7 @@ class Settings(BaseSettings):
         ".gif": "image",
         ".webp": "image",
         ".bmp": "image",
+        ".tif": "image",
         ".tiff": "image",
     }
 

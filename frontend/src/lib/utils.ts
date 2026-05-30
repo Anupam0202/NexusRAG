@@ -44,6 +44,7 @@ const FILE_ICONS: Record<string, string> = {
   gif: "🖼️",
   webp: "🖼️",
   bmp: "🖼️",
+  tif: "🖼️",
   tiff: "🖼️",
 };
 

@@ -13,6 +13,7 @@ import {
 import { AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { useStore } from "@/hooks/useStore";
+import { useDocuments } from "@/hooks/useDocuments";
 import { clearSession } from "@/lib/api";
 
 const SUGGESTIONS = [
@@ -29,13 +30,14 @@ export default function ChatInterface() {
   const [input, setInput] = useState("");
   const [activeSources, setActiveSources] = useState<SourceChunk[] | null>(null);
   const [showScrollBtn, setShowScrollBtn] = useState(false);
+  const { documents, loading: documentsLoading } = useDocuments();
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   const store = useStore();
-  const docCount = store.documents?.length ?? 0;
+  const docCount = documents.length;
   const isStreaming = messages.some((m) => m.isStreaming);
 
   // Auto-scroll on new messages
@@ -97,6 +99,7 @@ export default function ChatInterface() {
           {isEmpty ? (
             <EmptyState
               docCount={docCount}
+              loading={documentsLoading}
               onSuggestion={(text) => {
                 setInput(text);
                 inputRef.current?.focus();
@@ -139,7 +142,13 @@ export default function ChatInterface() {
                 value={input}
                 onChange={handleInput}
                 onKeyDown={handleKeyDown}
-                placeholder={docCount > 0 ? "Ask about your documents..." : "Upload documents to start chatting..."}
+                placeholder={
+                  documentsLoading
+                    ? "Checking document library..."
+                    : docCount > 0
+                      ? "Ask about your documents..."
+                      : "Upload documents to start chatting..."
+                }
                 rows={1}
                 disabled={isStreaming}
                 aria-label="Chat message"
@@ -201,9 +210,11 @@ export default function ChatInterface() {
 
 function EmptyState({
   docCount,
+  loading,
   onSuggestion,
 }: {
   docCount: number;
+  loading: boolean;
   onSuggestion: (text: string) => void;
 }) {
   return (
@@ -220,12 +231,14 @@ function EmptyState({
         <span className="gradient-text">NexusRAG</span> Chat
       </h2>
       <p className="text-sm text-[var(--text-muted)] mb-8 max-w-xs sm:max-w-sm leading-relaxed">
-        {docCount > 0
+        {loading
+          ? "Checking your document library..."
+          : docCount > 0
           ? `${docCount} document${docCount > 1 ? "s" : ""} loaded. Ask anything about your content.`
           : "Upload documents first, then ask questions to get AI-powered answers grounded in your content."}
       </p>
 
-      {docCount === 0 && (
+      {!loading && docCount === 0 && (
         <Link
           href="/documents"
           className="mb-8 inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-brand-500 to-purple-600 text-white px-5 py-2.5 text-sm font-semibold shadow-md hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all"
@@ -235,7 +248,7 @@ function EmptyState({
         </Link>
       )}
 
-      {docCount > 0 && (
+      {!loading && docCount > 0 && (
         <div className="grid grid-cols-2 gap-2.5 w-full max-w-md">
           {SUGGESTIONS.map((s, i) => (
             <button

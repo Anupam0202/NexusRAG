@@ -21,7 +21,7 @@ const ACCEPTED: Record<string, string[]> = {
   "image/gif": [".gif"],
   "image/webp": [".webp"],
   "image/bmp": [".bmp"],
-  "image/tiff": [".tiff"],
+  "image/tiff": [".tif", ".tiff"],
 };
 
 interface Props {
