@@ -7,10 +7,15 @@ from __future__ import annotations
 import sys
 from types import SimpleNamespace
 
+from langchain_core.documents import Document
+
 from config.settings import Settings
+from src.generation.chain import RAGChain
 from src.generation.llm import LLMProvider
 from src.generation.memory import ConversationMemory, SessionMemoryStore
 from src.generation.prompts import PromptManager
+from src.retrieval.retriever import QueryType
+from src.utils.exceptions import GenerationError
 
 
 class TestConversationMemory:
@@ -107,3 +112,38 @@ class TestLLMProvider:
 
         assert calls[0]["model"] == "gemini-2.5-flash"
         assert calls[0]["max_retries"] == 0
+
+
+class TestRAGChain:
+    def test_query_returns_extractive_fallback_when_generation_fails(self, monkeypatch):
+        class FakeRetriever:
+            def retrieve(self, *args, **kwargs):
+                return {
+                    "documents": [
+                        Document(
+                            page_content="Invoice MSPO1549 total amount 928 USD.",
+                            metadata={"filename": "Invoice_Anupam_Roy_MSPO1549.docx"},
+                        )
+                    ],
+                    "query_type": QueryType.SPECIFIC,
+                    "k_used": 1,
+                    "transformed_queries": ["invoice"],
+                }
+
+        class FakeLLM:
+            _model_name = "fake-model"
+
+            def invoke_messages(self, messages):
+                raise GenerationError("All LLM candidates exhausted on invoke_messages.")
+
+        monkeypatch.setattr("src.generation.chain.get_llm_provider", lambda: FakeLLM())
+
+        chain = RAGChain(vector_store=SimpleNamespace(), settings=Settings(_env_file=None))
+        chain._retriever = FakeRetriever()
+
+        result = chain.query("Summarize invoice MSPO1549")
+
+        assert "temporarily unavailable" in result["answer"]
+        assert "Invoice MSPO1549 total amount 928 USD" in result["answer"]
+        assert result["sources"][0]["filename"] == "Invoice_Anupam_Roy_MSPO1549.docx"
+        assert result["metadata"]["generation_fallback"] is True
