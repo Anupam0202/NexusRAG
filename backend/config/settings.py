@@ -135,11 +135,21 @@ class Settings(BaseSettings):
         default=True,
         description="OCR embedded images in PDFs when enough memory is available",
     )
+    enable_docx_embedded_image_ocr: bool = Field(
+        default=True,
+        description="OCR embedded images in DOCX files when enough memory is available",
+    )
     max_pdf_embedded_images: int = Field(
         default=8,
         ge=0,
         le=200,
         description="Maximum embedded PDF images to OCR per upload",
+    )
+    max_docx_embedded_images: int = Field(
+        default=8,
+        ge=0,
+        le=200,
+        description="Maximum embedded DOCX images to OCR per upload",
     )
     max_image_megapixels: int = Field(
         default=25,
@@ -201,9 +211,9 @@ class Settings(BaseSettings):
     @property
     def memory_constrained(self) -> bool:
         return (
-            bool(os.environ.get("RENDER"))
-            or os.environ.get("CONSTRAINED_MEMORY", "").lower() == "true"
+            os.environ.get("CONSTRAINED_MEMORY", "").lower() == "true"
             or os.environ.get("DISABLE_CROSS_ENCODER", "").lower() == "true"
+            or os.environ.get("ENABLE_LIGHTWEIGHT_EMBEDDINGS", "").lower() == "true"
         )
 
     @property

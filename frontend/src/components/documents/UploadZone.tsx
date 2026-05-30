@@ -29,6 +29,8 @@ export interface UploadLimits {
   maxPdfPages: number;
   maxPdfOcrPages: number;
   maxImageMegapixels: number;
+  pdfEmbeddedImageOcr: boolean;
+  docxEmbeddedImageOcr: boolean;
 }
 
 export const DEFAULT_UPLOAD_LIMITS: UploadLimits = {
@@ -36,6 +38,8 @@ export const DEFAULT_UPLOAD_LIMITS: UploadLimits = {
   maxPdfPages: 40,
   maxPdfOcrPages: 12,
   maxImageMegapixels: 25,
+  pdfEmbeddedImageOcr: true,
+  docxEmbeddedImageOcr: true,
 };
 
 interface Props {
@@ -120,6 +124,11 @@ export function UploadZone({ onUpload, uploading, limits }: Props) {
             PDFs up to {limits.maxPdfPages} pages; scanned PDFs up to{" "}
             {limits.maxPdfOcrPages} OCR pages; images up to {limits.maxImageMegapixels} MP.
           </p>
+          {(!limits.pdfEmbeddedImageOcr || !limits.docxEmbeddedImageOcr) && (
+            <p className="mt-1 max-w-md text-center text-[11px] leading-4 text-[var(--text-muted)]">
+              Text is indexed; embedded PDF/DOCX images are skipped on this deployment.
+            </p>
+          )}
         </>
       )}
     </div>

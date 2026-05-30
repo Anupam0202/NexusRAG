@@ -19,6 +19,7 @@ Endpoints:
 from __future__ import annotations
 
 import asyncio
+import gc
 import io
 import uuid
 from pathlib import Path
@@ -204,21 +205,26 @@ async def upload_document(
             raise HTTPException(422, f"Ingestion failed: {errors}")
 
     page_count, extraction_method = _metadata_from_ingestion(result)
+    chunks_created = result.chunks_created
+    processing_time_seconds = result.processing_time_seconds
     doc_meta = DocumentMetadata(
         document_id=str(uuid.uuid4()),
         filename=safe_name,
         file_type=Path(safe_name).suffix.lower().lstrip("."),
         file_size_bytes=len(content),
         page_count=page_count,
-        chunk_count=result.chunks_created,
+        chunk_count=chunks_created,
         status=DocumentStatus.READY,
-        processing_time_seconds=result.processing_time_seconds,
+        processing_time_seconds=processing_time_seconds,
         extraction_method=extraction_method,
     )
+    del result
+    content = b""
+    gc.collect()
 
     return DocumentUploadResponse(
         success=True,
-        message=f"{safe_name} ingested: {result.chunks_created} chunks",
+        message=f"{safe_name} ingested: {chunks_created} chunks",
         document=doc_meta,
     )
 
@@ -520,7 +526,9 @@ async def system_status(
             "max_pdf_ocr_pages": settings.max_pdf_ocr_pages,
             "pdf_ocr_dpi": settings.pdf_ocr_dpi,
             "enable_pdf_embedded_image_ocr": settings.enable_pdf_embedded_image_ocr,
+            "enable_docx_embedded_image_ocr": settings.enable_docx_embedded_image_ocr,
             "max_pdf_embedded_images": settings.max_pdf_embedded_images,
+            "max_docx_embedded_images": settings.max_docx_embedded_images,
             "max_image_megapixels": settings.max_image_megapixels,
         },
         capabilities={
