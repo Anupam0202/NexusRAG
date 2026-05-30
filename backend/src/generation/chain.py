@@ -30,6 +30,7 @@ from src.generation.prompts import PromptManager
 from src.retrieval.cache import SemanticCache
 from src.retrieval.retriever import HybridRetriever, QueryType
 from src.retrieval.vector_store import VectorStoreManager
+from src.utils.exceptions import GenerationError, RateLimitError
 from src.utils.helpers import truncate
 from src.utils.logger import get_logger
 from src.utils.security import InputSanitizer
@@ -122,7 +123,15 @@ class RAGChain:
         ]
 
         # Generate
-        answer = self._llm.invoke_messages(messages)
+        generation_fallback = False
+        generation_error = ""
+        try:
+            answer = self._llm.invoke_messages(messages)
+        except (GenerationError, RateLimitError) as exc:
+            generation_fallback = True
+            generation_error = exc.message
+            logger.warning("generation_fallback_used", error=generation_error)
+            answer = self._build_extractive_fallback_answer(docs, generation_error)
 
         # Update memory
         memory.add("user", question)
@@ -141,7 +150,9 @@ class RAGChain:
                 "k_used": retrieval["k_used"],
                 "transformed_queries": retrieval["transformed_queries"],
                 "num_sources": len(docs),
-                "model": self._llm.model_name,
+                "model": self._model_name_safe(),
+                "generation_fallback": generation_fallback,
+                "generation_error": generation_error,
             },
         }
 
@@ -216,9 +227,18 @@ class RAGChain:
 
         # Stream generation
         full_answer = ""
-        async for token in self._llm.stream_messages(messages):
-            full_answer += token
-            yield {"type": "token", "content": token}
+        generation_fallback = False
+        generation_error = ""
+        try:
+            async for token in self._llm.stream_messages(messages):
+                full_answer += token
+                yield {"type": "token", "content": token}
+        except (GenerationError, RateLimitError) as exc:
+            generation_fallback = True
+            generation_error = exc.message
+            logger.warning("stream_generation_fallback_used", error=generation_error)
+            full_answer = self._build_extractive_fallback_answer(docs, generation_error)
+            yield {"type": "token", "content": full_answer}
 
         # Memory
         memory.add("user", question)
@@ -234,8 +254,10 @@ class RAGChain:
             "k_used": retrieval["k_used"],
             "num_sources": len(docs),
             "response_time_seconds": elapsed,
-            "model": self._llm.model_name,
+            "model": self._model_name_safe(),
             "confidence": self._estimate_confidence(docs, full_answer),
+            "generation_fallback": generation_fallback,
+            "generation_error": generation_error,
         }
         yield {"type": "done", "metadata": metadata}
 
@@ -292,6 +314,32 @@ class RAGChain:
                 }
             )
         return sources
+
+    @staticmethod
+    def _build_extractive_fallback_answer(docs: list[Document], error: str) -> str:
+        if not docs:
+            return (
+                "The language model is temporarily unavailable and no relevant document "
+                "context was retrieved. Please try again after the provider quota resets."
+            )
+
+        parts = [
+            "The language model is temporarily unavailable, so I am returning the most "
+            "relevant retrieved document excerpts instead.",
+            f"Reason: {error}",
+            "",
+        ]
+        for index, doc in enumerate(docs[:5], 1):
+            filename = doc.metadata.get("filename", "Unknown")
+            page = doc.metadata.get("page_number") or doc.metadata.get("page") or ""
+            page_label = f", page {page}" if page else ""
+            parts.append(f"{index}. {filename}{page_label}")
+            parts.append(truncate(doc.page_content, 700))
+            parts.append("")
+        return "\n".join(parts).strip()
+
+    def _model_name_safe(self) -> str:
+        return getattr(self._llm, "_model_name", "") or self._settings.llm_model_name
 
     @staticmethod
     def _estimate_confidence(docs: list[Document], answer: str) -> float:
