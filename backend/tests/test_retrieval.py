@@ -9,7 +9,7 @@ from langchain_core.documents import Document
 from config.settings import get_settings
 from src.retrieval.query_transformer import QueryTransformer
 from src.retrieval.retriever import QueryType, classify_query
-from src.retrieval.vector_store import VectorStoreManager
+from src.retrieval.vector_store import SearchHit, VectorStoreManager
 
 
 class TestQueryClassification:
@@ -117,6 +117,27 @@ class TestVectorStoreManager:
         results = vs.search("PlantPal features", top_k=2)
 
         assert results[0].document.metadata["filename"] == "plantpal_comprehensive_guide.md"
+
+    def test_lightweight_sparse_matches_do_not_pad_with_dense_noise(self):
+        vs = VectorStoreManager()
+        sparse_doc = Document(
+            page_content="Invoice MSPO1549 total amount 928 USD.",
+            metadata={"filename": "Invoice_Anupam_Roy_MSPO1549.docx"},
+        )
+        dense_doc = Document(
+            page_content="Unrelated voter card details.",
+            metadata={"filename": "Voter_Card.pdf"},
+        )
+
+        results = vs._merge_sparse_first(
+            sparse=[SearchHit(sparse_doc, score=3.5, method="sparse")],
+            dense=[SearchHit(dense_doc, score=0.9, method="dense")],
+            top_k=5,
+        )
+
+        assert [hit.document.metadata["filename"] for hit in results] == [
+            "Invoice_Anupam_Roy_MSPO1549.docx"
+        ]
 
 
 class TestQueryTransformer:
