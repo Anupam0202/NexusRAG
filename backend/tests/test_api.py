@@ -45,6 +45,15 @@ class TestDocumentEndpoints:
         assert data["success"] is True
         assert data["document"]["filename"] == "test_upload.txt"
 
+    def test_upload_clears_chat_cache(self, test_client: TestClient):
+        resp = test_client.post(
+            "/api/v1/documents/upload",
+            files={"file": ("cache_clear.txt", b"Fresh corpus content.", "text/plain")},
+        )
+
+        assert resp.status_code == 200
+        test_client.mock_chain.clear_cache.assert_called()  # type: ignore[attr-defined]
+
     def test_upload_rejects_unsupported(self, test_client: TestClient):
         resp = test_client.post(
             "/api/v1/documents/upload",
@@ -112,9 +121,11 @@ class TestDocumentEndpoints:
             "/api/v1/documents/upload",
             files={"file": ("to_delete.txt", b"Delete me.", "text/plain")},
         )
+        test_client.mock_chain.clear_cache.reset_mock()  # type: ignore[attr-defined]
         resp = test_client.delete("/api/v1/documents/to_delete.txt")
         assert resp.status_code == 200
         assert resp.json()["success"] is True
+        test_client.mock_chain.clear_cache.assert_called_once()  # type: ignore[attr-defined]
 
 
 class TestSettingsEndpoints:

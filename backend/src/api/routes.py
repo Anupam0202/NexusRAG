@@ -162,6 +162,7 @@ async def upload_document(
     file: UploadFile = File(...),
     settings: Settings = Depends(get_settings),
     vs: VectorStoreManager = Depends(get_vector_store),
+    chain: RAGChain = Depends(get_rag_chain),
 ) -> DocumentUploadResponse:
     """Upload and ingest a single document."""
     if not file.filename:
@@ -218,6 +219,7 @@ async def upload_document(
         processing_time_seconds=processing_time_seconds,
         extraction_method=extraction_method,
     )
+    chain.clear_cache()
     del result
     content = b""
     gc.collect()
@@ -254,10 +256,12 @@ async def list_documents(
 async def delete_document(
     filename: str,
     vs: VectorStoreManager = Depends(get_vector_store),
+    chain: RAGChain = Depends(get_rag_chain),
 ) -> DocumentDeleteResponse:
     removed = vs.delete_by_filename(filename)
     if removed == 0:
         raise HTTPException(404, f"Document '{filename}' not found")
+    chain.clear_cache()
     return DocumentDeleteResponse(
         success=True, message=f"Removed {removed} chunks", document_id=filename
     )
