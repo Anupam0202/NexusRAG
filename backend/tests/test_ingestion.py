@@ -4,12 +4,17 @@ Tests for the ingestion module.
 
 from __future__ import annotations
 
+import io
 from pathlib import Path
 
 from langchain_core.documents import Document
+from PIL import Image
 
+from config.settings import get_settings
+from src.ingestion import loader as loader_module
 from src.ingestion.chunker import RecursiveChunker, SmartChunker
 from src.ingestion.loader import LoaderFactory
+from src.utils.security import FileValidator
 
 # ═══════════════════════════════════════════════════════════════════════════
 #  LOADER TESTS
@@ -57,6 +62,45 @@ class TestLoaderFactory:
 # ═══════════════════════════════════════════════════════════════════════════
 #  CHUNKER TESTS
 # ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestFileValidation:
+    def test_tif_extension_is_supported(self):
+        settings = get_settings()
+        assert settings.SUPPORTED_EXTENSIONS[".tif"] == "image"
+
+    def test_webp_magic_bytes_are_validated(self):
+        valid_webp = b"RIFF\x10\x00\x00\x00WEBPVP8 " + b"\x00" * 16
+        ok, message = FileValidator.validate("sample.webp", valid_webp)
+        assert ok is True
+        assert message == "Valid"
+
+        ok, message = FileValidator.validate("sample.webp", b"not-a-webp")
+        assert ok is False
+        assert "bad magic bytes" in message
+
+    def test_tiff_magic_bytes_are_validated(self):
+        ok, message = FileValidator.validate("scan.tif", b"II*\x00" + b"\x00" * 16)
+        assert ok is True
+        assert message == "Valid"
+
+        ok, message = FileValidator.validate("scan.tiff", b"not-a-tiff")
+        assert ok is False
+        assert "bad magic bytes" in message
+
+    def test_tif_image_loader_uses_ocr_text(self, monkeypatch):
+        monkeypatch.setattr(loader_module, "ocr_image", lambda image: ("Invoice Total 123", 0.92))
+
+        buffer = io.BytesIO()
+        Image.new("RGB", (160, 80), "white").save(buffer, format="TIFF")
+
+        docs = LoaderFactory.load_file(Path("scan.tif"), content=buffer.getvalue())
+
+        assert len(docs) == 1
+        assert docs[0].metadata["file_type"] == "image"
+        assert docs[0].metadata["extraction_method"] == "ocr"
+        assert docs[0].metadata["ocr_confidence"] == 0.92
+        assert "Invoice Total 123" in docs[0].page_content
 
 
 class TestSmartChunker:

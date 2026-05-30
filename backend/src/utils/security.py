@@ -217,6 +217,10 @@ class FileValidator:
             expected, length = image_magic[ext]
             if content[:length] != expected:
                 return False, f"Invalid {ext} file (bad magic bytes)"
+        if ext == ".webp" and not (content[:4] == b"RIFF" and content[8:12] == b"WEBP"):
+            return False, "Invalid .webp file (bad magic bytes)"
+        if ext in {".tif", ".tiff"} and content[:4] not in {b"II*\x00", b"MM\x00*"}:
+            return False, f"Invalid {ext} file (bad magic bytes)"
 
         return True, "Valid"
 

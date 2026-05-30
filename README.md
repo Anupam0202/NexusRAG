@@ -1,8 +1,8 @@
 <p align="center">
   <img src="https://img.shields.io/badge/Python-3.11+-blue?logo=python&logoColor=white" alt="Python" />
-  <img src="https://img.shields.io/badge/Next.js-14-black?logo=next.js&logoColor=white" alt="Next.js" />
+  <img src="https://img.shields.io/badge/Next.js-16-black?logo=next.js&logoColor=white" alt="Next.js" />
   <img src="https://img.shields.io/badge/FastAPI-0.111+-009688?logo=fastapi&logoColor=white" alt="FastAPI" />
-  <img src="https://img.shields.io/badge/Gemini_1.5-Pro-4285F4?logo=google&logoColor=white" alt="Gemini" />
+  <img src="https://img.shields.io/badge/Gemini-Failover-4285F4?logo=google&logoColor=white" alt="Gemini" />
   <img src="https://img.shields.io/badge/FAISS-Vector_Search-FF6F00" alt="FAISS" />
   <img src="https://img.shields.io/badge/Deploy-Render_+_Vercel-000?logo=vercel&logoColor=white" alt="Deploy" />
   <img src="https://img.shields.io/badge/License-MIT-green" alt="MIT" />
@@ -10,7 +10,7 @@
 
 # NexusRAG — Enterprise Document Intelligence Platform
 
-A production-grade **Retrieval-Augmented Generation** platform that lets enterprises upload documents and ask AI-powered questions grounded in their own content. Built with **FastAPI**, **Next.js 14**, and **Google Gemini 2.5 Flash**.
+A production-grade **Retrieval-Augmented Generation** platform that lets enterprises upload documents and ask AI-powered questions grounded in their own content. Built with **FastAPI**, **Next.js 16**, and a configurable **Google Gemini failover chain**.
 
 > **What makes it "Nexus"?** Every chunk is enriched with LLM-generated document context before embedding — dramatically improving retrieval accuracy for ambiguous passages ([Anthropic's Contextual Retrieval](https://www.anthropic.com/news/contextual-retrieval)). NexusRAG connects your documents, retrieval, and generation into a single intelligent nexus.
 
@@ -82,7 +82,7 @@ A production-grade **Retrieval-Augmented Generation** platform that lets enterpr
 
 ```
 ┌───────────────────────────────────────────────────────┐
-│              Next.js 14 Frontend (Vercel)              │
+│              Next.js 16 Frontend (Vercel)              │
 │  ┌─────────┐ ┌───────────┐ ┌───────────┐ ┌────────┐  │
 │  │   Chat   │ │ Documents │ │ Analytics │ │Settings│  │
 │  │(WebSocket)│ │  (REST)   │ │  (REST)   │ │ (REST) │  │
@@ -125,12 +125,12 @@ A production-grade **Retrieval-Augmented Generation** platform that lets enterpr
 
 | Layer | Technology |
 |-------|-----------|
-| **LLM** | Google Gemini 1.5 Pro (with fallback chain) |
+| **LLM** | Google Gemini failover chain (`gemini-1.5-pro` primary by default, Gemini 2.x/2.5 fallbacks) |
 | **Embeddings** | Sentence Transformers (all-MiniLM-L6-v2) |
 | **Re-ranker** | Cross-encoder (ms-marco-MiniLM-L-6-v2) |
 | **OCR** | Gemini Vision + Google Cloud Vision |
 | **Backend** | FastAPI, Uvicorn, LangChain, Pydantic v2 |
-| **Frontend** | Next.js 14, React 18, TailwindCSS, Zustand, Framer Motion |
+| **Frontend** | Next.js 16, React 19, TailwindCSS, Zustand, Framer Motion |
 | **Vector Store** | FAISS (IndexFlatIP) + BM25Okapi |
 | **Streaming** | WebSocket (native JSON frames) |
 | **Deploy** | Render (backend) + Vercel (frontend) |
@@ -383,7 +383,7 @@ GET /health → { "status": "healthy", "version": "1.0.0", "total_chunks": 26 }
 | Word | `.docx` | python-docx + embedded image OCR |
 | Excel | `.xlsx`, `.xls` | pandas (4 representations per sheet) |
 | CSV | `.csv` | pandas (multi-encoding detection) |
-| Images | `.png`, `.jpg`, `.jpeg`, `.gif`, `.webp`, `.bmp`, `.tiff` | Gemini Vision + Cloud Vision OCR |
+| Images | `.png`, `.jpg`, `.jpeg`, `.gif`, `.webp`, `.bmp`, `.tif`, `.tiff` | Gemini Vision + Cloud Vision OCR |
 | Text | `.txt`, `.md` | Direct text with encoding detection |
 | JSON | `.json` | Structured + per-item documents |
 
