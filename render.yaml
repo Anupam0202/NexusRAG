@@ -29,10 +29,8 @@ services:
       - key: GOOGLE_API_KEY
         sync: false
 
-      # Add your Vercel frontend URL in the Render dashboard.
-      # e.g. https://nexusrag.vercel.app
       - key: API_CORS_ORIGINS
-        sync: false
+        value: "https://nexusrag.vercel.app,https://nexusrag-anupam0202s-projects.vercel.app"
 
       # Memory guard: skip the 80 MB cross-encoder on Render's free tier
       # Set to "false" on a paid plan if you want re-ranking enabled
