@@ -208,10 +208,10 @@ docker-compose up --build
 1. Connect your GitHub repo to [Render](https://render.com)
 2. Create a **New Web Service** and select your repository
 3. Render auto-detects `render.yaml` — click **Apply** to provision the service
-4. Set the following environment variables in the Render dashboard (**Environment** tab):
-   - `GOOGLE_API_KEY` — your Google API key
-   - `API_CORS_ORIGINS` — your Vercel frontend URL (e.g., `https://nexusrag.vercel.app`)
+4. Set `GOOGLE_API_KEY` in the Render dashboard (**Environment** tab)
 5. Click **Deploy** — Render builds the Docker image and starts the service
+
+`API_CORS_ORIGINS` is preconfigured in `render.yaml` for the Vercel production domains. Update it if you add a custom frontend domain.
 
 > **Free-tier note:** Render free web services spin down after 15 minutes of inactivity and take ~30–60s to cold-start. Set `DISABLE_CROSS_ENCODER=true` (already in `render.yaml`) to stay within the 512 MB RAM limit.
 
