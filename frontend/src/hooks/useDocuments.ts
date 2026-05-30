@@ -7,10 +7,15 @@ import {
   deleteDocument,
 } from "@/lib/api";
 import { useStore } from "@/hooks/useStore";
+import type { DocumentListResponse } from "@/types";
 
 function getErrorMessage(err: unknown, fallback: string) {
   return err instanceof Error ? err.message : fallback;
 }
+
+type RefreshOptions = {
+  suppressError?: boolean;
+};
 
 export function useDocuments() {
   const { documents, setDocuments, addDocument, removeDocument } = useStore();
@@ -18,14 +23,20 @@ export function useDocuments() {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const refresh = useCallback(async () => {
+  const refresh = useCallback(async (
+    options: RefreshOptions = {}
+  ): Promise<DocumentListResponse | null> => {
     setLoading(true);
     try {
       const resp = await listDocuments();
       setDocuments(resp.documents);
       setError(null);
+      return resp;
     } catch (err: unknown) {
-      setError(getErrorMessage(err, "Failed to load documents"));
+      if (!options.suppressError) {
+        setError(getErrorMessage(err, "Failed to load documents"));
+      }
+      return null;
     } finally {
       setLoading(false);
     }
@@ -43,16 +54,33 @@ export function useDocuments() {
         const resp = await uploadDocument(file);
         if (resp.success && resp.document) {
           addDocument(resp.document);
+          await refresh({ suppressError: true });
+          setError(null);
         }
         return resp;
       } catch (err: unknown) {
-        setError(getErrorMessage(err, "Upload failed"));
+        const resp = await refresh({ suppressError: true });
+        const uploaded = resp?.documents.find(
+          (doc) =>
+            doc.filename === file.name ||
+            doc.filename === file.name.replace(/\s+/g, "_")
+        );
+        if (uploaded) {
+          setError(null);
+          return {
+            success: true,
+            message: `${uploaded.filename} uploaded successfully`,
+            document: uploaded,
+          };
+        } else {
+          setError(getErrorMessage(err, "Upload failed"));
+        }
         throw err;
       } finally {
         setUploading(false);
       }
     },
-    [addDocument]
+    [addDocument, refresh]
   );
 
   const remove = useCallback(

@@ -14,6 +14,7 @@ from config.settings import get_settings
 from src.ingestion import loader as loader_module
 from src.ingestion.chunker import RecursiveChunker, SmartChunker
 from src.ingestion.loader import LoaderFactory
+from src.ingestion.ocr_manager import GeminiVisionOCR
 from src.utils.security import FileValidator
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -101,6 +102,27 @@ class TestFileValidation:
         assert docs[0].metadata["extraction_method"] == "ocr"
         assert docs[0].metadata["ocr_confidence"] == 0.92
         assert "Invoice Total 123" in docs[0].page_content
+
+    def test_gemini_ocr_uses_current_failover_chain(self, monkeypatch):
+        monkeypatch.setenv("LLM_MODEL_NAME", "gemini-2.5-flash")
+        monkeypatch.setenv(
+            "LLM_FALLBACK_MODELS",
+            "gemini-2.5-flash-lite,gemini-2.0-flash,gemini-2.0-flash-lite",
+        )
+        get_settings.cache_clear()
+
+        try:
+            models = GeminiVisionOCR._configured_models()
+        finally:
+            get_settings.cache_clear()
+
+        assert models[:4] == [
+            "gemini-2.5-flash",
+            "gemini-2.5-flash-lite",
+            "gemini-2.0-flash",
+            "gemini-2.0-flash-lite",
+        ]
+        assert "gemini-1.5-pro" not in models
 
 
 class TestSmartChunker:

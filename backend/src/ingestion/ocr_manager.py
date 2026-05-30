@@ -130,33 +130,90 @@ class GeminiVisionOCR:
     def __init__(self) -> None:
         self._client = None
         self._model_name: str = ""
+        self._model_candidates: list[str] = []
         self._available = False
-        self._api_key = os.environ.get("GOOGLE_API_KEY", "")
+        self._api_key = self._load_api_key()
         self._disabled_at: float | None = None
         self._cooldown_seconds: float = 300.0  # 5 minutes
         if self._api_key:
             self._init_model()
+
+    @staticmethod
+    def _load_api_key() -> str:
+        try:
+            from config.settings import get_settings
+
+            return get_settings().google_api_key or os.environ.get("GOOGLE_API_KEY", "")
+        except Exception:
+            return os.environ.get("GOOGLE_API_KEY", "")
+
+    @staticmethod
+    def _configured_models() -> list[str]:
+        defaults = [
+            "gemini-2.5-flash",
+            "gemini-2.5-flash-lite",
+            "gemini-2.0-flash",
+            "gemini-2.0-flash-lite",
+        ]
+        try:
+            from config.settings import get_settings
+
+            settings = get_settings()
+            configured = [settings.llm_model_name, *settings.fallback_models]
+        except Exception:
+            fallback_raw = os.environ.get(
+                "LLM_FALLBACK_MODELS",
+                "gemini-2.5-flash-lite,gemini-2.0-flash,gemini-2.0-flash-lite",
+            )
+            configured = [
+                os.environ.get("LLM_MODEL_NAME", "gemini-2.5-flash"),
+                *fallback_raw.split(","),
+            ]
+
+        seen: set[str] = set()
+        models: list[str] = []
+        for name in [*configured, *defaults]:
+            clean = name.strip()
+            if clean and clean not in seen:
+                seen.add(clean)
+                models.append(clean)
+        return models
 
     def _init_model(self) -> None:
         try:
             import google.genai as genai
 
             self._client = genai.Client(api_key=self._api_key)
-            # Store the first available model name (validated lazily on first call)
-            for name in [
-                "gemini-2.0-flash",
-                "gemini-2.0-flash-lite",
-                "gemini-1.5-pro",
-            ]:
-                self._model_name = name
-                self._available = True
-                logger.info("gemini_vision_ready", model=name)
+            self._model_candidates = self._configured_models()
+            if not self._model_candidates:
+                logger.warning("gemini_no_model_available")
                 return
-            logger.warning("gemini_no_model_available")
+            self._model_name = self._model_candidates[0]
+            self._available = True
+            logger.info("gemini_vision_ready", model=self._model_name)
         except ImportError:
             logger.info("google_genai_not_installed")
         except Exception as exc:
             logger.warning("gemini_init_failed", error=str(exc))
+
+    def _rotate_model(self, exc: Exception) -> bool:
+        if not self._model_candidates:
+            return False
+
+        failed = self._model_name
+        remaining = [name for name in self._model_candidates if name != failed]
+        if not remaining:
+            return False
+
+        self._model_candidates = remaining
+        self._model_name = remaining[0]
+        logger.warning(
+            "gemini_ocr_failover",
+            failed_model=failed,
+            next_model=self._model_name,
+            error=str(exc),
+        )
+        return True
 
     @property
     def available(self) -> bool:
@@ -248,17 +305,46 @@ class GeminiVisionOCR:
             pil.save(buf, format="JPEG", quality=85)
             img_bytes = buf.getvalue()
 
-            resp = self._client.models.generate_content(
-                model=self._model_name,
-                contents=[
-                    types.Part.from_text(text=prompt),
-                    types.Part.from_bytes(data=img_bytes, mime_type="image/jpeg"),
-                ],
-                config=types.GenerateContentConfig(
-                    temperature=0.1,
-                    max_output_tokens=4096,
-                ),
-            )
+            resp = None
+            last_exc: Exception | None = None
+            for _ in range(max(1, len(self._model_candidates))):
+                try:
+                    resp = self._client.models.generate_content(
+                        model=self._model_name,
+                        contents=[
+                            types.Part.from_text(text=prompt),
+                            types.Part.from_bytes(data=img_bytes, mime_type="image/jpeg"),
+                        ],
+                        config=types.GenerateContentConfig(
+                            temperature=0.1,
+                            max_output_tokens=4096,
+                            http_options=types.HttpOptions(
+                                retry_options=types.HttpRetryOptions(attempts=1),
+                            ),
+                        ),
+                    )
+                    break
+                except Exception as exc:
+                    last_exc = exc
+                    err_msg = str(exc).lower()
+                    recoverable = any(
+                        kw in err_msg
+                        for kw in (
+                            "404",
+                            "not_found",
+                            "not found",
+                            "429",
+                            "quota",
+                            "resource_exhausted",
+                            "resource exhausted",
+                        )
+                    )
+                    if recoverable and self._rotate_model(exc):
+                        continue
+                    raise
+
+            if resp is None:
+                raise last_exc or RuntimeError("Gemini OCR returned no response")
 
             raw = resp.text.strip() if resp.text else ""
             text = self._clean(raw)

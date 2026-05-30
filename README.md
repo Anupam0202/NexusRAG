@@ -125,7 +125,7 @@ A production-grade **Retrieval-Augmented Generation** platform that lets enterpr
 
 | Layer | Technology |
 |-------|-----------|
-| **LLM** | Google Gemini failover chain (`gemini-1.5-pro` primary by default, Gemini 2.x/2.5 fallbacks) |
+| **LLM** | Google Gemini failover chain (`gemini-2.5-flash` primary by default, fast 2.5/2.0 fallbacks) |
 | **Embeddings** | Sentence Transformers (all-MiniLM-L6-v2) |
 | **Re-ranker** | Cross-encoder (ms-marco-MiniLM-L-6-v2) |
 | **OCR** | Gemini Vision + Google Cloud Vision |
@@ -317,8 +317,8 @@ NexusRAG/
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `GOOGLE_API_KEY` | — | Google Gemini API key **(required)** |
-| `LLM_MODEL_NAME` | `gemini-1.5-pro` | Primary LLM model |
-| `LLM_FALLBACK_MODELS` | `gemini-2.5-flash,...` | Comma-separated fallback chain |
+| `LLM_MODEL_NAME` | `gemini-2.5-flash` | Primary LLM model |
+| `LLM_FALLBACK_MODELS` | `gemini-2.5-flash-lite,gemini-2.0-flash,gemini-2.0-flash-lite` | Comma-separated fallback chain |
 | `EMBEDDING_MODEL` | `all-MiniLM-L6-v2` | Sentence transformer model |
 | `CHUNK_SIZE` | `1000` | Target characters per chunk |
 | `CHUNK_OVERLAP` | `200` | Overlap between chunks |
@@ -427,9 +427,9 @@ Question → Input Sanitization → Semantic Cache Check
 
 ### Model Failover Chain
 ```
-gemini-1.5-pro → gemini-2.0-flash → gemini-2.5-flash → gemini-2.0-flash-lite
+gemini-2.5-flash → gemini-2.5-flash-lite → gemini-2.0-flash → gemini-2.0-flash-lite
 ```
-Each model is tried in order. On failure (quota, auth, network), the next is used automatically.
+Each model is tried in order. Provider-level retries are disabled so quota or model-availability failures move to the next candidate quickly instead of delaying the chat stream.
 
 ---
 
