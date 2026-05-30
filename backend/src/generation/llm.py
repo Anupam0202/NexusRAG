@@ -5,7 +5,7 @@ Multi-Provider LLM Abstraction
 Wraps LangChain's ``ChatGoogleGenerativeAI`` with:
 
 * Automatic fallback chain across multiple model names.
-* Retry with exponential back-off (via ``tenacity``).
+* Fail-fast model calls with controlled fallback and lightweight tenacity retries.
 * Streaming support (returns an ``AsyncIterator[str]``).
 * Graceful quota / auth error detection with custom exceptions.
 * Runtime model failover (rotates model if hitting quota limits on stream/invoke).
@@ -71,27 +71,33 @@ class LLMProvider:
         if not self._candidates:
             raise GenerationError("No LLM candidates available to instantiate.")
 
+        s = self._settings
+
         from langchain_google_genai import ChatGoogleGenerativeAI
 
-        s = self._settings
-        name = self._candidates[0]  # Active candidate is the head of the list
+        while self._model is None and self._candidates:
+            name = self._candidates[0]  # Active candidate is the head of the list
 
-        try:
-            logger.info("loading_model", model=name)
-            model = ChatGoogleGenerativeAI(
-                model=name,
-                temperature=s.llm_temperature,
-                max_tokens=s.llm_max_tokens,
-                top_p=s.llm_top_p,
-                top_k=s.llm_top_k,
-                google_api_key=s.google_api_key,
-            )
-            self._model = model
-            self._model_name = name
-            logger.info("model_initialised", model=name)
-        except Exception as exc:
-            logger.warning("model_init_failed", model=name, error=str(exc))
-            self._rotate_candidate(exc)
+            try:
+                logger.info("loading_model", model=name)
+                model = ChatGoogleGenerativeAI(
+                    model=name,
+                    temperature=s.llm_temperature,
+                    max_tokens=s.llm_max_tokens,
+                    top_p=s.llm_top_p,
+                    top_k=s.llm_top_k,
+                    google_api_key=s.google_api_key,
+                    max_retries=0,
+                )
+                self._model = model
+                self._model_name = name
+                logger.info("model_initialised", model=name)
+            except Exception as exc:
+                logger.warning("model_init_failed", model=name, error=str(exc))
+                self._rotate_candidate(exc)
+
+        if self._model is None:
+            raise GenerationError("No LLM candidates could be instantiated.")
 
     def _rotate_candidate(self, exc: Exception) -> None:
         """Removes the failing candidate and resets the model for failover."""

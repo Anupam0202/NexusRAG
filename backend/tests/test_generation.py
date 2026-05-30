@@ -4,6 +4,11 @@ Tests for the generation module (non-LLM parts).
 
 from __future__ import annotations
 
+import sys
+from types import SimpleNamespace
+
+from config.settings import Settings
+from src.generation.llm import LLMProvider
 from src.generation.memory import ConversationMemory, SessionMemoryStore
 from src.generation.prompts import PromptManager
 
@@ -62,3 +67,43 @@ class TestPromptManager:
         text = PromptManager.render_system()
         assert "ONLY" in text
         assert "Source" in text
+
+
+class TestLLMProvider:
+    def test_default_candidate_chain_starts_with_current_gemini_model(self):
+        settings = Settings(_env_file=None, google_api_key="test-key")
+        provider = LLMProvider(settings)
+
+        assert provider._candidates == [
+            "gemini-2.5-flash",
+            "gemini-2.5-flash-lite",
+            "gemini-2.0-flash",
+            "gemini-2.0-flash-lite",
+        ]
+        assert "gemini-1.5-pro" not in provider._candidates
+
+    def test_langchain_google_provider_retries_are_disabled(self, monkeypatch):
+        calls: list[dict] = []
+
+        class FakeChatGoogleGenerativeAI:
+            def __init__(self, **kwargs):
+                calls.append(kwargs)
+
+        monkeypatch.setitem(
+            sys.modules,
+            "langchain_google_genai",
+            SimpleNamespace(ChatGoogleGenerativeAI=FakeChatGoogleGenerativeAI),
+        )
+
+        settings = Settings(
+            _env_file=None,
+            google_api_key="test-key",
+            llm_model_name="gemini-2.5-flash",
+            llm_fallback_models="",
+        )
+        provider = LLMProvider(settings)
+
+        provider._ensure_model()
+
+        assert calls[0]["model"] == "gemini-2.5-flash"
+        assert calls[0]["max_retries"] == 0

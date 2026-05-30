@@ -78,6 +78,7 @@ class LLMReranker(BaseReranker):
                 temperature=0.0,
                 max_tokens=100,
                 google_api_key=s.google_api_key,
+                max_retries=0,
             )
         return self._llm
 
