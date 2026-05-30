@@ -1,29 +1,10 @@
 import type { QueryRequest, WSFrame } from "@/types";
+import { getBackendWsBaseUrl } from "@/lib/backend-url";
 
 /**
- * Determine the WebSocket URL.
- * - Prefer NEXT_PUBLIC_API_URL because Vercel rewrites do not proxy WebSockets.
- * - If no backend URL is configured, use same-origin outside localhost.
- * - Locally, fall back to ws://localhost:8000.
- *
- * Note: Vercel doesn't support WebSocket proxying via rewrites.
- * WebSocket connections go directly to the backend.
+ * WebSocket connections go directly to the backend because Vercel rewrites
+ * cannot proxy WebSockets.
  */
-function getWsBase(): string {
-  const backendUrl = process.env.NEXT_PUBLIC_API_URL ?? "";
-  if (backendUrl) {
-    return backendUrl.replace("http://", "ws://").replace("https://", "wss://");
-  }
-
-  if (typeof window !== "undefined" && window.location.hostname !== "localhost") {
-    // Fallback: try same origin (won't work on Vercel, but safe default)
-    const proto = window.location.protocol === "https:" ? "wss:" : "ws:";
-    return `${proto}//${window.location.host}`;
-  }
-  // Local dev
-  return "ws://localhost:8000";
-}
-
 export function createChatSocket(
   onFrame: (frame: WSFrame) => void,
   onError?: (err: Event | Error) => void,
@@ -35,7 +16,24 @@ export function createChatSocket(
   let retries = 0;
   let closed = false;
 
-  const WS_BASE = getWsBase();
+  let WS_BASE: string | null = null;
+
+  try {
+    WS_BASE = getBackendWsBaseUrl();
+  } catch (err) {
+    onError?.(err instanceof Error ? err : new Error("Invalid backend URL"));
+  }
+
+  if (!WS_BASE) {
+    onStatus?.("offline");
+    return {
+      send: () => false,
+      close: () => {
+        closed = true;
+      },
+      isOpen: () => false,
+    };
+  }
 
   function connect() {
     if (closed) return;
