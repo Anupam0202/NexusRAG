@@ -215,7 +215,7 @@ docker-compose up --build
 
 `API_CORS_ORIGINS` is preconfigured in `render.yaml` for the Vercel production domains. Update it if you add a custom frontend domain.
 
-> `render.yaml` disables scientific PDF parsing and embedded PDF image OCR on the free tier, while keeping normal text PDFs and bounded scanned-PDF OCR available.
+> `render.yaml` uses lightweight hash embeddings and disables scientific PDF parsing, semantic chunking, contextual enrichment, reranking, and embedded PDF image OCR on the free tier, while keeping normal text PDFs and bounded scanned-PDF OCR available.
 
 > **Free-tier note:** Render free web services spin down after 15 minutes of inactivity and take ~30–60s to cold-start. Set `DISABLE_CROSS_ENCODER=true` (already in `render.yaml`) to stay within the 512 MB RAM limit.
 
@@ -332,6 +332,7 @@ NexusRAG/
 | `ENABLE_RERANKING` | `true` | Cross-encoder re-ranking |
 | `ENABLE_CONTEXTUAL_ENRICHMENT` | `true` | LLM chunk enrichment |
 | `ENABLE_SEMANTIC_CHUNKING` | `true` | Smart chunking routing |
+| `ENABLE_LIGHTWEIGHT_EMBEDDINGS` | `false` | Use deterministic hash embeddings instead of local transformer embeddings |
 | `API_CORS_ORIGINS` | `localhost:3000` | Allowed CORS origins |
 | `ENABLE_CACHE` | `true` | Semantic query cache |
 | `MAX_UPLOAD_SIZE_MB` | `100` | Max file upload size |

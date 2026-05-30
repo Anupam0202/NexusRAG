@@ -32,8 +32,8 @@ services:
       - key: API_CORS_ORIGINS
         value: "https://nexusrag.vercel.app,https://nexusrag-anupam0202s-projects.vercel.app"
 
-      # Memory guard: skip the 80 MB cross-encoder on Render's free tier
-      # Set to "false" on a paid plan if you want re-ranking enabled
+      # Memory guards for Render's 512 MB free tier. Enable the heavier
+      # transformer features on a paid plan if you want maximum retrieval quality.
       - key: DISABLE_CROSS_ENCODER
         value: "true"
 
@@ -51,10 +51,12 @@ services:
       - key: SIMILARITY_THRESHOLD
         value: "0.25"
       - key: ENABLE_RERANKING
-        value: "true"
+        value: "false"
       - key: ENABLE_SEMANTIC_CHUNKING
-        value: "true"
+        value: "false"
       - key: ENABLE_CONTEXTUAL_ENRICHMENT
+        value: "false"
+      - key: ENABLE_LIGHTWEIGHT_EMBEDDINGS
         value: "true"
       - key: ENABLE_SCIENTIFIC_MODE
         value: "false"

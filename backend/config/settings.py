@@ -56,6 +56,10 @@ class Settings(BaseSettings):
     embedding_device: str = Field(default="cpu")
     embedding_batch_size: int = Field(default=64, ge=1)
     embedding_normalize: bool = Field(default=True)
+    enable_lightweight_embeddings: bool = Field(
+        default=False,
+        description="Use deterministic hash embeddings instead of local transformer models",
+    )
 
     # ── Chunking ──────────────────────────────────────────────────────────
     chunk_size: int = Field(default=1000, ge=100, le=8000)
@@ -201,6 +205,10 @@ class Settings(BaseSettings):
             or os.environ.get("CONSTRAINED_MEMORY", "").lower() == "true"
             or os.environ.get("DISABLE_CROSS_ENCODER", "").lower() == "true"
         )
+
+    @property
+    def use_lightweight_embeddings(self) -> bool:
+        return self.enable_lightweight_embeddings or self.memory_constrained
 
     @property
     def vector_store_dir(self) -> Path:

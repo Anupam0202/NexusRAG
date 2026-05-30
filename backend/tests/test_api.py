@@ -153,5 +153,6 @@ class TestSystemStatus:
         assert data["service"] == "NexusRAG API"
         assert "capabilities" in data
         assert "settings" in data
+        assert "use_lightweight_embeddings" in data["settings"]
         assert data["settings"]["max_pdf_pages"] >= 1
         assert data["settings"]["max_pdf_ocr_pages"] >= 0

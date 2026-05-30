@@ -219,7 +219,7 @@ class SmartChunker:
 
     def __init__(self, settings: Settings | None = None) -> None:
         s = settings or get_settings()
-        self._semantic_enabled = s.enable_semantic_chunking
+        self._semantic_enabled = s.enable_semantic_chunking and not s.memory_constrained
         self._chunk_size = s.chunk_size
 
         self._recursive = RecursiveChunker(s)
