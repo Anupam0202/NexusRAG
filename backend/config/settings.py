@@ -97,6 +97,10 @@ class Settings(BaseSettings):
         default="cross-encoder/ms-marco-MiniLM-L-6-v2",
     )
     rerank_top_k: int = Field(default=5, ge=1, le=50)
+    enable_query_expansion: bool = Field(
+        default=True,
+        description="Use LLM-generated query variants for broader retrieval recall",
+    )
 
     # ── Vector Store ──────────────────────────────────────────────────────
     vector_store_path: str = Field(default="data/vector_store")
