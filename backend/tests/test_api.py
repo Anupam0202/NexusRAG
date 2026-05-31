@@ -146,6 +146,22 @@ class TestSettingsEndpoints:
         assert data["llm_temperature"] == 0.5
         assert data["retrieval_top_k"] == 15
 
+    def test_constrained_settings_reject_heavy_features(
+        self, test_client: TestClient, monkeypatch
+    ):
+        monkeypatch.setenv("CONSTRAINED_MEMORY", "true")
+        get_settings.cache_clear()
+        try:
+            resp = test_client.patch(
+                "/api/v1/settings",
+                json={"enable_reranking": True},
+            )
+        finally:
+            get_settings.cache_clear()
+
+        assert resp.status_code == 400
+        assert "constrained Render" in resp.json()["detail"]
+
 
 class TestAnalytics:
     def test_analytics_summary(self, test_client: TestClient):
@@ -164,6 +180,7 @@ class TestSystemStatus:
         assert data["service"] == "NexusRAG API"
         assert "capabilities" in data
         assert "settings" in data
+        assert "memory_constrained" in data["settings"]
         assert "use_lightweight_embeddings" in data["settings"]
         assert "enable_query_expansion" in data["settings"]
         assert data["settings"]["max_pdf_pages"] >= 1

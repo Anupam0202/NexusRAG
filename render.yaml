@@ -32,7 +32,7 @@ services:
         sync: false
 
       - key: API_CORS_ORIGINS
-        value: "https://nexusrag.vercel.app,https://nexusrag-anupam0202s-projects.vercel.app"
+        value: "https://nexusrag.vercel.app,https://nexusrag-anupam0202s-projects.vercel.app,http://localhost:3000,http://127.0.0.1:3000"
 
       # Memory guards for Render's 512 MB free tier. Enable the heavier
       # transformer features on a paid plan if you want maximum retrieval quality.

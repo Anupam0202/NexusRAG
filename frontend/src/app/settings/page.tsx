@@ -1,20 +1,22 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getSettings, updateSettings } from "@/lib/api";
-import type { AppSettings, SettingsUpdate } from "@/types";
+import { getSettings, getSystemStatus, updateSettings } from "@/lib/api";
+import type { AppSettings, SettingsUpdate, SystemStatusResponse } from "@/types";
 import { toast } from "sonner";
 import { Save, Settings2, Loader2 } from "lucide-react";
 
 export default function SettingsPage() {
   const [settings, setSettings] = useState<AppSettings | null>(null);
+  const [systemStatus, setSystemStatus] = useState<SystemStatusResponse | null>(null);
   const [draft, setDraft] = useState<SettingsUpdate>({});
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    getSettings()
-      .then((s) => {
+    Promise.all([getSettings(), getSystemStatus().catch(() => null)])
+      .then(([s, status]) => {
         setSettings(s);
+        setSystemStatus(status);
         setDraft({
           llm_temperature: s.llm_temperature,
           retrieval_top_k: s.retrieval_top_k,
@@ -33,6 +35,7 @@ export default function SettingsPage() {
     try {
       const updated = await updateSettings(draft);
       setSettings(updated);
+      getSystemStatus().then(setSystemStatus).catch(() => {});
       toast.success("Settings saved successfully");
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "Failed to save settings");
@@ -50,6 +53,10 @@ export default function SettingsPage() {
     );
   }
 
+  const memoryConstrained =
+    systemStatus?.settings.memory_constrained === true ||
+    systemStatus?.settings.use_lightweight_embeddings === true;
+
   return (
     <div className="h-full overflow-y-auto">
       <div className="max-w-2xl mx-auto px-4 md:px-6 py-6 md:py-8 space-y-6">
@@ -57,6 +64,12 @@ export default function SettingsPage() {
           <Settings2 size={20} className="text-brand-500" />
           <h2 className="text-lg font-bold">Runtime Settings</h2>
         </div>
+
+        {memoryConstrained && (
+          <div className="rounded-xl border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 px-4 py-3 text-sm text-amber-800 dark:text-amber-200">
+            Render constrained profile is active. Memory-heavy retrieval options stay locked off.
+          </div>
+        )}
 
         <div className="space-y-5 rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4 md:p-6">
           <Slider label="Temperature" desc="0 = factual, 1 = creative"
@@ -77,22 +90,25 @@ export default function SettingsPage() {
 
           <Toggle
             label="Re-ranking"
-            desc="Cross-encoder re-scoring"
-            checked={draft.enable_reranking ?? settings.enable_reranking}
+            desc={memoryConstrained ? "Locked off on this backend profile" : "Cross-encoder re-scoring"}
+            checked={memoryConstrained ? false : draft.enable_reranking ?? settings.enable_reranking}
+            disabled={memoryConstrained}
             onChange={(checked) => setDraft((d) => ({ ...d, enable_reranking: checked }))}
           />
 
           <Toggle
             label="Semantic Chunking"
-            desc="Embedding-aware split points for long text"
-            checked={draft.enable_semantic_chunking ?? settings.enable_semantic_chunking}
+            desc={memoryConstrained ? "Locked off on this backend profile" : "Embedding-aware split points for long text"}
+            checked={memoryConstrained ? false : draft.enable_semantic_chunking ?? settings.enable_semantic_chunking}
+            disabled={memoryConstrained}
             onChange={(checked) => setDraft((d) => ({ ...d, enable_semantic_chunking: checked }))}
           />
 
           <Toggle
             label="Contextual Enrichment"
-            desc="LLM-generated chunk context before embedding"
-            checked={draft.enable_contextual_enrichment ?? settings.enable_contextual_enrichment}
+            desc={memoryConstrained ? "Locked off on this backend profile" : "LLM-generated chunk context before embedding"}
+            checked={memoryConstrained ? false : draft.enable_contextual_enrichment ?? settings.enable_contextual_enrichment}
+            disabled={memoryConstrained}
             onChange={(checked) => setDraft((d) => ({ ...d, enable_contextual_enrichment: checked }))}
           />
 
@@ -141,10 +157,11 @@ function Slider({ label, desc, value, min, max, step, onChange }: {
   );
 }
 
-function Toggle({ label, desc, checked, onChange }: {
+function Toggle({ label, desc, checked, disabled = false, onChange }: {
   label: string;
   desc: string;
   checked: boolean;
+  disabled?: boolean;
   onChange: (checked: boolean) => void;
 }) {
   return (
@@ -157,10 +174,11 @@ function Toggle({ label, desc, checked, onChange }: {
         type="button"
         role="switch"
         aria-checked={checked}
+        disabled={disabled}
         onClick={() => onChange(!checked)}
         className={`relative h-6 w-11 rounded-full transition ${
           checked ? "bg-brand-500" : "bg-gray-300 dark:bg-gray-600"
-        }`}
+        } ${disabled ? "cursor-not-allowed opacity-50" : ""}`}
       >
         <span className={`absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${
           checked ? "translate-x-5" : ""
