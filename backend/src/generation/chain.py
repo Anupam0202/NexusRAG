@@ -33,6 +33,7 @@ from src.retrieval.vector_store import VectorStoreManager
 from src.utils.helpers import truncate
 from src.utils.logger import get_logger
 from src.utils.security import InputSanitizer
+from src.utils.tenant import normalize_workspace_id
 
 logger = get_logger(__name__)
 
@@ -79,6 +80,7 @@ class RAGChain:
         self,
         question: str,
         *,
+        workspace_id: str | None = None,
         session_id: str | None = None,
         conversation_history: list[dict[str, str]] | None = None,
         top_k: int | None = None,
@@ -87,15 +89,17 @@ class RAGChain:
         """Full blocking RAG query → returns structured response dict."""
         t0 = time.perf_counter()
         safe_q = InputSanitizer.sanitize_for_prompt(question)
+        scoped_workspace_id = normalize_workspace_id(workspace_id)
+        scoped_session_id = self._session_key(scoped_workspace_id, session_id)
 
         # Memory
-        memory = self._memory_store.get(session_id or "default")
+        memory = self._memory_store.get(scoped_session_id)
         if conversation_history:
             for m in conversation_history:
                 memory.add(m["role"], m["content"])
 
         # Cache
-        cached = self._cache.get(safe_q)
+        cached = self._cache.get(safe_q, workspace_id=scoped_workspace_id)
         if cached is not None:
             logger.info("cache_hit")
             cached["response_time_seconds"] = round(time.perf_counter() - t0, 3)
@@ -105,11 +109,15 @@ class RAGChain:
         # Retrieve
         history_msgs = memory.get_context_messages()
         retrieval = self._retriever.retrieve(
-            safe_q, history=history_msgs, top_k=top_k, use_reranking=use_reranking
+            safe_q,
+            workspace_id=scoped_workspace_id,
+            history=history_msgs,
+            top_k=top_k,
+            use_reranking=use_reranking,
         )
         docs: list[Document] = retrieval["documents"]
         query_type: QueryType = retrieval["query_type"]
-        docs = self._with_inventory_context(safe_q, docs)
+        docs = self._with_inventory_context(safe_q, docs, workspace_id=scoped_workspace_id)
 
         # Build prompt
         context_str = self._format_context(docs)
@@ -154,11 +162,12 @@ class RAGChain:
                 "model": self._model_name_safe(),
                 "generation_fallback": generation_fallback,
                 "generation_error": generation_error,
+                "workspace_id": scoped_workspace_id,
             },
         }
 
         # Cache
-        self._cache.set(safe_q, result)
+        self._cache.set(safe_q, result, workspace_id=scoped_workspace_id)
 
         # Track metrics
         self._record_metric(result["response_time_seconds"], result["confidence"])
@@ -168,6 +177,7 @@ class RAGChain:
             query_type=query_type.value,
             sources=len(docs),
             time_s=result["response_time_seconds"],
+            workspace_id=scoped_workspace_id,
         )
         return result
 
@@ -179,6 +189,7 @@ class RAGChain:
         self,
         question: str,
         *,
+        workspace_id: str | None = None,
         session_id: str | None = None,
         conversation_history: list[dict[str, str]] | None = None,
         top_k: int | None = None,
@@ -193,14 +204,16 @@ class RAGChain:
         """
         t0 = time.perf_counter()
         safe_q = InputSanitizer.sanitize_for_prompt(question)
+        scoped_workspace_id = normalize_workspace_id(workspace_id)
+        scoped_session_id = self._session_key(scoped_workspace_id, session_id)
 
-        memory = self._memory_store.get(session_id or "default")
+        memory = self._memory_store.get(scoped_session_id)
         if conversation_history:
             for m in conversation_history:
                 memory.add(m["role"], m["content"])
 
         # Cache check
-        cached = self._cache.get(safe_q)
+        cached = self._cache.get(safe_q, workspace_id=scoped_workspace_id)
         if cached is not None:
             yield {"type": "token", "content": cached["answer"]}
             yield {"type": "sources", "sources": cached.get("sources", [])}
@@ -210,11 +223,15 @@ class RAGChain:
         # Retrieve
         history_msgs = memory.get_context_messages()
         retrieval = self._retriever.retrieve(
-            safe_q, history=history_msgs, top_k=top_k, use_reranking=use_reranking
+            safe_q,
+            workspace_id=scoped_workspace_id,
+            history=history_msgs,
+            top_k=top_k,
+            use_reranking=use_reranking,
         )
         docs = retrieval["documents"]
         query_type: QueryType = retrieval["query_type"]
-        docs = self._with_inventory_context(safe_q, docs)
+        docs = self._with_inventory_context(safe_q, docs, workspace_id=scoped_workspace_id)
 
         # Build prompt
         context_str = self._format_context(docs)
@@ -260,6 +277,7 @@ class RAGChain:
             "confidence": self._estimate_confidence(docs, full_answer),
             "generation_fallback": generation_fallback,
             "generation_error": generation_error,
+            "workspace_id": scoped_workspace_id,
         }
         yield {"type": "done", "metadata": metadata}
 
@@ -274,6 +292,7 @@ class RAGChain:
                 "sources": sources,
                 "metadata": metadata,
             },
+            workspace_id=scoped_workspace_id,
         )
 
     # ══════════════════════════════════════════════════════════════════
@@ -352,12 +371,21 @@ class RAGChain:
         )
         return has_document_noun and has_inventory_intent
 
-    def _with_inventory_context(self, question: str, docs: list[Document]) -> list[Document]:
+    def _with_inventory_context(
+        self,
+        question: str,
+        docs: list[Document],
+        *,
+        workspace_id: str,
+    ) -> list[Document]:
         if not self._is_document_inventory_query(question):
             return docs
 
         try:
-            documents = self._vector_store.list_documents()
+            try:
+                documents = self._vector_store.list_documents(workspace_id=workspace_id)
+            except TypeError:
+                documents = self._vector_store.list_documents()
         except Exception as exc:
             logger.warning("document_inventory_unavailable", error=str(exc))
             return docs
@@ -382,6 +410,7 @@ class RAGChain:
                 "filename": "NexusRAG Document Library",
                 "document_type": "document_inventory",
                 "score": 1.0,
+                "workspace_id": workspace_id,
             },
         )
         return [inventory, *docs]
@@ -440,14 +469,23 @@ class RAGChain:
 
     # ── Session management ────────────────────────────────────────────
 
-    def clear_session(self, session_id: str) -> None:
-        self._memory_store.delete(session_id)
+    @staticmethod
+    def _session_key(workspace_id: str | None, session_id: str | None) -> str:
+        return f"{normalize_workspace_id(workspace_id)}:{session_id or 'default'}"
 
-    def clear_cache(self) -> None:
-        self._cache.clear()
+    def clear_session(self, session_id: str, *, workspace_id: str | None = None) -> None:
+        self._memory_store.delete(self._session_key(workspace_id, session_id))
 
-    def get_session_history(self, session_id: str) -> list[dict[str, Any]]:
-        memory = self._memory_store.get(session_id)
+    def clear_cache(self, *, workspace_id: str | None = None) -> None:
+        self._cache.clear(workspace_id=workspace_id)
+
+    def get_session_history(
+        self,
+        session_id: str,
+        *,
+        workspace_id: str | None = None,
+    ) -> list[dict[str, Any]]:
+        memory = self._memory_store.get(self._session_key(workspace_id, session_id))
         return memory.get_full_history()
 
     @property

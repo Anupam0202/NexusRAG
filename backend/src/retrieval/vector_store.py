@@ -25,6 +25,7 @@ from langchain_core.documents import Document
 from config.settings import Settings, get_settings
 from src.ingestion.embedder import Embedder, get_embedder
 from src.utils.logger import get_logger
+from src.utils.tenant import normalize_workspace_id
 
 logger = get_logger(__name__)
 
@@ -103,9 +104,23 @@ class VectorStoreManager:
     #  CRUD
     # ══════════════════════════════════════════════════════════════════
 
-    def add_documents(self, documents: list[Document]) -> int:
+    def add_documents(
+        self,
+        documents: list[Document],
+        *,
+        workspace_id: str | None = None,
+        document_id: str | None = None,
+    ) -> int:
         if not documents:
             return 0
+        scoped_workspace_id = normalize_workspace_id(workspace_id)
+        for doc in documents:
+            if workspace_id is not None:
+                doc.metadata["workspace_id"] = scoped_workspace_id
+            else:
+                doc.metadata.setdefault("workspace_id", scoped_workspace_id)
+            if document_id:
+                doc.metadata["document_id"] = document_id
 
         with self._lock:
             existing_ids = {self._doc_identity(d) for d in self._documents}
@@ -156,13 +171,17 @@ class VectorStoreManager:
         logger.info("documents_added", count=len(documents_to_add), total=len(self._documents))
         return len(documents_to_add)
 
-    def delete_by_filename(self, filename: str) -> int:
+    def delete_by_filename(self, filename: str, *, workspace_id: str | None = None) -> int:
+        scoped_workspace_id = normalize_workspace_id(workspace_id)
         with self._lock:
             before = len(self._documents)
             keep = [
                 (d, e)
                 for d, e in zip(self._documents, self._raw_embeddings)
-                if d.metadata.get("filename") != filename
+                if not (
+                    d.metadata.get("filename") == filename
+                    and self._doc_workspace_id(d) == scoped_workspace_id
+                )
             ]
             if len(keep) == before:
                 return 0
@@ -172,12 +191,20 @@ class VectorStoreManager:
             self._rebuild_bm25()
             self._save()
         removed = before - len(self._documents)
-        logger.info("documents_deleted", filename=filename, removed=removed)
+        logger.info(
+            "documents_deleted",
+            filename=filename,
+            workspace_id=scoped_workspace_id,
+            removed=removed,
+        )
         return removed
 
-    def list_documents(self) -> list[dict[str, Any]]:
+    def list_documents(self, *, workspace_id: str | None = None) -> list[dict[str, Any]]:
+        scoped_workspace_id = normalize_workspace_id(workspace_id)
         summaries: dict[str, dict[str, Any]] = {}
         for doc in self._documents:
+            if self._doc_workspace_id(doc) != scoped_workspace_id:
+                continue
             metadata = doc.metadata
             filename = metadata.get("filename", "unknown")
             item = summaries.setdefault(
@@ -211,26 +238,65 @@ class VectorStoreManager:
     def total_chunks(self) -> int:
         return len(self._documents)
 
+    def count_chunks(self, *, workspace_id: str | None = None) -> int:
+        scoped_workspace_id = normalize_workspace_id(workspace_id)
+        return sum(
+            1 for doc in self._documents if self._doc_workspace_id(doc) == scoped_workspace_id
+        )
+
     # ══════════════════════════════════════════════════════════════════
     #  SEARCH
     # ══════════════════════════════════════════════════════════════════
 
-    def search(self, query: str, top_k: int = 10) -> list[SearchHit]:
+    def search(
+        self,
+        query: str,
+        top_k: int = 10,
+        *,
+        workspace_id: str | None = None,
+    ) -> list[SearchHit]:
         if not self._documents:
             return []
-        filename_scope = self._explicit_filename_scope(query)
-        dense = self._dense_search(query, top_k * 2)
-        sparse = self._sparse_search(query, top_k * 2) if _BM25_OK else []
+        scoped_workspace_id = normalize_workspace_id(workspace_id)
+        filename_scope = self._explicit_filename_scope(query, workspace_id=scoped_workspace_id)
+        search_k = max(top_k * 2, self.total_chunks)
+        dense = self._dense_search(query, search_k, workspace_id=scoped_workspace_id)
+        sparse = (
+            self._sparse_search(query, search_k, workspace_id=scoped_workspace_id)
+            if _BM25_OK
+            else []
+        )
         if self._use_lightweight and sparse:
             hits = self._merge_sparse_first(sparse, dense, top_k)
-            return self._apply_filename_scope(hits, filename_scope, top_k)
+            return self._apply_filename_scope(
+                hits,
+                filename_scope,
+                top_k,
+                workspace_id=scoped_workspace_id,
+            )
         if not sparse:
             hits = dense[:top_k]
-            return self._apply_filename_scope(hits, filename_scope, top_k)
+            return self._apply_filename_scope(
+                hits,
+                filename_scope,
+                top_k,
+                workspace_id=scoped_workspace_id,
+            )
         hits = self._fuse(dense, sparse, top_k)
-        return self._apply_filename_scope(hits, filename_scope, top_k)
+        return self._apply_filename_scope(
+            hits,
+            filename_scope,
+            top_k,
+            workspace_id=scoped_workspace_id,
+        )
 
-    def _dense_search(self, query: str, top_k: int) -> list[SearchHit]:
+    def _dense_search(
+        self,
+        query: str,
+        top_k: int,
+        *,
+        workspace_id: str,
+    ) -> list[SearchHit]:
         if self._index is None or self._index.ntotal == 0:
             return []
         q_emb = np.array([self._embedder.embed_query(query)], dtype="float32")
@@ -239,13 +305,23 @@ class VectorStoreManager:
         scores, indices = self._index.search(q_emb, k)
         results: list[SearchHit] = []
         for score, idx in zip(scores[0], indices[0]):
-            if idx >= 0 and score >= self._sim_threshold:
+            if (
+                idx >= 0
+                and score >= self._sim_threshold
+                and self._doc_workspace_id(self._documents[idx]) == workspace_id
+            ):
                 results.append(
                     SearchHit(document=self._documents[idx], score=float(score), method="dense")
                 )
         return results
 
-    def _sparse_search(self, query: str, top_k: int) -> list[SearchHit]:
+    def _sparse_search(
+        self,
+        query: str,
+        top_k: int,
+        *,
+        workspace_id: str,
+    ) -> list[SearchHit]:
         if not self._bm25:
             return []
         tokens = self._tokenize(query)
@@ -254,6 +330,8 @@ class VectorStoreManager:
         top_idx = np.argsort(raw_scores)[::-1][:top_k]
         results: list[SearchHit] = []
         for i in top_idx:
+            if self._doc_workspace_id(self._documents[i]) != workspace_id:
+                continue
             doc_tokens = set(self._tokenize(self._bm25_text(self._documents[i])))
             if raw_scores[i] > 0 or token_set.intersection(doc_tokens):
                 results.append(
@@ -316,6 +394,8 @@ class VectorStoreManager:
         hits: list[SearchHit],
         filename_scope: set[str],
         top_k: int,
+        *,
+        workspace_id: str,
     ) -> list[SearchHit]:
         if not filename_scope:
             return hits
@@ -333,6 +413,8 @@ class VectorStoreManager:
             scoped.append(hit)
 
         for doc in self._documents:
+            if self._doc_workspace_id(doc) != workspace_id:
+                continue
             filename = str(doc.metadata.get("filename", ""))
             if filename not in filename_scope:
                 continue
@@ -346,14 +428,24 @@ class VectorStoreManager:
 
         return scoped[:top_k]
 
-    def _explicit_filename_scope(self, query: str) -> set[str]:
+    def _explicit_filename_scope(
+        self,
+        query: str,
+        *,
+        workspace_id: str | None = None,
+    ) -> set[str]:
         normalized_query = self._normalize_filename_reference(query)
         if not normalized_query:
             return set()
 
+        scoped_workspace_id = normalize_workspace_id(workspace_id)
         padded_query = f" {normalized_query} "
         matches: set[str] = set()
-        filenames = {str(doc.metadata.get("filename", "")) for doc in self._documents}
+        filenames = {
+            str(doc.metadata.get("filename", ""))
+            for doc in self._documents
+            if self._doc_workspace_id(doc) == scoped_workspace_id
+        }
         for filename in filenames:
             normalized_filename = self._normalize_filename_reference(filename)
             normalized_stem = self._normalize_filename_reference(Path(filename).stem)
@@ -376,10 +468,16 @@ class VectorStoreManager:
 
     @staticmethod
     def _doc_identity(doc: Document) -> str:
+        workspace_id = VectorStoreManager._doc_workspace_id(doc)
+        document_id = doc.metadata.get("document_id", "")
         filename = doc.metadata.get("filename", "")
         chunk_index = doc.metadata.get("chunk_index", "")
         digest = hashlib.sha256(doc.page_content.encode("utf-8", "ignore")).hexdigest()
-        return f"{filename}:{chunk_index}:{digest}"
+        return f"{workspace_id}:{document_id}:{filename}:{chunk_index}:{digest}"
+
+    @staticmethod
+    def _doc_workspace_id(doc: Document) -> str:
+        return normalize_workspace_id(str(doc.metadata.get("workspace_id") or ""))
 
     # ══════════════════════════════════════════════════════════════════
     #  PERSISTENCE

@@ -189,6 +189,50 @@ class TestVectorStoreManager:
 
         assert vs._explicit_filename_scope("summarize the report") == set()
 
+    def test_workspace_scoped_search_list_and_delete(self, tmp_path):
+        vs = VectorStoreManager()
+        vs._persist_dir = tmp_path / "vs"
+        vs._persist_dir.mkdir(parents=True, exist_ok=True)
+        vs._documents = []
+        vs._raw_embeddings = []
+        vs._index = None
+        vs._bm25 = None
+
+        vs.add_documents(
+            [
+                Document(
+                    page_content="Workspace alpha private cobalt marker.",
+                    metadata={"filename": "shared.txt", "chunk_index": 0},
+                )
+            ],
+            workspace_id="workspace-alpha",
+            document_id="doc-alpha",
+        )
+        vs.add_documents(
+            [
+                Document(
+                    page_content="Workspace beta private amber marker.",
+                    metadata={"filename": "shared.txt", "chunk_index": 0},
+                )
+            ],
+            workspace_id="workspace-beta",
+            document_id="doc-beta",
+        )
+
+        alpha_hits = vs.search("private marker", workspace_id="workspace-alpha", top_k=5)
+        assert alpha_hits
+        assert {hit.document.metadata["workspace_id"] for hit in alpha_hits} == {
+            "workspace-alpha"
+        }
+        assert vs.count_chunks(workspace_id="workspace-alpha") == 1
+        assert vs.count_chunks(workspace_id="workspace-beta") == 1
+        assert len(vs.list_documents(workspace_id="workspace-alpha")) == 1
+
+        removed = vs.delete_by_filename("shared.txt", workspace_id="workspace-alpha")
+        assert removed == 1
+        assert vs.count_chunks(workspace_id="workspace-alpha") == 0
+        assert vs.count_chunks(workspace_id="workspace-beta") == 1
+
     def test_lightweight_sparse_matches_do_not_pad_with_dense_noise(self):
         vs = VectorStoreManager()
         sparse_doc = Document(

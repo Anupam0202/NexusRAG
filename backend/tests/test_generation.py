@@ -198,3 +198,49 @@ class TestRAGChain:
         assert "Invoice MSPO1549 total amount 928 USD" in result["answer"]
         assert result["sources"][0]["filename"] == "Invoice_Anupam_Roy_MSPO1549.docx"
         assert result["metadata"]["generation_fallback"] is True
+
+    def test_cache_and_memory_are_scoped_by_workspace(self, monkeypatch):
+        calls: list[str | None] = []
+
+        class FakeRetriever:
+            def retrieve(self, *args, **kwargs):
+                workspace_id = kwargs.get("workspace_id")
+                calls.append(workspace_id)
+                return {
+                    "documents": [
+                        Document(
+                            page_content=f"Private marker for {workspace_id}.",
+                            metadata={
+                                "filename": "private.txt",
+                                "workspace_id": workspace_id,
+                                "score": 0.9,
+                            },
+                        )
+                    ],
+                    "query_type": QueryType.SPECIFIC,
+                    "k_used": 1,
+                    "transformed_queries": ["marker"],
+                }
+
+        class FakeLLM:
+            _model_name = "fake-model"
+
+            def invoke_messages(self, messages):
+                return messages[-1].content
+
+        monkeypatch.setattr("src.generation.chain.get_llm_provider", lambda: FakeLLM())
+
+        chain = RAGChain(
+            vector_store=SimpleNamespace(),
+            settings=Settings(_env_file=None, enable_cache=True),
+        )
+        chain._retriever = FakeRetriever()
+
+        first = chain.query("What is the private marker?", workspace_id="workspace-a")
+        second = chain.query("What is the private marker?", workspace_id="workspace-b")
+        cached = chain.query("What is the private marker?", workspace_id="workspace-a")
+
+        assert calls == ["workspace-a", "workspace-b"]
+        assert "workspace-a" in first["answer"]
+        assert "workspace-b" in second["answer"]
+        assert cached["from_cache"] is True

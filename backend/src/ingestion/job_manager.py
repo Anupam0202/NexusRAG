@@ -18,11 +18,13 @@ from src.api.models import (
     IngestionJobStatus,
     IngestionJobStatusResponse,
 )
+from src.utils.tenant import normalize_workspace_id
 
 
 @dataclass
 class IngestionJobRecord:
     job_id: str
+    workspace_id: str
     document_id: str
     filename: str
     status: IngestionJobStatus
@@ -60,10 +62,17 @@ class InMemoryIngestionJobStore:
         self._document_index: dict[str, str] = {}
         self._lock = Lock()
 
-    def create(self, *, document_id: str, filename: str) -> IngestionJobRecord:
+    def create(
+        self,
+        *,
+        document_id: str,
+        filename: str,
+        workspace_id: str | None = None,
+    ) -> IngestionJobRecord:
         now = datetime.now(UTC)
         record = IngestionJobRecord(
             job_id=str(uuid4()),
+            workspace_id=normalize_workspace_id(workspace_id),
             document_id=document_id,
             filename=filename,
             status=IngestionJobStatus.QUEUED,

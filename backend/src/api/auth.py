@@ -21,6 +21,7 @@ from src.infrastructure.supabase_client import (
     SupabaseNotConfiguredError,
     get_supabase_client,
 )
+from src.utils.tenant import DEFAULT_WORKSPACE_ID
 
 JWT_ALGORITHMS = ("RS256", "ES256", "HS256")
 AUTHENTICATED_AUDIENCE = "authenticated"
@@ -206,7 +207,7 @@ async def resolve_workspace_context(
 ) -> WorkspaceContext:
     if user.is_demo:
         return WorkspaceContext(
-            workspace_id="00000000-0000-0000-0000-000000000000",
+            workspace_id=DEFAULT_WORKSPACE_ID,
             user=user,
             role=WorkspaceRole.OWNER,
         )

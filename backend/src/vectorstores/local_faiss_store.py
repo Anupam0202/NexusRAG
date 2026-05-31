@@ -37,7 +37,11 @@ class LocalFaissVectorStore:
             )
             for chunk in chunks
         ]
-        return self._manager.add_documents(documents)
+        return self._manager.add_documents(
+            documents,
+            workspace_id=workspace_id,
+            document_id=document_id,
+        )
 
     async def search(
         self,
@@ -50,7 +54,7 @@ class LocalFaissVectorStore:
         query = str((filters or {}).get("query") or "")
         if not query:
             raise ValueError("LocalFaissVectorStore requires filters['query'] for text search.")
-        hits = self._manager.search(query, top_k=top_k * 3)
+        hits = self._manager.search(query, top_k=top_k * 3, workspace_id=workspace_id)
         results: list[VectorSearchResult] = []
         for hit in hits:
             metadata = hit.document.metadata
