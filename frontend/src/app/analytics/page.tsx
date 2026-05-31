@@ -8,7 +8,7 @@ import {
   RefreshCw, BarChart3, FileText, Database,
   Clock, Target, Activity, CheckCircle2, XCircle,
   Zap, Brain, TrendingUp, MessageSquare,
-  HardDrive, Cpu,
+  HardDrive, Cpu, ShieldCheck, Gauge,
 } from "lucide-react";
 
 const AUTO_REFRESH_SECONDS = 30;
@@ -86,6 +86,21 @@ export default function AnalyticsPage() {
     typeof settings?.hybrid_search_alpha === "number"
       ? `RRF, alpha ${settings.hybrid_search_alpha.toFixed(2)}`
       : "RRF";
+  const numberFormatter = new Intl.NumberFormat(undefined, { notation: "compact" });
+  const totalTokens =
+    data?.llm_total_tokens ??
+    ((data?.llm_input_tokens ?? 0) + (data?.llm_output_tokens ?? 0));
+  const llmCalls = data?.llm_usage_events ?? data?.total_queries ?? 0;
+  const auditEvents = data?.audit_events ?? 0;
+  const usageLatency = data?.usage_avg_latency_ms ?? 0;
+  const lastActivity = data?.last_activity_at
+    ? new Intl.DateTimeFormat(undefined, {
+        month: "short",
+        day: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+      }).format(new Date(data.last_activity_at))
+    : "No activity yet";
 
   return (
     <div className="h-full overflow-y-auto">
@@ -183,7 +198,58 @@ export default function AnalyticsPage() {
           </div>
         )}
 
+        {/* Runtime usage and audit trail */}
         {/* ── Cache + Model row ── */}
+        {!loading && data && (
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.04 }}
+            className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-5 space-y-4"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <h3 className="text-sm font-bold flex items-center gap-2">
+                <ShieldCheck size={15} className="text-emerald-500" />
+                Usage & Audit
+              </h3>
+              <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${
+                (data.llm_error_events ?? 0) > 0
+                  ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300"
+                  : "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300"
+              }`}>
+                {(data.llm_error_events ?? 0) > 0 ? "Attention" : "Clean"}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <UsageStat
+                icon={<Brain size={14} />}
+                label="LLM Calls"
+                value={numberFormatter.format(llmCalls)}
+                detail={`${data.llm_cache_hits ?? 0} cached`}
+              />
+              <UsageStat
+                icon={<Gauge size={14} />}
+                label="Tokens"
+                value={numberFormatter.format(totalTokens)}
+                detail={`${numberFormatter.format(data.llm_input_tokens ?? 0)} in / ${numberFormatter.format(data.llm_output_tokens ?? 0)} out`}
+              />
+              <UsageStat
+                icon={<Activity size={14} />}
+                label="Latency"
+                value={usageLatency ? `${usageLatency}ms` : "-"}
+                detail={`${data.llm_fallbacks ?? 0} fallbacks`}
+              />
+              <UsageStat
+                icon={<ShieldCheck size={14} />}
+                label="Audit Events"
+                value={numberFormatter.format(auditEvents)}
+                detail={lastActivity}
+              />
+            </div>
+          </motion.div>
+        )}
+
         {!loading && data && (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
 
@@ -389,6 +455,26 @@ function ModelRow({
           </span>
         )}
       </div>
+    </div>
+  );
+}
+
+function UsageStat({
+  icon, label, value, detail,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string | number;
+  detail: string;
+}) {
+  return (
+    <div className="min-w-0 rounded-xl bg-[var(--bg-secondary)] p-3">
+      <div className="mb-2 flex items-center gap-1.5 text-[11px] font-medium text-[var(--text-muted)]">
+        <span className="text-brand-500">{icon}</span>
+        <span className="truncate">{label}</span>
+      </div>
+      <p className="text-lg font-bold tabular-nums text-[var(--text-primary)]">{value}</p>
+      <p className="mt-0.5 truncate text-[10px] text-[var(--text-muted)]">{detail}</p>
     </div>
   );
 }

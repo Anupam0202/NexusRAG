@@ -12,6 +12,7 @@ from src.repositories import (
     ChunkRepository,
     DocumentRepository,
     IngestionJobRepository,
+    UsageRepository,
     WorkspaceRepository,
     compute_sha256,
     document_storage_path,
@@ -247,3 +248,38 @@ async def test_api_key_repository_deactivates_active_key_by_workspace_user_provi
     assert "user_id=eq.user-1" in update_call[3]["query"]
     assert "provider=eq.gemini" in update_call[3]["query"]
     assert "is_active=eq.true" in update_call[3]["query"]
+
+
+@pytest.mark.asyncio
+async def test_usage_repository_records_and_lists_workspace_events() -> None:
+    fake = FakeSupabase()
+    fake.rows["llm_usage_events"] = [
+        {
+            "workspace_id": "workspace-1",
+            "provider": "gemini",
+            "model": "gemini-2.5-flash",
+            "operation": "chat.query",
+        }
+    ]
+    repo = UsageRepository(fake)  # type: ignore[arg-type]
+
+    await repo.record_event(
+        workspace_id="workspace-1",
+        user_id="user-1",
+        provider="gemini",
+        model="gemini-2.5-flash",
+        operation="chat.query",
+        input_tokens=12,
+        output_tokens=20,
+        latency_ms=450,
+    )
+    events = await repo.list_events(workspace_id="workspace-1")
+
+    insert_call = fake.calls[0]
+    assert insert_call[0] == "insert"
+    assert insert_call[1] == "llm_usage_events"
+    assert insert_call[2]["workspace_id"] == "workspace-1"
+    assert insert_call[2]["input_tokens"] == 12
+    assert events[0]["operation"] == "chat.query"
+    select_call = fake.calls[1]
+    assert "workspace_id=eq.workspace-1" in select_call[2]
