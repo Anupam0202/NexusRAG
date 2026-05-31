@@ -135,7 +135,7 @@ class RAGChain:
         generation_fallback = False
         generation_error = ""
         try:
-            answer = self._llm.invoke_messages(messages)
+            answer = self._invoke_llm_messages(messages, workspace_id=scoped_workspace_id)
         except Exception as exc:
             generation_fallback = True
             generation_error = getattr(exc, "message", str(exc))
@@ -159,7 +159,7 @@ class RAGChain:
                 "k_used": retrieval["k_used"],
                 "transformed_queries": retrieval["transformed_queries"],
                 "num_sources": len(docs),
-                "model": self._model_name_safe(),
+                "model": self._model_name_safe(scoped_workspace_id),
                 "generation_fallback": generation_fallback,
                 "generation_error": generation_error,
                 "workspace_id": scoped_workspace_id,
@@ -249,7 +249,9 @@ class RAGChain:
         generation_fallback = False
         generation_error = ""
         try:
-            async for token in self._llm.stream_messages(messages):
+            async for token in self._stream_llm_messages(
+                messages, workspace_id=scoped_workspace_id
+            ):
                 full_answer += token
                 yield {"type": "token", "content": token}
         except Exception as exc:
@@ -273,7 +275,7 @@ class RAGChain:
             "k_used": retrieval["k_used"],
             "num_sources": len(docs),
             "response_time_seconds": elapsed,
-            "model": self._model_name_safe(),
+            "model": self._model_name_safe(scoped_workspace_id),
             "confidence": self._estimate_confidence(docs, full_answer),
             "generation_fallback": generation_fallback,
             "generation_error": generation_error,
@@ -437,7 +439,28 @@ class RAGChain:
             parts.append("")
         return "\n".join(parts).strip()
 
-    def _model_name_safe(self) -> str:
+    def _invoke_llm_messages(self, messages: list, *, workspace_id: str) -> str:
+        try:
+            return self._llm.invoke_messages(messages, workspace_id=workspace_id)
+        except TypeError as exc:
+            if "workspace_id" not in str(exc):
+                raise
+            return self._llm.invoke_messages(messages)
+
+    async def _stream_llm_messages(self, messages: list, *, workspace_id: str):
+        try:
+            async for token in self._llm.stream_messages(messages, workspace_id=workspace_id):
+                yield token
+        except TypeError as exc:
+            if "workspace_id" not in str(exc):
+                raise
+            async for token in self._llm.stream_messages(messages):
+                yield token
+
+    def _model_name_safe(self, workspace_id: str | None = None) -> str:
+        current_model_name = getattr(self._llm, "current_model_name", None)
+        if callable(current_model_name):
+            return current_model_name(workspace_id=workspace_id)
         return getattr(self._llm, "_model_name", "") or self._settings.llm_model_name
 
     @staticmethod

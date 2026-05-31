@@ -151,7 +151,11 @@ class HybridRetriever:
         effective_k = min(effective_k, visible_chunks or effective_k)
 
         # 2. Transform query
-        transformed = self._transformer.transform(query, history=history)
+        transformed = self._transformer.transform(
+            query,
+            workspace_id=workspace_id,
+            history=history,
+        )
         queries = transformed["queries"]  # list of query strings
 
         # 3. Retrieve for every query variant

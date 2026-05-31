@@ -74,6 +74,24 @@ class ApiKeyRepository(SupabaseRepository):
         )
         return first_row(rows)
 
+    async def deactivate_active_keys(
+        self,
+        *,
+        workspace_id: str,
+        user_id: str,
+        provider: str,
+    ) -> list[dict[str, Any]]:
+        return await self._supabase.table_update(
+            "api_keys",
+            {"is_active": False},
+            query=and_query(
+                eq_filter("workspace_id", workspace_id),
+                eq_filter("user_id", user_id),
+                eq_filter("provider", provider),
+                "is_active=eq.true",
+            ),
+        )
+
     async def mark_used(self, *, workspace_id: str, key_id: str) -> dict[str, Any] | None:
         rows = await self._supabase.table_update(
             "api_keys",

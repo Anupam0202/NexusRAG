@@ -162,7 +162,16 @@ export async function healthCheck(): Promise<{
 
 export async function setApiKey(
   apiKey: string
-): Promise<{ success: boolean; message: string }> {
+): Promise<{
+  success: boolean;
+  message: string;
+  provider: string;
+  workspace_id: string;
+  workspace_key_configured: boolean;
+  server_key_configured: boolean;
+  key_fingerprint: string | null;
+  storage: "memory" | "supabase";
+}> {
   return request("/api/v1/apikey", {
     method: "POST",
     body: JSON.stringify({ api_key: apiKey }),

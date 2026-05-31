@@ -47,6 +47,13 @@ class Settings(BaseSettings):
     llm_max_tokens: int = Field(default=8192, ge=128, le=65536)
     llm_top_p: float = Field(default=0.95, ge=0.0, le=1.0)
     llm_top_k: int = Field(default=40, ge=1, le=100)
+    byok_encryption_key: str = Field(
+        default="",
+        description=(
+            "Optional Fernet key used to encrypt workspace BYOK provider keys. "
+            "If unset, keys are encrypted with an ephemeral process key and are not durable."
+        ),
+    )
 
     # ── Embedding ─────────────────────────────────────────────────────────
     embedding_model: str = Field(

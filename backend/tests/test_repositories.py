@@ -226,3 +226,24 @@ async def test_api_key_repository_never_lists_encrypted_key_by_default() -> None
     assert "encrypted_key" not in select_query
     assert "workspace_id=eq.workspace-1" in select_query
     assert "provider=eq.gemini" in select_query
+
+
+@pytest.mark.asyncio
+async def test_api_key_repository_deactivates_active_key_by_workspace_user_provider() -> None:
+    fake = FakeSupabase()
+    repo = ApiKeyRepository(fake)  # type: ignore[arg-type]
+
+    await repo.deactivate_active_keys(
+        workspace_id="workspace-1",
+        user_id="user-1",
+        provider="gemini",
+    )
+
+    update_call = fake.calls[0]
+    assert update_call[0] == "update"
+    assert update_call[1] == "api_keys"
+    assert update_call[2]["is_active"] is False
+    assert "workspace_id=eq.workspace-1" in update_call[3]["query"]
+    assert "user_id=eq.user-1" in update_call[3]["query"]
+    assert "provider=eq.gemini" in update_call[3]["query"]
+    assert "is_active=eq.true" in update_call[3]["query"]

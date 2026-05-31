@@ -40,8 +40,8 @@ export function ApiKeyModal() {
     }
     setLoading(true);
     try {
-      await setApiKey(trimmed);
-      setUserApiKey(trimmed);
+      const result = await setApiKey(trimmed);
+      setUserApiKey(result.key_fingerprint ?? "configured");
       setIsQuotaBlocked(false);
       setShowApiKeyModal(false);
       setKey("");
@@ -221,7 +221,7 @@ export function ApiKeyModal() {
                 </div>
 
                 <p className="text-[10px] text-[var(--text-muted)] text-center mt-4 opacity-70">
-                  Your API key is sent securely to the backend and is never stored permanently.
+                  Your browser forgets the raw key after submit. The backend stores only an encrypted workspace key.
                 </p>
               </div>
             </div>
