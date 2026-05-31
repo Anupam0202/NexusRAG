@@ -91,6 +91,20 @@ export interface QueryResponse {
   metadata: Record<string, unknown>;
 }
 
+export interface ChatHistoryMessage {
+  role: "user" | "assistant" | "system";
+  content: string;
+  sources: SourceChunk[];
+  metadata: Record<string, unknown>;
+  created_at?: string | null;
+}
+
+export interface ChatHistoryResponse {
+  session_id: string;
+  messages: ChatHistoryMessage[];
+  total: number;
+}
+
 // ── WebSocket frames ─────────────────────────────────────────
 
 export interface WSTokenFrame {

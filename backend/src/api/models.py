@@ -104,6 +104,20 @@ class ChatMessage(BaseModel):
     timestamp: str | None = None
 
 
+class ChatHistoryMessage(BaseModel):
+    role: str = Field(..., pattern="^(user|assistant|system)$")
+    content: str
+    sources: list[dict[str, Any]] = Field(default_factory=list)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+    created_at: str | None = None
+
+
+class ChatHistoryResponse(BaseModel):
+    session_id: str
+    messages: list[ChatHistoryMessage] = Field(default_factory=list)
+    total: int = 0
+
+
 class SourceChunk(BaseModel):
     """A retrieved source chunk returned alongside the answer."""
 

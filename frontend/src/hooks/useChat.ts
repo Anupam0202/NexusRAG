@@ -2,9 +2,9 @@
 
 import { useCallback, useEffect, useRef } from "react";
 import { createChatSocket } from "@/lib/websocket";
-import { chatQuery } from "@/lib/api";
+import { chatQuery, getSessionMessages } from "@/lib/api";
 import { useStore } from "@/hooks/useStore";
-import type { QueryRequest, WSFrame, SourceChunk } from "@/types";
+import type { QueryRequest, WSFrame, SourceChunk, UIMessage } from "@/types";
 import { generateId } from "@/lib/utils";
 
 export function useChat() {
@@ -16,6 +16,44 @@ export function useChat() {
   // Use ref to always have latest messages for history
   const messagesRef = useRef(store.messages);
   useEffect(() => { messagesRef.current = store.messages; }, [store.messages]);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (store.messages.length > 0) return;
+
+    getSessionMessages(store.sessionId)
+      .then((history) => {
+        if (cancelled || history.total === 0 || store.messages.length > 0) return;
+        const restored: UIMessage[] = history.messages.map((message) => ({
+          id: generateId(),
+          role: message.role,
+          content: message.content,
+          timestamp: message.created_at ?? undefined,
+          sources: message.sources,
+          queryType:
+            typeof message.metadata.query_type === "string"
+              ? message.metadata.query_type
+              : undefined,
+          confidence:
+            typeof message.metadata.confidence === "number"
+              ? message.metadata.confidence
+              : undefined,
+          responseTime:
+            typeof message.metadata.response_time_seconds === "number"
+              ? message.metadata.response_time_seconds
+              : undefined,
+        }));
+        store.setMessages(restored);
+      })
+      .catch(() => {
+        // Chat history is an enhancement; live chat should not depend on it.
+      });
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [store.sessionId]);
 
   const handleFrame = useCallback((frame: WSFrame) => {
     const id = currentAsstId.current;

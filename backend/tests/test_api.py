@@ -278,6 +278,27 @@ class TestAnalytics:
         assert summary["queries_today"] >= 1
 
 
+class TestChatHistory:
+    def test_list_session_messages_uses_in_memory_history_in_demo_mode(
+        self,
+        test_client: TestClient,
+    ):
+        test_client.mock_chain.get_session_history.return_value = [  # type: ignore[attr-defined]
+            {"role": "user", "content": "hello", "metadata": {"source": "test"}},
+            {"role": "assistant", "content": "hi", "metadata": {"confidence": 0.9}},
+        ]
+
+        resp = test_client.get(
+            "/api/v1/chat/sessions/11111111-1111-1111-1111-111111111111/messages"
+        )
+        data = resp.json()
+
+        assert resp.status_code == 200
+        assert data["total"] == 2
+        assert data["messages"][0]["role"] == "user"
+        assert data["messages"][1]["metadata"]["confidence"] == 0.9
+
+
 class TestSystemStatus:
     def test_system_status(self, test_client: TestClient):
         resp = test_client.get("/api/v1/status")

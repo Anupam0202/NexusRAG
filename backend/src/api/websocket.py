@@ -20,6 +20,7 @@ Protocol::
 from __future__ import annotations
 
 import json
+import uuid
 from asyncio import wait_for
 
 from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect, status
@@ -33,6 +34,7 @@ from src.api.auth import (
 )
 from src.api.dependencies import get_rag_chain
 from src.infrastructure.supabase_client import get_supabase_client
+from src.repositories.messages import MessageRepository
 from src.telemetry.events import estimate_tokens, get_telemetry_recorder
 from src.utils.logger import get_logger
 from src.utils.tenant import normalize_workspace_id
@@ -40,6 +42,86 @@ from src.utils.tenant import normalize_workspace_id
 logger = get_logger("websocket")
 
 router = APIRouter()
+
+
+def _valid_chat_session_id(session_id: str | None) -> str | None:
+    if not session_id:
+        return str(uuid.uuid4())
+    try:
+        uuid.UUID(str(session_id))
+    except ValueError:
+        return None
+    return str(session_id)
+
+
+def _chat_title(question: str) -> str:
+    title = " ".join(question.split())
+    return (title[:77] + "...") if len(title) > 80 else title
+
+
+async def _persist_stream_history(
+    *,
+    workspace: WorkspaceContext | None,
+    workspace_id: str,
+    persist: bool,
+    session_id: str | None,
+    question: str,
+    answer: str,
+    sources: list[dict],
+    metadata: dict,
+) -> str | None:
+    if not persist:
+        return session_id
+
+    durable_session_id = _valid_chat_session_id(session_id)
+    if durable_session_id is None:
+        logger.warning(
+            "stream_chat_history_invalid_session_id",
+            workspace_id=workspace_id,
+            session_id=session_id,
+        )
+        return session_id
+
+    try:
+        repo = MessageRepository()
+        await repo.ensure_session(
+            workspace_id=workspace_id,
+            session_id=durable_session_id,
+            user_id=workspace.user.id if workspace else None,
+            title=_chat_title(question),
+        )
+        await repo.add_message(
+            workspace_id=workspace_id,
+            session_id=durable_session_id,
+            role="user",
+            content=question,
+            metadata={"source": "chat_ws"},
+        )
+        await repo.add_message(
+            workspace_id=workspace_id,
+            session_id=durable_session_id,
+            role="assistant",
+            content=answer,
+            sources=sources,
+            metadata={
+                "source": "chat_ws",
+                "query_type": metadata.get("query_type"),
+                "confidence": metadata.get("confidence"),
+                "response_time_seconds": metadata.get("response_time_seconds"),
+                "model": metadata.get("model"),
+                "from_cache": metadata.get("from_cache"),
+                "generation_fallback": metadata.get("generation_fallback"),
+            },
+        )
+    except Exception as exc:
+        logger.warning(
+            "stream_chat_history_persist_failed",
+            workspace_id=workspace_id,
+            session_id=durable_session_id,
+            error=str(exc)[:300],
+        )
+        return session_id
+    return durable_session_id
 
 
 async def _safe_send(ws: WebSocket, data: dict) -> bool:
@@ -176,6 +258,7 @@ async def chat_stream(ws: WebSocket) -> None:
             ]
             answer_parts: list[str] = []
             sources_count = 0
+            sources_payload: list[dict] = []
             done_metadata: dict = {}
 
             try:
@@ -190,7 +273,9 @@ async def chat_stream(ws: WebSocket) -> None:
                     if frame.get("type") == "token":
                         answer_parts.append(str(frame.get("content", "")))
                     elif frame.get("type") == "sources":
-                        sources_count = len(frame.get("sources", []) or [])
+                        raw_sources = frame.get("sources", []) or []
+                        sources_payload = raw_sources if isinstance(raw_sources, list) else []
+                        sources_count = len(sources_payload)
                     elif frame.get("type") == "done":
                         done_metadata = dict(frame.get("metadata", {}) or {})
                     if not await _safe_send(ws, frame):
@@ -239,6 +324,17 @@ async def chat_stream(ws: WebSocket) -> None:
                     },
                     persist=persist_event,
                 )
+                persisted_session_id = await _persist_stream_history(
+                    workspace=workspace,
+                    workspace_id=workspace_id,
+                    persist=persist_event,
+                    session_id=str(session_id),
+                    question=question,
+                    answer="".join(answer_parts),
+                    sources=sources_payload,
+                    metadata=done_metadata,
+                )
+                done_metadata["session_id"] = persisted_session_id or session_id
             except WebSocketDisconnect:
                 logger.info("websocket_disconnected_during_stream")
                 return
