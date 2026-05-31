@@ -6,9 +6,12 @@ These tests use the TestClient and mock heavy components where needed.
 
 from __future__ import annotations
 
+import os
+
 from fastapi.testclient import TestClient
 
 from config.settings import get_settings
+from src.generation.provider_keys import get_provider_key_manager
 
 
 def _pdf_bytes(pages: int, *, with_text: bool) -> bytes:
@@ -185,6 +188,54 @@ class TestSettingsEndpoints:
 
         assert resp.status_code == 400
         assert "constrained Render" in resp.json()["detail"]
+
+
+class TestApiKeyEndpoint:
+    def test_api_key_storage_does_not_mutate_global_google_key(
+        self,
+        test_client: TestClient,
+        monkeypatch,
+    ):
+        api_key = "AIzaSyDtestworkspacekeymaterial123456789"
+        original_env_key = os.environ.get("GOOGLE_API_KEY")
+        original_settings_key = get_settings().google_api_key
+        get_provider_key_manager.cache_clear()
+        monkeypatch.setattr("src.api.routes._validate_provider_api_key", lambda *_args: None)
+
+        try:
+            resp = test_client.post("/api/v1/apikey", json={"api_key": api_key})
+            data = resp.json()
+
+            assert resp.status_code == 200
+            assert data["success"] is True
+            assert data["workspace_key_configured"] is True
+            assert data["key_fingerprint"].startswith("sha256:")
+            assert api_key not in str(data)
+            assert os.environ.get("GOOGLE_API_KEY") == original_env_key
+            assert get_settings().google_api_key == original_settings_key
+        finally:
+            get_provider_key_manager.cache_clear()
+
+    def test_api_key_status_reports_workspace_key_without_plaintext(
+        self,
+        test_client: TestClient,
+        monkeypatch,
+    ):
+        api_key = "AIzaSyDsecondworkspacekeymaterial123456"
+        get_provider_key_manager.cache_clear()
+        monkeypatch.setattr("src.api.routes._validate_provider_api_key", lambda *_args: None)
+
+        try:
+            test_client.post("/api/v1/apikey", json={"api_key": api_key})
+            resp = test_client.get("/api/v1/apikey")
+            data = resp.json()
+
+            assert resp.status_code == 200
+            assert data["workspace_key_configured"] is True
+            assert data["key_fingerprint"].startswith("sha256:")
+            assert api_key not in str(data)
+        finally:
+            get_provider_key_manager.cache_clear()
 
 
 class TestAnalytics:

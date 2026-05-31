@@ -30,6 +30,8 @@ services:
       # Set this secret in the Render dashboard.
       - key: GOOGLE_API_KEY
         sync: false
+      - key: BYOK_ENCRYPTION_KEY
+        sync: false
 
       - key: API_CORS_ORIGINS
         value: "https://nexusrag.vercel.app,https://nexusrag-anupam0202s-projects.vercel.app,http://localhost:3000,http://127.0.0.1:3000"

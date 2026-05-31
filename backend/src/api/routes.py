@@ -46,6 +46,11 @@ from src.api.models import (
     SystemStatusResponse,
 )
 from src.generation.chain import RAGChain
+from src.generation.provider_keys import (
+    GEMINI_PROVIDER,
+    get_provider_key_manager,
+    normalize_provider,
+)
 from src.ingestion.job_manager import get_ingestion_job_store
 from src.ingestion.pipeline import IngestionPipeline
 from src.retrieval.vector_store import VectorStoreManager
@@ -554,75 +559,122 @@ async def update_settings(
 
 class ApiKeyRequest(BaseModel):
     api_key: str = Field(..., min_length=10, max_length=200)
+    provider: str = Field(default=GEMINI_PROVIDER, min_length=2, max_length=32)
+
+
+def _raise_api_key_validation_error(exc: Exception) -> None:
+    err_msg = str(exc).lower()
+    if any(term in err_msg for term in ("invalid", "api key", "401", "403")):
+        raise HTTPException(400, "Invalid API key. Please check and try again.")
+    if any(term in err_msg for term in ("quota", "429", "resource exhausted")):
+        raise HTTPException(400, "This API key has also exceeded its quota.")
+    logger.warning("api_key_validation_warning", error=str(exc)[:300])
+
+
+def _validate_provider_api_key(provider: str, api_key: str) -> None:
+    normalized_provider = normalize_provider(provider)
+    if normalized_provider != GEMINI_PROVIDER:
+        raise HTTPException(400, f"Provider '{provider}' is not supported yet.")
+
+    try:
+        import google.genai as genai
+
+        client = genai.Client(api_key=api_key)
+        models = list(client.models.list())
+        if not models:
+            raise HTTPException(400, "Invalid API key - no models accessible.")
+        return
+    except ImportError:
+        pass
+    except HTTPException:
+        raise
+    except Exception as exc:
+        _raise_api_key_validation_error(exc)
+        return
+
+    try:
+        import google.generativeai as legacy_genai
+
+        legacy_genai.configure(api_key=api_key)
+        models = list(legacy_genai.list_models())
+        if not models:
+            raise HTTPException(400, "Invalid API key - no models accessible.")
+    except ImportError:
+        logger.warning("api_key_validation_library_unavailable", provider=normalized_provider)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        _raise_api_key_validation_error(exc)
 
 
 @router.post("/apikey")
 async def set_api_key(
     body: ApiKeyRequest,
-    _workspace: WorkspaceContext | None = Depends(
+    workspace: WorkspaceContext | None = Depends(
         require_enterprise_workspace_role(*ADMIN_ROLES)
     ),
     settings: Settings = Depends(get_settings),
 ) -> dict:
-    """Let the user provide their own Google API key.
-
-    When the default key's quota is exhausted, the frontend shows a
-    popup asking for a key.  This endpoint validates and hot-swaps it.
-    """
-    import os
-
+    """Validate and store a workspace-scoped provider key without global mutation."""
     new_key = body.api_key.strip()
+    normalized_provider = normalize_provider(body.provider)
+    _validate_provider_api_key(normalized_provider, new_key)
 
-    # Validate the key using a FREE metadata call (list_models doesn't
-    # count toward the RPM quota, unlike generate_content).
+    workspace_id = _context_workspace_id(workspace)
+    user_id = workspace.user.id if workspace else None
+    manager = get_provider_key_manager()
+    record = manager.store_key(
+        workspace_id=workspace_id,
+        user_id=user_id,
+        provider=normalized_provider,
+        api_key=new_key,
+    )
+
+    storage = "memory"
     try:
-        import google.genai as genai
-
-        client = genai.Client(api_key=new_key)
-        models = list(client.models.list())
-        if not models:
-            raise HTTPException(400, "Invalid API key — no models accessible.")
-    except HTTPException:
-        raise  # re-raise our own validation errors
+        if workspace and not workspace.user.is_demo and settings.supabase_configured:
+            await manager.persist_key(record)
+            storage = "supabase"
     except Exception as exc:
-        err_msg = str(exc).lower()
-        if "invalid" in err_msg or "api key" in err_msg or "401" in err_msg:
-            raise HTTPException(400, "Invalid API key. Please check and try again.")
-        if "quota" in err_msg or "429" in err_msg:
-            raise HTTPException(400, "This API key has also exceeded its quota.")
-        # Transient network error — accept the key anyway
-        logger.warning("api_key_validation_warning", error=str(exc))
+        logger.warning(
+            "api_key_persist_failed",
+            workspace_id=workspace_id,
+            provider=normalized_provider,
+            error=str(exc)[:300],
+        )
 
-    # Hot-swap the key
-    os.environ["GOOGLE_API_KEY"] = new_key
-    settings.google_api_key = new_key
-
-    # Reset the LLM provider singleton so it picks up the new key
-    from src.generation.llm import get_llm_provider
-
-    provider = get_llm_provider()
-    provider._model = None  # Force re-init on next call
-    provider._settings = settings
-    # Rebuild the candidates list so all fallback models are available again
-    fallbacks = [m.strip() for m in settings.llm_fallback_models.split(",") if m.strip()]
-    candidates = [settings.llm_model_name] + fallbacks
-    seen = set()
-    provider._candidates = [x for x in candidates if not (x in seen or seen.add(x))]
-
-    # Reset the OCR manager singletons so they use the new key
-    try:
-        import src.ingestion.ocr_manager as ocr_mgr
-
-        ocr_mgr._gemini_instance = None
-        ocr_mgr._cloud_instance = None
-    except Exception:
-        pass
-
-    logger.info("api_key_swapped", key_prefix=new_key[:8] + "...")
-    return {"success": True, "message": "API key updated successfully"}
+    logger.info(
+        "workspace_provider_key_activated",
+        workspace_id=workspace_id,
+        provider=normalized_provider,
+    )
+    return {
+        "success": True,
+        "message": "API key activated for this workspace.",
+        "provider": normalized_provider,
+        "workspace_id": workspace_id,
+        "workspace_key_configured": True,
+        "server_key_configured": bool(settings.google_api_key),
+        "key_fingerprint": record.key_label,
+        "storage": storage,
+    }
 
 
-# ═══════════════════════════════════════════════════════════════════════════
+@router.get("/apikey")
+async def get_api_key_status(
+    workspace: WorkspaceContext | None = Depends(
+        require_enterprise_workspace_role(*ADMIN_ROLES)
+    ),
+    settings: Settings = Depends(get_settings),
+) -> dict:
+    workspace_id = _context_workspace_id(workspace)
+    return get_provider_key_manager().status_payload(
+        workspace_id=workspace_id,
+        provider=GEMINI_PROVIDER,
+        settings=settings,
+    )
+
+
 #  ANALYTICS
 # ═══════════════════════════════════════════════════════════════════════════
 

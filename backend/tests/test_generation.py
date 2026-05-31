@@ -14,6 +14,7 @@ from src.generation.chain import RAGChain
 from src.generation.llm import LLMProvider
 from src.generation.memory import ConversationMemory, SessionMemoryStore
 from src.generation.prompts import PromptManager
+from src.generation.provider_keys import get_provider_key_manager
 from src.retrieval.retriever import QueryType
 
 
@@ -111,6 +112,47 @@ class TestLLMProvider:
 
         assert calls[0]["model"] == "gemini-2.5-flash"
         assert calls[0]["max_retries"] == 0
+
+    def test_workspace_key_uses_scoped_model_without_mutating_default_key(self, monkeypatch):
+        calls: list[dict] = []
+
+        class FakeResponse:
+            content = "scoped answer"
+
+        class FakeChatGoogleGenerativeAI:
+            def __init__(self, **kwargs):
+                self.kwargs = kwargs
+                calls.append(kwargs)
+
+            def invoke(self, *_args, **_kwargs):
+                return FakeResponse()
+
+        monkeypatch.setitem(
+            sys.modules,
+            "langchain_google_genai",
+            SimpleNamespace(ChatGoogleGenerativeAI=FakeChatGoogleGenerativeAI),
+        )
+        get_provider_key_manager.cache_clear()
+        manager = get_provider_key_manager()
+        manager.store_key(
+            workspace_id="workspace-a",
+            user_id="user-a",
+            provider="gemini",
+            api_key="workspace-key",
+        )
+
+        try:
+            settings = Settings(_env_file=None, google_api_key="server-key")
+            provider = LLMProvider(settings)
+
+            result = provider.invoke("hello", workspace_id="workspace-a")
+
+            assert result == "scoped answer"
+            assert calls[0]["google_api_key"] == "workspace-key"
+            assert settings.google_api_key == "server-key"
+            assert provider._candidates[0] == "gemini-2.5-flash"
+        finally:
+            get_provider_key_manager.cache_clear()
 
 
 class TestRAGChain:

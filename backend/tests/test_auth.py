@@ -71,6 +71,7 @@ def test_auth_me_requires_bearer_token(test_client: TestClient) -> None:
         ("get", "/api/v1/settings", {}),
         ("patch", "/api/v1/settings", {"json": {"retrieval_top_k": 3}}),
         ("post", "/api/v1/apikey", {"json": {"api_key": "x" * 20}}),
+        ("get", "/api/v1/apikey", {}),
         ("get", "/api/v1/analytics/summary", {}),
     ],
 )

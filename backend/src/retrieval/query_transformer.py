@@ -20,6 +20,7 @@ from __future__ import annotations
 from typing import Any
 
 from config.settings import Settings, get_settings
+from src.generation.provider_keys import GEMINI_PROVIDER, get_provider_key_manager
 from src.utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -56,11 +57,15 @@ class QueryTransformer:
         self._settings = settings or get_settings()
         self._llm_provider = None
 
-    def _get_provider(self):
+    def _get_provider(self, *, workspace_id: str | None = None):
         """Get the shared LLMProvider (with failover engine)."""
         if self._llm_provider is not None:
             return self._llm_provider
-        if not self._settings.google_api_key:
+        has_workspace_key = get_provider_key_manager().has_active_key(
+            workspace_id=workspace_id,
+            provider=GEMINI_PROVIDER,
+        )
+        if not self._settings.google_api_key and not has_workspace_key:
             return None
         try:
             from src.generation.llm import get_llm_provider
@@ -74,6 +79,7 @@ class QueryTransformer:
         self,
         query: str,
         *,
+        workspace_id: str | None = None,
         history: list[dict[str, str]] | None = None,
     ) -> dict[str, Any]:
         """Apply all transformations and return variant queries.
@@ -86,10 +92,10 @@ class QueryTransformer:
 
         # 1. History-aware reformulation
         if history and not self._settings.memory_constrained:
-            reformulated = self._reformulate(query, history)
+            reformulated = self._reformulate(query, history, workspace_id=workspace_id)
 
         # 2. Multi-query expansion
-        variants = self._multi_query(reformulated)
+        variants = self._multi_query(reformulated, workspace_id=workspace_id)
 
         # Always include the reformulated query as the first entry
         all_queries = [reformulated] + [v for v in variants if v != reformulated]
@@ -102,8 +108,14 @@ class QueryTransformer:
 
     # ── strategies ────────────────────────────────────────────────────
 
-    def _reformulate(self, query: str, history: list[dict[str, str]]) -> str:
-        provider = self._get_provider()
+    def _reformulate(
+        self,
+        query: str,
+        history: list[dict[str, str]],
+        *,
+        workspace_id: str | None = None,
+    ) -> str:
+        provider = self._get_provider(workspace_id=workspace_id)
         if provider is None:
             return query
 
@@ -114,7 +126,7 @@ class QueryTransformer:
 
         try:
             prompt = _REFORMULATE_PROMPT.format(history=history_text, question=query)
-            result = provider.invoke(prompt)
+            result = provider.invoke(prompt, workspace_id=workspace_id)
             result = result.strip()
             if result and len(result) > 5:
                 logger.debug("query_reformulated", original=query, reformulated=result)
@@ -124,17 +136,17 @@ class QueryTransformer:
 
         return query
 
-    def _multi_query(self, query: str) -> list[str]:
+    def _multi_query(self, query: str, *, workspace_id: str | None = None) -> list[str]:
         if self._settings.memory_constrained or not self._settings.enable_query_expansion:
             return []
 
-        provider = self._get_provider()
+        provider = self._get_provider(workspace_id=workspace_id)
         if provider is None:
             return []
 
         try:
             prompt = _MULTI_QUERY_PROMPT.format(question=query)
-            text = provider.invoke(prompt)
+            text = provider.invoke(prompt, workspace_id=workspace_id)
             lines = [
                 line.strip().lstrip("0123456789.-) ")
                 for line in text.strip().split("\n")
