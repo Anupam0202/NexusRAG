@@ -57,10 +57,36 @@ class DocumentListResponse(BaseModel):
     total: int
 
 
+class IngestionJobStatus(StrEnum):
+    QUEUED = "queued"
+    PROCESSING = "processing"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
+
+
+class IngestionJobStatusResponse(BaseModel):
+    job_id: str
+    document_id: str
+    filename: str
+    status: IngestionJobStatus
+    stage: str = "queued"
+    progress: int = Field(default=0, ge=0, le=100)
+    message: str = ""
+    error_message: str | None = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    started_at: datetime | None = None
+    completed_at: datetime | None = None
+    document: DocumentMetadata | None = None
+
+
 class DocumentUploadResponse(BaseModel):
     success: bool
     message: str
     document: DocumentMetadata | None = None
+    job_id: str | None = None
+    job: IngestionJobStatusResponse | None = None
 
 
 class DocumentDeleteResponse(BaseModel):

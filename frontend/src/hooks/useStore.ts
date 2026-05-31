@@ -87,7 +87,14 @@ export const useStore = create<AppState>((set) => ({
 
   documents: [],
   setDocuments: (docs) => set({ documents: docs }),
-  addDocument: (doc) => set((s) => ({ documents: [...s.documents, doc] })),
+  addDocument: (doc) => set((s) => ({
+    documents: [
+      ...s.documents.filter(
+        (item) => item.document_id !== doc.document_id && item.filename !== doc.filename
+      ),
+      doc,
+    ],
+  })),
   removeDocument: (filename) => set((s) => ({ documents: s.documents.filter((d) => d.filename !== filename) })),
 
   sessionId: generateId(),
