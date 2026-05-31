@@ -28,6 +28,7 @@ export async function getApiHeaders(options: { json?: boolean } = {}): Promise<H
 
   const workspaceId = getStoredWorkspaceId();
   if (workspaceId) {
+    headers["X-Nexus-Workspace-Id"] = workspaceId;
     headers["X-Workspace-ID"] = workspaceId;
   }
 

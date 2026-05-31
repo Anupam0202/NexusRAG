@@ -104,9 +104,9 @@ async def health() -> dict:
 # ── Mount Routers ─────────────────────────────────────────────────────────
 
 from src.api.auth import router as auth_router  # noqa: E402
-from src.api.auth import workspace_router  # noqa: E402
 from src.api.routes import router as api_router  # noqa: E402
 from src.api.websocket import router as ws_router  # noqa: E402
+from src.api.workspace import router as workspace_router  # noqa: E402
 
 app.include_router(auth_router, prefix="/api/v1")
 app.include_router(workspace_router, prefix="/api/v1")
