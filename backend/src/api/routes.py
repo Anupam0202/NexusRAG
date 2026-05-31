@@ -24,7 +24,7 @@ import io
 import uuid
 from pathlib import Path
 
-from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, Query, UploadFile
 from pydantic import BaseModel, Field
 
 from config.settings import Settings, get_settings
@@ -32,6 +32,8 @@ from src.api.auth import WorkspaceContext, WorkspaceRole, require_enterprise_wor
 from src.api.dependencies import get_rag_chain, get_vector_store, verify_api_key
 from src.api.models import (
     AnalyticsSummary,
+    AuditEventListResponse,
+    AuditEventResponse,
     ChatHistoryMessage,
     ChatHistoryResponse,
     DocumentDeleteResponse,
@@ -1205,6 +1207,29 @@ async def analytics_summary(
         usage_avg_latency_ms=telemetry_summary.get("usage_avg_latency_ms", 0),
         audit_events=telemetry_summary.get("audit_events", 0),
         last_activity_at=telemetry_summary.get("last_activity_at"),
+    )
+
+
+@router.get("/audit", response_model=AuditEventListResponse)
+async def list_audit_events(
+    limit: int = Query(default=50, ge=1, le=200),
+    workspace: WorkspaceContext | None = Depends(
+        require_enterprise_workspace_role(*ADMIN_ROLES)
+    ),
+    settings: Settings = Depends(get_settings),
+) -> AuditEventListResponse:
+    """Return recent sanitized audit events for the current workspace."""
+    persist = _should_persist_workspace_event(workspace, settings)
+    rows = await get_telemetry_recorder().list_audit_events(
+        workspace_id=_context_workspace_id(workspace),
+        persist=persist,
+        limit=limit,
+    )
+    events = [AuditEventResponse(**row) for row in rows]
+    return AuditEventListResponse(
+        events=events,
+        total=len(events),
+        storage="supabase" if persist else "memory",
     )
 
 

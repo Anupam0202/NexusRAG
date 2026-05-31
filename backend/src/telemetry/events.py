@@ -234,6 +234,70 @@ class TelemetryRecorder:
             ]
         return self._summarize_memory(usage, audit)
 
+    async def list_audit_events(
+        self,
+        *,
+        workspace_id: str | None,
+        persist: bool = False,
+        limit: int = 50,
+    ) -> list[dict[str, Any]]:
+        scoped_workspace_id = normalize_workspace_id(workspace_id)
+        safe_limit = max(1, min(int(limit or 50), 200))
+
+        if persist:
+            try:
+                rows = await (self._audit_repository or AuditRepository()).list_events(
+                    workspace_id=scoped_workspace_id,
+                    limit=safe_limit,
+                )
+                return [self._audit_row_payload(row) for row in rows[:safe_limit]]
+            except Exception as exc:
+                logger.warning(
+                    "audit_events_persisted_list_failed",
+                    workspace_id=scoped_workspace_id,
+                    error=str(exc)[:300],
+                )
+
+        with self._lock:
+            events = [
+                event
+                for event in self._audit_events
+                if event.workspace_id == scoped_workspace_id
+            ]
+        events.sort(key=lambda event: event.created_at, reverse=True)
+        return [self._audit_event_payload(event) for event in events[:safe_limit]]
+
+    @staticmethod
+    def _audit_event_payload(event: AuditEvent) -> dict[str, Any]:
+        return {
+            "id": None,
+            "workspace_id": event.workspace_id,
+            "user_id": event.user_id,
+            "action": event.action,
+            "resource_type": event.resource_type,
+            "resource_id": event.resource_id,
+            "metadata": event.metadata,
+            "created_at": event.created_at.isoformat(),
+        }
+
+    @staticmethod
+    def _audit_row_payload(row: dict[str, Any]) -> dict[str, Any]:
+        created_at = row.get("created_at")
+        if isinstance(created_at, datetime):
+            created_at = created_at.isoformat()
+        elif created_at is not None:
+            created_at = str(created_at)
+        return {
+            "id": row.get("id"),
+            "workspace_id": str(row.get("workspace_id") or ""),
+            "user_id": row.get("user_id"),
+            "action": str(row.get("action") or ""),
+            "resource_type": row.get("resource_type"),
+            "resource_id": row.get("resource_id"),
+            "metadata": _clean_metadata(row.get("metadata") or {}),
+            "created_at": created_at,
+        }
+
     def _summarize_memory(
         self,
         usage: Iterable[LLMUsageEvent],

@@ -214,6 +214,23 @@ class AnalyticsSummary(BaseModel):
     last_activity_at: str | None = None
 
 
+class AuditEventResponse(BaseModel):
+    id: str | None = None
+    workspace_id: str
+    user_id: str | None = None
+    action: str
+    resource_type: str | None = None
+    resource_id: str | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
+    created_at: str | None = None
+
+
+class AuditEventListResponse(BaseModel):
+    events: list[AuditEventResponse] = Field(default_factory=list)
+    total: int = 0
+    storage: str = "memory"
+
+
 class SystemStatusResponse(BaseModel):
     service: str = "NexusRAG API"
     status: str = "healthy"

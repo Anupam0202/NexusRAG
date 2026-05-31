@@ -1,8 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { getAnalytics, getSystemStatus, healthCheck } from "@/lib/api";
-import type { AnalyticsSummary, SystemStatusResponse } from "@/types";
+import { getAnalytics, getAuditEvents, getSystemStatus, healthCheck } from "@/lib/api";
+import type { AnalyticsSummary, AuditEvent, SystemStatusResponse } from "@/types";
 import { motion } from "framer-motion";
 import {
   RefreshCw, BarChart3, FileText, Database,
@@ -15,6 +15,8 @@ const AUTO_REFRESH_SECONDS = 30;
 
 export default function AnalyticsPage() {
   const [data, setData] = useState<AnalyticsSummary | null>(null);
+  const [auditEvents, setAuditEvents] = useState<AuditEvent[]>([]);
+  const [auditStorage, setAuditStorage] = useState<"memory" | "supabase">("memory");
   const [health, setHealth] = useState<{ status: string; total_chunks: number } | null>(null);
   const [systemStatus, setSystemStatus] = useState<SystemStatusResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -27,11 +29,18 @@ export default function AnalyticsPage() {
     setError(null);
     setCountdown(AUTO_REFRESH_SECONDS);
     try {
-      const [a, h, s] = await Promise.all([getAnalytics(), healthCheck(), getSystemStatus()]);
+      const [a, h, s, audit] = await Promise.all([
+        getAnalytics(),
+        healthCheck(),
+        getSystemStatus(),
+        getAuditEvents(8).catch(() => null),
+      ]);
       if (signal?.aborted) return;
       setData(a);
       setHealth(h);
       setSystemStatus(s);
+      setAuditEvents(audit?.events ?? []);
+      if (audit?.storage) setAuditStorage(audit.storage);
     } catch (err: unknown) {
       if (signal?.aborted) return;
       setError(err instanceof Error ? err.message : "Failed to load analytics");
@@ -91,7 +100,7 @@ export default function AnalyticsPage() {
     data?.llm_total_tokens ??
     ((data?.llm_input_tokens ?? 0) + (data?.llm_output_tokens ?? 0));
   const llmCalls = data?.llm_usage_events ?? data?.total_queries ?? 0;
-  const auditEvents = data?.audit_events ?? 0;
+  const auditEventCount = data?.audit_events ?? 0;
   const usageLatency = data?.usage_avg_latency_ms ?? 0;
   const lastActivity = data?.last_activity_at
     ? new Intl.DateTimeFormat(undefined, {
@@ -243,10 +252,66 @@ export default function AnalyticsPage() {
               <UsageStat
                 icon={<ShieldCheck size={14} />}
                 label="Audit Events"
-                value={numberFormatter.format(auditEvents)}
+                value={numberFormatter.format(auditEventCount)}
                 detail={lastActivity}
               />
             </div>
+          </motion.div>
+        )}
+
+        {!loading && data && (
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.045 }}
+            className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-5 space-y-4"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h3 className="text-sm font-bold flex items-center gap-2">
+                  <ShieldCheck size={15} className="text-brand-500" />
+                  Recent Audit Trail
+                </h3>
+                <p className="mt-1 text-xs text-[var(--text-muted)]">
+                  Sanitized workspace events from the active runtime.
+                </p>
+              </div>
+              <span className="rounded-full bg-[var(--bg-secondary)] px-2 py-0.5 text-[10px] font-bold uppercase text-[var(--text-muted)]">
+                {auditStorage}
+              </span>
+            </div>
+
+            {auditEvents.length > 0 ? (
+              <div className="divide-y divide-[var(--border)] overflow-hidden rounded-xl border border-[var(--border)]">
+                {auditEvents.map((event, index) => (
+                  <div
+                    key={event.id ?? `${event.action}-${event.created_at ?? index}`}
+                    className="grid grid-cols-[1fr_auto] gap-3 px-3 py-2.5 text-xs"
+                  >
+                    <div className="min-w-0">
+                      <p className="truncate font-semibold text-[var(--text-primary)]">
+                        {formatAuditAction(event.action)}
+                      </p>
+                      <p className="mt-0.5 truncate text-[var(--text-muted)]">
+                        {auditResourceLabel(event)}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="whitespace-nowrap font-mono text-[10px] text-[var(--text-muted)]">
+                        {formatAuditTime(event.created_at)}
+                      </p>
+                      <p className="mt-0.5 max-w-32 truncate text-[10px] text-[var(--text-muted)]">
+                        {metadataSummary(event.metadata)}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="rounded-xl border border-dashed border-[var(--border)] px-4 py-6 text-center text-xs text-[var(--text-muted)]">
+                Audit events will appear after uploads, chats, settings changes, and API key updates.
+              </div>
+            )}
           </motion.div>
         )}
 
@@ -486,6 +551,39 @@ function ConfigItem({ label, value }: { label: string; value: string }) {
       <p className="font-medium text-sm">{value}</p>
     </div>
   );
+}
+
+function formatAuditAction(action: string) {
+  return action
+    .split(".")
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
+function formatAuditTime(value?: string | null) {
+  if (!value) return "-";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "-";
+  return new Intl.DateTimeFormat(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(date);
+}
+
+function auditResourceLabel(event: AuditEvent) {
+  if (!event.resource_type) return "workspace";
+  return event.resource_id
+    ? `${event.resource_type} - ${event.resource_id}`
+    : event.resource_type;
+}
+
+function metadataSummary(metadata: Record<string, unknown>) {
+  const keys = Object.keys(metadata);
+  if (keys.length === 0) return "no metadata";
+  return keys.slice(0, 3).join(", ");
 }
 
 function SkeletonGrid({ count }: { count: number }) {

@@ -9,6 +9,7 @@
 import type {
   AnalyticsSummary,
   AppSettings,
+  AuditEventListResponse,
   ChatHistoryResponse,
   DocumentListResponse,
   DocumentUploadResponse,
@@ -150,6 +151,10 @@ export async function updateSettings(
 
 export async function getAnalytics(): Promise<AnalyticsSummary> {
   return request("/api/v1/analytics/summary");
+}
+
+export async function getAuditEvents(limit = 20): Promise<AuditEventListResponse> {
+  return request(`/api/v1/audit?limit=${encodeURIComponent(String(limit))}`);
 }
 
 export async function getSystemStatus(): Promise<SystemStatusResponse> {
