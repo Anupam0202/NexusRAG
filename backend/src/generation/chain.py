@@ -315,7 +315,7 @@ class RAGChain:
         return sources
 
     @staticmethod
-    def _build_extractive_fallback_answer(docs: list[Document], error: str) -> str:
+    def _build_extractive_fallback_answer(docs: list[Document], _error: str) -> str:
         if not docs:
             return (
                 "The language model is temporarily unavailable and no relevant document "
@@ -325,7 +325,6 @@ class RAGChain:
         parts = [
             "The language model is temporarily unavailable, so I am returning the most "
             "relevant retrieved document excerpts instead.",
-            f"Reason: {error}",
             "",
         ]
         for index, doc in enumerate(docs[:5], 1):
