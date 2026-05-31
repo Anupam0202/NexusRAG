@@ -13,17 +13,39 @@ class MessageRepository(SupabaseRepository):
         *,
         workspace_id: str,
         user_id: str | None,
+        session_id: str | None = None,
         title: str | None = None,
     ) -> dict[str, Any]:
+        payload = {
+            "workspace_id": workspace_id,
+            "user_id": user_id,
+            "title": title,
+        }
+        if session_id:
+            payload["id"] = session_id
         rows = await self._supabase.table_insert(
             "chat_sessions",
-            {
-                "workspace_id": workspace_id,
-                "user_id": user_id,
-                "title": title,
-            },
+            payload,
         )
         return rows[0]
+
+    async def ensure_session(
+        self,
+        *,
+        workspace_id: str,
+        session_id: str,
+        user_id: str | None,
+        title: str | None = None,
+    ) -> dict[str, Any]:
+        existing = await self.get_session(workspace_id=workspace_id, session_id=session_id)
+        if existing:
+            return existing
+        return await self.create_session(
+            workspace_id=workspace_id,
+            user_id=user_id,
+            session_id=session_id,
+            title=title,
+        )
 
     async def get_session(self, *, workspace_id: str, session_id: str) -> dict[str, Any] | None:
         rows = await self._supabase.table_select(

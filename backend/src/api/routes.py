@@ -32,6 +32,8 @@ from src.api.auth import WorkspaceContext, WorkspaceRole, require_enterprise_wor
 from src.api.dependencies import get_rag_chain, get_vector_store, verify_api_key
 from src.api.models import (
     AnalyticsSummary,
+    ChatHistoryMessage,
+    ChatHistoryResponse,
     DocumentDeleteResponse,
     DocumentListResponse,
     DocumentMetadata,
@@ -53,6 +55,7 @@ from src.generation.provider_keys import (
 )
 from src.ingestion.job_manager import get_ingestion_job_store
 from src.ingestion.pipeline import IngestionPipeline
+from src.repositories.messages import MessageRepository
 from src.repositories.settings import WorkspaceSettingsRepository
 from src.retrieval.vector_store import VectorStoreManager
 from src.telemetry.events import estimate_tokens, get_telemetry_recorder
@@ -150,6 +153,88 @@ def _merge_workspace_settings(payload: dict, row: dict | None) -> dict:
         if row.get(source) is not None:
             merged[target] = row[source]
     return merged
+
+
+def _valid_chat_session_id(session_id: str | None) -> str | None:
+    if not session_id:
+        return str(uuid.uuid4())
+    try:
+        uuid.UUID(session_id)
+    except ValueError:
+        return None
+    return session_id
+
+
+def _chat_title(question: str) -> str:
+    title = " ".join(question.split())
+    return (title[:77] + "...") if len(title) > 80 else title
+
+
+async def _persist_chat_turn(
+    *,
+    workspace: WorkspaceContext | None,
+    settings: Settings,
+    session_id: str | None,
+    question: str,
+    answer: str,
+    sources: list[SourceChunk],
+    metadata: dict,
+) -> str | None:
+    if not _should_persist_workspace_event(workspace, settings):
+        return session_id
+
+    durable_session_id = _valid_chat_session_id(session_id)
+    if durable_session_id is None:
+        logger.warning(
+            "chat_history_invalid_session_id",
+            workspace_id=_context_workspace_id(workspace),
+            session_id=session_id,
+        )
+        return session_id
+
+    workspace_id = _context_workspace_id(workspace)
+    user_id = _context_user_id(workspace)
+    source_payload = [source.model_dump(mode="json") for source in sources]
+    try:
+        repo = MessageRepository()
+        await repo.ensure_session(
+            workspace_id=workspace_id,
+            session_id=durable_session_id,
+            user_id=user_id,
+            title=_chat_title(question),
+        )
+        await repo.add_message(
+            workspace_id=workspace_id,
+            session_id=durable_session_id,
+            role="user",
+            content=question,
+            metadata={"source": "chat_api"},
+        )
+        await repo.add_message(
+            workspace_id=workspace_id,
+            session_id=durable_session_id,
+            role="assistant",
+            content=answer,
+            sources=source_payload,
+            metadata={
+                "source": "chat_api",
+                "query_type": metadata.get("query_type"),
+                "confidence": metadata.get("confidence"),
+                "response_time_seconds": metadata.get("response_time_seconds"),
+                "model": metadata.get("model"),
+                "from_cache": metadata.get("from_cache"),
+                "generation_fallback": metadata.get("generation_fallback"),
+            },
+        )
+    except Exception as exc:
+        logger.warning(
+            "chat_history_persist_failed",
+            workspace_id=workspace_id,
+            session_id=durable_session_id,
+            error=str(exc)[:300],
+        )
+        return session_id
+    return durable_session_id
 
 
 def _preflight_upload_limits(filename: str, content: bytes, settings: Settings) -> None:
@@ -616,6 +701,9 @@ async def chat(
     cache_hit = bool(result.get("from_cache") or metadata.get("from_cache"))
     generation_fallback = bool(metadata.get("generation_fallback"))
     metadata["from_cache"] = cache_hit
+    metadata["query_type"] = result.get("query_type", "general")
+    metadata["confidence"] = result.get("confidence", 0.0)
+    metadata["response_time_seconds"] = result.get("response_time_seconds", 0.0)
     answer = result["answer"]
     latency_ms = int(float(result.get("response_time_seconds", 0.0) or 0.0) * 1000)
 
@@ -651,6 +739,16 @@ async def chat(
             "latency_ms": latency_ms,
         },
     )
+    persisted_session_id = await _persist_chat_turn(
+        workspace=workspace,
+        settings=settings,
+        session_id=body.session_id,
+        question=body.question,
+        answer=answer,
+        sources=sources,
+        metadata=metadata,
+    )
+    metadata["session_id"] = persisted_session_id or body.session_id
     return QueryResponse(
         answer=answer,
         sources=sources,
@@ -672,15 +770,86 @@ async def clear_session(
 ) -> dict:
     workspace_id = _context_workspace_id(workspace)
     chain.clear_session(session_id, workspace_id=workspace_id)
+    durable_messages_deleted = 0
+    if _should_persist_workspace_event(workspace, settings):
+        try:
+            durable_messages_deleted = await MessageRepository().clear_session(
+                workspace_id=workspace_id,
+                session_id=session_id,
+            )
+        except Exception as exc:
+            logger.warning(
+                "chat_history_clear_failed",
+                workspace_id=workspace_id,
+                session_id=session_id,
+                error=str(exc)[:300],
+            )
     await _record_audit_event(
         workspace=workspace,
         settings=settings,
         action="chat.session_cleared",
         resource_type="chat_session",
         resource_id=session_id,
-        metadata={},
+        metadata={"durable_messages_deleted": durable_messages_deleted},
     )
-    return {"success": True, "message": f"Session {session_id} cleared"}
+    return {
+        "success": True,
+        "message": f"Session {session_id} cleared",
+        "durable_messages_deleted": durable_messages_deleted,
+    }
+
+
+@router.get("/chat/sessions/{session_id}/messages", response_model=ChatHistoryResponse)
+async def list_session_messages(
+    session_id: str,
+    workspace: WorkspaceContext | None = Depends(
+        require_enterprise_workspace_role(*VIEWER_ROLES)
+    ),
+    settings: Settings = Depends(get_settings),
+    chain: RAGChain = Depends(get_rag_chain),
+) -> ChatHistoryResponse:
+    workspace_id = _context_workspace_id(workspace)
+    messages: list[ChatHistoryMessage] = []
+    if _should_persist_workspace_event(workspace, settings):
+        try:
+            rows = await MessageRepository().list_messages(
+                workspace_id=workspace_id,
+                session_id=session_id,
+            )
+            messages = [
+                ChatHistoryMessage(
+                    role=str(row.get("role") or "assistant"),
+                    content=str(row.get("content") or ""),
+                    sources=row.get("sources") or [],
+                    metadata=row.get("metadata") or {},
+                    created_at=str(row.get("created_at")) if row.get("created_at") else None,
+                )
+                for row in rows
+            ]
+        except Exception as exc:
+            logger.warning(
+                "chat_history_read_failed",
+                workspace_id=workspace_id,
+                session_id=session_id,
+                error=str(exc)[:300],
+            )
+
+    if not messages:
+        messages = [
+            ChatHistoryMessage(
+                role=str(message.get("role") or "assistant"),
+                content=str(message.get("content") or ""),
+                metadata=message.get("metadata") or {},
+                created_at=str(message.get("timestamp")) if message.get("timestamp") else None,
+            )
+            for message in chain.get_session_history(session_id, workspace_id=workspace_id)
+        ]
+
+    return ChatHistoryResponse(
+        session_id=session_id,
+        messages=messages,
+        total=len(messages),
+    )
 
 
 # ═══════════════════════════════════════════════════════════════════════════

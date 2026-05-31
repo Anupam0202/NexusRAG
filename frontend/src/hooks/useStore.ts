@@ -4,6 +4,16 @@ import { setStoredWorkspaceId } from "@/lib/api-context";
 import { generateId } from "@/lib/utils";
 
 type AuthMode = "loading" | "demo" | "signed_out" | "authenticated";
+const SESSION_STORAGE_KEY = "nexusrag_chat_session_id";
+
+function getInitialSessionId() {
+  if (typeof window === "undefined") return generateId();
+  const existing = window.localStorage.getItem(SESSION_STORAGE_KEY);
+  if (existing) return existing;
+  const next = generateId();
+  window.localStorage.setItem(SESSION_STORAGE_KEY, next);
+  return next;
+}
 
 interface AuthUser {
   id: string;
@@ -12,6 +22,7 @@ interface AuthUser {
 
 interface AppState {
   messages: UIMessage[];
+  setMessages: (messages: UIMessage[]) => void;
   addUserMessage: (content: string) => string;
   addAssistantMessage: (id: string) => void;
   appendToken: (id: string, token: string) => void;
@@ -56,6 +67,7 @@ interface AppState {
 
 export const useStore = create<AppState>((set) => ({
   messages: [],
+  setMessages: (messages) => set({ messages }),
   addUserMessage(content) {
     const id = generateId();
     set((s) => ({
@@ -97,7 +109,7 @@ export const useStore = create<AppState>((set) => ({
   })),
   removeDocument: (filename) => set((s) => ({ documents: s.documents.filter((d) => d.filename !== filename) })),
 
-  sessionId: generateId(),
+  sessionId: getInitialSessionId(),
   darkMode: false,
   setDarkMode: (dark) => {
     if (typeof document !== "undefined") {

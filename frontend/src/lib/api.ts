@@ -9,6 +9,7 @@
 import type {
   AnalyticsSummary,
   AppSettings,
+  ChatHistoryResponse,
   DocumentListResponse,
   DocumentUploadResponse,
   IngestionJobStatusResponse,
@@ -118,10 +119,16 @@ export async function chatQuery(body: QueryRequest): Promise<QueryResponse> {
 
 export async function clearSession(
   sessionId: string
-): Promise<{ success: boolean }> {
+): Promise<{ success: boolean; durable_messages_deleted?: number }> {
   return request(`/api/v1/chat/sessions/${sessionId}/clear`, {
     method: "POST",
   });
+}
+
+export async function getSessionMessages(
+  sessionId: string
+): Promise<ChatHistoryResponse> {
+  return request(`/api/v1/chat/sessions/${encodeURIComponent(sessionId)}/messages`);
 }
 
 // Settings

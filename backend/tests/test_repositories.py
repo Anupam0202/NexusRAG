@@ -12,6 +12,7 @@ from src.repositories import (
     ChunkRepository,
     DocumentRepository,
     IngestionJobRepository,
+    MessageRepository,
     UsageRepository,
     WorkspaceRepository,
     compute_sha256,
@@ -283,3 +284,47 @@ async def test_usage_repository_records_and_lists_workspace_events() -> None:
     assert events[0]["operation"] == "chat.query"
     select_call = fake.calls[1]
     assert "workspace_id=eq.workspace-1" in select_call[2]
+
+
+@pytest.mark.asyncio
+async def test_message_repository_ensures_explicit_session_id() -> None:
+    fake = FakeSupabase()
+    repo = MessageRepository(fake)  # type: ignore[arg-type]
+
+    session = await repo.ensure_session(
+        workspace_id="workspace-1",
+        session_id="11111111-1111-1111-1111-111111111111",
+        user_id="user-1",
+        title="First question",
+    )
+
+    assert session["id"] == "11111111-1111-1111-1111-111111111111"
+    assert fake.calls[0][0] == "select"
+    assert "id=eq.11111111-1111-1111-1111-111111111111" in fake.calls[0][2]
+    insert_call = fake.calls[1]
+    assert insert_call[0] == "insert"
+    assert insert_call[1] == "chat_sessions"
+    assert insert_call[2]["id"] == "11111111-1111-1111-1111-111111111111"
+
+
+@pytest.mark.asyncio
+async def test_message_repository_lists_and_clears_workspace_session_messages() -> None:
+    fake = FakeSupabase()
+    fake.rows["chat_messages"] = [{"role": "user", "content": "hello"}]
+    repo = MessageRepository(fake)  # type: ignore[arg-type]
+
+    messages = await repo.list_messages(
+        workspace_id="workspace-1",
+        session_id="11111111-1111-1111-1111-111111111111",
+    )
+    deleted = await repo.clear_session(
+        workspace_id="workspace-1",
+        session_id="11111111-1111-1111-1111-111111111111",
+    )
+
+    assert messages[0]["content"] == "hello"
+    assert deleted == 1
+    assert "workspace_id=eq.workspace-1" in fake.calls[0][2]
+    assert "session_id=eq.11111111-1111-1111-1111-111111111111" in fake.calls[0][2]
+    assert "workspace_id=eq.workspace-1" in fake.calls[1][2]
+    assert "session_id=eq.11111111-1111-1111-1111-111111111111" in fake.calls[1][2]
