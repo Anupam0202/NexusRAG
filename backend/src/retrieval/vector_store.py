@@ -218,13 +218,17 @@ class VectorStoreManager:
     def search(self, query: str, top_k: int = 10) -> list[SearchHit]:
         if not self._documents:
             return []
+        filename_scope = self._explicit_filename_scope(query)
         dense = self._dense_search(query, top_k * 2)
         sparse = self._sparse_search(query, top_k * 2) if _BM25_OK else []
         if self._use_lightweight and sparse:
-            return self._merge_sparse_first(sparse, dense, top_k)
+            hits = self._merge_sparse_first(sparse, dense, top_k)
+            return self._apply_filename_scope(hits, filename_scope, top_k)
         if not sparse:
-            return dense[:top_k]
-        return self._fuse(dense, sparse, top_k)
+            hits = dense[:top_k]
+            return self._apply_filename_scope(hits, filename_scope, top_k)
+        hits = self._fuse(dense, sparse, top_k)
+        return self._apply_filename_scope(hits, filename_scope, top_k)
 
     def _dense_search(self, query: str, top_k: int) -> list[SearchHit]:
         if self._index is None or self._index.ntotal == 0:
@@ -306,6 +310,65 @@ class VectorStoreManager:
             if len(merged) >= top_k:
                 break
         return merged
+
+    def _apply_filename_scope(
+        self,
+        hits: list[SearchHit],
+        filename_scope: set[str],
+        top_k: int,
+    ) -> list[SearchHit]:
+        if not filename_scope:
+            return hits
+
+        scoped: list[SearchHit] = []
+        seen: set[str] = set()
+        for hit in hits:
+            filename = str(hit.document.metadata.get("filename", ""))
+            if filename not in filename_scope:
+                continue
+            key = self._doc_hash(hit.document)
+            if key in seen:
+                continue
+            seen.add(key)
+            scoped.append(hit)
+
+        for doc in self._documents:
+            filename = str(doc.metadata.get("filename", ""))
+            if filename not in filename_scope:
+                continue
+            key = self._doc_hash(doc)
+            if key in seen:
+                continue
+            seen.add(key)
+            scoped.append(SearchHit(document=doc, score=0.001, method="filename"))
+            if len(scoped) >= top_k:
+                break
+
+        return scoped[:top_k]
+
+    def _explicit_filename_scope(self, query: str) -> set[str]:
+        normalized_query = self._normalize_filename_reference(query)
+        if not normalized_query:
+            return set()
+
+        padded_query = f" {normalized_query} "
+        matches: set[str] = set()
+        filenames = {str(doc.metadata.get("filename", "")) for doc in self._documents}
+        for filename in filenames:
+            normalized_filename = self._normalize_filename_reference(filename)
+            normalized_stem = self._normalize_filename_reference(Path(filename).stem)
+            if normalized_filename and f" {normalized_filename} " in padded_query:
+                matches.add(filename)
+            elif (
+                len(normalized_stem.split()) >= 2
+                and f" {normalized_stem} " in padded_query
+            ):
+                matches.add(filename)
+        return matches
+
+    @staticmethod
+    def _normalize_filename_reference(value: str) -> str:
+        return " ".join(re.sub(r"[^a-z0-9]+", " ", value.lower()).split())
 
     @staticmethod
     def _doc_hash(doc: Document) -> str:
