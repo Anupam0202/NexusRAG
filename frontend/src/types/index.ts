@@ -151,6 +151,10 @@ export interface SystemStatusSettings {
   max_pdf_embedded_images?: number;
   max_docx_embedded_images?: number;
   max_image_megapixels?: number;
+  supabase_configured?: boolean;
+  supabase_auth_configured?: boolean;
+  auth_required?: boolean;
+  anonymous_demo_enabled?: boolean;
 }
 
 export interface SystemCapabilities {

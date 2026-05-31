@@ -114,6 +114,58 @@ class TestLLMProvider:
 
 
 class TestRAGChain:
+    def test_document_inventory_query_includes_all_uploaded_filenames(self, monkeypatch):
+        class FakeRetriever:
+            def retrieve(self, *args, **kwargs):
+                return {
+                    "documents": [
+                        Document(
+                            page_content="Annapurna Yojana family-level form fields.",
+                            metadata={
+                                "filename": "Annapurna_Yojana_Family_Level_Data_Collection_Form.pdf"
+                            },
+                        )
+                    ],
+                    "query_type": QueryType.LIST_ALL,
+                    "k_used": 2,
+                    "transformed_queries": ["Which uploaded files are available?"],
+                }
+
+        class FakeLLM:
+            _model_name = "fake-model"
+
+            def invoke_messages(self, messages):
+                return messages[-1].content
+
+        vector_store = SimpleNamespace(
+            list_documents=lambda: [
+                {
+                    "filename": "Annapurna_Yojana_Family_Level_Data_Collection_Form.pdf",
+                    "file_type": "pdf",
+                    "chunk_count": 51,
+                    "page_count": 11,
+                    "file_size_bytes": 482442,
+                },
+                {
+                    "filename": "PlantPal_new_features.txt",
+                    "file_type": "text",
+                    "chunk_count": 1,
+                    "page_count": 0,
+                    "file_size_bytes": 80417,
+                },
+            ]
+        )
+        monkeypatch.setattr("src.generation.chain.get_llm_provider", lambda: FakeLLM())
+
+        chain = RAGChain(vector_store=vector_store, settings=Settings(_env_file=None))
+        chain._retriever = FakeRetriever()
+
+        result = chain.query("Which uploaded files are available?")
+
+        assert "PlantPal_new_features.txt" in result["answer"]
+        assert "Annapurna_Yojana_Family_Level_Data_Collection_Form.pdf" in result["answer"]
+        assert result["sources"][0]["filename"] == "NexusRAG Document Library"
+
     def test_query_returns_extractive_fallback_when_generation_fails(self, monkeypatch):
         class FakeRetriever:
             def retrieve(self, *args, **kwargs):

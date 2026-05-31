@@ -187,6 +187,10 @@ class TestSystemStatus:
         assert data["settings"]["max_pdf_ocr_pages"] >= 0
         assert "enable_docx_embedded_image_ocr" in data["settings"]
         assert data["settings"]["max_docx_embedded_images"] >= 0
+        assert "supabase_configured" in data["settings"]
+        assert "supabase_auth_configured" in data["settings"]
+        assert "auth_required" in data["settings"]
+        assert data["settings"]["auth_required"] is False
 
     def test_system_status_reports_effective_query_expansion(
         self, test_client: TestClient, monkeypatch

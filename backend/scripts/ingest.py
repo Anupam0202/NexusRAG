@@ -66,7 +66,7 @@ def main() -> None:
 
     result = pipeline.ingest(file_paths=files)
 
-    print(f"\n✅ Ingestion complete:")
+    print("\n✅ Ingestion complete:")
     print(f"   Documents loaded:  {result.documents_loaded}")
     print(f"   Chunks created:    {result.chunks_created}")
     print(f"   Processing time:   {result.processing_time_seconds:.2f}s")

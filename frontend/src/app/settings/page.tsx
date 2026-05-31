@@ -4,13 +4,16 @@ import { useEffect, useState } from "react";
 import { getSettings, getSystemStatus, updateSettings } from "@/lib/api";
 import type { AppSettings, SettingsUpdate, SystemStatusResponse } from "@/types";
 import { toast } from "sonner";
-import { Save, Settings2, Loader2 } from "lucide-react";
+import { Save, Settings2, Loader2, Building2 } from "lucide-react";
+import { useStore } from "@/hooks/useStore";
 
 export default function SettingsPage() {
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [systemStatus, setSystemStatus] = useState<SystemStatusResponse | null>(null);
   const [draft, setDraft] = useState<SettingsUpdate>({});
   const [saving, setSaving] = useState(false);
+  const workspaceId = useStore((state) => state.workspaceId);
+  const setWorkspaceId = useStore((state) => state.setWorkspaceId);
 
   useEffect(() => {
     Promise.all([getSettings(), getSystemStatus().catch(() => null)])
@@ -70,6 +73,24 @@ export default function SettingsPage() {
             Render constrained profile is active. Memory-heavy retrieval options stay locked off.
           </div>
         )}
+
+        <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4 md:p-6">
+          <div className="mb-3 flex items-center gap-2">
+            <Building2 size={17} className="text-brand-500" />
+            <h3 className="text-sm font-semibold">Workspace Context</h3>
+          </div>
+          <input
+            type="text"
+            value={workspaceId ?? ""}
+            onChange={(event) => setWorkspaceId(event.target.value || null)}
+            placeholder="Workspace UUID"
+            spellCheck={false}
+            className="w-full rounded-xl border border-[var(--border)] bg-[var(--bg-secondary)] px-3 py-2 text-sm outline-none focus:border-brand-500"
+          />
+          <p className="mt-2 text-xs leading-5 text-[var(--text-muted)]">
+            API requests include this workspace when enterprise auth is enabled.
+          </p>
+        </div>
 
         <div className="space-y-5 rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4 md:p-6">
           <Slider label="Temperature" desc="0 = factual, 1 = creative"

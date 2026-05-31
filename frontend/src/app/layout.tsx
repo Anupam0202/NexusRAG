@@ -7,6 +7,7 @@ import { ThemeProvider } from "@/components/layout/ThemeProvider";
 import { PageTransition } from "@/components/layout/PageTransition";
 import { Toaster } from "sonner";
 import { ApiKeyModal } from "@/components/chat/ApiKeyModal";
+import { AuthProvider } from "@/components/auth/AuthProvider";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -36,6 +37,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" suppressHydrationWarning className={inter.variable}>
       <body className="flex h-[100dvh] overflow-hidden font-sans">
         <ThemeProvider>
+          <AuthProvider />
           <Sidebar />
           <div className="flex flex-1 flex-col overflow-hidden min-w-0">
             <Header />
