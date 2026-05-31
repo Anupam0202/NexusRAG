@@ -44,6 +44,26 @@ class TestDocumentEndpoints:
         data = resp.json()
         assert data["success"] is True
         assert data["document"]["filename"] == "test_upload.txt"
+        assert data["job_id"]
+        assert data["job"]["status"] == "completed"
+
+    def test_upload_job_status_endpoint(self, test_client: TestClient):
+        resp = test_client.post(
+            "/api/v1/documents/upload",
+            files={"file": ("job_status.txt", b"Track me.", "text/plain")},
+        )
+        assert resp.status_code == 200
+        upload = resp.json()
+
+        job_resp = test_client.get(f"/api/v1/documents/jobs/{upload['job_id']}")
+        assert job_resp.status_code == 200
+        job = job_resp.json()
+        assert job["status"] == "completed"
+        assert job["document"]["filename"] == "job_status.txt"
+
+        doc_resp = test_client.get(f"/api/v1/documents/{upload['document']['document_id']}/status")
+        assert doc_resp.status_code == 200
+        assert doc_resp.json()["job_id"] == upload["job_id"]
 
     def test_upload_clears_chat_cache(self, test_client: TestClient):
         resp = test_client.post(
@@ -194,6 +214,7 @@ class TestSystemStatus:
         assert "qdrant_configured" in data["settings"]
         assert "enable_pgvector_fallback" in data["settings"]
         assert "enable_local_faiss" in data["settings"]
+        assert "enable_async_ingestion" in data["settings"]
 
     def test_system_status_reports_effective_query_expansion(
         self, test_client: TestClient, monkeypatch

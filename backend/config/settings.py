@@ -195,6 +195,10 @@ class Settings(BaseSettings):
     enable_cache: bool = Field(default=True)
     cache_ttl_seconds: int = Field(default=3600, ge=60)
     max_concurrent_ingestions: int = Field(default=4, ge=1, le=16)
+    enable_async_ingestion: bool = Field(
+        default=False,
+        description="Return upload requests immediately and process ingestion in background tasks",
+    )
 
     # ── Context / Memory ──────────────────────────────────────────────────
     context_window_messages: int = Field(

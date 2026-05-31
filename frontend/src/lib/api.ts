@@ -11,6 +11,7 @@ import type {
   AppSettings,
   DocumentListResponse,
   DocumentUploadResponse,
+  IngestionJobStatusResponse,
   QueryRequest,
   QueryResponse,
   SettingsUpdate,
@@ -92,6 +93,18 @@ export async function deleteDocument(
   return request(`/api/v1/documents/${encodeURIComponent(filename)}`, {
     method: "DELETE",
   });
+}
+
+export async function getIngestionJob(
+  jobId: string
+): Promise<IngestionJobStatusResponse> {
+  return request(`/api/v1/documents/jobs/${encodeURIComponent(jobId)}`);
+}
+
+export async function getDocumentIngestionStatus(
+  documentId: string
+): Promise<IngestionJobStatusResponse> {
+  return request(`/api/v1/documents/${encodeURIComponent(documentId)}/status`);
 }
 
 // Chat

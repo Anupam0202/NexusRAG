@@ -24,7 +24,7 @@ import io
 import uuid
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, UploadFile
 from pydantic import BaseModel, Field
 
 from config.settings import Settings, get_settings
@@ -37,6 +37,7 @@ from src.api.models import (
     DocumentMetadata,
     DocumentStatus,
     DocumentUploadResponse,
+    IngestionJobStatusResponse,
     QueryRequest,
     QueryResponse,
     SettingsResponse,
@@ -45,6 +46,7 @@ from src.api.models import (
     SystemStatusResponse,
 )
 from src.generation.chain import RAGChain
+from src.ingestion.job_manager import get_ingestion_job_store
 from src.ingestion.pipeline import IngestionPipeline
 from src.retrieval.vector_store import VectorStoreManager
 from src.utils.logger import get_logger
@@ -162,6 +164,72 @@ def _metadata_from_ingestion(result) -> tuple[int, str]:
     return page_count, extraction_method
 
 
+def _process_upload_job(
+    *,
+    job_id: str,
+    document_id: str,
+    safe_name: str,
+    content: bytes,
+    settings: Settings,
+    vs: VectorStoreManager,
+    chain: RAGChain,
+) -> DocumentMetadata:
+    job_store = get_ingestion_job_store()
+
+    def report(stage: str, pct: float) -> None:
+        job_store.mark_processing(job_id, stage=stage, progress=int(pct * 100))
+
+    try:
+        pipeline = IngestionPipeline(vector_store=vs, settings=settings, progress_callback=report)
+        result = pipeline.ingest(file_uploads=[{"filename": safe_name, "content": content}])
+    except Exception as exc:
+        logger.error("upload_pipeline_error", file=safe_name, error=str(exc))
+        job_store.mark_failed(job_id, stage="processing_error", error_message=str(exc)[:500])
+        raise
+
+    if not result.success:
+        errors = "; ".join(e.get("error", "") for e in result.errors)
+        if result.chunks_created > 0:
+            logger.warning("upload_partial_success", file=safe_name, errors=errors)
+        else:
+            job_store.mark_failed(job_id, stage="ingestion_failed", error_message=errors[:500])
+            raise ValueError(f"Ingestion failed: {errors}")
+
+    page_count, extraction_method = _metadata_from_ingestion(result)
+    doc_meta = DocumentMetadata(
+        document_id=document_id,
+        filename=safe_name,
+        file_type=Path(safe_name).suffix.lower().lstrip("."),
+        file_size_bytes=len(content),
+        page_count=page_count,
+        chunk_count=result.chunks_created,
+        status=DocumentStatus.READY,
+        processing_time_seconds=result.processing_time_seconds,
+        extraction_method=extraction_method,
+    )
+    chain.clear_cache()
+    job_store.mark_completed(
+        job_id,
+        document=doc_meta,
+        message=f"{safe_name} ingested: {result.chunks_created} chunks",
+    )
+    del result
+    gc.collect()
+    return doc_meta
+
+
+def _process_upload_job_background(**kwargs) -> None:
+    try:
+        _process_upload_job(**kwargs)
+    except Exception as exc:
+        logger.warning(
+            "upload_background_job_failed",
+            job_id=kwargs.get("job_id"),
+            file=kwargs.get("safe_name"),
+            error=str(exc),
+        )
+
+
 # ═══════════════════════════════════════════════════════════════════════════
 #  DOCUMENTS
 # ═══════════════════════════════════════════════════════════════════════════
@@ -169,6 +237,7 @@ def _metadata_from_ingestion(result) -> tuple[int, str]:
 
 @router.post("/documents/upload", response_model=DocumentUploadResponse)
 async def upload_document(
+    background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     _workspace: WorkspaceContext | None = Depends(
         require_enterprise_workspace_role(*EDITOR_ROLES)
@@ -192,15 +261,52 @@ async def upload_document(
         raise HTTPException(400, msg)
     _preflight_upload_limits(safe_name, content, settings)
 
+    document_id = str(uuid.uuid4())
+    job_store = get_ingestion_job_store()
+    job = job_store.create(document_id=document_id, filename=safe_name)
+
+    if settings.enable_async_ingestion:
+        pending_doc = DocumentMetadata(
+            document_id=document_id,
+            filename=safe_name,
+            file_type=Path(safe_name).suffix.lower().lstrip("."),
+            file_size_bytes=len(content),
+            status=DocumentStatus.PENDING,
+            extra={"job_id": job.job_id},
+        )
+        background_tasks.add_task(
+            _process_upload_job_background,
+            job_id=job.job_id,
+            document_id=document_id,
+            safe_name=safe_name,
+            content=content,
+            settings=settings,
+            vs=vs,
+            chain=chain,
+        )
+        return DocumentUploadResponse(
+            success=True,
+            message=f"{safe_name} queued for ingestion",
+            document=pending_doc,
+            job_id=job.job_id,
+            job=job.response(),
+        )
+
     try:
-        pipeline = IngestionPipeline(vector_store=vs, settings=settings)
         loop = asyncio.get_event_loop()
-        result = await loop.run_in_executor(
+        doc_meta = await loop.run_in_executor(
             None,
-            lambda: pipeline.ingest(file_uploads=[{"filename": safe_name, "content": content}]),
+            lambda: _process_upload_job(
+                job_id=job.job_id,
+                document_id=document_id,
+                safe_name=safe_name,
+                content=content,
+                settings=settings,
+                vs=vs,
+                chain=chain,
+            ),
         )
     except Exception as exc:
-        logger.error("upload_pipeline_error", file=safe_name, error=str(exc))
         err_msg = str(exc).lower()
         if any(kw in err_msg for kw in ("429", "quota", "resource_exhausted")):
             raise HTTPException(
@@ -208,32 +314,11 @@ async def upload_document(
                 "API quota exceeded. Please wait a few minutes or provide a new API "
                 "key in Settings.",
             )
+        if "ingestion failed:" in err_msg:
+            raise HTTPException(422, str(exc))
         raise HTTPException(500, f"Processing error: {str(exc)[:200]}")
 
-    if not result.success:
-        errors = "; ".join(e.get("error", "") for e in result.errors)
-        if result.chunks_created > 0:
-            # Partial success — some content was extracted even if not everything
-            logger.warning("upload_partial_success", file=safe_name, errors=errors)
-        else:
-            raise HTTPException(422, f"Ingestion failed: {errors}")
-
-    page_count, extraction_method = _metadata_from_ingestion(result)
-    chunks_created = result.chunks_created
-    processing_time_seconds = result.processing_time_seconds
-    doc_meta = DocumentMetadata(
-        document_id=str(uuid.uuid4()),
-        filename=safe_name,
-        file_type=Path(safe_name).suffix.lower().lstrip("."),
-        file_size_bytes=len(content),
-        page_count=page_count,
-        chunk_count=chunks_created,
-        status=DocumentStatus.READY,
-        processing_time_seconds=processing_time_seconds,
-        extraction_method=extraction_method,
-    )
-    chain.clear_cache()
-    del result
+    chunks_created = doc_meta.chunk_count
     content = b""
     gc.collect()
 
@@ -241,6 +326,8 @@ async def upload_document(
         success=True,
         message=f"{safe_name} ingested: {chunks_created} chunks",
         document=doc_meta,
+        job_id=job.job_id,
+        job=job.response(),
     )
 
 
@@ -266,6 +353,32 @@ async def list_documents(
         for d in docs_raw
     ]
     return DocumentListResponse(documents=docs, total=len(docs))
+
+
+@router.get("/documents/jobs/{job_id}", response_model=IngestionJobStatusResponse)
+async def get_ingestion_job_status(
+    job_id: str,
+    _workspace: WorkspaceContext | None = Depends(
+        require_enterprise_workspace_role(*VIEWER_ROLES)
+    ),
+) -> IngestionJobStatusResponse:
+    job = get_ingestion_job_store().get(job_id)
+    if not job:
+        raise HTTPException(404, f"Ingestion job '{job_id}' not found")
+    return job.response()
+
+
+@router.get("/documents/{document_id}/status", response_model=IngestionJobStatusResponse)
+async def get_document_ingestion_status(
+    document_id: str,
+    _workspace: WorkspaceContext | None = Depends(
+        require_enterprise_workspace_role(*VIEWER_ROLES)
+    ),
+) -> IngestionJobStatusResponse:
+    job = get_ingestion_job_store().get_by_document_id(document_id)
+    if not job:
+        raise HTTPException(404, f"Ingestion status for document '{document_id}' not found")
+    return job.response()
 
 
 @router.delete("/documents/{filename}", response_model=DocumentDeleteResponse)
@@ -600,6 +713,7 @@ async def system_status(
             "enable_qdrant": settings.enable_qdrant,
             "enable_pgvector_fallback": settings.enable_pgvector_fallback,
             "enable_local_faiss": settings.enable_local_faiss,
+            "enable_async_ingestion": settings.enable_async_ingestion,
         },
         capabilities={
             "streaming": True,

@@ -25,10 +25,35 @@ export interface DocumentListResponse {
   total: number;
 }
 
+export type IngestionJobStatus =
+  | "queued"
+  | "processing"
+  | "completed"
+  | "failed"
+  | "cancelled";
+
+export interface IngestionJobStatusResponse {
+  job_id: string;
+  document_id: string;
+  filename: string;
+  status: IngestionJobStatus;
+  stage: string;
+  progress: number;
+  message: string;
+  error_message?: string | null;
+  created_at: string;
+  updated_at: string;
+  started_at?: string | null;
+  completed_at?: string | null;
+  document?: DocumentMetadata | null;
+}
+
 export interface DocumentUploadResponse {
   success: boolean;
   message: string;
   document: DocumentMetadata | null;
+  job_id?: string | null;
+  job?: IngestionJobStatusResponse | null;
 }
 
 // ── Chat ─────────────────────────────────────────────────────
@@ -155,6 +180,11 @@ export interface SystemStatusSettings {
   supabase_auth_configured?: boolean;
   auth_required?: boolean;
   anonymous_demo_enabled?: boolean;
+  qdrant_configured?: boolean;
+  enable_qdrant?: boolean;
+  enable_pgvector_fallback?: boolean;
+  enable_local_faiss?: boolean;
+  enable_async_ingestion?: boolean;
 }
 
 export interface SystemCapabilities {

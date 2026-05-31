@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import {
+  getIngestionJob,
   listDocuments,
   uploadDocument,
   deleteDocument,
@@ -16,6 +17,10 @@ function getErrorMessage(err: unknown, fallback: string) {
 type RefreshOptions = {
   suppressError?: boolean;
 };
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 export function useDocuments() {
   const { documents, setDocuments, addDocument, removeDocument } = useStore();
@@ -54,6 +59,19 @@ export function useDocuments() {
         const resp = await uploadDocument(file);
         if (resp.success && resp.document) {
           addDocument(resp.document);
+          if (resp.job_id && resp.job?.status !== "completed") {
+            for (let attempt = 0; attempt < 30; attempt++) {
+              await sleep(1000);
+              const job = await getIngestionJob(resp.job_id);
+              if (job.document) {
+                addDocument(job.document);
+              }
+              if (job.status === "completed") break;
+              if (job.status === "failed") {
+                throw new Error(job.error_message || "Ingestion failed");
+              }
+            }
+          }
           await refresh({ suppressError: true });
           setError(null);
         }
