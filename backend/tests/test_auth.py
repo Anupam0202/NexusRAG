@@ -73,6 +73,7 @@ def test_auth_me_requires_bearer_token(test_client: TestClient) -> None:
         ("post", "/api/v1/apikey", {"json": {"api_key": "x" * 20}}),
         ("get", "/api/v1/apikey", {}),
         ("get", "/api/v1/analytics/summary", {}),
+        ("get", "/api/v1/audit", {}),
     ],
 )
 def test_enterprise_routes_require_bearer_token(

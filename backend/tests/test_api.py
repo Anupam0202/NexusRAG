@@ -277,6 +277,59 @@ class TestAnalytics:
         assert summary["llm_total_tokens"] > 0
         assert summary["queries_today"] >= 1
 
+    def test_audit_endpoint_lists_recent_sanitized_events(self, test_client: TestClient):
+        test_client.mock_chain.query.return_value = {  # type: ignore[attr-defined]
+            "answer": "Audit trail is visible.",
+            "sources": [],
+            "query_type": "general",
+            "confidence": 0.7,
+            "response_time_seconds": 0.1,
+            "metadata": {"model": "gemini-2.5-flash"},
+        }
+
+        chat_resp = test_client.post(
+            "/api/v1/chat",
+            json={"question": "Show audit events", "session_id": "session-1"},
+        )
+        assert chat_resp.status_code == 200
+
+        resp = test_client.get("/api/v1/audit?limit=10")
+        data = resp.json()
+
+        assert resp.status_code == 200
+        assert data["storage"] == "memory"
+        assert data["total"] >= 1
+        assert data["events"][0]["action"] == "chat.query"
+        assert data["events"][0]["workspace_id"]
+        assert "question_chars" in data["events"][0]["metadata"]
+
+    def test_audit_endpoint_redacts_sensitive_metadata(self, test_client: TestClient):
+        import asyncio
+
+        from src.telemetry.events import get_telemetry_recorder
+
+        recorder = get_telemetry_recorder()
+        asyncio.run(
+            recorder.record_audit_event(
+                workspace_id=None,
+                action="api_key.added",
+                resource_type="api_key",
+                metadata={
+                    "api_key": "AIzaSyNeverReturnThisValue",
+                    "nested": {"authorization": "Bearer secret"},
+                },
+            )
+        )
+
+        resp = test_client.get("/api/v1/audit?limit=1")
+        data = resp.json()
+
+        assert resp.status_code == 200
+        metadata = data["events"][0]["metadata"]
+        assert metadata["api_key"] == "[redacted]"
+        assert metadata["nested"]["authorization"] == "[redacted]"
+        assert "AIzaSyNeverReturnThisValue" not in str(data)
+
 
 class TestChatHistory:
     def test_list_session_messages_uses_in_memory_history_in_demo_mode(

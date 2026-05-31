@@ -183,6 +183,23 @@ export interface AnalyticsSummary {
   last_activity_at?: string | null;
 }
 
+export interface AuditEvent {
+  id?: string | null;
+  workspace_id: string;
+  user_id?: string | null;
+  action: string;
+  resource_type?: string | null;
+  resource_id?: string | null;
+  metadata: Record<string, unknown>;
+  created_at?: string | null;
+}
+
+export interface AuditEventListResponse {
+  events: AuditEvent[];
+  total: number;
+  storage: "memory" | "supabase";
+}
+
 export interface SystemStatusSettings {
   retrieval_top_k?: number;
   enable_reranking?: boolean;
