@@ -24,6 +24,8 @@ from src.infrastructure.supabase_client import (
 
 JWT_ALGORITHMS = ("RS256", "ES256", "HS256")
 AUTHENTICATED_AUDIENCE = "authenticated"
+WORKSPACE_HEADER = "X-Nexus-Workspace-Id"
+LEGACY_WORKSPACE_HEADER = "X-Workspace-ID"
 
 
 class WorkspaceRole(StrEnum):
@@ -73,6 +75,33 @@ def _extract_bearer_token(authorization: str | None) -> str | None:
     if scheme.lower() != "bearer" or not token.strip():
         return None
     return token.strip()
+
+
+def _missing_bearer_error() -> HTTPException:
+    return HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Missing bearer token.",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+
+
+def select_workspace_id(
+    x_nexus_workspace_id: str | None = None,
+    x_workspace_id: str | None = None,
+) -> str | None:
+    """Prefer the enterprise workspace header, with legacy fallback."""
+    workspace_id = (x_nexus_workspace_id or x_workspace_id or "").strip()
+    return workspace_id or None
+
+
+def validate_workspace_id(workspace_id: str, *, header_name: str = WORKSPACE_HEADER) -> None:
+    try:
+        UUID(workspace_id)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"{header_name} must be a valid UUID.",
+        ) from exc
 
 
 def _decode_supabase_jwt(token: str, settings: Settings) -> dict[str, Any]:
@@ -126,26 +155,7 @@ def _decode_supabase_jwt(token: str, settings: Settings) -> dict[str, Any]:
     )
 
 
-async def get_current_user(
-    authorization: str | None = Header(None),
-    settings: Settings = Depends(get_settings),
-) -> CurrentUser:
-    token = _extract_bearer_token(authorization)
-    if not token:
-        if settings.enable_anonymous_demo:
-            return CurrentUser(
-                id="00000000-0000-0000-0000-000000000000",
-                email=None,
-                role="demo",
-                claims={},
-                is_demo=True,
-            )
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Missing bearer token.",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-
+def authenticate_supabase_token(token: str, settings: Settings) -> CurrentUser:
     claims = _decode_supabase_jwt(token, settings)
     subject = claims.get("sub")
     if not isinstance(subject, str):
@@ -170,10 +180,29 @@ async def get_current_user(
     )
 
 
-async def get_workspace_context(
-    x_workspace_id: str | None = Header(None),
-    user: CurrentUser = Depends(get_current_user),
-    supabase: SupabaseClient = Depends(get_supabase_client),
+async def get_current_user(
+    authorization: str | None = Header(None),
+    settings: Settings = Depends(get_settings),
+) -> CurrentUser:
+    token = _extract_bearer_token(authorization)
+    if not token:
+        if settings.enable_anonymous_demo:
+            return CurrentUser(
+                id="00000000-0000-0000-0000-000000000000",
+                email=None,
+                role="demo",
+                claims={},
+                is_demo=True,
+            )
+        raise _missing_bearer_error()
+
+    return authenticate_supabase_token(token, settings)
+
+
+async def resolve_workspace_context(
+    user: CurrentUser,
+    workspace_id: str | None,
+    supabase: SupabaseClient,
 ) -> WorkspaceContext:
     if user.is_demo:
         return WorkspaceContext(
@@ -182,16 +211,10 @@ async def get_workspace_context(
             role=WorkspaceRole.OWNER,
         )
 
-    if x_workspace_id:
-        try:
-            UUID(x_workspace_id)
-        except ValueError as exc:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="X-Workspace-ID must be a valid UUID.",
-            ) from exc
+    if workspace_id:
+        validate_workspace_id(workspace_id)
         query = (
-            f"select=workspace_id,role&workspace_id=eq.{x_workspace_id}"
+            f"select=workspace_id,role&workspace_id=eq.{workspace_id}"
             f"&user_id=eq.{user.id}&limit=1"
         )
     else:
@@ -223,12 +246,53 @@ async def get_workspace_context(
     return WorkspaceContext(workspace_id=str(row["workspace_id"]), user=user, role=role)
 
 
+async def get_workspace_context(
+    x_nexus_workspace_id: str | None = Header(None, alias=WORKSPACE_HEADER),
+    x_workspace_id: str | None = Header(None, alias=LEGACY_WORKSPACE_HEADER),
+    user: CurrentUser = Depends(get_current_user),
+    supabase: SupabaseClient = Depends(get_supabase_client),
+) -> WorkspaceContext:
+    workspace_id = select_workspace_id(x_nexus_workspace_id, x_workspace_id)
+    return await resolve_workspace_context(user, workspace_id, supabase)
+
+
 def require_workspace_role(*allowed_roles: WorkspaceRole):
     allowed = set(allowed_roles)
 
     async def dependency(
         context: WorkspaceContext = Depends(get_workspace_context),
     ) -> WorkspaceContext:
+        if context.role not in allowed:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Insufficient workspace permissions.",
+            )
+        return context
+
+    return dependency
+
+
+def require_enterprise_workspace_role(*allowed_roles: WorkspaceRole):
+    """Enforce workspace RBAC only when enterprise auth is fully enabled."""
+    allowed = set(allowed_roles)
+
+    async def dependency(
+        authorization: str | None = Header(None),
+        x_nexus_workspace_id: str | None = Header(None, alias=WORKSPACE_HEADER),
+        x_workspace_id: str | None = Header(None, alias=LEGACY_WORKSPACE_HEADER),
+        settings: Settings = Depends(get_settings),
+        supabase: SupabaseClient = Depends(get_supabase_client),
+    ) -> WorkspaceContext | None:
+        if not settings.auth_required:
+            return None
+
+        token = _extract_bearer_token(authorization)
+        if not token:
+            raise _missing_bearer_error()
+
+        user = authenticate_supabase_token(token, settings)
+        workspace_id = select_workspace_id(x_nexus_workspace_id, x_workspace_id)
+        context = await resolve_workspace_context(user, workspace_id, supabase)
         if context.role not in allowed:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,

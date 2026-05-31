@@ -1,5 +1,7 @@
 import type { QueryRequest, WSFrame } from "@/types";
+import { getStoredWorkspaceId } from "@/lib/api-context";
 import { getBackendWsBaseUrl } from "@/lib/backend-url";
+import { createSupabaseBrowserClient, hasPublicSupabaseConfig } from "@/lib/supabase/client";
 
 /**
  * WebSocket connections go directly to the backend because Vercel rewrites
@@ -35,7 +37,31 @@ export function createChatSocket(
     };
   }
 
-  function connect() {
+  async function buildAuthFrame() {
+    const workspaceId = getStoredWorkspaceId();
+    const frame: Record<string, string> = { type: "auth" };
+
+    if (hasPublicSupabaseConfig()) {
+      try {
+        const supabase = createSupabaseBrowserClient();
+        const { data } = await supabase.auth.getSession();
+        const token = data.session?.access_token;
+        if (token) {
+          frame.access_token = token;
+        }
+      } catch {
+        // Demo mode and transient auth-loading states should still reconnect.
+      }
+    }
+
+    if (workspaceId) {
+      frame.workspace_id = workspaceId;
+    }
+
+    return frame.access_token || frame.workspace_id ? frame : null;
+  }
+
+  async function connect() {
     if (closed) return;
     try {
       ws = new WebSocket(`${WS_BASE}/ws/chat`);
@@ -44,8 +70,14 @@ export function createChatSocket(
       return;
     }
     ws.onopen = () => {
-      retries = 0;
-      onStatus?.("online");
+      void (async () => {
+        const authFrame = await buildAuthFrame();
+        if (authFrame && ws?.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify(authFrame));
+        }
+        retries = 0;
+        onStatus?.("online");
+      })();
     };
     ws.onmessage = (evt) => {
       try { onFrame(JSON.parse(evt.data)); } catch { /* skip */ }

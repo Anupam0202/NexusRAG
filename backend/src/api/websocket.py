@@ -20,11 +20,19 @@ Protocol::
 from __future__ import annotations
 
 import json
+from asyncio import wait_for
 
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect, status
 from starlette.websockets import WebSocketState
 
+from config.settings import get_settings
+from src.api.auth import (
+    WorkspaceContext,
+    authenticate_supabase_token,
+    resolve_workspace_context,
+)
 from src.api.dependencies import get_rag_chain
+from src.infrastructure.supabase_client import get_supabase_client
 from src.utils.logger import get_logger
 
 logger = get_logger("websocket")
@@ -43,9 +51,73 @@ async def _safe_send(ws: WebSocket, data: dict) -> bool:
     return False
 
 
+async def _authenticate_workspace_socket(
+    workspace_id: str | None,
+    access_token: str | None,
+) -> WorkspaceContext | None:
+    settings = get_settings()
+    if not settings.auth_required:
+        return None
+
+    token = (access_token or "").strip()
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Missing Supabase access token.",
+        )
+
+    user = authenticate_supabase_token(token, settings)
+    return await resolve_workspace_context(user, workspace_id, get_supabase_client())
+
+
+async def _receive_workspace_auth(ws: WebSocket) -> WorkspaceContext | None:
+    settings = get_settings()
+    if not settings.auth_required:
+        return None
+
+    try:
+        raw = await wait_for(ws.receive_text(), timeout=10)
+        data = json.loads(raw)
+    except TimeoutError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication frame timed out.",
+        ) from exc
+    except json.JSONDecodeError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Authentication frame must be valid JSON.",
+        ) from exc
+
+    if data.get("type") != "auth":
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication is required before chat messages.",
+        )
+
+    return await _authenticate_workspace_socket(
+        str(data.get("workspace_id") or "").strip() or None,
+        str(data.get("access_token") or "").strip() or None,
+    )
+
+
 @router.websocket("/ws/chat")
 async def chat_stream(ws: WebSocket) -> None:
     await ws.accept()
+    try:
+        workspace = await _receive_workspace_auth(ws)
+    except HTTPException as exc:
+        await _safe_send(
+            ws,
+            {
+                "type": "error",
+                "content": exc.detail,
+                "error_code": "AUTH_REQUIRED",
+            },
+        )
+        await ws.close(code=1008)
+        return
+
     try:
         chain = get_rag_chain()
     except Exception:
@@ -62,7 +134,10 @@ async def chat_stream(ws: WebSocket) -> None:
         )
         await ws.close(code=1011)
         return
-    logger.info("websocket_connected")
+    logger.info(
+        "websocket_connected",
+        workspace_id=workspace.workspace_id if workspace else None,
+    )
 
     try:
         while True:
@@ -71,6 +146,9 @@ async def chat_stream(ws: WebSocket) -> None:
                 data = json.loads(raw)
             except json.JSONDecodeError:
                 await _safe_send(ws, {"type": "error", "content": "Invalid JSON"})
+                continue
+
+            if data.get("type") == "auth":
                 continue
 
             question = data.get("question", "").strip()

@@ -28,6 +28,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from pydantic import BaseModel, Field
 
 from config.settings import Settings, get_settings
+from src.api.auth import WorkspaceContext, WorkspaceRole, require_enterprise_workspace_role
 from src.api.dependencies import get_rag_chain, get_vector_store, verify_api_key
 from src.api.models import (
     AnalyticsSummary,
@@ -52,6 +53,15 @@ from src.utils.security import FileValidator
 logger = get_logger(__name__)
 
 router = APIRouter(tags=["rag"], dependencies=[Depends(verify_api_key)])
+
+VIEWER_ROLES = (
+    WorkspaceRole.OWNER,
+    WorkspaceRole.ADMIN,
+    WorkspaceRole.EDITOR,
+    WorkspaceRole.VIEWER,
+)
+EDITOR_ROLES = (WorkspaceRole.OWNER, WorkspaceRole.ADMIN, WorkspaceRole.EDITOR)
+ADMIN_ROLES = (WorkspaceRole.OWNER, WorkspaceRole.ADMIN)
 
 
 def _preflight_upload_limits(filename: str, content: bytes, settings: Settings) -> None:
@@ -160,6 +170,9 @@ def _metadata_from_ingestion(result) -> tuple[int, str]:
 @router.post("/documents/upload", response_model=DocumentUploadResponse)
 async def upload_document(
     file: UploadFile = File(...),
+    _workspace: WorkspaceContext | None = Depends(
+        require_enterprise_workspace_role(*EDITOR_ROLES)
+    ),
     settings: Settings = Depends(get_settings),
     vs: VectorStoreManager = Depends(get_vector_store),
     chain: RAGChain = Depends(get_rag_chain),
@@ -233,6 +246,9 @@ async def upload_document(
 
 @router.get("/documents", response_model=DocumentListResponse)
 async def list_documents(
+    _workspace: WorkspaceContext | None = Depends(
+        require_enterprise_workspace_role(*VIEWER_ROLES)
+    ),
     vs: VectorStoreManager = Depends(get_vector_store),
 ) -> DocumentListResponse:
     docs_raw = vs.list_documents()
@@ -255,6 +271,9 @@ async def list_documents(
 @router.delete("/documents/{filename}", response_model=DocumentDeleteResponse)
 async def delete_document(
     filename: str,
+    _workspace: WorkspaceContext | None = Depends(
+        require_enterprise_workspace_role(*EDITOR_ROLES)
+    ),
     vs: VectorStoreManager = Depends(get_vector_store),
     chain: RAGChain = Depends(get_rag_chain),
 ) -> DocumentDeleteResponse:
@@ -275,6 +294,9 @@ async def delete_document(
 @router.post("/chat", response_model=QueryResponse)
 async def chat(
     body: QueryRequest,
+    _workspace: WorkspaceContext | None = Depends(
+        require_enterprise_workspace_role(*VIEWER_ROLES)
+    ),
     chain: RAGChain = Depends(get_rag_chain),
 ) -> QueryResponse:
     """Blocking RAG query — returns full response."""
@@ -301,6 +323,9 @@ async def chat(
 @router.post("/chat/sessions/{session_id}/clear")
 async def clear_session(
     session_id: str,
+    _workspace: WorkspaceContext | None = Depends(
+        require_enterprise_workspace_role(*VIEWER_ROLES)
+    ),
     chain: RAGChain = Depends(get_rag_chain),
 ) -> dict:
     chain.clear_session(session_id)
@@ -314,6 +339,9 @@ async def clear_session(
 
 @router.get("/settings", response_model=SettingsResponse)
 async def get_current_settings(
+    _workspace: WorkspaceContext | None = Depends(
+        require_enterprise_workspace_role(*VIEWER_ROLES)
+    ),
     settings: Settings = Depends(get_settings),
 ) -> SettingsResponse:
     return SettingsResponse(
@@ -334,6 +362,9 @@ async def get_current_settings(
 @router.patch("/settings", response_model=SettingsResponse)
 async def update_settings(
     body: SettingsUpdateRequest,
+    _workspace: WorkspaceContext | None = Depends(
+        require_enterprise_workspace_role(*ADMIN_ROLES)
+    ),
     settings: Settings = Depends(get_settings),
     chain: RAGChain = Depends(get_rag_chain),
 ) -> SettingsResponse:
@@ -374,7 +405,7 @@ async def update_settings(
     if body.enable_contextual_enrichment is not None:
         settings.enable_contextual_enrichment = body.enable_contextual_enrichment
 
-    return await get_current_settings(settings)
+    return await get_current_settings(settings=settings)
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -389,6 +420,9 @@ class ApiKeyRequest(BaseModel):
 @router.post("/apikey")
 async def set_api_key(
     body: ApiKeyRequest,
+    _workspace: WorkspaceContext | None = Depends(
+        require_enterprise_workspace_role(*ADMIN_ROLES)
+    ),
     settings: Settings = Depends(get_settings),
 ) -> dict:
     """Let the user provide their own Google API key.
@@ -456,6 +490,9 @@ async def set_api_key(
 
 @router.get("/analytics/summary", response_model=AnalyticsSummary)
 async def analytics_summary(
+    _workspace: WorkspaceContext | None = Depends(
+        require_enterprise_workspace_role(*VIEWER_ROLES)
+    ),
     vs: VectorStoreManager = Depends(get_vector_store),
 ) -> AnalyticsSummary:
     docs = vs.list_documents()
