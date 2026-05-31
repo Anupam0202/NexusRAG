@@ -187,6 +187,17 @@ class AnalyticsSummary(BaseModel):
     cache_entries: int = 0
     llm_model_name: str = ""
     embedding_model: str = ""
+    llm_usage_events: int = 0
+    llm_input_tokens: int = 0
+    llm_output_tokens: int = 0
+    llm_total_tokens: int = 0
+    llm_successful_events: int = 0
+    llm_error_events: int = 0
+    llm_fallbacks: int = 0
+    llm_cache_hits: int = 0
+    usage_avg_latency_ms: int = 0
+    audit_events: int = 0
+    last_activity_at: str | None = None
 
 
 class SystemStatusResponse(BaseModel):

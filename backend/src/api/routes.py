@@ -53,7 +53,9 @@ from src.generation.provider_keys import (
 )
 from src.ingestion.job_manager import get_ingestion_job_store
 from src.ingestion.pipeline import IngestionPipeline
+from src.repositories.settings import WorkspaceSettingsRepository
 from src.retrieval.vector_store import VectorStoreManager
+from src.telemetry.events import estimate_tokens, get_telemetry_recorder
 from src.utils.logger import get_logger
 from src.utils.security import FileValidator
 from src.utils.tenant import normalize_workspace_id
@@ -74,6 +76,80 @@ ADMIN_ROLES = (WorkspaceRole.OWNER, WorkspaceRole.ADMIN)
 
 def _context_workspace_id(context: WorkspaceContext | None) -> str:
     return normalize_workspace_id(context.workspace_id if context else None)
+
+
+def _context_user_id(context: WorkspaceContext | None) -> str | None:
+    return context.user.id if context else None
+
+
+def _should_persist_workspace_event(
+    context: WorkspaceContext | None,
+    settings: Settings,
+) -> bool:
+    return bool(
+        context
+        and not context.user.is_demo
+        and settings.supabase_configured
+    )
+
+
+async def _record_audit_event(
+    *,
+    workspace: WorkspaceContext | None,
+    settings: Settings,
+    action: str,
+    resource_type: str | None = None,
+    resource_id: str | None = None,
+    metadata: dict | None = None,
+) -> None:
+    await get_telemetry_recorder().record_audit_event(
+        workspace_id=_context_workspace_id(workspace),
+        user_id=_context_user_id(workspace),
+        action=action,
+        resource_type=resource_type,
+        resource_id=resource_id,
+        metadata=metadata,
+        persist=_should_persist_workspace_event(workspace, settings),
+    )
+
+
+def _settings_payload(settings: Settings) -> dict:
+    return {
+        "llm_model_name": settings.llm_model_name,
+        "llm_temperature": settings.llm_temperature,
+        "retrieval_top_k": settings.retrieval_top_k,
+        "enable_reranking": settings.enable_reranking,
+        "hybrid_search_alpha": settings.hybrid_search_alpha,
+        "context_window_messages": settings.context_window_messages,
+        "chunk_size": settings.chunk_size,
+        "chunk_overlap": settings.chunk_overlap,
+        "enable_semantic_chunking": settings.enable_semantic_chunking,
+        "enable_contextual_enrichment": settings.enable_contextual_enrichment,
+        "embedding_model": settings.embedding_model,
+    }
+
+
+def _merge_workspace_settings(payload: dict, row: dict | None) -> dict:
+    if not row:
+        return payload
+    mapping = {
+        "default_model": "llm_model_name",
+        "llm_temperature": "llm_temperature",
+        "retrieval_top_k": "retrieval_top_k",
+        "enable_reranking": "enable_reranking",
+        "hybrid_search_alpha": "hybrid_search_alpha",
+        "context_window_messages": "context_window_messages",
+        "chunk_size": "chunk_size",
+        "chunk_overlap": "chunk_overlap",
+        "enable_semantic_chunking": "enable_semantic_chunking",
+        "enable_contextual_enrichment": "enable_contextual_enrichment",
+        "embedding_model": "embedding_model",
+    }
+    merged = dict(payload)
+    for source, target in mapping.items():
+        if row.get(source) is not None:
+            merged[target] = row[source]
+    return merged
 
 
 def _preflight_upload_limits(filename: str, content: bytes, settings: Settings) -> None:
@@ -306,6 +382,18 @@ async def upload_document(
             vs=vs,
             chain=chain,
         )
+        await _record_audit_event(
+            workspace=workspace,
+            settings=settings,
+            action="document.upload_queued",
+            resource_type="document",
+            resource_id=document_id,
+            metadata={
+                "filename": safe_name,
+                "file_size_bytes": len(content),
+                "job_id": job.job_id,
+            },
+        )
         return DocumentUploadResponse(
             success=True,
             message=f"{safe_name} queued for ingestion",
@@ -330,6 +418,19 @@ async def upload_document(
             ),
         )
     except Exception as exc:
+        await _record_audit_event(
+            workspace=workspace,
+            settings=settings,
+            action="document.upload_failed",
+            resource_type="document",
+            resource_id=document_id,
+            metadata={
+                "filename": safe_name,
+                "file_size_bytes": len(content),
+                "job_id": job.job_id,
+                "error": str(exc)[:200],
+            },
+        )
         err_msg = str(exc).lower()
         if any(kw in err_msg for kw in ("429", "quota", "resource_exhausted")):
             raise HTTPException(
@@ -342,6 +443,21 @@ async def upload_document(
         raise HTTPException(500, f"Processing error: {str(exc)[:200]}")
 
     chunks_created = doc_meta.chunk_count
+    await _record_audit_event(
+        workspace=workspace,
+        settings=settings,
+        action="document.uploaded",
+        resource_type="document",
+        resource_id=document_id,
+        metadata={
+            "filename": safe_name,
+            "file_size_bytes": doc_meta.file_size_bytes,
+            "chunk_count": doc_meta.chunk_count,
+            "page_count": doc_meta.page_count,
+            "job_id": job.job_id,
+            "extraction_method": doc_meta.extraction_method,
+        },
+    )
     content = b""
     gc.collect()
 
@@ -414,6 +530,7 @@ async def delete_document(
     workspace: WorkspaceContext | None = Depends(
         require_enterprise_workspace_role(*EDITOR_ROLES)
     ),
+    settings: Settings = Depends(get_settings),
     vs: VectorStoreManager = Depends(get_vector_store),
     chain: RAGChain = Depends(get_rag_chain),
 ) -> DocumentDeleteResponse:
@@ -422,6 +539,14 @@ async def delete_document(
     if removed == 0:
         raise HTTPException(404, f"Document '{filename}' not found")
     chain.clear_cache(workspace_id=workspace_id)
+    await _record_audit_event(
+        workspace=workspace,
+        settings=settings,
+        action="document.deleted",
+        resource_type="document",
+        resource_id=filename,
+        metadata={"filename": filename, "chunks_removed": removed},
+    )
     return DocumentDeleteResponse(
         success=True, message=f"Removed {removed} chunks", document_id=filename
     )
@@ -438,28 +563,101 @@ async def chat(
     workspace: WorkspaceContext | None = Depends(
         require_enterprise_workspace_role(*VIEWER_ROLES)
     ),
+    settings: Settings = Depends(get_settings),
     chain: RAGChain = Depends(get_rag_chain),
 ) -> QueryResponse:
     """Blocking RAG query — returns full response."""
     history = [{"role": m.role, "content": m.content} for m in body.conversation_history]
     workspace_id = _context_workspace_id(workspace)
-    result = chain.query(
-        body.question,
-        workspace_id=workspace_id,
-        session_id=body.session_id,
-        conversation_history=history if history else None,
-        top_k=body.top_k,
-        use_reranking=body.use_reranking,
-    )
+    history_token_parts = [m.content for m in body.conversation_history]
+    telemetry = get_telemetry_recorder()
+    persist_event = _should_persist_workspace_event(workspace, settings)
+
+    try:
+        result = chain.query(
+            body.question,
+            workspace_id=workspace_id,
+            session_id=body.session_id,
+            conversation_history=history if history else None,
+            top_k=body.top_k,
+            use_reranking=body.use_reranking,
+        )
+    except Exception as exc:
+        await telemetry.record_llm_usage(
+            workspace_id=workspace_id,
+            user_id=_context_user_id(workspace),
+            model=settings.llm_model_name,
+            operation="chat.query",
+            input_tokens=estimate_tokens(body.question, *history_token_parts),
+            output_tokens=0,
+            latency_ms=0,
+            success=False,
+            error_code=type(exc).__name__,
+            persist=persist_event,
+        )
+        await _record_audit_event(
+            workspace=workspace,
+            settings=settings,
+            action="chat.query_failed",
+            resource_type="chat_session",
+            resource_id=body.session_id,
+            metadata={
+                "question_chars": len(body.question),
+                "history_messages": len(body.conversation_history),
+                "top_k": body.top_k,
+                "use_reranking": body.use_reranking,
+                "error": str(exc)[:200],
+            },
+        )
+        raise
 
     sources = [SourceChunk(**s) for s in result.get("sources", [])]
+    metadata = dict(result.get("metadata", {}) or {})
+    cache_hit = bool(result.get("from_cache") or metadata.get("from_cache"))
+    generation_fallback = bool(metadata.get("generation_fallback"))
+    metadata["from_cache"] = cache_hit
+    answer = result["answer"]
+    latency_ms = int(float(result.get("response_time_seconds", 0.0) or 0.0) * 1000)
+
+    await telemetry.record_llm_usage(
+        workspace_id=workspace_id,
+        user_id=_context_user_id(workspace),
+        model=str(metadata.get("model") or settings.llm_model_name),
+        operation="chat.query",
+        input_tokens=0 if cache_hit else estimate_tokens(body.question, *history_token_parts),
+        output_tokens=0 if cache_hit else estimate_tokens(answer),
+        latency_ms=latency_ms,
+        success=True,
+        error_code=(
+            "cache_hit" if cache_hit else "generation_fallback" if generation_fallback else None
+        ),
+        persist=persist_event,
+    )
+    await _record_audit_event(
+        workspace=workspace,
+        settings=settings,
+        action="chat.query",
+        resource_type="chat_session",
+        resource_id=body.session_id,
+        metadata={
+            "question_chars": len(body.question),
+            "history_messages": len(body.conversation_history),
+            "top_k": body.top_k,
+            "use_reranking": body.use_reranking,
+            "query_type": result.get("query_type", "general"),
+            "source_count": len(sources),
+            "cache_hit": cache_hit,
+            "generation_fallback": generation_fallback,
+            "latency_ms": latency_ms,
+        },
+    )
     return QueryResponse(
-        answer=result["answer"],
+        answer=answer,
         sources=sources,
         query_type=result.get("query_type", "general"),
         confidence=result.get("confidence", 0.0),
         response_time_seconds=result.get("response_time_seconds", 0.0),
-        metadata=result.get("metadata", {}),
+        metadata=metadata,
     )
 
 
@@ -469,9 +667,19 @@ async def clear_session(
     workspace: WorkspaceContext | None = Depends(
         require_enterprise_workspace_role(*VIEWER_ROLES)
     ),
+    settings: Settings = Depends(get_settings),
     chain: RAGChain = Depends(get_rag_chain),
 ) -> dict:
-    chain.clear_session(session_id, workspace_id=_context_workspace_id(workspace))
+    workspace_id = _context_workspace_id(workspace)
+    chain.clear_session(session_id, workspace_id=workspace_id)
+    await _record_audit_event(
+        workspace=workspace,
+        settings=settings,
+        action="chat.session_cleared",
+        resource_type="chat_session",
+        resource_id=session_id,
+        metadata={},
+    )
     return {"success": True, "message": f"Session {session_id} cleared"}
 
 
@@ -482,24 +690,25 @@ async def clear_session(
 
 @router.get("/settings", response_model=SettingsResponse)
 async def get_current_settings(
-    _workspace: WorkspaceContext | None = Depends(
+    workspace: WorkspaceContext | None = Depends(
         require_enterprise_workspace_role(*VIEWER_ROLES)
     ),
     settings: Settings = Depends(get_settings),
 ) -> SettingsResponse:
-    return SettingsResponse(
-        llm_model_name=settings.llm_model_name,
-        llm_temperature=settings.llm_temperature,
-        retrieval_top_k=settings.retrieval_top_k,
-        enable_reranking=settings.enable_reranking,
-        hybrid_search_alpha=settings.hybrid_search_alpha,
-        context_window_messages=settings.context_window_messages,
-        chunk_size=settings.chunk_size,
-        chunk_overlap=settings.chunk_overlap,
-        enable_semantic_chunking=settings.enable_semantic_chunking,
-        enable_contextual_enrichment=settings.enable_contextual_enrichment,
-        embedding_model=settings.embedding_model,
-    )
+    payload = _settings_payload(settings)
+    if _should_persist_workspace_event(workspace, settings):
+        try:
+            row = await WorkspaceSettingsRepository().get_settings(
+                workspace_id=_context_workspace_id(workspace)
+            )
+            payload = _merge_workspace_settings(payload, row)
+        except Exception as exc:
+            logger.warning(
+                "workspace_settings_read_failed",
+                workspace_id=_context_workspace_id(workspace),
+                error=str(exc)[:300],
+            )
+    return SettingsResponse(**payload)
 
 
 @router.patch("/settings", response_model=SettingsResponse)
@@ -512,6 +721,7 @@ async def update_settings(
     chain: RAGChain = Depends(get_rag_chain),
 ) -> SettingsResponse:
     """Update runtime-tunable settings."""
+    changed = body.model_dump(exclude_none=True)
     if settings.memory_constrained:
         constrained_features = {
             "Re-ranking": body.enable_reranking,
@@ -548,8 +758,60 @@ async def update_settings(
     if body.enable_contextual_enrichment is not None:
         settings.enable_contextual_enrichment = body.enable_contextual_enrichment
 
-    chain.clear_cache(workspace_id=_context_workspace_id(workspace))
-    return await get_current_settings(settings=settings)
+    workspace_id = _context_workspace_id(workspace)
+    chain.clear_cache(workspace_id=workspace_id)
+
+    if changed and _should_persist_workspace_event(workspace, settings):
+        try:
+            await WorkspaceSettingsRepository().upsert_settings(
+                workspace_id=workspace_id,
+                values=changed,
+            )
+        except Exception as exc:
+            legacy_fields = {
+                key: value
+                for key, value in changed.items()
+                if key
+                in {
+                    "llm_temperature",
+                    "retrieval_top_k",
+                    "enable_reranking",
+                    "hybrid_search_alpha",
+                    "enable_contextual_enrichment",
+                }
+            }
+            if legacy_fields and legacy_fields != changed:
+                try:
+                    await WorkspaceSettingsRepository().upsert_settings(
+                        workspace_id=workspace_id,
+                        values=legacy_fields,
+                    )
+                except Exception as fallback_exc:
+                    logger.warning(
+                        "workspace_settings_persist_failed",
+                        workspace_id=workspace_id,
+                        error=str(fallback_exc)[:300],
+                    )
+            else:
+                logger.warning(
+                    "workspace_settings_persist_failed",
+                    workspace_id=workspace_id,
+                    error=str(exc)[:300],
+                )
+
+    if changed:
+        await _record_audit_event(
+            workspace=workspace,
+            settings=settings,
+            action="settings.updated",
+            resource_type="workspace_settings",
+            resource_id=workspace_id,
+            metadata={
+                "changed_fields": sorted(changed.keys()),
+                "values": changed,
+            },
+        )
+    return await get_current_settings(workspace=workspace, settings=settings)
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -648,6 +910,19 @@ async def set_api_key(
         workspace_id=workspace_id,
         provider=normalized_provider,
     )
+    await _record_audit_event(
+        workspace=workspace,
+        settings=settings,
+        action="provider_key.activated",
+        resource_type="api_key",
+        resource_id=record.key_label,
+        metadata={
+            "provider": normalized_provider,
+            "key_fingerprint": record.key_label,
+            "storage": storage,
+            "server_key_configured": bool(settings.google_api_key),
+        },
+    )
     return {
         "success": True,
         "message": "API key activated for this workspace.",
@@ -689,6 +964,10 @@ async def analytics_summary(
     workspace_id = _context_workspace_id(workspace)
     docs = vs.list_documents(workspace_id=workspace_id)
     settings_instance = get_settings()
+    telemetry_summary = await get_telemetry_recorder().analytics_summary(
+        workspace_id=workspace_id,
+        persist=_should_persist_workspace_event(workspace, settings_instance),
+    )
 
     # Retrieve chain metrics only if chain is initialised (requires API key)
     cache: dict = {"hits": 0, "misses": 0, "entries": 0}
@@ -726,19 +1005,37 @@ async def analytics_summary(
     total_queries = max(
         metrics.get("total_queries", 0),
         cache["hits"] + cache["misses"],
+        telemetry_summary.get("llm_usage_events", 0),
     )
+    avg_response_time = metrics.get("avg_response_time", 0.0)
+    if not avg_response_time and telemetry_summary.get("usage_avg_latency_ms", 0):
+        avg_response_time = round(telemetry_summary["usage_avg_latency_ms"] / 1000, 3)
     return AnalyticsSummary(
         total_documents=len(docs),
         total_chunks=vs.count_chunks(workspace_id=workspace_id),
         total_queries=total_queries,
-        avg_response_time=metrics.get("avg_response_time", 0.0),
+        avg_response_time=avg_response_time,
         avg_confidence=metrics.get("avg_confidence", 0.0),
-        queries_today=metrics.get("queries_today", 0),
+        queries_today=max(
+            metrics.get("queries_today", 0),
+            telemetry_summary.get("usage_queries_today", 0),
+        ),
         cache_hits=cache["hits"],
         cache_misses=cache["misses"],
         cache_entries=cache["entries"],
         llm_model_name=llm_model,
         embedding_model=settings_instance.embedding_model,
+        llm_usage_events=telemetry_summary.get("llm_usage_events", 0),
+        llm_input_tokens=telemetry_summary.get("llm_input_tokens", 0),
+        llm_output_tokens=telemetry_summary.get("llm_output_tokens", 0),
+        llm_total_tokens=telemetry_summary.get("llm_total_tokens", 0),
+        llm_successful_events=telemetry_summary.get("llm_successful_events", 0),
+        llm_error_events=telemetry_summary.get("llm_error_events", 0),
+        llm_fallbacks=telemetry_summary.get("llm_fallbacks", 0),
+        llm_cache_hits=telemetry_summary.get("llm_cache_hits", 0),
+        usage_avg_latency_ms=telemetry_summary.get("usage_avg_latency_ms", 0),
+        audit_events=telemetry_summary.get("audit_events", 0),
+        last_activity_at=telemetry_summary.get("last_activity_at"),
     )
 
 

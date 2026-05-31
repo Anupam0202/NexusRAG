@@ -15,6 +15,9 @@ from langchain_core.documents import Document
 @pytest.fixture(autouse=True)
 def _set_test_env(monkeypatch):
     """Ensure tests never hit real APIs unless explicitly enabled."""
+    from src.telemetry.events import get_telemetry_recorder
+
+    get_telemetry_recorder.cache_clear()
     monkeypatch.setenv("GOOGLE_API_KEY", os.getenv("GOOGLE_API_KEY", "test-key-placeholder"))
     monkeypatch.setenv("LOG_FORMAT", "console")
     monkeypatch.setenv("LOG_LEVEL", "WARNING")
@@ -22,6 +25,8 @@ def _set_test_env(monkeypatch):
     monkeypatch.setenv("ENABLE_CONTEXTUAL_ENRICHMENT", "false")
     monkeypatch.setenv("ENABLE_RERANKING", "false")
     monkeypatch.setenv("VECTOR_STORE_PATH", "data/test_vector_store")
+    yield
+    get_telemetry_recorder.cache_clear()
 
 
 @pytest.fixture

@@ -33,6 +33,7 @@ from src.api.auth import (
 )
 from src.api.dependencies import get_rag_chain
 from src.infrastructure.supabase_client import get_supabase_client
+from src.telemetry.events import estimate_tokens, get_telemetry_recorder
 from src.utils.logger import get_logger
 from src.utils.tenant import normalize_workspace_id
 
@@ -140,6 +141,13 @@ async def chat_stream(ws: WebSocket) -> None:
         workspace_id=workspace.workspace_id if workspace else None,
     )
     workspace_id = normalize_workspace_id(workspace.workspace_id if workspace else None)
+    settings = get_settings()
+    persist_event = bool(
+        workspace
+        and not workspace.user.is_demo
+        and settings.supabase_configured
+    )
+    telemetry = get_telemetry_recorder()
 
     try:
         while True:
@@ -163,6 +171,12 @@ async def chat_stream(ws: WebSocket) -> None:
             history_dicts = (
                 [{"role": m["role"], "content": m["content"]} for m in history] if history else None
             )
+            history_token_parts = [
+                str(m.get("content", "")) for m in history if isinstance(m, dict)
+            ]
+            answer_parts: list[str] = []
+            sources_count = 0
+            done_metadata: dict = {}
 
             try:
                 async for frame in chain.stream(
@@ -173,10 +187,58 @@ async def chat_stream(ws: WebSocket) -> None:
                     top_k=data.get("top_k"),
                     use_reranking=data.get("use_reranking"),
                 ):
+                    if frame.get("type") == "token":
+                        answer_parts.append(str(frame.get("content", "")))
+                    elif frame.get("type") == "sources":
+                        sources_count = len(frame.get("sources", []) or [])
+                    elif frame.get("type") == "done":
+                        done_metadata = dict(frame.get("metadata", {}) or {})
                     if not await _safe_send(ws, frame):
                         # Client disconnected mid-stream — stop generating
                         logger.info("client_disconnected_mid_stream")
                         return
+                cache_hit = bool(done_metadata.get("from_cache"))
+                generation_fallback = bool(done_metadata.get("generation_fallback"))
+                latency_ms = int(
+                    float(done_metadata.get("response_time_seconds", 0.0) or 0.0) * 1000
+                )
+                await telemetry.record_llm_usage(
+                    workspace_id=workspace_id,
+                    user_id=workspace.user.id if workspace else None,
+                    model=str(done_metadata.get("model") or settings.llm_model_name),
+                    operation="chat.stream",
+                    input_tokens=(
+                        0 if cache_hit else estimate_tokens(question, *history_token_parts)
+                    ),
+                    output_tokens=0 if cache_hit else estimate_tokens("".join(answer_parts)),
+                    latency_ms=latency_ms,
+                    success=True,
+                    error_code=(
+                        "cache_hit"
+                        if cache_hit
+                        else "generation_fallback" if generation_fallback else None
+                    ),
+                    persist=persist_event,
+                )
+                await telemetry.record_audit_event(
+                    workspace_id=workspace_id,
+                    user_id=workspace.user.id if workspace else None,
+                    action="chat.stream",
+                    resource_type="chat_session",
+                    resource_id=str(session_id),
+                    metadata={
+                        "question_chars": len(question),
+                        "history_messages": len(history or []),
+                        "top_k": data.get("top_k"),
+                        "use_reranking": data.get("use_reranking"),
+                        "query_type": done_metadata.get("query_type", "general"),
+                        "source_count": sources_count or done_metadata.get("num_sources", 0),
+                        "cache_hit": cache_hit,
+                        "generation_fallback": generation_fallback,
+                        "latency_ms": latency_ms,
+                    },
+                    persist=persist_event,
+                )
             except WebSocketDisconnect:
                 logger.info("websocket_disconnected_during_stream")
                 return
@@ -195,6 +257,33 @@ async def chat_stream(ws: WebSocket) -> None:
                     )
                 )
                 logger.error("stream_error", error=err_msg, is_quota=is_quota)
+                await telemetry.record_llm_usage(
+                    workspace_id=workspace_id,
+                    user_id=workspace.user.id if workspace else None,
+                    model=settings.llm_model_name,
+                    operation="chat.stream",
+                    input_tokens=estimate_tokens(question, *history_token_parts),
+                    output_tokens=0,
+                    latency_ms=0,
+                    success=False,
+                    error_code="quota" if is_quota else type(exc).__name__,
+                    persist=persist_event,
+                )
+                await telemetry.record_audit_event(
+                    workspace_id=workspace_id,
+                    user_id=workspace.user.id if workspace else None,
+                    action="chat.stream_failed",
+                    resource_type="chat_session",
+                    resource_id=str(session_id),
+                    metadata={
+                        "question_chars": len(question),
+                        "history_messages": len(history or []),
+                        "top_k": data.get("top_k"),
+                        "use_reranking": data.get("use_reranking"),
+                        "error": err_msg[:200],
+                    },
+                    persist=persist_event,
+                )
                 if is_quota:
                     await _safe_send(
                         ws,

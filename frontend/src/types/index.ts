@@ -156,6 +156,17 @@ export interface AnalyticsSummary {
   cache_entries: number;
   llm_model_name: string;
   embedding_model: string;
+  llm_usage_events?: number;
+  llm_input_tokens?: number;
+  llm_output_tokens?: number;
+  llm_total_tokens?: number;
+  llm_successful_events?: number;
+  llm_error_events?: number;
+  llm_fallbacks?: number;
+  llm_cache_hits?: number;
+  usage_avg_latency_ms?: number;
+  audit_events?: number;
+  last_activity_at?: string | null;
 }
 
 export interface SystemStatusSettings {

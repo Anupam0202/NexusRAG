@@ -245,6 +245,37 @@ class TestAnalytics:
         data = resp.json()
         assert "total_documents" in data
         assert "total_chunks" in data
+        assert "llm_usage_events" in data
+        assert "audit_events" in data
+        assert "last_activity_at" in data
+
+    def test_chat_records_workspace_usage_and_audit(self, test_client: TestClient):
+        test_client.mock_chain.query.return_value = {  # type: ignore[attr-defined]
+            "answer": "Telemetry is being recorded.",
+            "sources": [],
+            "query_type": "general",
+            "confidence": 0.8,
+            "response_time_seconds": 0.123,
+            "metadata": {
+                "model": "gemini-2.5-flash",
+                "generation_fallback": False,
+            },
+        }
+
+        chat_resp = test_client.post(
+            "/api/v1/chat",
+            json={"question": "Is telemetry working?", "session_id": "session-1"},
+        )
+        assert chat_resp.status_code == 200
+        assert chat_resp.json()["metadata"]["from_cache"] is False
+
+        summary_resp = test_client.get("/api/v1/analytics/summary")
+        summary = summary_resp.json()
+        assert summary_resp.status_code == 200
+        assert summary["llm_usage_events"] == 1
+        assert summary["audit_events"] == 1
+        assert summary["llm_total_tokens"] > 0
+        assert summary["queries_today"] >= 1
 
 
 class TestSystemStatus:
