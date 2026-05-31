@@ -191,6 +191,9 @@ class TestSystemStatus:
         assert "supabase_auth_configured" in data["settings"]
         assert "auth_required" in data["settings"]
         assert data["settings"]["auth_required"] is False
+        assert "qdrant_configured" in data["settings"]
+        assert "enable_pgvector_fallback" in data["settings"]
+        assert "enable_local_faiss" in data["settings"]
 
     def test_system_status_reports_effective_query_expansion(
         self, test_client: TestClient, monkeypatch
