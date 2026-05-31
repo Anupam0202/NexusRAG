@@ -51,6 +51,7 @@ from src.ingestion.pipeline import IngestionPipeline
 from src.retrieval.vector_store import VectorStoreManager
 from src.utils.logger import get_logger
 from src.utils.security import FileValidator
+from src.utils.tenant import normalize_workspace_id
 
 logger = get_logger(__name__)
 
@@ -64,6 +65,10 @@ VIEWER_ROLES = (
 )
 EDITOR_ROLES = (WorkspaceRole.OWNER, WorkspaceRole.ADMIN, WorkspaceRole.EDITOR)
 ADMIN_ROLES = (WorkspaceRole.OWNER, WorkspaceRole.ADMIN)
+
+
+def _context_workspace_id(context: WorkspaceContext | None) -> str:
+    return normalize_workspace_id(context.workspace_id if context else None)
 
 
 def _preflight_upload_limits(filename: str, content: bytes, settings: Settings) -> None:
@@ -167,6 +172,7 @@ def _metadata_from_ingestion(result) -> tuple[int, str]:
 def _process_upload_job(
     *,
     job_id: str,
+    workspace_id: str,
     document_id: str,
     safe_name: str,
     content: bytes,
@@ -181,7 +187,11 @@ def _process_upload_job(
 
     try:
         pipeline = IngestionPipeline(vector_store=vs, settings=settings, progress_callback=report)
-        result = pipeline.ingest(file_uploads=[{"filename": safe_name, "content": content}])
+        result = pipeline.ingest(
+            file_uploads=[{"filename": safe_name, "content": content}],
+            workspace_id=workspace_id,
+            document_id=document_id,
+        )
     except Exception as exc:
         logger.error("upload_pipeline_error", file=safe_name, error=str(exc))
         job_store.mark_failed(job_id, stage="processing_error", error_message=str(exc)[:500])
@@ -206,8 +216,9 @@ def _process_upload_job(
         status=DocumentStatus.READY,
         processing_time_seconds=result.processing_time_seconds,
         extraction_method=extraction_method,
+        extra={"workspace_id": workspace_id},
     )
-    chain.clear_cache()
+    chain.clear_cache(workspace_id=workspace_id)
     job_store.mark_completed(
         job_id,
         document=doc_meta,
@@ -239,7 +250,7 @@ def _process_upload_job_background(**kwargs) -> None:
 async def upload_document(
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
-    _workspace: WorkspaceContext | None = Depends(
+    workspace: WorkspaceContext | None = Depends(
         require_enterprise_workspace_role(*EDITOR_ROLES)
     ),
     settings: Settings = Depends(get_settings),
@@ -261,9 +272,14 @@ async def upload_document(
         raise HTTPException(400, msg)
     _preflight_upload_limits(safe_name, content, settings)
 
+    workspace_id = _context_workspace_id(workspace)
     document_id = str(uuid.uuid4())
     job_store = get_ingestion_job_store()
-    job = job_store.create(document_id=document_id, filename=safe_name)
+    job = job_store.create(
+        document_id=document_id,
+        filename=safe_name,
+        workspace_id=workspace_id,
+    )
 
     if settings.enable_async_ingestion:
         pending_doc = DocumentMetadata(
@@ -272,11 +288,12 @@ async def upload_document(
             file_type=Path(safe_name).suffix.lower().lstrip("."),
             file_size_bytes=len(content),
             status=DocumentStatus.PENDING,
-            extra={"job_id": job.job_id},
+            extra={"job_id": job.job_id, "workspace_id": workspace_id},
         )
         background_tasks.add_task(
             _process_upload_job_background,
             job_id=job.job_id,
+            workspace_id=workspace_id,
             document_id=document_id,
             safe_name=safe_name,
             content=content,
@@ -298,6 +315,7 @@ async def upload_document(
             None,
             lambda: _process_upload_job(
                 job_id=job.job_id,
+                workspace_id=workspace_id,
                 document_id=document_id,
                 safe_name=safe_name,
                 content=content,
@@ -333,12 +351,13 @@ async def upload_document(
 
 @router.get("/documents", response_model=DocumentListResponse)
 async def list_documents(
-    _workspace: WorkspaceContext | None = Depends(
+    workspace: WorkspaceContext | None = Depends(
         require_enterprise_workspace_role(*VIEWER_ROLES)
     ),
     vs: VectorStoreManager = Depends(get_vector_store),
 ) -> DocumentListResponse:
-    docs_raw = vs.list_documents()
+    workspace_id = _context_workspace_id(workspace)
+    docs_raw = vs.list_documents(workspace_id=workspace_id)
     docs = [
         DocumentMetadata(
             document_id=d["filename"],
@@ -349,6 +368,7 @@ async def list_documents(
             chunk_count=d["chunk_count"],
             status=DocumentStatus.READY,
             extraction_method=d.get("extraction_method", ""),
+            extra={"workspace_id": workspace_id},
         )
         for d in docs_raw
     ]
@@ -358,12 +378,13 @@ async def list_documents(
 @router.get("/documents/jobs/{job_id}", response_model=IngestionJobStatusResponse)
 async def get_ingestion_job_status(
     job_id: str,
-    _workspace: WorkspaceContext | None = Depends(
+    workspace: WorkspaceContext | None = Depends(
         require_enterprise_workspace_role(*VIEWER_ROLES)
     ),
 ) -> IngestionJobStatusResponse:
+    workspace_id = _context_workspace_id(workspace)
     job = get_ingestion_job_store().get(job_id)
-    if not job:
+    if not job or job.workspace_id != workspace_id:
         raise HTTPException(404, f"Ingestion job '{job_id}' not found")
     return job.response()
 
@@ -371,12 +392,13 @@ async def get_ingestion_job_status(
 @router.get("/documents/{document_id}/status", response_model=IngestionJobStatusResponse)
 async def get_document_ingestion_status(
     document_id: str,
-    _workspace: WorkspaceContext | None = Depends(
+    workspace: WorkspaceContext | None = Depends(
         require_enterprise_workspace_role(*VIEWER_ROLES)
     ),
 ) -> IngestionJobStatusResponse:
+    workspace_id = _context_workspace_id(workspace)
     job = get_ingestion_job_store().get_by_document_id(document_id)
-    if not job:
+    if not job or job.workspace_id != workspace_id:
         raise HTTPException(404, f"Ingestion status for document '{document_id}' not found")
     return job.response()
 
@@ -384,16 +406,17 @@ async def get_document_ingestion_status(
 @router.delete("/documents/{filename}", response_model=DocumentDeleteResponse)
 async def delete_document(
     filename: str,
-    _workspace: WorkspaceContext | None = Depends(
+    workspace: WorkspaceContext | None = Depends(
         require_enterprise_workspace_role(*EDITOR_ROLES)
     ),
     vs: VectorStoreManager = Depends(get_vector_store),
     chain: RAGChain = Depends(get_rag_chain),
 ) -> DocumentDeleteResponse:
-    removed = vs.delete_by_filename(filename)
+    workspace_id = _context_workspace_id(workspace)
+    removed = vs.delete_by_filename(filename, workspace_id=workspace_id)
     if removed == 0:
         raise HTTPException(404, f"Document '{filename}' not found")
-    chain.clear_cache()
+    chain.clear_cache(workspace_id=workspace_id)
     return DocumentDeleteResponse(
         success=True, message=f"Removed {removed} chunks", document_id=filename
     )
@@ -407,15 +430,17 @@ async def delete_document(
 @router.post("/chat", response_model=QueryResponse)
 async def chat(
     body: QueryRequest,
-    _workspace: WorkspaceContext | None = Depends(
+    workspace: WorkspaceContext | None = Depends(
         require_enterprise_workspace_role(*VIEWER_ROLES)
     ),
     chain: RAGChain = Depends(get_rag_chain),
 ) -> QueryResponse:
     """Blocking RAG query — returns full response."""
     history = [{"role": m.role, "content": m.content} for m in body.conversation_history]
+    workspace_id = _context_workspace_id(workspace)
     result = chain.query(
         body.question,
+        workspace_id=workspace_id,
         session_id=body.session_id,
         conversation_history=history if history else None,
         top_k=body.top_k,
@@ -436,12 +461,12 @@ async def chat(
 @router.post("/chat/sessions/{session_id}/clear")
 async def clear_session(
     session_id: str,
-    _workspace: WorkspaceContext | None = Depends(
+    workspace: WorkspaceContext | None = Depends(
         require_enterprise_workspace_role(*VIEWER_ROLES)
     ),
     chain: RAGChain = Depends(get_rag_chain),
 ) -> dict:
-    chain.clear_session(session_id)
+    chain.clear_session(session_id, workspace_id=_context_workspace_id(workspace))
     return {"success": True, "message": f"Session {session_id} cleared"}
 
 
@@ -475,7 +500,7 @@ async def get_current_settings(
 @router.patch("/settings", response_model=SettingsResponse)
 async def update_settings(
     body: SettingsUpdateRequest,
-    _workspace: WorkspaceContext | None = Depends(
+    workspace: WorkspaceContext | None = Depends(
         require_enterprise_workspace_role(*ADMIN_ROLES)
     ),
     settings: Settings = Depends(get_settings),
@@ -518,6 +543,7 @@ async def update_settings(
     if body.enable_contextual_enrichment is not None:
         settings.enable_contextual_enrichment = body.enable_contextual_enrichment
 
+    chain.clear_cache(workspace_id=_context_workspace_id(workspace))
     return await get_current_settings(settings=settings)
 
 
@@ -603,12 +629,13 @@ async def set_api_key(
 
 @router.get("/analytics/summary", response_model=AnalyticsSummary)
 async def analytics_summary(
-    _workspace: WorkspaceContext | None = Depends(
+    workspace: WorkspaceContext | None = Depends(
         require_enterprise_workspace_role(*VIEWER_ROLES)
     ),
     vs: VectorStoreManager = Depends(get_vector_store),
 ) -> AnalyticsSummary:
-    docs = vs.list_documents()
+    workspace_id = _context_workspace_id(workspace)
+    docs = vs.list_documents(workspace_id=workspace_id)
     settings_instance = get_settings()
 
     # Retrieve chain metrics only if chain is initialised (requires API key)
@@ -650,7 +677,7 @@ async def analytics_summary(
     )
     return AnalyticsSummary(
         total_documents=len(docs),
-        total_chunks=vs.total_chunks,
+        total_chunks=vs.count_chunks(workspace_id=workspace_id),
         total_queries=total_queries,
         avg_response_time=metrics.get("avg_response_time", 0.0),
         avg_confidence=metrics.get("avg_confidence", 0.0),
@@ -669,7 +696,8 @@ async def system_status(
     vs: VectorStoreManager = Depends(get_vector_store),
 ) -> SystemStatusResponse:
     """Operational status payload for dashboards and deployment smoke tests."""
-    docs = vs.list_documents()
+    workspace_id = normalize_workspace_id(None)
+    docs = vs.list_documents(workspace_id=workspace_id)
     cache: dict = {"hits": 0, "misses": 0, "entries": 0, "hit_rate": 0.0}
     try:
         from src.api.dependencies import get_rag_chain as _get_chain
@@ -680,7 +708,7 @@ async def system_status(
 
     return SystemStatusResponse(
         total_documents=len(docs),
-        total_chunks=vs.total_chunks,
+        total_chunks=vs.count_chunks(workspace_id=workspace_id),
         api_key_configured=bool(settings.google_api_key),
         llm_model_name=settings.llm_model_name,
         embedding_model=settings.embedding_model,

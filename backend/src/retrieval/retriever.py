@@ -128,6 +128,7 @@ class HybridRetriever:
         self,
         query: str,
         *,
+        workspace_id: str | None = None,
         history: list[dict[str, str]] | None = None,
         top_k: int | None = None,
         use_reranking: bool | None = None,
@@ -141,7 +142,13 @@ class HybridRetriever:
         # 1. Classify query type → adaptive K
         query_type = classify_query(query)
         effective_k = top_k or _K_BY_TYPE.get(query_type, self._default_k)
-        effective_k = min(effective_k, self._store.total_chunks or effective_k)
+        count_chunks = getattr(self._store, "count_chunks", None)
+        visible_chunks = (
+            count_chunks(workspace_id=workspace_id)
+            if callable(count_chunks)
+            else getattr(self._store, "total_chunks", 0)
+        )
+        effective_k = min(effective_k, visible_chunks or effective_k)
 
         # 2. Transform query
         transformed = self._transformer.transform(query, history=history)
@@ -150,7 +157,7 @@ class HybridRetriever:
         # 3. Retrieve for every query variant
         all_hits: list[SearchHit] = []
         for q in queries:
-            hits = self._store.search(q, top_k=effective_k)
+            hits = self._store.search(q, top_k=effective_k, workspace_id=workspace_id)
             all_hits.extend(hits)
 
         # 4. Deduplicate
@@ -189,6 +196,7 @@ class HybridRetriever:
             k_used=effective_k,
             docs_returned=len(docs),
             reranked=should_rerank,
+            workspace_id=workspace_id,
         )
 
         return {

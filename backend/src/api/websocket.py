@@ -34,6 +34,7 @@ from src.api.auth import (
 from src.api.dependencies import get_rag_chain
 from src.infrastructure.supabase_client import get_supabase_client
 from src.utils.logger import get_logger
+from src.utils.tenant import normalize_workspace_id
 
 logger = get_logger("websocket")
 
@@ -138,6 +139,7 @@ async def chat_stream(ws: WebSocket) -> None:
         "websocket_connected",
         workspace_id=workspace.workspace_id if workspace else None,
     )
+    workspace_id = normalize_workspace_id(workspace.workspace_id if workspace else None)
 
     try:
         while True:
@@ -165,6 +167,7 @@ async def chat_stream(ws: WebSocket) -> None:
             try:
                 async for frame in chain.stream(
                     question,
+                    workspace_id=workspace_id,
                     session_id=session_id,
                     conversation_history=history_dicts,
                     top_k=data.get("top_k"),

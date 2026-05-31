@@ -18,6 +18,7 @@ from src.ingestion.chunker import SmartChunker
 from src.ingestion.contextualizer import ContextualEnricher
 from src.ingestion.loader import LoaderFactory
 from src.utils.logger import get_logger
+from src.utils.tenant import normalize_workspace_id
 
 logger = get_logger(__name__)
 
@@ -60,18 +61,25 @@ class IngestionPipeline:
         self,
         file_paths: list[Path] | None = None,
         file_uploads: list[dict[str, Any]] | None = None,
+        workspace_id: str | None = None,
+        document_id: str | None = None,
     ) -> IngestionResult:
         t0 = time.perf_counter()
         result = IngestionResult()
         items = self._build_items(file_paths, file_uploads)
         total = len(items)
         all_docs: list[Document] = []
+        scoped_workspace_id = normalize_workspace_id(workspace_id)
 
         self._report("Loading documents…", 0.05)
 
         for i, (path, content) in enumerate(items):
             try:
                 docs = self._load_single(path, content, result)
+                for doc in docs:
+                    doc.metadata["workspace_id"] = scoped_workspace_id
+                    if document_id:
+                        doc.metadata["document_id"] = document_id
                 all_docs.extend(docs)
                 result.files_processed.append(path.name)
             except Exception as exc:
@@ -89,6 +97,10 @@ class IngestionPipeline:
 
         self._report("Chunking documents…", 0.40)
         chunks = self._chunker.chunk(all_docs)
+        for chunk in chunks:
+            chunk.metadata["workspace_id"] = scoped_workspace_id
+            if document_id:
+                chunk.metadata["document_id"] = document_id
         self._report(f"Created {len(chunks)} chunks", 0.55)
 
         self._report("Enriching with contextual metadata…", 0.60)
@@ -101,7 +113,11 @@ class IngestionPipeline:
         if self._vector_store is not None:
             self._report("Adding to vector store…", 0.80)
             try:
-                self._vector_store.add_documents(chunks)
+                self._vector_store.add_documents(
+                    chunks,
+                    workspace_id=scoped_workspace_id,
+                    document_id=document_id,
+                )
             except Exception as exc:
                 logger.error("vector_store_error", error=str(exc))
                 result.errors.append({"file": "vector_store", "error": str(exc)})

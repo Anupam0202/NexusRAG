@@ -21,6 +21,7 @@ import numpy as np
 from config.settings import Settings, get_settings
 from src.ingestion.embedder import get_embedder
 from src.utils.logger import get_logger
+from src.utils.tenant import normalize_workspace_id
 
 logger = get_logger(__name__)
 
@@ -30,6 +31,7 @@ class CacheEntry:
     """Single cached query–response pair."""
 
     query: str
+    workspace_id: str
     query_embedding: np.ndarray
     response: dict[str, Any]
     created_at: float = field(default_factory=time.time)
@@ -68,12 +70,13 @@ class SemanticCache:
         self.hits = 0
         self.misses = 0
 
-    def get(self, query: str) -> dict[str, Any] | None:
+    def get(self, query: str, *, workspace_id: str | None = None) -> dict[str, Any] | None:
         """Look up a semantically similar cached response.
 
         Returns:
             The cached response dict if found, else ``None``.
         """
+        scoped_workspace_id = normalize_workspace_id(workspace_id)
         if not self._enabled or not self._entries:
             self.misses += 1
             return None
@@ -86,6 +89,8 @@ class SemanticCache:
 
         with self._lock:
             for entry in self._entries:
+                if entry.workspace_id != scoped_workspace_id:
+                    continue
                 # TTL check
                 if now - entry.created_at > self._ttl:
                     continue
@@ -105,13 +110,24 @@ class SemanticCache:
         self.misses += 1
         return None
 
-    def set(self, query: str, response: dict[str, Any]) -> None:
+    def set(
+        self,
+        query: str,
+        response: dict[str, Any],
+        *,
+        workspace_id: str | None = None,
+    ) -> None:
         """Store a query–response pair in the cache."""
         if not self._enabled:
             return
 
         q_emb = np.array(self._embedder.embed_query(query), dtype="float32")
-        entry = CacheEntry(query=query, query_embedding=q_emb, response=response)
+        entry = CacheEntry(
+            query=query,
+            workspace_id=normalize_workspace_id(workspace_id),
+            query_embedding=q_emb,
+            response=response,
+        )
 
         with self._lock:
             self._entries.append(entry)
@@ -119,10 +135,16 @@ class SemanticCache:
             if len(self._entries) > self._max_entries:
                 self._entries = self._entries[-self._max_entries :]
 
-    def clear(self) -> None:
+    def clear(self, *, workspace_id: str | None = None) -> None:
+        scoped_workspace_id = normalize_workspace_id(workspace_id) if workspace_id else None
         with self._lock:
-            self._entries.clear()
-        logger.info("semantic_cache_cleared")
+            if scoped_workspace_id:
+                self._entries = [
+                    entry for entry in self._entries if entry.workspace_id != scoped_workspace_id
+                ]
+            else:
+                self._entries.clear()
+        logger.info("semantic_cache_cleared", workspace_id=scoped_workspace_id)
 
     def cleanup_expired(self) -> int:
         """Remove expired entries.  Returns count removed."""

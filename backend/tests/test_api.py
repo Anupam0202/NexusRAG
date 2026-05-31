@@ -72,7 +72,9 @@ class TestDocumentEndpoints:
         )
 
         assert resp.status_code == 200
-        test_client.mock_chain.clear_cache.assert_called()  # type: ignore[attr-defined]
+        test_client.mock_chain.clear_cache.assert_called_with(  # type: ignore[attr-defined]
+            workspace_id="00000000-0000-0000-0000-000000000000"
+        )
 
     def test_upload_rejects_unsupported(self, test_client: TestClient):
         resp = test_client.post(
@@ -145,7 +147,9 @@ class TestDocumentEndpoints:
         resp = test_client.delete("/api/v1/documents/to_delete.txt")
         assert resp.status_code == 200
         assert resp.json()["success"] is True
-        test_client.mock_chain.clear_cache.assert_called_once()  # type: ignore[attr-defined]
+        test_client.mock_chain.clear_cache.assert_called_once_with(  # type: ignore[attr-defined]
+            workspace_id="00000000-0000-0000-0000-000000000000"
+        )
 
 
 class TestSettingsEndpoints:
