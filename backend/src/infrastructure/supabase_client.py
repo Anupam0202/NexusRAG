@@ -99,6 +99,64 @@ class SupabaseClient:
             data = response.json() if response.content else []
             return data if isinstance(data, list) else [data]
 
+    async def table_upsert(
+        self,
+        table: str,
+        payload: dict[str, Any] | list[dict[str, Any]],
+        *,
+        on_conflict: str | None = None,
+        service_role: bool = True,
+        prefer: str = "resolution=merge-duplicates,return=representation",
+    ) -> list[dict[str, Any]]:
+        """Upsert rows into a PostgREST table."""
+        self.require_configured()
+        headers = {**self.auth_headers(service_role=service_role), "Prefer": prefer}
+        url = f"{self.config.url}/rest/v1/{table}"
+        if on_conflict:
+            url = f"{url}?on_conflict={on_conflict}"
+        async with httpx.AsyncClient(timeout=30) as client:
+            response = await client.post(url, json=payload, headers=headers)
+            response.raise_for_status()
+            data = response.json() if response.content else []
+            return data if isinstance(data, list) else [data]
+
+    async def table_update(
+        self,
+        table: str,
+        payload: dict[str, Any],
+        *,
+        query: str,
+        service_role: bool = True,
+        prefer: str = "return=representation",
+    ) -> list[dict[str, Any]]:
+        """Update rows in a PostgREST table."""
+        self.require_configured()
+        headers = {**self.auth_headers(service_role=service_role), "Prefer": prefer}
+        url = f"{self.config.url}/rest/v1/{table}?{query}"
+        async with httpx.AsyncClient(timeout=30) as client:
+            response = await client.patch(url, json=payload, headers=headers)
+            response.raise_for_status()
+            data = response.json() if response.content else []
+            return data if isinstance(data, list) else [data]
+
+    async def table_delete(
+        self,
+        table: str,
+        *,
+        query: str,
+        service_role: bool = True,
+        prefer: str = "return=representation",
+    ) -> list[dict[str, Any]]:
+        """Delete rows from a PostgREST table."""
+        self.require_configured()
+        headers = {**self.auth_headers(service_role=service_role), "Prefer": prefer}
+        url = f"{self.config.url}/rest/v1/{table}?{query}"
+        async with httpx.AsyncClient(timeout=30) as client:
+            response = await client.delete(url, headers=headers)
+            response.raise_for_status()
+            data = response.json() if response.content else []
+            return data if isinstance(data, list) else [data]
+
     async def upload_object(
         self,
         path: str,

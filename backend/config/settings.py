@@ -103,6 +103,15 @@ class Settings(BaseSettings):
 
     # ── Vector Store ──────────────────────────────────────────────────────
     vector_store_path: str = Field(default="data/vector_store")
+    enable_qdrant: bool = Field(default=False)
+    qdrant_url: str = Field(default="", description="Qdrant cluster URL")
+    qdrant_api_key: str = Field(default="", description="Qdrant API key")
+    qdrant_collection: str = Field(default="nexusrag_chunks")
+    enable_pgvector_fallback: bool = Field(default=True)
+    enable_local_faiss: bool = Field(
+        default=True,
+        description="Allow local FAISS fallback for development and anonymous demo mode",
+    )
 
     # ── Supabase / Enterprise Persistence ─────────────────────────────────
     supabase_url: str = Field(default="", description="Supabase project URL")
@@ -239,6 +248,10 @@ class Settings(BaseSettings):
             and self.supabase_auth_configured
             and not self.enable_anonymous_demo
         )
+
+    @property
+    def qdrant_configured(self) -> bool:
+        return bool(self.enable_qdrant and self.qdrant_url and self.qdrant_api_key)
 
     @property
     def max_upload_bytes(self) -> int:

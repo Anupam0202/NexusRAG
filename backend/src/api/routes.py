@@ -596,6 +596,10 @@ async def system_status(
             "supabase_auth_configured": settings.supabase_auth_configured,
             "auth_required": settings.auth_required,
             "anonymous_demo_enabled": settings.enable_anonymous_demo,
+            "qdrant_configured": settings.qdrant_configured,
+            "enable_qdrant": settings.enable_qdrant,
+            "enable_pgvector_fallback": settings.enable_pgvector_fallback,
+            "enable_local_faiss": settings.enable_local_faiss,
         },
         capabilities={
             "streaming": True,

@@ -1,0 +1,27 @@
+"""Supabase-backed repository boundaries for enterprise persistence."""
+
+from src.repositories.api_keys import ApiKeyRepository
+from src.repositories.audit import AuditRepository
+from src.repositories.chunks import ChunkRepository
+from src.repositories.documents import (
+    DocumentRepository,
+    compute_sha256,
+    document_storage_path,
+)
+from src.repositories.jobs import IngestionJobRepository
+from src.repositories.messages import MessageRepository
+from src.repositories.settings import WorkspaceSettingsRepository
+from src.repositories.workspaces import WorkspaceRepository
+
+__all__ = [
+    "ApiKeyRepository",
+    "AuditRepository",
+    "ChunkRepository",
+    "DocumentRepository",
+    "IngestionJobRepository",
+    "MessageRepository",
+    "WorkspaceRepository",
+    "WorkspaceSettingsRepository",
+    "compute_sha256",
+    "document_storage_path",
+]
