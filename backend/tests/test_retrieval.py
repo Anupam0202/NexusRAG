@@ -15,6 +15,7 @@ from src.retrieval.vector_store import SearchHit, VectorStoreManager
 class TestQueryClassification:
     def test_list_all(self):
         assert classify_query("Show all employees") == QueryType.LIST_ALL
+        assert classify_query("Which uploaded files are available?") == QueryType.LIST_ALL
 
     def test_aggregation(self):
         assert classify_query("What is the total sales amount?") == QueryType.AGGREGATION

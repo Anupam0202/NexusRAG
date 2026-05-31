@@ -58,6 +58,7 @@ class RAGChain:
         settings: Settings | None = None,
     ) -> None:
         self._settings = settings or get_settings()
+        self._vector_store = vector_store
         self._retriever = HybridRetriever(vector_store, settings=self._settings)
         self._llm = get_llm_provider()
         self._prompts = PromptManager()
@@ -108,6 +109,7 @@ class RAGChain:
         )
         docs: list[Document] = retrieval["documents"]
         query_type: QueryType = retrieval["query_type"]
+        docs = self._with_inventory_context(safe_q, docs)
 
         # Build prompt
         context_str = self._format_context(docs)
@@ -212,6 +214,7 @@ class RAGChain:
         )
         docs = retrieval["documents"]
         query_type: QueryType = retrieval["query_type"]
+        docs = self._with_inventory_context(safe_q, docs)
 
         # Build prompt
         context_str = self._format_context(docs)
@@ -313,6 +316,75 @@ class RAGChain:
                 }
             )
         return sources
+
+    @staticmethod
+    def _is_document_inventory_query(question: str) -> bool:
+        q = question.lower()
+        has_document_noun = any(
+            term in q
+            for term in (
+                "file",
+                "files",
+                "document",
+                "documents",
+                "filename",
+                "filenames",
+                "source",
+                "sources",
+                "uploaded",
+                "available",
+                "indexed",
+            )
+        )
+        has_inventory_intent = any(
+            term in q
+            for term in (
+                "which",
+                "what",
+                "list",
+                "show",
+                "display",
+                "available",
+                "uploaded",
+                "indexed",
+                "source filenames",
+            )
+        )
+        return has_document_noun and has_inventory_intent
+
+    def _with_inventory_context(self, question: str, docs: list[Document]) -> list[Document]:
+        if not self._is_document_inventory_query(question):
+            return docs
+
+        try:
+            documents = self._vector_store.list_documents()
+        except Exception as exc:
+            logger.warning("document_inventory_unavailable", error=str(exc))
+            return docs
+
+        if not documents:
+            return docs
+
+        lines = ["Uploaded document library:"]
+        for item in sorted(documents, key=lambda d: str(d.get("filename", "")).lower()):
+            filename = item.get("filename", "Unknown")
+            file_type = item.get("file_type") or "unknown"
+            chunks = item.get("chunk_count", 0)
+            pages = item.get("page_count", 0)
+            size = item.get("file_size_bytes", 0)
+            lines.append(
+                f"- {filename} ({file_type}; {chunks} chunks; {pages} pages; {size} bytes)"
+            )
+
+        inventory = Document(
+            page_content="\n".join(lines),
+            metadata={
+                "filename": "NexusRAG Document Library",
+                "document_type": "document_inventory",
+                "score": 1.0,
+            },
+        )
+        return [inventory, *docs]
 
     @staticmethod
     def _build_extractive_fallback_answer(docs: list[Document], _error: str) -> str:

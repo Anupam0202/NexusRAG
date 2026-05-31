@@ -11,7 +11,6 @@ from __future__ import annotations
 import os
 from functools import lru_cache
 from pathlib import Path
-from typing import List, Optional
 
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -105,6 +104,27 @@ class Settings(BaseSettings):
     # ── Vector Store ──────────────────────────────────────────────────────
     vector_store_path: str = Field(default="data/vector_store")
 
+    # ── Supabase / Enterprise Persistence ─────────────────────────────────
+    supabase_url: str = Field(default="", description="Supabase project URL")
+    supabase_anon_key: str = Field(default="", description="Supabase browser anon key")
+    supabase_service_role_key: str = Field(
+        default="",
+        description="Supabase service role key for trusted backend operations",
+    )
+    supabase_jwt_secret: str = Field(
+        default="",
+        description="Legacy Supabase JWT secret. Prefer JWKS for hosted projects.",
+    )
+    supabase_jwks_url: str = Field(
+        default="",
+        description="Supabase JWKS URL for verifying access tokens",
+    )
+    supabase_storage_bucket: str = Field(default="documents")
+    enable_anonymous_demo: bool = Field(
+        default=False,
+        description="Allow a local anonymous workspace only when explicitly enabled",
+    )
+
     # ── API ────────────────────────────────────────────────────────────────
     api_host: str = Field(default="0.0.0.0")
     api_port: int = Field(default=int(os.environ.get("PORT", "8000")), ge=1, le=65535)
@@ -183,7 +203,7 @@ class Settings(BaseSettings):
     # ── Derived / Computed ────────────────────────────────────────────────
 
     @property
-    def cors_origins(self) -> List[str]:
+    def cors_origins(self) -> list[str]:
         """Parse comma-separated CORS origins into a list.
 
         Automatically includes the Render external URL if available
@@ -200,9 +220,25 @@ class Settings(BaseSettings):
         return raw
 
     @property
-    def fallback_models(self) -> List[str]:
+    def fallback_models(self) -> list[str]:
         """Parse comma-separated fallback models into a list."""
         return [m.strip() for m in self.llm_fallback_models.split(",") if m.strip()]
+
+    @property
+    def supabase_configured(self) -> bool:
+        return bool(self.supabase_url and self.supabase_anon_key and self.supabase_service_role_key)
+
+    @property
+    def supabase_auth_configured(self) -> bool:
+        return bool(self.supabase_jwks_url or self.supabase_jwt_secret)
+
+    @property
+    def auth_required(self) -> bool:
+        return (
+            self.supabase_configured
+            and self.supabase_auth_configured
+            and not self.enable_anonymous_demo
+        )
 
     @property
     def max_upload_bytes(self) -> int:

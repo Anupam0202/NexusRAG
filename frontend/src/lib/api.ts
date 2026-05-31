@@ -16,6 +16,7 @@ import type {
   SettingsUpdate,
   SystemStatusResponse,
 } from "@/types";
+import { getApiHeaders } from "@/lib/api-context";
 import { buildBackendUrl } from "@/lib/backend-url";
 
 async function readErrorMessage(res: Response, fallback: string) {
@@ -36,9 +37,11 @@ async function request<T>(
 ): Promise<T> {
   let res: Response;
   try {
+    const headers = await getApiHeaders();
     res = await fetch(buildBackendUrl(path), {
+      cache: init?.cache ?? "no-store",
       ...init,
-      headers: { "Content-Type": "application/json", ...init?.headers },
+      headers: { ...headers, ...init?.headers },
     });
   } catch {
     throw new Error("Backend connection was interrupted. Please retry after the service is live.");
@@ -59,8 +62,10 @@ export async function uploadDocument(
 
   let res: Response;
   try {
+    const headers = await getApiHeaders({ json: false });
     res = await fetch(buildBackendUrl("/api/v1/documents/upload"), {
       method: "POST",
+      headers,
       body: form,
     });
   } catch {
@@ -149,4 +154,21 @@ export async function setApiKey(
     method: "POST",
     body: JSON.stringify({ api_key: apiKey }),
   });
+}
+
+export async function getCurrentUser(): Promise<{
+  id: string;
+  email: string | null;
+  role: string;
+  is_demo: boolean;
+}> {
+  return request("/api/v1/auth/me");
+}
+
+export async function getCurrentWorkspace(): Promise<{
+  workspace_id: string;
+  role: "owner" | "admin" | "editor" | "viewer";
+  user_id: string;
+}> {
+  return request("/api/v1/workspaces/current");
 }

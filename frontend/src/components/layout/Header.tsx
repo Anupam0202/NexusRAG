@@ -5,6 +5,7 @@ import { Moon, Sun, Wifi, WifiOff } from "lucide-react";
 import { useStore } from "@/hooks/useStore";
 import { useEffect, useState } from "react";
 import { getSystemStatus } from "@/lib/api";
+import { AuthMenu } from "@/components/auth/AuthMenu";
 
 const PAGE_TITLES: Record<string, string> = {
   "/chat": "Chat",
@@ -74,6 +75,8 @@ export function Header() {
       </div>
 
       <div className="flex shrink-0 items-center gap-2">
+        <AuthMenu />
+
         {/* Connection status */}
         <div className={`hidden items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium transition-colors sm:flex ${
           connectionOnline

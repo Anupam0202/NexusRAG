@@ -34,7 +34,7 @@ import sys
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
@@ -54,14 +54,14 @@ logger = get_logger("evaluate")
 class TestCase:
     question: str
     expected_answer: str = ""
-    expected_sources: List[str] = field(default_factory=list)
+    expected_sources: list[str] = field(default_factory=list)
 
 
 @dataclass
 class EvalResult:
     question: str
     answer: str
-    sources_returned: List[str]
+    sources_returned: list[str]
     retrieval_recall: float
     faithfulness: float
     relevance: float
@@ -77,7 +77,7 @@ class EvalSummary:
     avg_faithfulness: float = 0.0
     avg_relevance: float = 0.0
     avg_latency: float = 0.0
-    results: List[EvalResult] = field(default_factory=list)
+    results: list[EvalResult] = field(default_factory=list)
 
 
 # ── Evaluation logic ─────────────────────────────────────────────────────
@@ -92,7 +92,7 @@ class RAGEvaluator:
         self._chain = RAGChain(vector_store=self._vs, settings=settings)
         self._llm = get_llm_provider()
 
-    def evaluate(self, test_cases: List[TestCase]) -> EvalSummary:
+    def evaluate(self, test_cases: list[TestCase]) -> EvalSummary:
         """Run evaluation on a list of test cases."""
         summary = EvalSummary(total=len(test_cases))
         total_recall = 0.0
@@ -162,7 +162,7 @@ class RAGEvaluator:
 
     @staticmethod
     def _compute_retrieval_recall(
-        expected: List[str], returned: List[str]
+        expected: list[str], returned: list[str]
     ) -> float:
         if not expected:
             return 1.0 if returned else 0.5
@@ -172,7 +172,7 @@ class RAGEvaluator:
         return len(hits) / len(expected_set) if expected_set else 1.0
 
     def _judge_faithfulness(
-        self, question: str, answer: str, sources: List[Dict[str, Any]]
+        self, question: str, answer: str, sources: list[dict[str, Any]]
     ) -> float:
         """Use LLM to judge whether the answer is grounded in sources."""
         context_text = "\n".join(
@@ -224,7 +224,7 @@ class RAGEvaluator:
 
     # ── Auto-generate test questions ──────────────────────────────────
 
-    def auto_generate(self, num_questions: int = 5) -> List[TestCase]:
+    def auto_generate(self, num_questions: int = 5) -> list[TestCase]:
         """Generate test questions from indexed documents."""
         docs = self._vs.list_documents()
         if not docs:
@@ -297,7 +297,7 @@ def main() -> None:
     summary = evaluator.evaluate(test_cases)
 
     print(f"\n{'='*60}")
-    print(f"  RESULTS")
+    print("  RESULTS")
     print(f"{'='*60}")
     print(f"  Total:              {summary.total}")
     print(f"  Passed:             {summary.passed}/{summary.total}")

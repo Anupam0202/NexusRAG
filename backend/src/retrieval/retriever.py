@@ -49,6 +49,12 @@ _QUERY_PATTERNS: dict[QueryType, list[re.Pattern]] = {  # type: ignore
         ),
         re.compile(r"\ball\s+(the\s+)?(data|records|rows|entries|employees|items)\b", re.I),
         re.compile(r"\b(everything|complete\s+list)\b", re.I),
+        re.compile(
+            r"\b(which|what|list|show|display)\b.*\b(uploaded|available|indexed)?\s*"
+            r"(files?|documents?|source\s+files?|filenames?)\b",
+            re.I,
+        ),
+        re.compile(r"\b(uploaded|available|indexed)\s+(files?|documents?|filenames?)\b", re.I),
     ],
     QueryType.AGGREGATION: [
         re.compile(

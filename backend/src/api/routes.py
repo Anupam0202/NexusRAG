@@ -555,6 +555,10 @@ async def system_status(
             "max_pdf_embedded_images": settings.max_pdf_embedded_images,
             "max_docx_embedded_images": settings.max_docx_embedded_images,
             "max_image_megapixels": settings.max_image_megapixels,
+            "supabase_configured": settings.supabase_configured,
+            "supabase_auth_configured": settings.supabase_auth_configured,
+            "auth_required": settings.auth_required,
+            "anonymous_demo_enabled": settings.enable_anonymous_demo,
         },
         capabilities={
             "streaming": True,

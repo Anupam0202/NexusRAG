@@ -1,6 +1,14 @@
 import { create } from "zustand";
 import type { UIMessage, DocumentMetadata, SourceChunk } from "@/types";
+import { setStoredWorkspaceId } from "@/lib/api-context";
 import { generateId } from "@/lib/utils";
+
+type AuthMode = "loading" | "demo" | "signed_out" | "authenticated";
+
+interface AuthUser {
+  id: string;
+  email: string | null;
+}
 
 interface AppState {
   messages: UIMessage[];
@@ -38,6 +46,12 @@ interface AppState {
 
   connectionStatus: "checking" | "online" | "reconnecting" | "offline";
   setConnectionStatus: (status: AppState["connectionStatus"]) => void;
+
+  authMode: AuthMode;
+  authUser: AuthUser | null;
+  setAuthState: (mode: AuthMode, user?: AuthUser | null) => void;
+  workspaceId: string | null;
+  setWorkspaceId: (workspaceId: string | null) => void;
 }
 
 export const useStore = create<AppState>((set) => ({
@@ -106,4 +120,13 @@ export const useStore = create<AppState>((set) => ({
 
   connectionStatus: "checking",
   setConnectionStatus: (status) => set({ connectionStatus: status }),
+
+  authMode: "loading",
+  authUser: null,
+  setAuthState: (mode, user = null) => set({ authMode: mode, authUser: user }),
+  workspaceId: null,
+  setWorkspaceId: (workspaceId) => {
+    setStoredWorkspaceId(workspaceId);
+    set({ workspaceId });
+  },
 }));
