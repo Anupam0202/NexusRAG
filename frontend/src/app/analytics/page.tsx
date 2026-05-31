@@ -1,8 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { getAnalytics, healthCheck } from "@/lib/api";
-import type { AnalyticsSummary } from "@/types";
+import { getAnalytics, getSystemStatus, healthCheck } from "@/lib/api";
+import type { AnalyticsSummary, SystemStatusResponse } from "@/types";
 import { motion } from "framer-motion";
 import {
   RefreshCw, BarChart3, FileText, Database,
@@ -16,6 +16,7 @@ const AUTO_REFRESH_SECONDS = 30;
 export default function AnalyticsPage() {
   const [data, setData] = useState<AnalyticsSummary | null>(null);
   const [health, setHealth] = useState<{ status: string; total_chunks: number } | null>(null);
+  const [systemStatus, setSystemStatus] = useState<SystemStatusResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [countdown, setCountdown] = useState(AUTO_REFRESH_SECONDS);
@@ -26,10 +27,11 @@ export default function AnalyticsPage() {
     setError(null);
     setCountdown(AUTO_REFRESH_SECONDS);
     try {
-      const [a, h] = await Promise.all([getAnalytics(), healthCheck()]);
+      const [a, h, s] = await Promise.all([getAnalytics(), healthCheck(), getSystemStatus()]);
       if (signal?.aborted) return;
       setData(a);
       setHealth(h);
+      setSystemStatus(s);
     } catch (err: unknown) {
       if (signal?.aborted) return;
       setError(err instanceof Error ? err.message : "Failed to load analytics");
@@ -68,9 +70,22 @@ export default function AnalyticsPage() {
     load();
   };
 
-  const isHealthy = health?.status === "healthy";
+  const isHealthy = (systemStatus?.status ?? health?.status) === "healthy";
+  const capabilities = systemStatus?.capabilities;
+  const settings = systemStatus?.settings;
+  const memoryConstrained =
+    settings?.memory_constrained === true || settings?.use_lightweight_embeddings === true;
   const cacheTotal = (data?.cache_hits ?? 0) + (data?.cache_misses ?? 0);
   const cacheHitRate = cacheTotal > 0 ? Math.round((data!.cache_hits / cacheTotal) * 100) : 0;
+  const rerankerLabel = capabilities?.reranking ? "Enabled" : "Disabled";
+  const enrichmentLabel = capabilities?.contextual_enrichment ? "Enabled" : "Disabled";
+  const chunkingLabel = capabilities?.semantic_chunking ? "Semantic" : "Recursive";
+  const cacheLabel = capabilities?.semantic_cache ? "Semantic similarity" : "Disabled";
+  const ocrLabel = capabilities?.ocr ? "Text + OCR" : "Text only";
+  const fusionLabel =
+    typeof settings?.hybrid_search_alpha === "number"
+      ? `RRF, alpha ${settings.hybrid_search_alpha.toFixed(2)}`
+      : "RRF";
 
   return (
     <div className="h-full overflow-y-auto">
@@ -129,7 +144,11 @@ export default function AnalyticsPage() {
             ) : isHealthy ? (
               <>
                 <CheckCircle2 size={16} className="text-green-200" />
-                <span className="opacity-90">All systems operational</span>
+                <span className="opacity-90">
+                  {memoryConstrained
+                    ? "Operational with Render constrained profile"
+                    : "All systems operational"}
+                </span>
               </>
             ) : (
               <>
@@ -256,7 +275,8 @@ export default function AnalyticsPage() {
                 <ModelRow
                   icon={<Target size={13} className="text-orange-500" />}
                   label="Re-ranker"
-                  value="ms-marco-MiniLM-L-6"
+                  value={rerankerLabel}
+                  badge={capabilities?.reranking ? "Active" : "Off"}
                 />
               </div>
             </motion.div>
@@ -277,11 +297,20 @@ export default function AnalyticsPage() {
             </h3>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
               <ConfigItem label="Retrieval" value="Hybrid BM25 + Vector" />
-              <ConfigItem label="Fusion" value="RRF (α=0.6 dense)" />
-              <ConfigItem label="Re-ranker" value="Cross-Encoder" />
-              <ConfigItem label="Enrichment" value="Contextual (LLM)" />
-              <ConfigItem label="Cache" value="Semantic Similarity" />
-              <ConfigItem label="OCR" value="Gemini Vision" />
+              <ConfigItem label="Fusion" value={fusionLabel} />
+              <ConfigItem label="Re-ranker" value={rerankerLabel} />
+              <ConfigItem label="Chunking" value={chunkingLabel} />
+              <ConfigItem label="Enrichment" value={enrichmentLabel} />
+              <ConfigItem label="Cache" value={cacheLabel} />
+              <ConfigItem label="OCR" value={ocrLabel} />
+              <ConfigItem
+                label="Query Expansion"
+                value={settings?.enable_query_expansion ? "Enabled" : "Disabled"}
+              />
+              <ConfigItem
+                label="Profile"
+                value={memoryConstrained ? "Render constrained" : "Full pipeline"}
+              />
             </div>
           </motion.div>
         )}

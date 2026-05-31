@@ -338,6 +338,23 @@ async def update_settings(
     chain: RAGChain = Depends(get_rag_chain),
 ) -> SettingsResponse:
     """Update runtime-tunable settings."""
+    if settings.memory_constrained:
+        constrained_features = {
+            "Re-ranking": body.enable_reranking,
+            "Semantic chunking": body.enable_semantic_chunking,
+            "Contextual enrichment": body.enable_contextual_enrichment,
+        }
+        requested = [name for name, enabled in constrained_features.items() if enabled is True]
+        if requested:
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    f"{', '.join(requested)} disabled on this constrained Render "
+                    "deployment. Use a larger backend instance before enabling "
+                    "memory-heavy retrieval features."
+                ),
+            )
+
     if body.llm_temperature is not None:
         settings.llm_temperature = body.llm_temperature
         from src.generation.llm import get_llm_provider
@@ -527,6 +544,7 @@ async def system_status(
             "enable_query_expansion": (
                 settings.enable_query_expansion and not settings.memory_constrained
             ),
+            "memory_constrained": settings.memory_constrained,
             "max_upload_size_mb": settings.max_upload_size_mb,
             "use_lightweight_embeddings": settings.use_lightweight_embeddings,
             "max_pdf_pages": settings.max_pdf_pages,

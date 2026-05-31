@@ -133,6 +133,36 @@ export interface AnalyticsSummary {
   embedding_model: string;
 }
 
+export interface SystemStatusSettings {
+  retrieval_top_k?: number;
+  enable_reranking?: boolean;
+  hybrid_search_alpha?: number;
+  enable_semantic_chunking?: boolean;
+  enable_contextual_enrichment?: boolean;
+  enable_query_expansion?: boolean;
+  memory_constrained?: boolean;
+  max_upload_size_mb?: number;
+  use_lightweight_embeddings?: boolean;
+  max_pdf_pages?: number;
+  max_pdf_ocr_pages?: number;
+  pdf_ocr_dpi?: number;
+  enable_pdf_embedded_image_ocr?: boolean;
+  enable_docx_embedded_image_ocr?: boolean;
+  max_pdf_embedded_images?: number;
+  max_docx_embedded_images?: number;
+  max_image_megapixels?: number;
+}
+
+export interface SystemCapabilities {
+  streaming?: boolean;
+  hybrid_search?: boolean;
+  semantic_cache?: boolean;
+  reranking?: boolean;
+  semantic_chunking?: boolean;
+  contextual_enrichment?: boolean;
+  ocr?: boolean;
+}
+
 export interface SystemStatusResponse {
   service: string;
   status: string;
@@ -143,8 +173,8 @@ export interface SystemStatusResponse {
   llm_model_name: string;
   embedding_model: string;
   cache: Record<string, unknown>;
-  settings: Record<string, unknown>;
-  capabilities: Record<string, boolean>;
+  settings: SystemStatusSettings;
+  capabilities: SystemCapabilities;
 }
 
 // ── UI state ─────────────────────────────────────────────────
