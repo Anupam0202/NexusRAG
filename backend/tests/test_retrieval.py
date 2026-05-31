@@ -146,6 +146,48 @@ class TestVectorStoreManager:
             "PlantPal_new_features.txt"
         ]
 
+    def test_exact_filename_query_is_scoped_to_that_file(self, tmp_path):
+        vs = VectorStoreManager()
+        vs._persist_dir = tmp_path / "vs"
+        vs._persist_dir.mkdir(parents=True, exist_ok=True)
+        vs._use_lightweight = True
+        vs._documents = [
+            Document(
+                page_content="e-Electors Photo Identity Card details.",
+                metadata={"filename": "Voter_Card.pdf", "file_type": "pdf"},
+            ),
+            Document(
+                page_content="Family identity, head of family, address, and document fields.",
+                metadata={"filename": "Annapurna_Yojana_Family_Level_Data_Collection_Form.pdf"},
+            ),
+        ]
+        vs._raw_embeddings = []
+        vs._index = None
+        vs._rebuild_bm25()
+
+        results = vs.search(
+            "From Voter_Card.pdf, identify the source filename and document type",
+            top_k=5,
+        )
+
+        assert results
+        assert {hit.document.metadata["filename"] for hit in results} == {"Voter_Card.pdf"}
+
+    def test_single_word_stems_do_not_scope_generic_queries(self, tmp_path):
+        vs = VectorStoreManager()
+        vs._persist_dir = tmp_path / "vs"
+        vs._persist_dir.mkdir(parents=True, exist_ok=True)
+        vs._use_lightweight = True
+        vs._documents = [
+            Document(page_content="Annual revenue report.", metadata={"filename": "report.pdf"}),
+            Document(page_content="Inventory report.", metadata={"filename": "inventory.pdf"}),
+        ]
+        vs._raw_embeddings = []
+        vs._index = None
+        vs._rebuild_bm25()
+
+        assert vs._explicit_filename_scope("summarize the report") == set()
+
     def test_lightweight_sparse_matches_do_not_pad_with_dense_noise(self):
         vs = VectorStoreManager()
         sparse_doc = Document(
