@@ -9,6 +9,22 @@ from src.repositories.base import SupabaseRepository, and_query, eq_filter, firs
 
 
 class WorkspaceRepository(SupabaseRepository):
+    async def ensure_profile(
+        self,
+        *,
+        user_id: str,
+        email: str | None = None,
+    ) -> dict[str, Any] | None:
+        rows = await self._supabase.table_upsert(
+            "profiles",
+            {
+                "id": user_id,
+                "email": email,
+            },
+            on_conflict="id",
+        )
+        return first_row(rows)
+
     async def get_workspace(self, workspace_id: str) -> dict[str, Any] | None:
         rows = await self._supabase.table_select(
             "workspaces",
@@ -22,6 +38,15 @@ class WorkspaceRepository(SupabaseRepository):
             query=(
                 "select=role,created_at,workspaces(id,name,slug,plan,owner_id,created_at,updated_at)&"
                 f"{eq_filter('user_id', user_id)}&order=created_at.asc"
+            ),
+        )
+
+    async def list_members(self, workspace_id: str) -> list[dict[str, Any]]:
+        return await self._supabase.table_select(
+            "workspace_members",
+            query=(
+                "select=user_id,role,created_at,profiles(id,email,display_name,avatar_url)&"
+                f"{eq_filter('workspace_id', workspace_id)}&order=created_at.asc"
             ),
         )
 

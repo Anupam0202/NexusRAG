@@ -22,6 +22,10 @@ import type {
   QueryResponse,
   SettingsUpdate,
   SystemStatusResponse,
+  WorkspaceCreateRequest,
+  WorkspaceListResponse,
+  WorkspaceMembersResponse,
+  WorkspaceSummary,
 } from "@/types";
 import { getApiHeaders } from "@/lib/api-context";
 import { buildBackendUrl } from "@/lib/backend-url";
@@ -230,4 +234,21 @@ export async function getCurrentWorkspace(): Promise<{
   user_id: string;
 }> {
   return request("/api/v1/workspaces/current");
+}
+
+export async function listWorkspaces(): Promise<WorkspaceListResponse> {
+  return request("/api/v1/workspaces");
+}
+
+export async function createWorkspace(
+  body: WorkspaceCreateRequest
+): Promise<WorkspaceSummary> {
+  return request("/api/v1/workspaces", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+export async function listCurrentWorkspaceMembers(): Promise<WorkspaceMembersResponse> {
+  return request("/api/v1/workspaces/current/members");
 }

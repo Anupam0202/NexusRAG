@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { LogOut, Mail, ShieldCheck, UserRound } from "lucide-react";
+import Link from "next/link";
+import { Building2, LogOut, ShieldCheck, UserRound } from "lucide-react";
 import { toast } from "sonner";
 import { useStore } from "@/hooks/useStore";
 import {
@@ -13,9 +14,8 @@ export function AuthMenu() {
   const authMode = useStore((state) => state.authMode);
   const authUser = useStore((state) => state.authUser);
   const workspaceId = useStore((state) => state.workspaceId);
+  const setWorkspaceId = useStore((state) => state.setWorkspaceId);
   const [open, setOpen] = useState(false);
-  const [email, setEmail] = useState("");
-  const [submitting, setSubmitting] = useState(false);
 
   const canUseSupabase = hasPublicSupabaseConfig();
   const label =
@@ -27,32 +27,12 @@ export function AuthMenu() {
           ? "Checking"
           : "Demo mode";
 
-  const signIn = async () => {
-    if (!email.trim()) return;
-    setSubmitting(true);
-    try {
-      const supabase = createSupabaseBrowserClient();
-      const { error } = await supabase.auth.signInWithOtp({
-        email: email.trim(),
-        options: {
-          emailRedirectTo: window.location.origin,
-        },
-      });
-      if (error) throw error;
-      toast.success("Magic link sent");
-      setOpen(false);
-      setEmail("");
-    } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : "Unable to send sign-in link");
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
   const signOut = async () => {
     try {
       const supabase = createSupabaseBrowserClient();
       await supabase.auth.signOut();
+      setWorkspaceId(null);
+      setOpen(false);
       toast.success("Signed out");
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "Unable to sign out");
@@ -81,6 +61,14 @@ export function AuthMenu() {
                   {workspaceId ?? "No workspace selected"}
                 </p>
               </div>
+              <Link
+                href="/workspaces"
+                onClick={() => setOpen(false)}
+                className="flex w-full items-center justify-center gap-2 rounded-lg border border-[var(--border)] px-3 py-2 text-xs font-semibold hover:bg-[var(--bg-hover)]"
+              >
+                <Building2 size={14} />
+                Workspaces
+              </Link>
               <button
                 type="button"
                 onClick={signOut}
@@ -91,27 +79,14 @@ export function AuthMenu() {
               </button>
             </div>
           ) : canUseSupabase ? (
-            <div className="space-y-3">
-              <label className="block">
-                <span className="text-xs font-medium text-[var(--text-muted)]">Email</span>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(event) => setEmail(event.target.value)}
-                  placeholder="you@example.com"
-                  className="mt-1 w-full rounded-lg border border-[var(--border)] bg-[var(--bg-secondary)] px-3 py-2 text-sm outline-none focus:border-brand-500"
-                />
-              </label>
-              <button
-                type="button"
-                onClick={signIn}
-                disabled={submitting || !email.trim()}
-                className="flex w-full items-center justify-center gap-2 rounded-lg bg-brand-600 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50"
-              >
-                <Mail size={14} />
-                {submitting ? "Sending..." : "Send magic link"}
-              </button>
-            </div>
+            <Link
+              href="/auth/login"
+              onClick={() => setOpen(false)}
+              className="flex w-full items-center justify-center gap-2 rounded-lg bg-brand-600 px-3 py-2 text-xs font-semibold text-white hover:bg-brand-500"
+            >
+              <ShieldCheck size={14} />
+              Sign in securely
+            </Link>
           ) : (
             <p className="text-xs leading-5 text-[var(--text-muted)]">
               Supabase is not configured for this deployment.

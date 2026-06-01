@@ -185,6 +185,46 @@ export interface ApiKeyStatusResponse {
   storage: "memory" | "supabase";
 }
 
+// -- Workspaces -----------------------------------------------------------
+
+export type WorkspaceRole = "owner" | "admin" | "editor" | "viewer";
+
+export interface WorkspaceSummary {
+  id: string;
+  name: string;
+  slug: string;
+  plan: string;
+  role: WorkspaceRole;
+  owner_id?: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+}
+
+export interface WorkspaceListResponse {
+  workspaces: WorkspaceSummary[];
+  total: number;
+}
+
+export interface WorkspaceCreateRequest {
+  name: string;
+  slug?: string | null;
+}
+
+export interface WorkspaceMember {
+  user_id: string;
+  email?: string | null;
+  display_name?: string | null;
+  avatar_url?: string | null;
+  role: WorkspaceRole;
+  created_at?: string | null;
+}
+
+export interface WorkspaceMembersResponse {
+  workspace_id: string;
+  members: WorkspaceMember[];
+  total: number;
+}
+
 // ── Analytics ────────────────────────────────────────────────
 
 export interface AnalyticsSummary {

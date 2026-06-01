@@ -7,13 +7,15 @@ chat session, and setting will be scoped by the returned workspace context.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from enum import StrEnum
 from typing import Any
 from uuid import UUID
 
+import httpx
 from fastapi import APIRouter, Depends, Header, HTTPException, status
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from config.settings import Settings, get_settings
 from src.infrastructure.supabase_client import (
@@ -65,6 +67,42 @@ class WorkspaceContextResponse(BaseModel):
     user_id: str
 
 
+class WorkspaceCreateRequest(BaseModel):
+    name: str = Field(..., min_length=2, max_length=80)
+    slug: str | None = Field(default=None, min_length=3, max_length=63)
+
+
+class WorkspaceSummaryResponse(BaseModel):
+    id: str
+    name: str
+    slug: str
+    plan: str = "free"
+    role: WorkspaceRole
+    owner_id: str | None = None
+    created_at: str | None = None
+    updated_at: str | None = None
+
+
+class WorkspaceListResponse(BaseModel):
+    workspaces: list[WorkspaceSummaryResponse]
+    total: int
+
+
+class WorkspaceMemberResponse(BaseModel):
+    user_id: str
+    email: str | None = None
+    display_name: str | None = None
+    avatar_url: str | None = None
+    role: WorkspaceRole
+    created_at: str | None = None
+
+
+class WorkspaceMembersResponse(BaseModel):
+    workspace_id: str
+    members: list[WorkspaceMemberResponse]
+    total: int
+
+
 router = APIRouter(prefix="/auth", tags=["auth"])
 workspace_router = APIRouter(prefix="/workspaces", tags=["workspaces"])
 
@@ -83,6 +121,48 @@ def _missing_bearer_error() -> HTTPException:
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Missing bearer token.",
         headers={"WWW-Authenticate": "Bearer"},
+    )
+
+
+def _slugify_workspace(value: str) -> str:
+    slug = re.sub(r"[^a-z0-9]+", "-", value.lower()).strip("-")
+    slug = re.sub(r"-{2,}", "-", slug)
+    if not slug:
+        slug = "workspace"
+    if len(slug) < 3:
+        slug = f"{slug}-workspace"
+    slug = slug[:63].strip("-")
+    if len(slug) < 3:
+        slug = "workspace"
+    return slug
+
+
+def _workspace_summary(
+    workspace: dict[str, Any],
+    *,
+    role: WorkspaceRole | str,
+) -> WorkspaceSummaryResponse:
+    parsed_role = role if isinstance(role, WorkspaceRole) else WorkspaceRole(str(role))
+    return WorkspaceSummaryResponse(
+        id=str(workspace["id"]),
+        name=str(workspace["name"]),
+        slug=str(workspace["slug"]),
+        plan=str(workspace.get("plan") or "free"),
+        role=parsed_role,
+        owner_id=str(workspace["owner_id"]) if workspace.get("owner_id") else None,
+        created_at=str(workspace["created_at"]) if workspace.get("created_at") else None,
+        updated_at=str(workspace["updated_at"]) if workspace.get("updated_at") else None,
+    )
+
+
+def _demo_workspace_summary() -> WorkspaceSummaryResponse:
+    return WorkspaceSummaryResponse(
+        id=DEFAULT_WORKSPACE_ID,
+        name="Demo Workspace",
+        slug="demo-workspace",
+        plan="demo",
+        role=WorkspaceRole.OWNER,
+        owner_id="00000000-0000-0000-0000-000000000000",
     )
 
 
@@ -327,6 +407,84 @@ async def read_current_user(user: CurrentUser = Depends(get_current_user)) -> Cu
     )
 
 
+@workspace_router.get("", response_model=WorkspaceListResponse)
+async def list_workspaces(
+    user: CurrentUser = Depends(get_current_user),
+    supabase: SupabaseClient = Depends(get_supabase_client),
+) -> WorkspaceListResponse:
+    if user.is_demo:
+        workspace = _demo_workspace_summary()
+        return WorkspaceListResponse(workspaces=[workspace], total=1)
+
+    from src.repositories.workspaces import WorkspaceRepository
+
+    try:
+        rows = await WorkspaceRepository(supabase).list_for_user(user.id)
+    except SupabaseNotConfiguredError as exc:
+        raise _enterprise_auth_not_configured_error() from exc
+    except httpx.HTTPStatusError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Unable to load workspaces from Supabase.",
+        ) from exc
+
+    workspaces: list[WorkspaceSummaryResponse] = []
+    for row in rows:
+        workspace = row.get("workspaces")
+        if isinstance(workspace, dict) and workspace.get("id"):
+            try:
+                workspaces.append(_workspace_summary(workspace, role=row.get("role", "viewer")))
+            except (KeyError, ValueError):
+                continue
+
+    return WorkspaceListResponse(workspaces=workspaces, total=len(workspaces))
+
+
+@workspace_router.post(
+    "",
+    response_model=WorkspaceSummaryResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_workspace(
+    payload: WorkspaceCreateRequest,
+    user: CurrentUser = Depends(get_current_user),
+    supabase: SupabaseClient = Depends(get_supabase_client),
+) -> WorkspaceSummaryResponse:
+    if user.is_demo:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Demo mode cannot create durable workspaces.",
+        )
+
+    from src.repositories.workspaces import WorkspaceRepository
+
+    repo = WorkspaceRepository(supabase)
+    slug = _slugify_workspace(payload.slug or payload.name)
+
+    try:
+        await repo.ensure_profile(user_id=user.id, email=user.email)
+        workspace = await repo.create_workspace(
+            name=payload.name.strip(),
+            slug=slug,
+            owner_id=user.id,
+        )
+    except SupabaseNotConfiguredError as exc:
+        raise _enterprise_auth_not_configured_error() from exc
+    except httpx.HTTPStatusError as exc:
+        status_code = exc.response.status_code
+        if status_code == status.HTTP_409_CONFLICT:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Workspace slug is already in use.",
+            ) from exc
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Unable to create workspace in Supabase.",
+        ) from exc
+
+    return _workspace_summary(workspace, role=WorkspaceRole.OWNER)
+
+
 @workspace_router.get("/current", response_model=WorkspaceContextResponse)
 async def read_current_workspace(
     context: WorkspaceContext = Depends(get_workspace_context),
@@ -335,4 +493,77 @@ async def read_current_workspace(
         workspace_id=context.workspace_id,
         role=context.role,
         user_id=context.user.id,
+    )
+
+
+@workspace_router.get("/current/members", response_model=WorkspaceMembersResponse)
+async def list_current_workspace_members(
+    context: WorkspaceContext = Depends(
+        require_workspace_role(
+            WorkspaceRole.OWNER,
+            WorkspaceRole.ADMIN,
+            WorkspaceRole.EDITOR,
+            WorkspaceRole.VIEWER,
+        )
+    ),
+    supabase: SupabaseClient = Depends(get_supabase_client),
+) -> WorkspaceMembersResponse:
+    if context.user.is_demo:
+        member = WorkspaceMemberResponse(
+            user_id=context.user.id,
+            email=context.user.email,
+            display_name="Demo user",
+            role=WorkspaceRole.OWNER,
+        )
+        return WorkspaceMembersResponse(
+            workspace_id=context.workspace_id,
+            members=[member],
+            total=1,
+        )
+
+    from src.repositories.workspaces import WorkspaceRepository
+
+    try:
+        rows = await WorkspaceRepository(supabase).list_members(context.workspace_id)
+    except SupabaseNotConfiguredError as exc:
+        raise _enterprise_auth_not_configured_error() from exc
+    except httpx.HTTPStatusError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Unable to load workspace members from Supabase.",
+        ) from exc
+
+    members: list[WorkspaceMemberResponse] = []
+    for row in rows:
+        profile = row.get("profiles") if isinstance(row.get("profiles"), dict) else {}
+        try:
+            role = WorkspaceRole(str(row["role"]))
+        except (KeyError, ValueError):
+            continue
+        member_user_id = row.get("user_id") or profile.get("id")
+        if not member_user_id:
+            continue
+        members.append(
+            WorkspaceMemberResponse(
+                user_id=str(member_user_id),
+                email=profile.get("email") if isinstance(profile.get("email"), str) else None,
+                display_name=(
+                    profile.get("display_name")
+                    if isinstance(profile.get("display_name"), str)
+                    else None
+                ),
+                avatar_url=(
+                    profile.get("avatar_url")
+                    if isinstance(profile.get("avatar_url"), str)
+                    else None
+                ),
+                role=role,
+                created_at=str(row["created_at"]) if row.get("created_at") else None,
+            )
+        )
+
+    return WorkspaceMembersResponse(
+        workspace_id=context.workspace_id,
+        members=members,
+        total=len(members),
     )
