@@ -163,7 +163,11 @@ class ScientificPDFParser:
 
         for page_num, page_obj in enumerate(doc_pdf, 1):
             pix = page_obj.get_pixmap(dpi=settings.pdf_ocr_dpi, alpha=False)
-            img = np.frombuffer(pix.samples, dtype=np.uint8).reshape(pix.height, pix.width, pix.n)
+            img: Any = np.frombuffer(pix.samples, dtype=np.uint8).reshape(
+                pix.height,
+                pix.width,
+                pix.n,
+            )
             if img.shape[2] == 4:
                 img = cv2.cvtColor(img, cv2.COLOR_RGBA2RGB)
             elif img.shape[2] == 1:

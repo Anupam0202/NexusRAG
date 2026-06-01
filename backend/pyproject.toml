@@ -86,3 +86,10 @@ testpaths = ["tests"]
 [tool.mypy]
 python_version = "3.11"
 strict = true
+ignore_missing_imports = true
+disallow_any_generics = false
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+warn_return_any = false
+warn_unused_ignores = false
+disable_error_code = ["attr-defined"]

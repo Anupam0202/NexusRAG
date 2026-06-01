@@ -62,7 +62,12 @@ export function UploadZone({ onUpload, uploading, limits }: Props) {
           const resp = await onUpload(file);
           if (resp.success) {
             setStatus("success");
-            toast.success(`${file.name} - ${resp.document?.chunk_count} chunks created`);
+            const chunkCount = resp.document?.chunk_count ?? 0;
+            toast.success(
+              resp.job_id && resp.job?.status !== "completed"
+                ? `${file.name} queued for indexing`
+                : `${file.name} - ${chunkCount} chunks created`
+            );
           } else {
             setStatus("error");
             toast.error(resp.message);

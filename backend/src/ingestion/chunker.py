@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import re
 from abc import ABC, abstractmethod
+from typing import Any
 
 import numpy as np
 from langchain_core.documents import Document
@@ -70,9 +71,9 @@ class SemanticChunker(ChunkingStrategy):
         self._min_chunk = s.min_chunk_length
         self._max_chunk = s.chunk_size * 2
         self._model_name = s.embedding_model
-        self._model = None
+        self._model: Any = None
 
-    def _get_model(self):
+    def _get_model(self) -> Any:
         if self._model is None:
             from sentence_transformers import SentenceTransformer
 

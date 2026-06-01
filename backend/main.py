@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
+from typing import Any, cast
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -61,7 +62,7 @@ app = FastAPI(
 # ── Middleware (order matters — outermost first) ──────────────────────────
 
 app.add_middleware(RequestLoggingMiddleware)
-app.add_middleware(RateLimitMiddleware, rpm=120)
+app.add_middleware(cast(Any, RateLimitMiddleware), rpm=120)
 
 # CORS — settings.cors_origins auto-includes RENDER_EXTERNAL_URL when set
 logger.info("cors_origins_configured", origins=settings.cors_origins)

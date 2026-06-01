@@ -26,6 +26,7 @@ import time
 import uuid
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any, cast
 
 from fastapi import (
     APIRouter,
@@ -662,9 +663,9 @@ async def list_document_chunks(
     )
 
 
-@router.delete("/documents/{filename}", response_model=DocumentDeleteResponse)
+@router.delete("/documents/{document_identifier}", response_model=DocumentDeleteResponse)
 async def delete_document(
-    filename: str,
+    document_identifier: str,
     workspace: WorkspaceContext | None = Depends(
         require_enterprise_workspace_role(*EDITOR_ROLES)
     ),
@@ -673,20 +674,20 @@ async def delete_document(
     chain: RAGChain = Depends(get_rag_chain),
 ) -> DocumentDeleteResponse:
     workspace_id = _context_workspace_id(workspace)
-    removed = vs.delete_by_filename(filename, workspace_id=workspace_id)
+    removed = vs.delete_by_identifier(document_identifier, workspace_id=workspace_id)
     if removed == 0:
-        raise HTTPException(404, f"Document '{filename}' not found")
+        raise HTTPException(404, f"Document '{document_identifier}' not found")
     chain.clear_cache(workspace_id=workspace_id)
     await _record_audit_event(
         workspace=workspace,
         settings=settings,
         action="document.deleted",
         resource_type="document",
-        resource_id=filename,
-        metadata={"filename": filename, "chunks_removed": removed},
+        resource_id=document_identifier,
+        metadata={"document_identifier": document_identifier, "chunks_removed": removed},
     )
     return DocumentDeleteResponse(
-        success=True, message=f"Removed {removed} chunks", document_id=filename
+        success=True, message=f"Removed {removed} chunks", document_id=document_identifier
     )
 
 
@@ -1079,8 +1080,8 @@ def _validate_provider_api_key(provider: str, api_key: str) -> None:
     try:
         import google.generativeai as legacy_genai
 
-        legacy_genai.configure(api_key=api_key)
-        models = list(legacy_genai.list_models())
+        cast(Any, legacy_genai).configure(api_key=api_key)
+        models = list(cast(Any, legacy_genai).list_models())
         if not models:
             raise HTTPException(400, "Invalid API key - no models accessible.")
     except ImportError:
@@ -1239,16 +1240,16 @@ async def delete_api_key(
 
 
 def _evaluation_gates(
-    summary: dict,
+    summary: dict[str, Any],
     *,
     recall_threshold: float,
     citation_threshold: float,
-) -> dict:
+) -> dict[str, Any]:
     recall = float(summary.get("avg_retrieval_recall_at_k", 0.0) or 0.0)
     citation_precision = float(summary.get("avg_citation_precision", 0.0) or 0.0)
     leaks = int(summary.get("cross_workspace_leaks", 0) or 0)
     pass_rate = float(summary.get("pass_rate", 0.0) or 0.0)
-    checks = {
+    checks: dict[str, dict[str, Any]] = {
         "retrieval_recall": {
             "value": recall,
             "threshold": recall_threshold,
@@ -1278,7 +1279,7 @@ def _evaluation_gates(
 
 @router.post("/evaluations/sample", response_model=EvaluationReportResponse)
 async def run_sample_evaluation(
-    body: EvaluationRunRequest = Body(default_factory=EvaluationRunRequest),
+    body: EvaluationRunRequest = Body(default_factory=lambda: EvaluationRunRequest(top_k=None)),
     workspace: WorkspaceContext | None = Depends(
         require_enterprise_workspace_role(*VIEWER_ROLES)
     ),

@@ -172,16 +172,24 @@ class VectorStoreManager:
         return len(documents_to_add)
 
     def delete_by_filename(self, filename: str, *, workspace_id: str | None = None) -> int:
+        return self.delete_by_identifier(filename, workspace_id=workspace_id)
+
+    def delete_by_identifier(self, identifier: str, *, workspace_id: str | None = None) -> int:
         scoped_workspace_id = normalize_workspace_id(workspace_id)
+        target = str(identifier)
+
+        def matches(doc: Document) -> bool:
+            return self._doc_workspace_id(doc) == scoped_workspace_id and target in {
+                str(doc.metadata.get("document_id") or ""),
+                str(doc.metadata.get("filename") or ""),
+            }
+
         with self._lock:
             before = len(self._documents)
             keep = [
                 (d, e)
                 for d, e in zip(self._documents, self._raw_embeddings)
-                if not (
-                    d.metadata.get("filename") == filename
-                    and self._doc_workspace_id(d) == scoped_workspace_id
-                )
+                if not matches(d)
             ]
             if len(keep) == before:
                 return 0
@@ -193,7 +201,7 @@ class VectorStoreManager:
         removed = before - len(self._documents)
         logger.info(
             "documents_deleted",
-            filename=filename,
+            identifier=target,
             workspace_id=scoped_workspace_id,
             removed=removed,
         )
@@ -207,11 +215,12 @@ class VectorStoreManager:
                 continue
             metadata = doc.metadata
             filename = metadata.get("filename", "unknown")
+            document_id = str(metadata.get("document_id") or filename)
             item = summaries.setdefault(
-                filename,
+                document_id,
                 {
                     "filename": filename,
-                    "document_id": metadata.get("document_id") or filename,
+                    "document_id": document_id,
                     "chunk_count": 0,
                     "file_size_bytes": 0,
                     "file_type": "",

@@ -12,7 +12,7 @@ from __future__ import annotations
 import logging
 import sys
 from functools import lru_cache
-from typing import Any
+from typing import Any, cast
 
 import structlog
 
@@ -35,10 +35,12 @@ def _configure_structlog() -> None:
         structlog.processors.UnicodeDecoder(),
     ]
 
-    if is_json:
-        renderer = structlog.processors.JSONRenderer()
-    else:
-        renderer = structlog.dev.ConsoleRenderer(colors=True)
+    renderer = cast(
+        Any,
+        structlog.processors.JSONRenderer()
+        if is_json
+        else structlog.dev.ConsoleRenderer(colors=True),
+    )
 
     structlog.configure(
         processors=[

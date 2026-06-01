@@ -128,7 +128,7 @@ class GeminiVisionOCR:
     )
 
     def __init__(self) -> None:
-        self._client = None
+        self._client: Any = None
         self._model_name: str = ""
         self._model_candidates: list[str] = []
         self._available = False

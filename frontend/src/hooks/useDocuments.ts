@@ -102,10 +102,10 @@ export function useDocuments() {
   );
 
   const remove = useCallback(
-    async (filename: string) => {
+    async (documentId: string) => {
       try {
-        await deleteDocument(filename);
-        removeDocument(filename);
+        await deleteDocument(documentId);
+        removeDocument(documentId);
       } catch (err: unknown) {
         setError(getErrorMessage(err, "Delete failed"));
       }

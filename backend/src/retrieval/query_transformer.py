@@ -55,9 +55,9 @@ class QueryTransformer:
 
     def __init__(self, settings: Settings | None = None) -> None:
         self._settings = settings or get_settings()
-        self._llm_provider = None
+        self._llm_provider: Any = None
 
-    def _get_provider(self, *, workspace_id: str | None = None):
+    def _get_provider(self, *, workspace_id: str | None = None) -> Any:
         """Get the shared LLMProvider (with failover engine)."""
         if self._llm_provider is not None:
             return self._llm_provider

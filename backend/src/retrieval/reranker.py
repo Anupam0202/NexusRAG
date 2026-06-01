@@ -15,6 +15,7 @@ degradation).
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from typing import Any
 
 from langchain_core.documents import Document
 
@@ -37,9 +38,9 @@ class CrossEncoderReranker(BaseReranker):
 
     def __init__(self, model_name: str = "cross-encoder/ms-marco-MiniLM-L-6-v2") -> None:
         self._model_name = model_name
-        self._model = None
+        self._model: Any = None
 
-    def _load_model(self):
+    def _load_model(self) -> Any:
         if self._model is None:
             from sentence_transformers import CrossEncoder
 
@@ -66,9 +67,9 @@ class LLMReranker(BaseReranker):
 
     def __init__(self, settings: Settings | None = None) -> None:
         self._settings = settings or get_settings()
-        self._llm = None
+        self._llm: Any = None
 
-    def _get_llm(self):
+    def _get_llm(self) -> Any:
         if self._llm is None:
             from langchain_google_genai import ChatGoogleGenerativeAI
 
