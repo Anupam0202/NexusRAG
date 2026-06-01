@@ -13,9 +13,24 @@ from PIL import Image
 from config.settings import get_settings
 from src.ingestion import loader as loader_module
 from src.ingestion.chunker import RecursiveChunker, SmartChunker
+from src.ingestion.job_manager import InMemoryIngestionJobStore
 from src.ingestion.loader import LoaderFactory
 from src.ingestion.ocr_manager import GeminiVisionOCR
 from src.utils.security import FileValidator
+
+
+def test_ingestion_job_store_accepts_durable_job_id() -> None:
+    store = InMemoryIngestionJobStore()
+
+    job = store.create(
+        job_id="11111111-1111-1111-1111-111111111111",
+        workspace_id="22222222-2222-2222-2222-222222222222",
+        document_id="33333333-3333-3333-3333-333333333333",
+        filename="enterprise.txt",
+    )
+
+    assert job.job_id == "11111111-1111-1111-1111-111111111111"
+    assert store.get(job.job_id) is job
 
 # ═══════════════════════════════════════════════════════════════════════════
 #  LOADER TESTS

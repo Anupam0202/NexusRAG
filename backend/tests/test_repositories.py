@@ -200,6 +200,24 @@ async def test_job_repository_claims_next_job_with_workspace_scoped_update() -> 
 
 
 @pytest.mark.asyncio
+async def test_job_repository_can_use_external_job_id() -> None:
+    fake = FakeSupabase()
+    repo = IngestionJobRepository(fake)  # type: ignore[arg-type]
+
+    job = await repo.create_job(
+        workspace_id="workspace-1",
+        document_id="doc-1",
+        job_id="11111111-1111-1111-1111-111111111111",
+    )
+
+    assert job["id"] == "11111111-1111-1111-1111-111111111111"
+    insert_call = fake.calls[0]
+    assert insert_call[0] == "insert"
+    assert insert_call[1] == "ingestion_jobs"
+    assert insert_call[2]["id"] == "11111111-1111-1111-1111-111111111111"
+
+
+@pytest.mark.asyncio
 async def test_workspace_repository_bootstraps_owner_and_settings() -> None:
     fake = FakeSupabase()
     repo = WorkspaceRepository(fake)  # type: ignore[arg-type]

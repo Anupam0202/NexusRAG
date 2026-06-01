@@ -38,6 +38,7 @@ from fastapi import (
     Query,
     UploadFile,
 )
+from langchain_core.documents import Document
 from pydantic import BaseModel, Field
 
 from config.settings import Settings, get_settings
@@ -60,6 +61,7 @@ from src.api.models import (
     EvaluationCaseResponse,
     EvaluationReportResponse,
     EvaluationRunRequest,
+    IngestionJobStatus,
     IngestionJobStatusResponse,
     QueryRequest,
     QueryResponse,
@@ -76,6 +78,12 @@ from src.generation.provider_keys import (
 )
 from src.ingestion.job_manager import get_ingestion_job_store
 from src.ingestion.pipeline import IngestionPipeline
+from src.repositories.chunks import ChunkRepository
+from src.repositories.documents import (
+    DocumentRepository,
+    compute_sha256,
+)
+from src.repositories.jobs import IngestionJobRepository
 from src.repositories.messages import MessageRepository
 from src.repositories.settings import WorkspaceSettingsRepository
 from src.retrieval.vector_store import VectorStoreManager
@@ -356,6 +364,258 @@ def _metadata_from_ingestion(result) -> tuple[int, str]:
     return page_count, extraction_method
 
 
+def _safe_int(value: Any, *, default: int = 0) -> int:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _row_to_document_metadata(row: dict[str, Any]) -> DocumentMetadata:
+    filename = str(row.get("filename") or row.get("original_filename") or "document")
+    status_value = str(row.get("status") or DocumentStatus.READY.value)
+    try:
+        status = DocumentStatus(status_value)
+    except ValueError:
+        status = DocumentStatus.READY
+    return DocumentMetadata(
+        document_id=str(row.get("id") or row.get("document_id") or filename),
+        filename=filename,
+        file_type=Path(filename).suffix.lower().lstrip("."),
+        file_size_bytes=_safe_int(row.get("file_size_bytes"), default=0),
+        page_count=_safe_int(row.get("page_count"), default=0),
+        chunk_count=_safe_int(row.get("chunk_count"), default=0),
+        status=status,
+        extra={
+            "workspace_id": row.get("workspace_id"),
+            "storage_bucket": row.get("storage_bucket"),
+            "storage_path": row.get("storage_path"),
+            "sha256": row.get("sha256"),
+        },
+    )
+
+
+def _row_to_job_response(
+    row: dict[str, Any],
+    *,
+    document: DocumentMetadata | None = None,
+) -> IngestionJobStatusResponse:
+    def parse_dt(value: Any) -> datetime | None:
+        if isinstance(value, datetime):
+            return value
+        if isinstance(value, str) and value:
+            try:
+                return datetime.fromisoformat(value.replace("Z", "+00:00"))
+            except ValueError:
+                return None
+        return None
+
+    status_value = str(row.get("status") or IngestionJobStatus.QUEUED.value)
+    try:
+        status = IngestionJobStatus(status_value)
+    except ValueError:
+        status = IngestionJobStatus.QUEUED
+
+    return IngestionJobStatusResponse(
+        job_id=str(row.get("id") or row.get("job_id") or ""),
+        document_id=str(row.get("document_id") or ""),
+        filename=document.filename if document else str(row.get("filename") or ""),
+        status=status,
+        stage=str(row.get("stage") or row.get("status") or "queued"),
+        progress=_safe_int(row.get("progress"), default=0),
+        message=str(row.get("stage") or row.get("status") or "queued"),
+        error_message=row.get("error_message"),
+        created_at=parse_dt(row.get("created_at")) or datetime.now(UTC),
+        updated_at=parse_dt(row.get("updated_at")) or datetime.now(UTC),
+        started_at=parse_dt(row.get("started_at")),
+        completed_at=parse_dt(row.get("completed_at")),
+        document=document,
+    )
+
+
+def _chunk_rows_from_documents(chunks: list[Document]) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    for index, chunk in enumerate(chunks):
+        metadata = dict(chunk.metadata or {})
+        chunk_index = _safe_int(metadata.get("chunk_index"), default=index)
+        content = chunk.page_content or ""
+        page_number_value = metadata.get("page_number") or metadata.get("page")
+        rows.append(
+            {
+                "chunk_index": chunk_index,
+                "content": content,
+                "content_hash": compute_sha256(content.encode("utf-8", "ignore")),
+                "page_number": (
+                    _safe_int(page_number_value, default=0)
+                    if page_number_value is not None
+                    else None
+                ),
+                "section_title": metadata.get("section_title"),
+                "token_count": (
+                    _safe_int(metadata.get("token_count"), default=0)
+                    if metadata.get("token_count") is not None
+                    else None
+                ),
+                "qdrant_point_id": metadata.get("chunk_id"),
+                "metadata": {
+                    key: value
+                    for key, value in metadata.items()
+                    if key not in {"workspace_id", "document_id"}
+                },
+            }
+        )
+    return rows
+
+
+async def _persist_enterprise_upload_start(
+    *,
+    workspace: WorkspaceContext | None,
+    settings: Settings,
+    document_id: str,
+    filename: str,
+    original_filename: str,
+    content: bytes,
+    content_type: str | None,
+) -> str | None:
+    if not _should_persist_workspace_event(workspace, settings):
+        return None
+
+    workspace_id = _context_workspace_id(workspace)
+    user_id = _context_user_id(workspace)
+    if not user_id:
+        return None
+
+    doc_repo = DocumentRepository()
+    document = await doc_repo.create_queued_document(
+        workspace_id=workspace_id,
+        uploaded_by=user_id,
+        filename=filename,
+        original_filename=original_filename,
+        content_type=content_type,
+        file_size_bytes=len(content),
+        sha256=compute_sha256(content),
+        document_id=document_id,
+        storage_bucket=settings.supabase_storage_bucket,
+    )
+    job_repo = IngestionJobRepository()
+    try:
+        job = await job_repo.create_job(
+            workspace_id=workspace_id,
+            document_id=document_id,
+        )
+    except Exception:
+        await doc_repo.update_document(
+            workspace_id=workspace_id,
+            document_id=document_id,
+            values={
+                "status": "failed",
+                "error_message": "Unable to create ingestion job",
+            },
+        )
+        raise
+
+    job_id = str(job.get("id") or "")
+    storage_path = str(document.get("storage_path") or "")
+    try:
+        if storage_path:
+            await doc_repo.upload_original(
+                storage_path=storage_path,
+                content=content,
+                content_type=content_type,
+            )
+    except Exception as exc:
+        message = str(exc)[:500]
+        await doc_repo.update_document(
+            workspace_id=workspace_id,
+            document_id=document_id,
+            values={"status": "failed", "error_message": message},
+        )
+        await job_repo.update_job(
+            workspace_id=workspace_id,
+            job_id=job_id,
+            values={
+                "status": "failed",
+                "stage": "storage_failed",
+                "progress": 100,
+                "error_message": message,
+                "completed_at": datetime.now(UTC).isoformat(),
+            },
+        )
+        raise
+    return job_id
+
+
+async def _persist_enterprise_upload_success(
+    *,
+    workspace: WorkspaceContext | None,
+    settings: Settings,
+    job_id: str,
+    document: DocumentMetadata,
+    chunks: list[Document],
+) -> None:
+    if not _should_persist_workspace_event(workspace, settings):
+        return
+
+    workspace_id = _context_workspace_id(workspace)
+    await DocumentRepository().update_document(
+        workspace_id=workspace_id,
+        document_id=document.document_id,
+        values={
+            "status": "ready",
+            "page_count": document.page_count,
+            "chunk_count": document.chunk_count,
+            "error_message": None,
+        },
+    )
+    await ChunkRepository().replace_document_chunks(
+        workspace_id=workspace_id,
+        document_id=document.document_id,
+        chunks=_chunk_rows_from_documents(chunks),
+    )
+    await IngestionJobRepository().update_job(
+        workspace_id=workspace_id,
+        job_id=job_id,
+        values={
+            "status": "completed",
+            "stage": "completed",
+            "progress": 100,
+            "error_message": None,
+            "completed_at": datetime.now(UTC).isoformat(),
+        },
+    )
+
+
+async def _persist_enterprise_upload_failure(
+    *,
+    workspace: WorkspaceContext | None,
+    settings: Settings,
+    job_id: str,
+    document_id: str,
+    error: str,
+) -> None:
+    if not _should_persist_workspace_event(workspace, settings):
+        return
+
+    workspace_id = _context_workspace_id(workspace)
+    message = error[:500]
+    await DocumentRepository().update_document(
+        workspace_id=workspace_id,
+        document_id=document_id,
+        values={"status": "failed", "error_message": message},
+    )
+    await IngestionJobRepository().update_job(
+        workspace_id=workspace_id,
+        job_id=job_id,
+        values={
+            "status": "failed",
+            "stage": "failed",
+            "progress": 100,
+            "error_message": message,
+            "completed_at": datetime.now(UTC).isoformat(),
+        },
+    )
+
+
 def _process_upload_job(
     *,
     job_id: str,
@@ -366,7 +626,8 @@ def _process_upload_job(
     settings: Settings,
     vs: VectorStoreManager,
     chain: RAGChain,
-) -> DocumentMetadata:
+    capture_chunks: bool = False,
+) -> DocumentMetadata | tuple[DocumentMetadata, list[Document]]:
     job_store = get_ingestion_job_store()
 
     def report(stage: str, pct: float) -> None:
@@ -411,8 +672,11 @@ def _process_upload_job(
         document=doc_meta,
         message=f"{safe_name} ingested: {result.chunks_created} chunks",
     )
+    chunks_snapshot = list(result.chunks) if capture_chunks else []
     del result
     gc.collect()
+    if capture_chunks:
+        return doc_meta, chunks_snapshot
     return doc_meta
 
 
@@ -423,6 +687,44 @@ def _process_upload_job_background(**kwargs) -> None:
         logger.warning(
             "upload_background_job_failed",
             job_id=kwargs.get("job_id"),
+            file=kwargs.get("safe_name"),
+            error=str(exc),
+        )
+
+
+async def _process_enterprise_upload_job_background(**kwargs) -> None:
+    workspace = kwargs.pop("workspace")
+    settings = kwargs["settings"]
+    job_id = kwargs["job_id"]
+    document_id = kwargs["document_id"]
+    try:
+        processed = await asyncio.to_thread(
+            _process_upload_job,
+            **kwargs,
+            capture_chunks=_should_persist_workspace_event(workspace, settings),
+        )
+        if isinstance(processed, tuple):
+            doc_meta, chunks = processed
+        else:
+            doc_meta, chunks = processed, []
+        await _persist_enterprise_upload_success(
+            workspace=workspace,
+            settings=settings,
+            job_id=job_id,
+            document=doc_meta,
+            chunks=chunks,
+        )
+    except Exception as exc:
+        await _persist_enterprise_upload_failure(
+            workspace=workspace,
+            settings=settings,
+            job_id=job_id,
+            document_id=document_id,
+            error=str(exc),
+        )
+        logger.warning(
+            "upload_background_job_failed",
+            job_id=job_id,
             file=kwargs.get("safe_name"),
             error=str(exc),
         )
@@ -461,8 +763,30 @@ async def upload_document(
 
     workspace_id = _context_workspace_id(workspace)
     document_id = str(uuid.uuid4())
+    try:
+        enterprise_job_id = await _persist_enterprise_upload_start(
+            workspace=workspace,
+            settings=settings,
+            document_id=document_id,
+            filename=safe_name,
+            original_filename=file.filename,
+            content=content,
+            content_type=file.content_type,
+        )
+    except Exception as exc:
+        logger.error(
+            "enterprise_upload_start_failed",
+            workspace_id=workspace_id,
+            file=safe_name,
+            error=str(exc)[:300],
+        )
+        raise HTTPException(
+            503,
+            "Document persistence is temporarily unavailable. Please retry the upload.",
+        )
     job_store = get_ingestion_job_store()
     job = job_store.create(
+        job_id=enterprise_job_id,
         document_id=document_id,
         filename=safe_name,
         workspace_id=workspace_id,
@@ -477,17 +801,24 @@ async def upload_document(
             status=DocumentStatus.PENDING,
             extra={"job_id": job.job_id, "workspace_id": workspace_id},
         )
-        background_tasks.add_task(
-            _process_upload_job_background,
-            job_id=job.job_id,
-            workspace_id=workspace_id,
-            document_id=document_id,
-            safe_name=safe_name,
-            content=content,
-            settings=settings,
-            vs=vs,
-            chain=chain,
+        background_task = (
+            _process_enterprise_upload_job_background
+            if enterprise_job_id
+            else _process_upload_job_background
         )
+        task_kwargs: dict[str, Any] = {
+            "job_id": job.job_id,
+            "workspace_id": workspace_id,
+            "document_id": document_id,
+            "safe_name": safe_name,
+            "content": content,
+            "settings": settings,
+            "vs": vs,
+            "chain": chain,
+        }
+        if enterprise_job_id:
+            task_kwargs["workspace"] = workspace
+        background_tasks.add_task(background_task, **task_kwargs)
         await _record_audit_event(
             workspace=workspace,
             settings=settings,
@@ -510,7 +841,7 @@ async def upload_document(
 
     try:
         loop = asyncio.get_event_loop()
-        doc_meta = await loop.run_in_executor(
+        processed = await loop.run_in_executor(
             None,
             lambda: _process_upload_job(
                 job_id=job.job_id,
@@ -521,9 +852,30 @@ async def upload_document(
                 settings=settings,
                 vs=vs,
                 chain=chain,
+                capture_chunks=bool(enterprise_job_id),
             ),
         )
+        if isinstance(processed, tuple):
+            doc_meta, processed_chunks = processed
+        else:
+            doc_meta, processed_chunks = processed, []
+        if enterprise_job_id:
+            await _persist_enterprise_upload_success(
+                workspace=workspace,
+                settings=settings,
+                job_id=job.job_id,
+                document=doc_meta,
+                chunks=processed_chunks,
+            )
     except Exception as exc:
+        if enterprise_job_id:
+            await _persist_enterprise_upload_failure(
+                workspace=workspace,
+                settings=settings,
+                job_id=job.job_id,
+                document_id=document_id,
+                error=str(exc),
+            )
         await _record_audit_event(
             workspace=workspace,
             settings=settings,
@@ -581,9 +933,22 @@ async def list_documents(
     workspace: WorkspaceContext | None = Depends(
         require_enterprise_workspace_role(*VIEWER_ROLES)
     ),
+    settings: Settings = Depends(get_settings),
     vs: VectorStoreManager = Depends(get_vector_store),
 ) -> DocumentListResponse:
     workspace_id = _context_workspace_id(workspace)
+    if _should_persist_workspace_event(workspace, settings):
+        try:
+            rows = await DocumentRepository().list_documents(workspace_id=workspace_id)
+            docs = [_row_to_document_metadata(row) for row in rows]
+            return DocumentListResponse(documents=docs, total=len(docs))
+        except Exception as exc:
+            logger.warning(
+                "durable_document_list_failed",
+                workspace_id=workspace_id,
+                error=str(exc)[:300],
+            )
+
     docs_raw = vs.list_documents(workspace_id=workspace_id)
     docs = [
         DocumentMetadata(
@@ -608,12 +973,22 @@ async def get_ingestion_job_status(
     workspace: WorkspaceContext | None = Depends(
         require_enterprise_workspace_role(*VIEWER_ROLES)
     ),
+    settings: Settings = Depends(get_settings),
 ) -> IngestionJobStatusResponse:
     workspace_id = _context_workspace_id(workspace)
     job = get_ingestion_job_store().get(job_id)
-    if not job or job.workspace_id != workspace_id:
-        raise HTTPException(404, f"Ingestion job '{job_id}' not found")
-    return job.response()
+    if job and job.workspace_id == workspace_id:
+        return job.response()
+    if _should_persist_workspace_event(workspace, settings):
+        row = await IngestionJobRepository().get_job(workspace_id=workspace_id, job_id=job_id)
+        if row:
+            document_row = await DocumentRepository().get_document(
+                workspace_id=workspace_id,
+                document_id=str(row.get("document_id") or ""),
+            )
+            document = _row_to_document_metadata(document_row) if document_row else None
+            return _row_to_job_response(row, document=document)
+    raise HTTPException(404, f"Ingestion job '{job_id}' not found")
 
 
 @router.get("/documents/{document_id}/status", response_model=IngestionJobStatusResponse)
@@ -622,12 +997,25 @@ async def get_document_ingestion_status(
     workspace: WorkspaceContext | None = Depends(
         require_enterprise_workspace_role(*VIEWER_ROLES)
     ),
+    settings: Settings = Depends(get_settings),
 ) -> IngestionJobStatusResponse:
     workspace_id = _context_workspace_id(workspace)
     job = get_ingestion_job_store().get_by_document_id(document_id)
-    if not job or job.workspace_id != workspace_id:
-        raise HTTPException(404, f"Ingestion status for document '{document_id}' not found")
-    return job.response()
+    if job and job.workspace_id == workspace_id:
+        return job.response()
+    if _should_persist_workspace_event(workspace, settings):
+        rows = await IngestionJobRepository().list_for_document(
+            workspace_id=workspace_id,
+            document_id=document_id,
+        )
+        if rows:
+            document_row = await DocumentRepository().get_document(
+                workspace_id=workspace_id,
+                document_id=document_id,
+            )
+            document = _row_to_document_metadata(document_row) if document_row else None
+            return _row_to_job_response(rows[0], document=document)
+    raise HTTPException(404, f"Ingestion status for document '{document_id}' not found")
 
 
 @router.get("/documents/{document_id}/chunks", response_model=DocumentChunkListResponse)
@@ -638,6 +1026,7 @@ async def list_document_chunks(
     workspace: WorkspaceContext | None = Depends(
         require_enterprise_workspace_role(*VIEWER_ROLES)
     ),
+    settings: Settings = Depends(get_settings),
     vs: VectorStoreManager = Depends(get_vector_store),
 ) -> DocumentChunkListResponse:
     workspace_id = _context_workspace_id(workspace)
@@ -647,6 +1036,43 @@ async def list_document_chunks(
         search=search,
         limit=limit,
     )
+    if payload["total"] == 0 and _should_persist_workspace_event(workspace, settings):
+        rows = await ChunkRepository().list_for_document(
+            workspace_id=workspace_id,
+            document_id=document_id,
+        )
+        needle = (search or "").strip().lower()
+        filtered_rows = [
+            row for row in rows if not needle or needle in str(row.get("content") or "").lower()
+        ]
+        previews = [
+            DocumentChunkPreview(
+                chunk_index=_safe_int(row.get("chunk_index"), default=index),
+                content=str(row.get("content") or "")[:2000],
+                page_number=_safe_int(row.get("page_number"), default=0),
+                section_title=row.get("section_title"),
+                token_count=_safe_int(row.get("token_count"), default=0),
+                metadata=row.get("metadata") or {},
+            )
+            for index, row in enumerate(filtered_rows[:limit])
+        ]
+        if previews or rows:
+            document_row = await DocumentRepository().get_document(
+                workspace_id=workspace_id,
+                document_id=document_id,
+            )
+            filename = (
+                str(document_row.get("filename"))
+                if document_row and document_row.get("filename")
+                else document_id
+            )
+            return DocumentChunkListResponse(
+                document_id=document_id,
+                filename=filename,
+                chunks=previews,
+                total=len(filtered_rows),
+                query=search,
+            )
     if payload["total"] == 0:
         docs = vs.list_documents(workspace_id=workspace_id)
         if not any(
@@ -675,7 +1101,31 @@ async def delete_document(
 ) -> DocumentDeleteResponse:
     workspace_id = _context_workspace_id(workspace)
     removed = vs.delete_by_identifier(document_identifier, workspace_id=workspace_id)
-    if removed == 0:
+    durable_document_id = document_identifier
+    durable_removed = False
+    if _should_persist_workspace_event(workspace, settings):
+        doc_repo = DocumentRepository()
+        document_row = await doc_repo.get_document(
+            workspace_id=workspace_id,
+            document_id=document_identifier,
+        )
+        if not document_row:
+            document_row = await doc_repo.find_by_filename(
+                workspace_id=workspace_id,
+                filename=document_identifier,
+            )
+        if document_row:
+            durable_document_id = str(document_row.get("id") or document_identifier)
+            await ChunkRepository().delete_document_chunks(
+                workspace_id=workspace_id,
+                document_id=durable_document_id,
+            )
+            await doc_repo.mark_deleted(
+                workspace_id=workspace_id,
+                document_id=durable_document_id,
+            )
+            durable_removed = True
+    if removed == 0 and not durable_removed:
         raise HTTPException(404, f"Document '{document_identifier}' not found")
     chain.clear_cache(workspace_id=workspace_id)
     await _record_audit_event(
@@ -683,11 +1133,17 @@ async def delete_document(
         settings=settings,
         action="document.deleted",
         resource_type="document",
-        resource_id=document_identifier,
-        metadata={"document_identifier": document_identifier, "chunks_removed": removed},
+        resource_id=durable_document_id,
+        metadata={
+            "document_identifier": document_identifier,
+            "chunks_removed": removed,
+            "durable_deleted": durable_removed,
+        },
     )
     return DocumentDeleteResponse(
-        success=True, message=f"Removed {removed} chunks", document_id=document_identifier
+        success=True,
+        message=f"Removed {removed} chunks",
+        document_id=durable_document_id,
     )
 
 
