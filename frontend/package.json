@@ -36,6 +36,7 @@
     "typescript": "^5.5.0"
   },
   "overrides": {
+    "postcss": "^8.5.15",
     "tinyglobby": {
       "picomatch": "^4.0.4"
     },
