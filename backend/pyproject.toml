@@ -60,6 +60,7 @@ dependencies = [
     "requests>=2.33.0",
     "ujson>=5.12.1",
     "urllib3>=2.7.0",
+    "pygments>=2.20.0",
 
     # ── Scientific Pipeline ────────────────────────────
     "opencv-python-headless>=4.9.0",
