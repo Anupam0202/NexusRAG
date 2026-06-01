@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { getSettings, getSystemStatus, updateSettings } from "@/lib/api";
 import type { AppSettings, SettingsUpdate, SystemStatusResponse } from "@/types";
 import { toast } from "sonner";
-import { Save, Settings2, Loader2, Building2 } from "lucide-react";
+import { ArrowRight, Building2, KeyRound, Loader2, Save, Settings2 } from "lucide-react";
 import { useStore } from "@/hooks/useStore";
 
 export default function SettingsPage() {
@@ -73,6 +74,24 @@ export default function SettingsPage() {
             Render constrained profile is active. Memory-heavy retrieval options stay locked off.
           </div>
         )}
+
+        <Link
+          href="/settings/api-keys"
+          className="flex items-center justify-between gap-3 rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4 transition hover:bg-[var(--bg-hover)]"
+        >
+          <span className="flex min-w-0 items-center gap-3">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
+              <KeyRound size={18} />
+            </span>
+            <span className="min-w-0">
+              <span className="block text-sm font-semibold">Provider API Keys</span>
+              <span className="block truncate text-xs text-[var(--text-muted)]">
+                Manage workspace-scoped Gemini BYOK status
+              </span>
+            </span>
+          </span>
+          <ArrowRight size={16} className="shrink-0 text-[var(--text-muted)]" />
+        </Link>
 
         <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4 md:p-6">
           <div className="mb-3 flex items-center gap-2">

@@ -1172,6 +1172,68 @@ async def get_api_key_status(
     )
 
 
+@router.delete("/apikey")
+async def delete_api_key(
+    provider: str = Query(default=GEMINI_PROVIDER, min_length=2, max_length=32),
+    workspace: WorkspaceContext | None = Depends(
+        require_enterprise_workspace_role(*ADMIN_ROLES)
+    ),
+    settings: Settings = Depends(get_settings),
+) -> dict:
+    """Deactivate the workspace-scoped provider key without returning secret material."""
+    normalized_provider = normalize_provider(provider)
+    if normalized_provider != GEMINI_PROVIDER:
+        raise HTTPException(400, f"Provider '{provider}' is not supported yet.")
+
+    workspace_id = _context_workspace_id(workspace)
+    user_id = workspace.user.id if workspace else None
+    manager = get_provider_key_manager()
+    removed = manager.remove_key(workspace_id=workspace_id, provider=normalized_provider)
+
+    storage = "memory"
+    deactivated_rows = 0
+    if workspace and not workspace.user.is_demo and settings.supabase_configured:
+        try:
+            rows = await manager.persist_delete_key(
+                workspace_id=workspace_id,
+                user_id=user_id,
+                provider=normalized_provider,
+            )
+            deactivated_rows = len(rows)
+            storage = "supabase"
+        except Exception as exc:
+            logger.warning(
+                "api_key_delete_persist_failed",
+                workspace_id=workspace_id,
+                provider=normalized_provider,
+                error=str(exc)[:300],
+            )
+
+    await _record_audit_event(
+        workspace=workspace,
+        settings=settings,
+        action="provider_key.removed",
+        resource_type="api_key",
+        resource_id=removed.key_label if removed else None,
+        metadata={
+            "provider": normalized_provider,
+            "had_memory_key": removed is not None,
+            "deactivated_rows": deactivated_rows,
+            "storage": storage,
+        },
+    )
+    return {
+        "success": True,
+        "message": "Workspace API key removed.",
+        "provider": normalized_provider,
+        "workspace_id": workspace_id,
+        "workspace_key_configured": False,
+        "server_key_configured": bool(settings.google_api_key),
+        "key_fingerprint": None,
+        "storage": storage,
+    }
+
+
 #  ANALYTICS
 # ═══════════════════════════════════════════════════════════════════════════
 
