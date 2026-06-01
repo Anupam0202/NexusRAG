@@ -26,6 +26,7 @@ from config.settings import Settings, get_settings
 from src.ingestion.embedder import Embedder, get_embedder
 from src.utils.logger import get_logger
 from src.utils.tenant import normalize_workspace_id
+from src.vectorstores.qdrant_store import QdrantVectorStore
 
 logger = get_logger(__name__)
 
@@ -85,11 +86,13 @@ class VectorStoreManager:
 
     def __init__(self, settings: Settings | None = None) -> None:
         s = settings or get_settings()
+        self._settings = s
         self._embedder: Embedder = get_embedder()
         self._persist_dir = s.vector_store_dir
         self._alpha = s.hybrid_search_alpha
         self._sim_threshold = s.similarity_threshold
         self._use_lightweight = s.use_lightweight_embeddings
+        self._qdrant = QdrantVectorStore(s) if s.qdrant_configured else None
         self._dim: int = 0
 
         self._documents: list[Document] = []
@@ -312,9 +315,21 @@ class VectorStoreManager:
 
     def count_chunks(self, *, workspace_id: str | None = None) -> int:
         scoped_workspace_id = normalize_workspace_id(workspace_id)
-        return sum(
+        local_count = sum(
             1 for doc in self._documents if self._doc_workspace_id(doc) == scoped_workspace_id
         )
+        if not self._qdrant:
+            return local_count
+        try:
+            qdrant_count = self._qdrant.count_chunks_sync(workspace_id=scoped_workspace_id)
+            return max(local_count, qdrant_count)
+        except Exception as exc:
+            logger.warning(
+                "qdrant_count_failed",
+                workspace_id=scoped_workspace_id,
+                error=str(exc)[:300],
+            )
+            return local_count
 
     @staticmethod
     def _safe_int(value: Any, *, default: int = 0) -> int:
@@ -334,11 +349,16 @@ class VectorStoreManager:
         *,
         workspace_id: str | None = None,
     ) -> list[SearchHit]:
-        if not self._documents:
-            return []
         scoped_workspace_id = normalize_workspace_id(workspace_id)
         filename_scope = self._explicit_filename_scope(query, workspace_id=scoped_workspace_id)
-        search_k = max(top_k * 2, self.total_chunks)
+        search_k = max(top_k * 2, self.total_chunks, top_k)
+        qdrant_hits = self._qdrant_search(
+            query,
+            search_k,
+            workspace_id=scoped_workspace_id,
+        )
+        if not self._documents:
+            return qdrant_hits[:top_k]
         dense = self._dense_search(query, search_k, workspace_id=scoped_workspace_id)
         sparse = (
             self._sparse_search(query, search_k, workspace_id=scoped_workspace_id)
@@ -347,6 +367,8 @@ class VectorStoreManager:
         )
         if self._use_lightweight and sparse:
             hits = self._merge_sparse_first(sparse, dense, top_k)
+            if qdrant_hits:
+                hits = self._dedupe_hits([*qdrant_hits, *hits], top_k)
             return self._apply_filename_scope(
                 hits,
                 filename_scope,
@@ -355,6 +377,8 @@ class VectorStoreManager:
             )
         if not sparse:
             hits = dense[:top_k]
+            if qdrant_hits:
+                hits = self._dedupe_hits([*qdrant_hits, *hits], top_k)
             return self._apply_filename_scope(
                 hits,
                 filename_scope,
@@ -362,6 +386,8 @@ class VectorStoreManager:
                 workspace_id=scoped_workspace_id,
             )
         hits = self._fuse(dense, sparse, top_k)
+        if qdrant_hits:
+            hits = self._dedupe_hits([*qdrant_hits, *hits], top_k)
         return self._apply_filename_scope(
             hits,
             filename_scope,
@@ -460,6 +486,64 @@ class VectorStoreManager:
         seen: set[str] = set()
         for hit in candidates:
             key = self._doc_hash(hit.document)
+            if key in seen:
+                continue
+            seen.add(key)
+            merged.append(hit)
+            if len(merged) >= top_k:
+                break
+        return merged
+
+    def _qdrant_search(self, query: str, top_k: int, *, workspace_id: str) -> list[SearchHit]:
+        if not self._qdrant:
+            return []
+        try:
+            query_embedding = self._embedder.embed_query(query)
+            results = self._qdrant.search_sync(
+                workspace_id=workspace_id,
+                query_embedding=query_embedding,
+                top_k=top_k,
+            )
+        except Exception as exc:
+            logger.warning(
+                "qdrant_search_failed",
+                workspace_id=workspace_id,
+                error=str(exc)[:300],
+            )
+            return []
+
+        hits: list[SearchHit] = []
+        for item in results:
+            if item.score < self._sim_threshold:
+                continue
+            payload = item.payload or {}
+            metadata = payload.get("metadata") if isinstance(payload.get("metadata"), dict) else {}
+            doc_metadata = {
+                **metadata,
+                "workspace_id": workspace_id,
+                "document_id": item.document_id,
+                "chunk_id": item.chunk_id,
+                "filename": payload.get("filename") or metadata.get("filename") or "Unknown",
+                "page_number": payload.get("page_number"),
+                "chunk_index": payload.get("chunk_index", 0),
+                "content_hash": payload.get("content_hash"),
+                "score": round(float(item.score), 4),
+            }
+            hits.append(
+                SearchHit(
+                    document=Document(page_content=item.content, metadata=doc_metadata),
+                    score=float(item.score),
+                    method="qdrant",
+                )
+            )
+        return hits
+
+    @staticmethod
+    def _dedupe_hits(hits: list[SearchHit], top_k: int) -> list[SearchHit]:
+        merged: list[SearchHit] = []
+        seen: set[str] = set()
+        for hit in hits:
+            key = VectorStoreManager._doc_hash(hit.document)
             if key in seen:
                 continue
             seen.add(key)

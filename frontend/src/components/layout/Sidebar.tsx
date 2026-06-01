@@ -72,7 +72,7 @@ export function Sidebar() {
           <AnimatePresence>
             {!collapsed && (
               <motion.div
-                initial={{ opacity: 0, width: 0 }}
+                initial={false}
                 animate={{ opacity: 1, width: "auto" }}
                 exit={{ opacity: 0, width: 0 }}
                 transition={{ duration: 0.2 }}

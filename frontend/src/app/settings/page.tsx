@@ -13,14 +13,18 @@ export default function SettingsPage() {
   const [systemStatus, setSystemStatus] = useState<SystemStatusResponse | null>(null);
   const [draft, setDraft] = useState<SettingsUpdate>({});
   const [saving, setSaving] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const workspaceId = useStore((state) => state.workspaceId);
   const setWorkspaceId = useStore((state) => state.setWorkspaceId);
 
   useEffect(() => {
+    let cancelled = false;
     Promise.all([getSettings(), getSystemStatus().catch(() => null)])
       .then(([s, status]) => {
+        if (cancelled) return;
         setSettings(s);
         setSystemStatus(status);
+        setLoadError(null);
         setDraft({
           llm_temperature: s.llm_temperature,
           retrieval_top_k: s.retrieval_top_k,
@@ -31,7 +35,15 @@ export default function SettingsPage() {
           enable_contextual_enrichment: s.enable_contextual_enrichment,
         });
       })
-      .catch((err) => toast.error(err.message));
+      .catch((err) => {
+        if (cancelled) return;
+        const message = err instanceof Error ? err.message : "Failed to load settings";
+        setLoadError(message);
+        toast.error(message);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const save = async () => {
@@ -49,6 +61,33 @@ export default function SettingsPage() {
   };
 
   if (!settings) {
+    if (loadError) {
+      return (
+        <div className="h-full overflow-y-auto">
+          <div className="mx-auto flex min-h-full max-w-xl flex-col justify-center px-4 py-8">
+            <div className="rounded-xl border border-red-200 bg-red-50 p-5 text-red-800 dark:border-red-900/60 dark:bg-red-950/20 dark:text-red-200">
+              <h2 className="text-base font-bold">Settings unavailable</h2>
+              <p className="mt-2 text-sm leading-6">{loadError}</p>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => window.location.reload()}
+                  className="rounded-lg bg-red-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-red-500"
+                >
+                  Retry
+                </button>
+                <Link
+                  href="/auth/login?next=/settings"
+                  className="rounded-lg border border-red-200 bg-white px-3 py-2 text-sm font-semibold text-red-700 transition hover:bg-red-100 dark:border-red-900 dark:bg-transparent dark:text-red-200 dark:hover:bg-red-950/30"
+                >
+                  Sign in
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
     return (
       <div className="flex flex-col items-center justify-center h-full text-[var(--text-muted)] text-sm gap-2">
         <Loader2 size={20} className="animate-spin" />
@@ -196,6 +235,20 @@ export default function SettingsPage() {
           <div className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
             <Info label="Model" value={settings.llm_model_name} />
             <Info label="Embedding" value={settings.embedding_model.split("/").pop() ?? ""} />
+            <Info
+              label="Vector Store"
+              value={systemStatus?.settings.vector_backend ?? "local_faiss"}
+            />
+            <Info
+              label="Qdrant"
+              value={
+                systemStatus?.settings.qdrant_configured
+                  ? systemStatus.settings.qdrant_collection ?? "configured"
+                  : systemStatus?.settings.enable_qdrant
+                    ? "missing configuration"
+                  : "disabled"
+              }
+            />
             <Info label="Chunk Size" value={`${settings.chunk_size}`} />
             <Info label="Chunk Overlap" value={`${settings.chunk_overlap}`} />
           </div>

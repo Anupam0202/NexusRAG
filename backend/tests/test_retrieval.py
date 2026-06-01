@@ -10,6 +10,7 @@ from config.settings import get_settings
 from src.retrieval.query_transformer import QueryTransformer
 from src.retrieval.retriever import QueryType, classify_query
 from src.retrieval.vector_store import SearchHit, VectorStoreManager
+from src.vectorstores import VectorSearchResult
 
 
 class TestQueryClassification:
@@ -34,6 +35,45 @@ class TestQueryClassification:
 
 
 class TestVectorStoreManager:
+    def test_search_uses_qdrant_when_local_store_is_empty(self, tmp_path):
+        class FakeEmbedder:
+            def embed_query(self, query: str) -> list[float]:
+                assert query == "annapurna yojana"
+                return [0.1, 0.2]
+
+        class FakeQdrant:
+            def search_sync(self, **kwargs):
+                assert kwargs["workspace_id"] == "workspace-a"
+                return [
+                    VectorSearchResult(
+                        chunk_id="chunk-a",
+                        document_id="doc-a",
+                        content="Annapurna Yojana household data collection form",
+                        score=0.89,
+                        payload={
+                            "filename": "annapurna.pdf",
+                            "chunk_index": 0,
+                            "metadata": {"file_type": "pdf"},
+                        },
+                    )
+                ]
+
+        vs = VectorStoreManager()
+        vs._persist_dir = tmp_path / "vs"
+        vs._documents = []
+        vs._raw_embeddings = []
+        vs._index = None
+        vs._bm25 = None
+        vs._embedder = FakeEmbedder()
+        vs._qdrant = FakeQdrant()
+
+        results = vs.search("annapurna yojana", top_k=3, workspace_id="workspace-a")
+
+        assert len(results) == 1
+        assert results[0].method == "qdrant"
+        assert results[0].document.metadata["document_id"] == "doc-a"
+        assert results[0].document.metadata["filename"] == "annapurna.pdf"
+
     def test_add_and_search(self, sample_documents: list[Document], tmp_path):
         vs = VectorStoreManager()
         vs._persist_dir = tmp_path / "vs"
