@@ -104,6 +104,18 @@ export default function AnalyticsPage() {
   const chunkingLabel = capabilities?.semantic_chunking ? "Semantic" : "Recursive";
   const cacheLabel = capabilities?.semantic_cache ? "Semantic similarity" : "Disabled";
   const ocrLabel = capabilities?.ocr ? "Text + OCR" : "Text only";
+  const vectorStoreLabel =
+    settings?.vector_backend === "qdrant"
+      ? "Qdrant + BM25"
+      : settings?.vector_backend === "local_faiss"
+        ? "Local FAISS + BM25"
+        : settings?.vector_backend === "pgvector"
+          ? "pgvector + BM25"
+          : settings?.qdrant_configured
+            ? "Qdrant + BM25"
+            : settings?.enable_local_faiss
+              ? "Local FAISS + BM25"
+              : "Not configured";
   const fusionLabel =
     typeof settings?.hybrid_search_alpha === "number"
       ? `RRF, alpha ${settings.hybrid_search_alpha.toFixed(2)}`
@@ -429,7 +441,7 @@ export default function AnalyticsPage() {
                 <ModelRow
                   icon={<HardDrive size={13} className="text-green-500" />}
                   label="Vector Store"
-                  value="FAISS + BM25"
+                  value={vectorStoreLabel}
                 />
                 <ModelRow
                   icon={<Target size={13} className="text-orange-500" />}

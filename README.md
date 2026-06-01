@@ -111,7 +111,7 @@ A production-grade **Retrieval-Augmented Generation** platform that lets enterpr
 │  │Gemini │ │Hybrid │ │Semantic│ │ Conversation  │   │
 │  │  LLM  │ │Search │ │ Cache  │ │   Memory      │   │
 │  │(2.5   │ │BM25+  │ └────────┘ └──────────────┘   │
-│  │Flash) │ │FAISS  │                                 │
+│  │Flash) │ │Qdrant │                                 │
 │  └───────┘ │+Rerank│                                 │
 │            └───────┘                                 │
 │                                                       │
@@ -285,7 +285,7 @@ NexusRAG/
 │   │   ├── retrieval/
 │   │   │   ├── retriever.py       # Hybrid BM25 + vector
 │   │   │   ├── reranker.py        # Cross-encoder re-scoring
-│   │   │   ├── vector_store.py    # FAISS + BM25 hybrid
+│   │   │   ├── vector_store.py    # Qdrant/local hybrid vector manager
 │   │   │   ├── cache.py           # Semantic query cache
 │   │   │   └── query_transformer.py
 │   │   └── utils/
@@ -442,8 +442,8 @@ NexusRAG ships with a default API key for quick evaluation. When the free-tier q
 1. Backend detects `429 RESOURCE_EXHAUSTED` and sends a `QUOTA_EXCEEDED` WebSocket frame
 2. Frontend shows a modal prompting the user to enter their own Google API key
 3. Key is validated server-side using a free `list_models()` call
-4. On success, the key is hot-swapped across all singletons (LLM, OCR, enrichment)
-5. User can immediately continue chatting with their own quota
+4. On success, the key is stored encrypted for the active workspace and resolved per request
+5. User can immediately continue chatting with their own quota without exposing the raw key in API responses
 
 ---
 
