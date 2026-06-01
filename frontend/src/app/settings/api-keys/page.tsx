@@ -184,7 +184,13 @@ export default function ApiKeysPage() {
               </a>
             </div>
 
-            <div className="space-y-3">
+            <form
+              className="space-y-3"
+              onSubmit={(event) => {
+                event.preventDefault();
+                void activate();
+              }}
+            >
               <label className="block">
                 <span className="text-xs font-medium text-[var(--text-muted)]">Gemini API key</span>
                 <div className="relative mt-1">
@@ -209,15 +215,14 @@ export default function ApiKeysPage() {
               </label>
 
               <button
-                type="button"
-                onClick={activate}
+                type="submit"
                 disabled={saving || apiKey.trim().length < 10}
                 className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-brand-500 to-purple-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md transition hover:shadow-lg disabled:opacity-60 sm:w-auto"
               >
                 {saving ? <Loader2 size={15} className="animate-spin" /> : <CheckCircle2 size={15} />}
                 {saving ? "Validating" : hasWorkspaceKey ? "Replace Key" : "Activate Key"}
               </button>
-            </div>
+            </form>
           </section>
 
           <section className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4 md:p-5">
