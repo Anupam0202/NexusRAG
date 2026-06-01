@@ -43,8 +43,13 @@ export function Header() {
         return;
       }
       try {
-        await getSystemStatus();
-        if (!cancelled) store.setConnectionStatus("online");
+        const status = await getSystemStatus();
+        const authSetupRequired =
+          status.settings.anonymous_demo_enabled === false &&
+          (!status.settings.supabase_configured || !status.settings.supabase_auth_configured);
+        if (!cancelled) {
+          store.setConnectionStatus(authSetupRequired ? "auth_setup_required" : "online");
+        }
       } catch {
         if (!cancelled) store.setConnectionStatus("offline");
       }
@@ -62,12 +67,15 @@ export function Header() {
     ? "Offline"
     : store.connectionStatus === "online"
       ? "Backend live"
+      : store.connectionStatus === "auth_setup_required"
+        ? "Auth setup required"
       : store.connectionStatus === "reconnecting"
         ? "Reconnecting"
         : store.connectionStatus === "offline"
           ? "Backend offline"
           : "Checking";
   const connectionOnline = browserOnline && store.connectionStatus === "online";
+  const connectionNeedsSetup = browserOnline && store.connectionStatus === "auth_setup_required";
 
   return (
     <header className="flex w-full min-w-0 items-center justify-between border-b border-white/10 dark:border-white/5 bg-white/70 dark:bg-[#0a0e1a]/70 backdrop-blur-xl px-4 sm:px-6 h-14 shrink-0 sticky top-0 z-30 shadow-[0_1px_3px_rgba(0,0,0,0.05)]">
@@ -85,6 +93,8 @@ export function Header() {
         <div className={`hidden items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium transition-colors sm:flex ${
           connectionOnline
             ? "bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400"
+            : connectionNeedsSetup
+              ? "bg-amber-100 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300"
             : "bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-400"
         }`}>
           {connectionOnline ? <Wifi size={11} /> : <WifiOff size={11} />}

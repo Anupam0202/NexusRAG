@@ -55,7 +55,7 @@ interface AppState {
   userApiKey: string | null;
   setUserApiKey: (key: string | null) => void;
 
-  connectionStatus: "checking" | "online" | "reconnecting" | "offline";
+  connectionStatus: "checking" | "online" | "auth_setup_required" | "reconnecting" | "offline";
   setConnectionStatus: (status: AppState["connectionStatus"]) => void;
 
   authMode: AuthMode;
