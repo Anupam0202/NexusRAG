@@ -58,6 +58,7 @@ def test_supabase_jwt_secret_prevents_implicit_jwks(monkeypatch) -> None:
     monkeypatch.setenv("SUPABASE_ANON_KEY", "anon-key")
     monkeypatch.setenv("SUPABASE_SERVICE_ROLE_KEY", "service-role-key")
     monkeypatch.setenv("SUPABASE_JWT_SECRET", "jwt-secret")
+    monkeypatch.setenv("ENABLE_ANONYMOUS_DEMO", "false")
     get_settings.cache_clear()
 
     settings = get_settings()

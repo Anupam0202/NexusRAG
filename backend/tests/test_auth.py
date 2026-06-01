@@ -32,6 +32,22 @@ class FakeSupabaseClient:
         return [{"workspace_id": self.workspace_id, "role": self.role}]
 
 
+def clear_supabase_env(monkeypatch) -> None:
+    for key in (
+        "SUPABASE_URL",
+        "SUPABASE_ANON_KEY",
+        "SUPABASE_PUBLISHABLE_KEY",
+        "SUPABASE_SERVICE_ROLE_KEY",
+        "SUPABASE_SECRET_KEY",
+        "SUPABASE_JWT_SECRET",
+        "SUPABASE_JWKS_URL",
+        "NEXT_PUBLIC_SUPABASE_URL",
+        "NEXT_PUBLIC_SUPABASE_ANON_KEY",
+        "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
+    ):
+        monkeypatch.delenv(key, raising=False)
+
+
 @pytest.fixture
 def enterprise_auth_env(monkeypatch):
     jwt_secret = "test-secret-with-at-least-thirty-two-bytes"
@@ -49,7 +65,29 @@ def enterprise_auth_env(monkeypatch):
         get_supabase_client.cache_clear()
 
 
-def test_auth_me_requires_bearer_token(test_client: TestClient) -> None:
+def test_protected_routes_fail_closed_when_supabase_is_missing(
+    test_client: TestClient,
+    monkeypatch,
+) -> None:
+    clear_supabase_env(monkeypatch)
+    monkeypatch.setenv("ENABLE_ANONYMOUS_DEMO", "false")
+    get_settings.cache_clear()
+    get_supabase_client.cache_clear()
+
+    response = test_client.get("/api/v1/documents")
+
+    assert response.status_code == 503
+    assert response.json()["detail"] == (
+        "Enterprise authentication is not configured. Configure Supabase "
+        "backend variables, or set ENABLE_ANONYMOUS_DEMO=true only for local/demo mode."
+    )
+
+
+def test_auth_me_requires_bearer_token(test_client: TestClient, monkeypatch) -> None:
+    clear_supabase_env(monkeypatch)
+    monkeypatch.setenv("ENABLE_ANONYMOUS_DEMO", "false")
+    get_settings.cache_clear()
+
     response = test_client.get("/api/v1/auth/me")
 
     assert response.status_code == 401
