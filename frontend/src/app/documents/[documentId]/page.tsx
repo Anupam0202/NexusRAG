@@ -19,6 +19,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { DocumentChunksExplorer } from "@/components/documents/DocumentChunksExplorer";
+import { AuthRequiredState } from "@/components/auth/AuthRequiredState";
 import {
   deleteDocument,
   getDocumentIngestionStatus,
@@ -26,6 +27,7 @@ import {
 } from "@/lib/api";
 import { cn, formatBytes, timeAgo } from "@/lib/utils";
 import { useStore } from "@/hooks/useStore";
+import { useWorkspaceApiAccess } from "@/hooks/useAuthGate";
 import type { DocumentMetadata, IngestionJobStatusResponse } from "@/types";
 
 type LoadState = "loading" | "ready" | "not_found" | "error";
@@ -74,6 +76,7 @@ export default function DocumentDetailPage() {
   const params = useParams();
   const router = useRouter();
   const documentId = readParam(params.documentId);
+  const { authMode, canAccessWorkspaceApi } = useWorkspaceApiAccess();
   const setDocuments = useStore((state) => state.setDocuments);
   const removeDocument = useStore((state) => state.removeDocument);
 
@@ -85,6 +88,7 @@ export default function DocumentDetailPage() {
   const [deleting, setDeleting] = useState(false);
 
   const loadDocument = useCallback(async () => {
+    if (!canAccessWorkspaceApi) return;
     if (!documentId) {
       setLoadState("not_found");
       return;
@@ -138,11 +142,13 @@ export default function DocumentDetailPage() {
     } finally {
       setRefreshing(false);
     }
-  }, [documentId, setDocuments]);
+  }, [canAccessWorkspaceApi, documentId, setDocuments]);
 
   useEffect(() => {
-    void loadDocument();
-  }, [loadDocument]);
+    if (canAccessWorkspaceApi) {
+      void loadDocument();
+    }
+  }, [canAccessWorkspaceApi, loadDocument]);
 
   const metadata = useMemo(() => {
     if (!document) return [];
@@ -165,6 +171,7 @@ export default function DocumentDetailPage() {
   const progress = job?.progress ?? (document?.status === "ready" ? 100 : 0);
 
   const handleDelete = async () => {
+    if (!canAccessWorkspaceApi) return;
     if (!document) return;
     setDeleting(true);
     setError(null);
@@ -177,6 +184,21 @@ export default function DocumentDetailPage() {
       setDeleting(false);
     }
   };
+
+  if (!canAccessWorkspaceApi) {
+    return (
+      <div className="h-full overflow-y-auto">
+        <div className="mx-auto flex min-h-full max-w-xl flex-col justify-center px-4 py-8">
+          <AuthRequiredState
+            authMode={authMode}
+            nextPath={`/documents/${encodeURIComponent(documentId)}`}
+            title="Sign in to view this document"
+            description="Document details and indexed chunks are scoped to your authenticated workspace."
+          />
+        </div>
+      </div>
+    );
+  }
 
   if (loadState === "loading") {
     return (

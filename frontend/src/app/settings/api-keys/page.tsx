@@ -15,10 +15,13 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { deleteApiKey, getApiKeyStatus, setApiKey } from "@/lib/api";
+import { AuthRequiredState } from "@/components/auth/AuthRequiredState";
+import { useWorkspaceApiAccess } from "@/hooks/useAuthGate";
 import type { ApiKeyStatusResponse } from "@/types";
 import { useStore } from "@/hooks/useStore";
 
 export default function ApiKeysPage() {
+  const { authMode, canAccessWorkspaceApi } = useWorkspaceApiAccess();
   const [status, setStatus] = useState<ApiKeyStatusResponse | null>(null);
   const [apiKey, setApiKeyValue] = useState("");
   const [showKey, setShowKey] = useState(false);
@@ -30,6 +33,11 @@ export default function ApiKeysPage() {
   const setIsQuotaBlocked = useStore((state) => state.setIsQuotaBlocked);
 
   const load = useCallback(async () => {
+    if (!canAccessWorkspaceApi) {
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     setError(null);
     try {
@@ -41,11 +49,15 @@ export default function ApiKeysPage() {
     } finally {
       setLoading(false);
     }
-  }, [setUserApiKey]);
+  }, [canAccessWorkspaceApi, setUserApiKey]);
 
   useEffect(() => {
+    if (!canAccessWorkspaceApi) {
+      setLoading(false);
+      return;
+    }
     void load();
-  }, [load]);
+  }, [canAccessWorkspaceApi, load]);
 
   const createdAt = status?.created_at
     ? new Intl.DateTimeFormat(undefined, {
@@ -57,6 +69,7 @@ export default function ApiKeysPage() {
     : "Not configured";
 
   const activate = async () => {
+    if (!canAccessWorkspaceApi) return;
     const trimmed = apiKey.trim();
     if (trimmed.length < 10) {
       toast.error("Enter a valid provider key");
@@ -82,6 +95,7 @@ export default function ApiKeysPage() {
   };
 
   const remove = async () => {
+    if (!canAccessWorkspaceApi) return;
     setRemoving(true);
     setError(null);
     try {
@@ -105,6 +119,21 @@ export default function ApiKeysPage() {
     : hasServerKey
       ? "Server default"
       : "Extractive fallback";
+
+  if (!canAccessWorkspaceApi) {
+    return (
+      <div className="h-full overflow-y-auto">
+        <div className="mx-auto flex min-h-full max-w-xl flex-col justify-center px-4 py-8">
+          <AuthRequiredState
+            authMode={authMode}
+            nextPath="/settings/api-keys"
+            title="Sign in to manage API keys"
+            description="Workspace provider keys are encrypted and can only be managed after sign-in."
+          />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="h-full overflow-y-auto">

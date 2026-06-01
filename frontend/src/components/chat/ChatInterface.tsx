@@ -41,6 +41,7 @@ export default function ChatInterface() {
   const bottomRef = useRef<HTMLDivElement>(null);
 
   const store = useStore();
+  const canChat = store.authMode === "authenticated" || store.authMode === "demo";
   const docCount = documents.length;
   const isStreaming = messages.some((m) => m.isStreaming);
 
@@ -63,11 +64,11 @@ export default function ChatInterface() {
 
   const handleSend = useCallback(() => {
     const q = input.trim();
-    if (!q || isStreaming) return;
+    if (!q || isStreaming || !canChat) return;
     sendMessage(q);
     setInput("");
     if (inputRef.current) inputRef.current.style.height = "auto";
-  }, [input, isStreaming, sendMessage]);
+  }, [input, isStreaming, sendMessage, canChat]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -89,7 +90,9 @@ export default function ChatInterface() {
   const clearChat = () => {
     store.clearMessages?.();
     setActiveSources(null);
-    clearSession(store.sessionId).catch(() => {/* best-effort */ });
+    if (canChat) {
+      clearSession(store.sessionId).catch(() => {/* best-effort */ });
+    }
   };
 
   const isEmpty = messages.length === 0;
@@ -105,6 +108,7 @@ export default function ChatInterface() {
               docCount={docCount}
               loading={documentsLoading}
               error={documentsError}
+              authMode={store.authMode}
               onSuggestion={(text) => {
                 setInput(text);
                 inputRef.current?.focus();
@@ -150,12 +154,14 @@ export default function ChatInterface() {
                 placeholder={
                   documentsLoading
                     ? "Checking document library..."
+                    : !canChat
+                      ? "Sign in to chat with your documents..."
                     : docCount > 0
                       ? "Ask about your documents..."
                       : "Upload documents to start chatting..."
                 }
                 rows={1}
-                disabled={isStreaming}
+                disabled={isStreaming || !canChat}
                 aria-label="Chat message"
                 className="flex-1 bg-transparent resize-none text-sm leading-relaxed placeholder:text-[var(--text-muted)] focus:outline-none min-h-[24px] max-h-[150px] disabled:opacity-50"
               />
@@ -173,11 +179,11 @@ export default function ChatInterface() {
 
                 <button
                   onClick={handleSend}
-                  disabled={!input.trim() || isStreaming}
+                  disabled={!input.trim() || isStreaming || !canChat}
                   aria-label="Send message"
                   className={cn(
                     "flex h-9 w-9 items-center justify-center rounded-xl transition-all duration-200",
-                    input.trim() && !isStreaming
+                    input.trim() && !isStreaming && canChat
                       ? "bg-gradient-to-r from-brand-500 to-purple-600 text-white shadow-md hover:shadow-lg hover:scale-105 active:scale-95"
                       : "bg-[var(--bg-secondary)] text-[var(--text-muted)] cursor-not-allowed"
                   )}
@@ -217,13 +223,17 @@ function EmptyState({
   docCount,
   loading,
   error,
+  authMode,
   onSuggestion,
 }: {
   docCount: number;
   loading: boolean;
   error: string | null;
+  authMode: string;
   onSuggestion: (text: string) => void;
 }) {
+  const needsAuth = authMode === "loading" || authMode === "signed_out";
+
   return (
     <div className="flex h-full w-full max-w-lg flex-col items-center justify-center mx-auto text-center px-4 animate-fade-in">
       {/* Logo */}
@@ -240,6 +250,10 @@ function EmptyState({
       <p className="text-sm text-[var(--text-muted)] mb-8 max-w-xs sm:max-w-sm leading-relaxed">
         {error
           ? error
+          : authMode === "loading"
+          ? "Checking your secure workspace session..."
+          : authMode === "signed_out"
+          ? "Sign in to upload documents and ask questions grounded in your workspace content."
           : loading
           ? "Checking your document library..."
           : docCount > 0
@@ -247,7 +261,16 @@ function EmptyState({
           : "Upload documents first, then ask questions to get AI-powered answers grounded in your content."}
       </p>
 
-      {!error && !loading && docCount === 0 && (
+      {authMode === "signed_out" && (
+        <Link
+          href="/auth/login?next=/chat"
+          className="mb-8 inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-brand-500 to-purple-600 text-white px-5 py-2.5 text-sm font-semibold shadow-md hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all"
+        >
+          Sign in
+        </Link>
+      )}
+
+      {!error && !loading && !needsAuth && docCount === 0 && (
         <Link
           href="/documents"
           className="mb-8 inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-brand-500 to-purple-600 text-white px-5 py-2.5 text-sm font-semibold shadow-md hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all"

@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { runSampleEvaluation } from "@/lib/api";
+import { AuthRequiredState } from "@/components/auth/AuthRequiredState";
+import { useWorkspaceApiAccess } from "@/hooks/useAuthGate";
 import type { EvaluationMode, EvaluationReportResponse } from "@/types";
 import {
   Activity,
@@ -26,6 +28,7 @@ const GATE_LABELS: Record<string, string> = {
 };
 
 export default function EvaluationsPage() {
+  const { authMode, canAccessWorkspaceApi } = useWorkspaceApiAccess();
   const [mode, setMode] = useState<EvaluationMode>("retrieval");
   const [topK, setTopK] = useState(5);
   const [report, setReport] = useState<EvaluationReportResponse | null>(null);
@@ -33,6 +36,11 @@ export default function EvaluationsPage() {
   const [error, setError] = useState<string | null>(null);
 
   const run = useCallback(async (nextMode = mode, nextTopK = topK) => {
+    if (!canAccessWorkspaceApi) {
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     setError(null);
     try {
@@ -48,13 +56,17 @@ export default function EvaluationsPage() {
     } finally {
       setLoading(false);
     }
-  }, [mode, topK]);
+  }, [canAccessWorkspaceApi, mode, topK]);
 
   useEffect(() => {
+    if (!canAccessWorkspaceApi) {
+      setLoading(false);
+      return;
+    }
     void run();
     // Run the bundled quality gate once on first page load.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [canAccessWorkspaceApi]);
 
   const totalCases = summaryNumber(report, "total");
   const passedCases = summaryNumber(report, "passed");
@@ -75,6 +87,21 @@ export default function EvaluationsPage() {
         minute: "2-digit",
       }).format(new Date(report.generated_at))
     : "Not run yet";
+
+  if (!canAccessWorkspaceApi) {
+    return (
+      <div className="h-full overflow-y-auto">
+        <div className="mx-auto flex min-h-full max-w-xl flex-col justify-center px-4 py-8">
+          <AuthRequiredState
+            authMode={authMode}
+            nextPath="/evaluations"
+            title="Sign in to run evaluations"
+            description="Quality gates use workspace data and require an authenticated session."
+          />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="h-full overflow-y-auto">

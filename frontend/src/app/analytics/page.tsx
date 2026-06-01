@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getAnalytics, getAuditEvents, getSystemStatus, healthCheck } from "@/lib/api";
+import { AuthRequiredState } from "@/components/auth/AuthRequiredState";
+import { useWorkspaceApiAccess } from "@/hooks/useAuthGate";
 import type { AnalyticsSummary, AuditEvent, SystemStatusResponse } from "@/types";
 import { motion } from "framer-motion";
 import {
@@ -14,6 +16,7 @@ import {
 const AUTO_REFRESH_SECONDS = 30;
 
 export default function AnalyticsPage() {
+  const { authMode, canAccessWorkspaceApi } = useWorkspaceApiAccess();
   const [data, setData] = useState<AnalyticsSummary | null>(null);
   const [auditEvents, setAuditEvents] = useState<AuditEvent[]>([]);
   const [auditStorage, setAuditStorage] = useState<"memory" | "supabase">("memory");
@@ -25,6 +28,11 @@ export default function AnalyticsPage() {
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const load = useCallback(async (signal?: AbortSignal) => {
+    if (!canAccessWorkspaceApi) {
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     setError(null);
     setCountdown(AUTO_REFRESH_SECONDS);
@@ -49,17 +57,22 @@ export default function AnalyticsPage() {
         setLoading(false);
       }
     }
-  }, []);
+  }, [canAccessWorkspaceApi]);
 
   // Initial load
   useEffect(() => {
+    if (!canAccessWorkspaceApi) {
+      setLoading(false);
+      return;
+    }
     const ctrl = new AbortController();
     load(ctrl.signal);
     return () => ctrl.abort();
-  }, [load]);
+  }, [canAccessWorkspaceApi, load]);
 
   // Auto-refresh every 30 s with visible countdown
   useEffect(() => {
+    if (!canAccessWorkspaceApi) return;
     countdownRef.current = setInterval(() => {
       setCountdown((c) => {
         if (c <= 1) {
@@ -72,7 +85,7 @@ export default function AnalyticsPage() {
     return () => {
       if (countdownRef.current) clearInterval(countdownRef.current);
     };
-  }, [load]);
+  }, [canAccessWorkspaceApi, load]);
 
   const handleRefresh = () => {
     setCountdown(AUTO_REFRESH_SECONDS);
@@ -110,6 +123,21 @@ export default function AnalyticsPage() {
         minute: "2-digit",
       }).format(new Date(data.last_activity_at))
     : "No activity yet";
+
+  if (!canAccessWorkspaceApi) {
+    return (
+      <div className="h-full overflow-y-auto">
+        <div className="mx-auto flex min-h-full max-w-xl flex-col justify-center px-4 py-8">
+          <AuthRequiredState
+            authMode={authMode}
+            nextPath="/analytics"
+            title="Sign in to view analytics"
+            description="Analytics, audit events, and workspace usage are only available after sign-in."
+          />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="h-full overflow-y-auto">

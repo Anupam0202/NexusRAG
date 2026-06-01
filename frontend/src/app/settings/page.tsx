@@ -3,12 +3,15 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { getSettings, getSystemStatus, updateSettings } from "@/lib/api";
+import { AuthRequiredState } from "@/components/auth/AuthRequiredState";
+import { useWorkspaceApiAccess } from "@/hooks/useAuthGate";
 import type { AppSettings, SettingsUpdate, SystemStatusResponse } from "@/types";
 import { toast } from "sonner";
 import { ArrowRight, Building2, KeyRound, Loader2, Save, Settings2, UsersRound } from "lucide-react";
 import { useStore } from "@/hooks/useStore";
 
 export default function SettingsPage() {
+  const { authMode, canAccessWorkspaceApi } = useWorkspaceApiAccess();
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [systemStatus, setSystemStatus] = useState<SystemStatusResponse | null>(null);
   const [draft, setDraft] = useState<SettingsUpdate>({});
@@ -18,6 +21,7 @@ export default function SettingsPage() {
   const setWorkspaceId = useStore((state) => state.setWorkspaceId);
 
   useEffect(() => {
+    if (!canAccessWorkspaceApi) return;
     let cancelled = false;
     Promise.all([getSettings(), getSystemStatus().catch(() => null)])
       .then(([s, status]) => {
@@ -44,9 +48,10 @@ export default function SettingsPage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [canAccessWorkspaceApi]);
 
   const save = async () => {
+    if (!canAccessWorkspaceApi) return;
     setSaving(true);
     try {
       const updated = await updateSettings(draft);
@@ -59,6 +64,21 @@ export default function SettingsPage() {
       setSaving(false);
     }
   };
+
+  if (!canAccessWorkspaceApi) {
+    return (
+      <div className="h-full overflow-y-auto">
+        <div className="mx-auto flex min-h-full max-w-xl flex-col justify-center px-4 py-8">
+          <AuthRequiredState
+            authMode={authMode}
+            nextPath="/settings"
+            title="Sign in to manage settings"
+            description="Runtime settings and workspace configuration are protected by your account session."
+          />
+        </div>
+      </div>
+    );
+  }
 
   if (!settings) {
     if (loadError) {

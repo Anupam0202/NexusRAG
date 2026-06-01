@@ -128,7 +128,10 @@ class Settings(BaseSettings):
     qdrant_url: str = Field(default="", description="Qdrant cluster URL")
     qdrant_api_key: str = Field(default="", description="Qdrant API key")
     qdrant_collection: str = Field(default="nexusrag_chunks")
-    enable_pgvector_fallback: bool = Field(default=True)
+    enable_pgvector_fallback: bool = Field(
+        default=False,
+        description="Reserved for a future Supabase pgvector adapter migration",
+    )
     enable_local_faiss: bool = Field(
         default=True,
         description="Allow local FAISS fallback for development and anonymous demo mode",

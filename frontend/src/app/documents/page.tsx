@@ -13,8 +13,17 @@ import { getSystemStatus } from "@/lib/api";
 import type { DocumentMetadata } from "@/types";
 
 export default function DocumentsPage() {
-  const { documents, loading, uploading, error, upload, remove, refresh } =
-    useDocuments();
+  const {
+    documents,
+    loading,
+    uploading,
+    error,
+    upload,
+    remove,
+    refresh,
+    canAccessWorkspaceApi,
+    authMode,
+  } = useDocuments();
   const [limits, setLimits] = useState<UploadLimits>(DEFAULT_UPLOAD_LIMITS);
   const [selectedDocument, setSelectedDocument] = useState<DocumentMetadata | null>(null);
 
@@ -47,7 +56,18 @@ export default function DocumentsPage() {
     <div className="h-full overflow-y-auto">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6 sm:space-y-8">
         {/* Upload */}
-        <UploadZone onUpload={upload} uploading={uploading} limits={limits} />
+        <UploadZone
+          onUpload={upload}
+          uploading={uploading}
+          limits={limits}
+          disabledReason={
+            canAccessWorkspaceApi
+              ? undefined
+              : authMode === "loading"
+                ? "Checking your session..."
+                : "Sign in to upload documents"
+          }
+        />
 
         {error && (
           <div className="rounded-xl border border-red-300 dark:border-red-800 bg-red-50 dark:bg-red-900/20 px-4 py-3 text-sm text-red-700 dark:text-red-300">
@@ -62,6 +82,13 @@ export default function DocumentsPage() {
           onDelete={remove}
           onRefresh={refresh}
           onSelect={setSelectedDocument}
+          disabledReason={
+            canAccessWorkspaceApi
+              ? undefined
+              : authMode === "loading"
+                ? "Checking your session..."
+                : "Sign in to view documents"
+          }
         />
       </div>
       <DocumentDetailPanel
