@@ -12,8 +12,22 @@ import os
 from functools import lru_cache
 from pathlib import Path
 
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+def _first_env(*names: str) -> str:
+    """Return the first non-empty environment value from a list of aliases."""
+    for name in names:
+        value = os.environ.get(name, "").strip()
+        if value:
+            return value
+    return ""
+
+
+def _supabase_jwks_url(project_url: str) -> str:
+    clean = project_url.rstrip("/")
+    return f"{clean}/auth/v1/.well-known/jwks.json" if clean else ""
 
 
 class Settings(BaseSettings):
@@ -326,6 +340,32 @@ class Settings(BaseSettings):
         return v
 
     # ── Supported file types ──────────────────────────────────────────────
+
+    @model_validator(mode="after")
+    def normalize_supabase_aliases(self) -> Settings:
+        """Accept env names emitted by Vercel's native Supabase integration.
+
+        Render does not inherit Vercel integration variables automatically, but
+        when operators mirror them into Render the names may be either the
+        canonical backend names or Vercel's public/secret aliases.
+        """
+        if not self.supabase_url:
+            self.supabase_url = _first_env("NEXT_PUBLIC_SUPABASE_URL", "SUPABASE_URL")
+        if not self.supabase_anon_key:
+            self.supabase_anon_key = _first_env(
+                "SUPABASE_ANON_KEY",
+                "SUPABASE_PUBLISHABLE_KEY",
+                "NEXT_PUBLIC_SUPABASE_ANON_KEY",
+                "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
+            )
+        if not self.supabase_service_role_key:
+            self.supabase_service_role_key = _first_env(
+                "SUPABASE_SERVICE_ROLE_KEY",
+                "SUPABASE_SECRET_KEY",
+            )
+        if not self.supabase_jwks_url and not self.supabase_jwt_secret:
+            self.supabase_jwks_url = _supabase_jwks_url(self.supabase_url)
+        return self
 
     SUPPORTED_EXTENSIONS: dict[str, str] = {
         ".pdf": "pdf",

@@ -212,7 +212,16 @@ docker-compose up --build
 2. Create a **New Web Service** and select your repository
 3. Render auto-detects `render.yaml` — click **Apply** to provision the service
 4. Set `GOOGLE_API_KEY` in the Render dashboard (**Environment** tab)
-5. Click **Deploy** — Render builds the Docker image and starts the service
+5. Mirror the Supabase variables into Render when enterprise auth/storage is enabled:
+   - `SUPABASE_URL`
+   - `SUPABASE_ANON_KEY` or `SUPABASE_PUBLISHABLE_KEY`
+   - `SUPABASE_SERVICE_ROLE_KEY` or `SUPABASE_SECRET_KEY`
+   - `SUPABASE_JWT_SECRET` or `SUPABASE_JWKS_URL`
+   - `SUPABASE_STORAGE_BUCKET=documents`
+6. Keep `ENABLE_ANONYMOUS_DEMO=false` for public deployments.
+7. Click **Deploy** — Render builds the Docker image and starts the service
+
+> Vercel's native Supabase integration only injects variables into Vercel deployments. Render will stay in anonymous/local mode until the same Supabase backend variables are configured in the Render service.
 
 `API_CORS_ORIGINS` is preconfigured in `render.yaml` for the Vercel production domains. Update it if you add a custom frontend domain.
 
@@ -224,8 +233,10 @@ docker-compose up --build
 
 1. Import the repo on [Vercel](https://vercel.com)
 2. Set the root directory to `frontend`
-3. Add environment variable:
+3. Add environment variables:
    - `NEXT_PUBLIC_API_URL` — your actual Render backend URL (e.g., `https://your-render-service.onrender.com`)
+   - `NEXT_PUBLIC_SUPABASE_URL`
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY` or `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
 4. Vercel auto-detects Next.js and deploys
 
 ### Connecting Frontend and Backend
@@ -322,6 +333,12 @@ NexusRAG/
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `GOOGLE_API_KEY` | — | Google Gemini API key **(required)** |
+| `SUPABASE_URL` | empty | Supabase project URL for durable documents, workspaces, and auth |
+| `SUPABASE_ANON_KEY` / `SUPABASE_PUBLISHABLE_KEY` | empty | Supabase public browser key; both common naming styles are accepted |
+| `SUPABASE_SERVICE_ROLE_KEY` / `SUPABASE_SECRET_KEY` | empty | Supabase service-role key for trusted backend persistence and storage |
+| `SUPABASE_JWT_SECRET` / `SUPABASE_JWKS_URL` | empty | Token verification config; hosted Supabase projects can use the JWKS URL |
+| `SUPABASE_STORAGE_BUCKET` | `documents` | Supabase Storage bucket for uploaded source files |
+| `ENABLE_ANONYMOUS_DEMO` | `false` | Enables local anonymous mode only when explicitly set to `true` |
 | `LLM_MODEL_NAME` | `gemini-2.5-flash` | Primary LLM model |
 | `LLM_FALLBACK_MODELS` | `gemini-2.5-flash-lite,gemini-2.0-flash,gemini-2.0-flash-lite` | Comma-separated fallback chain |
 | `EMBEDDING_MODEL` | `all-MiniLM-L6-v2` | Sentence transformer model |
@@ -336,6 +353,13 @@ NexusRAG/
 | `ENABLE_QUERY_EXPANSION` | `true` | LLM query variants for broader retrieval recall; automatically skipped in constrained memory mode |
 | `ENABLE_LIGHTWEIGHT_EMBEDDINGS` | `false` | Use deterministic hash embeddings instead of local transformer embeddings |
 | `CONSTRAINED_MEMORY` | `false` | Enables free-tier memory guards for Render-sized instances |
+| `ENABLE_ASYNC_INGESTION` | `false` | Returns uploads quickly while ingestion continues in the background |
+| `QDRANT_URL` | empty | Optional managed Qdrant endpoint for production vector search |
+| `QDRANT_API_KEY` | empty | Qdrant API key when `QDRANT_URL` is configured |
+| `QDRANT_COLLECTION` | `nexusrag_chunks` | Qdrant collection name |
+| `ENABLE_QDRANT` | `false` | Enables Qdrant adapter when endpoint/key are ready |
+| `ENABLE_PGVECTOR_FALLBACK` | `true` | Allows Supabase pgvector fallback when configured |
+| `ENABLE_LOCAL_FAISS` | `true` | Allows local FAISS fallback for local/demo environments |
 | `API_CORS_ORIGINS` | `localhost:3000` | Allowed CORS origins |
 | `ENABLE_CACHE` | `true` | Semantic query cache |
 | `MAX_UPLOAD_SIZE_MB` | `100` | Max file upload size |
@@ -354,6 +378,8 @@ NexusRAG/
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `NEXT_PUBLIC_API_URL` | `http://localhost:8000` locally | Render backend URL in Vercel |
+| `NEXT_PUBLIC_SUPABASE_URL` | empty | Supabase project URL injected by the Vercel Supabase integration |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` / `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | empty | Supabase browser key injected by Vercel or set manually |
 
 ---
 
