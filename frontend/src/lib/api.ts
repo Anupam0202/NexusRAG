@@ -14,6 +14,8 @@ import type {
   DocumentChunkListResponse,
   DocumentListResponse,
   DocumentUploadResponse,
+  EvaluationReportResponse,
+  EvaluationRunRequest,
   IngestionJobStatusResponse,
   QueryRequest,
   QueryResponse,
@@ -167,6 +169,15 @@ export async function getAnalytics(): Promise<AnalyticsSummary> {
 
 export async function getAuditEvents(limit = 20): Promise<AuditEventListResponse> {
   return request(`/api/v1/audit?limit=${encodeURIComponent(String(limit))}`);
+}
+
+export async function runSampleEvaluation(
+  body: EvaluationRunRequest = {}
+): Promise<EvaluationReportResponse> {
+  return request("/api/v1/evaluations/sample", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
 }
 
 export async function getSystemStatus(): Promise<SystemStatusResponse> {
