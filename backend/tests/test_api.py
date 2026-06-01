@@ -221,7 +221,7 @@ class TestApiKeyEndpoint:
         test_client: TestClient,
         monkeypatch,
     ):
-        api_key = "AIzaSyDtestworkspacekeymaterial123456789"
+        api_key = "test-workspace-key-material-123456789"
         original_env_key = os.environ.get("GOOGLE_API_KEY")
         original_settings_key = get_settings().google_api_key
         get_provider_key_manager.cache_clear()
@@ -246,7 +246,7 @@ class TestApiKeyEndpoint:
         test_client: TestClient,
         monkeypatch,
     ):
-        api_key = "AIzaSyDsecondworkspacekeymaterial123456"
+        api_key = "test-second-workspace-key-material-123456"
         get_provider_key_manager.cache_clear()
         monkeypatch.setattr("src.api.routes._validate_provider_api_key", lambda *_args: None)
 
@@ -267,7 +267,7 @@ class TestApiKeyEndpoint:
         test_client: TestClient,
         monkeypatch,
     ):
-        api_key = "AIzaSyDdeleteworkspacekeymaterial123456"
+        api_key = "test-delete-workspace-key-material-123456"
         get_provider_key_manager.cache_clear()
         monkeypatch.setattr("src.api.routes._validate_provider_api_key", lambda *_args: None)
 
@@ -367,7 +367,7 @@ class TestAnalytics:
                 action="api_key.added",
                 resource_type="api_key",
                 metadata={
-                    "api_key": "AIzaSyNeverReturnThisValue",
+                    "api_key": "test-never-return-this-value",
                     "nested": {"authorization": "Bearer secret"},
                 },
             )
@@ -380,7 +380,7 @@ class TestAnalytics:
         metadata = data["events"][0]["metadata"]
         assert metadata["api_key"] == "[redacted]"
         assert metadata["nested"]["authorization"] == "[redacted]"
-        assert "AIzaSyNeverReturnThisValue" not in str(data)
+        assert "test-never-return-this-value" not in str(data)
 
 
 class TestEvaluations:

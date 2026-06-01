@@ -149,7 +149,7 @@ class RAGChain:
         # Build sources
         sources = self._build_sources(docs)
 
-        result = {
+        result: dict[str, Any] = {
             "answer": answer,
             "sources": sources,
             "query_type": query_type.value,
@@ -170,7 +170,10 @@ class RAGChain:
         self._cache.set(safe_q, result, workspace_id=scoped_workspace_id)
 
         # Track metrics
-        self._record_metric(result["response_time_seconds"], result["confidence"])
+        self._record_metric(
+            float(result["response_time_seconds"]),
+            float(result["confidence"]),
+        )
 
         logger.info(
             "query_complete",

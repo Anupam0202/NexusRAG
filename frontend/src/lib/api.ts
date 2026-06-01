@@ -94,9 +94,9 @@ export async function listDocuments(): Promise<DocumentListResponse> {
 }
 
 export async function deleteDocument(
-  filename: string
+  documentIdentifier: string
 ): Promise<{ success: boolean; message: string }> {
-  return request(`/api/v1/documents/${encodeURIComponent(filename)}`, {
+  return request(`/api/v1/documents/${encodeURIComponent(documentIdentifier)}`, {
     method: "DELETE",
   });
 }

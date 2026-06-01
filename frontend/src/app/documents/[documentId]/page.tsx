@@ -169,8 +169,8 @@ export default function DocumentDetailPage() {
     setDeleting(true);
     setError(null);
     try {
-      await deleteDocument(document.filename);
-      removeDocument(document.filename);
+      await deleteDocument(document.document_id);
+      removeDocument(document.document_id);
       router.push("/documents");
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Unable to delete document");

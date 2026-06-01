@@ -38,7 +38,7 @@ interface AppState {
   documents: DocumentMetadata[];
   setDocuments: (docs: DocumentMetadata[]) => void;
   addDocument: (doc: DocumentMetadata) => void;
-  removeDocument: (filename: string) => void;
+  removeDocument: (identifier: string) => void;
 
   sessionId: string;
   darkMode: boolean;
@@ -107,7 +107,11 @@ export const useStore = create<AppState>((set) => ({
       doc,
     ],
   })),
-  removeDocument: (filename) => set((s) => ({ documents: s.documents.filter((d) => d.filename !== filename) })),
+  removeDocument: (identifier) => set((s) => ({
+    documents: s.documents.filter(
+      (d) => d.document_id !== identifier && d.filename !== identifier
+    ),
+  })),
 
   sessionId: getInitialSessionId(),
   darkMode: false,

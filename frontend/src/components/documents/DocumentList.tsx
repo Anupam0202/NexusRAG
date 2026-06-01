@@ -9,7 +9,7 @@ import { cn, formatBytes, fileIcon } from "@/lib/utils";
 interface Props {
   documents: DocumentMetadata[];
   loading: boolean;
-  onDelete: (filename: string) => void;
+  onDelete: (documentId: string) => void;
   onRefresh: () => void;
   onSelect: (document: DocumentMetadata) => void;
 }
@@ -87,7 +87,7 @@ export function DocumentList({ documents, loading, onDelete, onRefresh, onSelect
               <button
                 onClick={(event) => {
                   event.stopPropagation();
-                  onDelete(doc.filename);
+                  onDelete(doc.document_id);
                 }}
                 aria-label={`Delete ${doc.filename}`}
                 className="rounded-lg p-2 text-[var(--text-muted)] hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all shrink-0"

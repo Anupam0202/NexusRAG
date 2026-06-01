@@ -62,7 +62,7 @@ class LLMProvider:
 
     def __init__(self, settings: Settings | None = None) -> None:
         self._settings = settings or get_settings()
-        self._model = None
+        self._model: Any = None
         self._model_name: str = ""
         self._had_quota_error: bool = False  # track if any candidate hit quota
         self._scoped_states: dict[tuple[str, str], _ScopedModelState] = {}
@@ -77,8 +77,13 @@ class LLMProvider:
         candidates_raw = getattr(s, "fallback_models", fallbacks)
         candidates = [s.llm_model_name] + [name.strip() for name in candidates_raw if name.strip()]
 
-        seen = set()
-        return [x for x in candidates if not (x in seen or seen.add(x))]
+        seen: set[str] = set()
+        ordered: list[str] = []
+        for candidate in candidates:
+            if candidate not in seen:
+                seen.add(candidate)
+                ordered.append(candidate)
+        return ordered
 
     # ── Lazy model initialisation ─────────────────────────────────────
 

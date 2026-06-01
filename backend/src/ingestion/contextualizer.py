@@ -16,6 +16,7 @@ Reference: https://www.anthropic.com/news/contextual-retrieval
 from __future__ import annotations
 
 import hashlib
+from typing import Any
 
 from langchain_core.documents import Document
 
@@ -49,14 +50,14 @@ class ContextualEnricher:
 
     def __init__(
         self,
-        llm: object | None = None,
+        llm: Any = None,
         settings: Settings | None = None,
     ) -> None:
         self._settings = settings or get_settings()
         self._llm = llm
         self._cache: dict[str, str] = {}  # chunk_hash → context
 
-    def _get_llm(self):
+    def _get_llm(self) -> Any:
         """Lazy-load LLM only when needed."""
         if self._llm is not None:
             return self._llm

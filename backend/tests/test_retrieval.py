@@ -83,6 +83,48 @@ class TestVectorStoreManager:
         report = next(d for d in listing if d["filename"] == "report.pdf")
         assert report["file_type"] == "pdf"
 
+    def test_list_and_delete_documents_by_document_id_when_filenames_repeat(self, tmp_path):
+        vs = VectorStoreManager()
+        vs._persist_dir = tmp_path / "vs"
+        vs._persist_dir.mkdir(parents=True, exist_ok=True)
+        vs._documents = []
+        vs._raw_embeddings = []
+        vs._index = None
+        vs._bm25 = None
+
+        vs.add_documents(
+            [
+                Document(
+                    page_content="January invoice for client alpha.",
+                    metadata={"filename": "invoice.pdf", "chunk_index": 0},
+                ),
+                Document(
+                    page_content="February invoice for client beta.",
+                    metadata={"filename": "invoice.pdf", "chunk_index": 0},
+                ),
+            ],
+            document_id="doc-alpha",
+        )
+        vs.add_documents(
+            [
+                Document(
+                    page_content="March invoice for client gamma.",
+                    metadata={"filename": "invoice.pdf", "chunk_index": 0},
+                )
+            ],
+            document_id="doc-beta",
+        )
+
+        listing = vs.list_documents()
+        assert [item["document_id"] for item in listing] == ["doc-alpha", "doc-beta"]
+        assert [item["chunk_count"] for item in listing] == [2, 1]
+
+        removed = vs.delete_by_identifier("doc-alpha")
+        assert removed == 2
+        remaining = vs.list_documents()
+        assert len(remaining) == 1
+        assert remaining[0]["document_id"] == "doc-beta"
+
     def test_duplicate_chunks_are_skipped(self, sample_documents: list[Document], tmp_path):
         vs = VectorStoreManager()
         vs._persist_dir = tmp_path / "vs"
