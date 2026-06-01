@@ -13,18 +13,19 @@ class IngestionJobRepository(SupabaseRepository):
         *,
         workspace_id: str,
         document_id: str,
+        job_id: str | None = None,
         stage: str = "queued",
     ) -> dict[str, Any]:
-        rows = await self._supabase.table_insert(
-            "ingestion_jobs",
-            {
-                "workspace_id": workspace_id,
-                "document_id": document_id,
-                "status": "queued",
-                "progress": 0,
-                "stage": stage,
-            },
-        )
+        payload: dict[str, Any] = {
+            "workspace_id": workspace_id,
+            "document_id": document_id,
+            "status": "queued",
+            "progress": 0,
+            "stage": stage,
+        }
+        if job_id:
+            payload["id"] = job_id
+        rows = await self._supabase.table_insert("ingestion_jobs", payload)
         return rows[0]
 
     async def get_job(self, *, workspace_id: str, job_id: str) -> dict[str, Any] | None:

@@ -68,10 +68,11 @@ class InMemoryIngestionJobStore:
         document_id: str,
         filename: str,
         workspace_id: str | None = None,
+        job_id: str | None = None,
     ) -> IngestionJobRecord:
         now = datetime.now(UTC)
         record = IngestionJobRecord(
-            job_id=str(uuid4()),
+            job_id=job_id or str(uuid4()),
             workspace_id=normalize_workspace_id(workspace_id),
             document_id=document_id,
             filename=filename,
