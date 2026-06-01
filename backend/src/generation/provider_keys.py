@@ -142,6 +142,12 @@ class ScopedProviderKeyManager:
     def has_active_key(self, *, workspace_id: str | None, provider: str) -> bool:
         return self.describe(workspace_id=workspace_id, provider=provider) is not None
 
+    def remove_key(self, *, workspace_id: str | None, provider: str) -> StoredProviderKey | None:
+        scoped_workspace = normalize_workspace_id(workspace_id)
+        normalized_provider = normalize_provider(provider)
+        with self._lock:
+            return self._keys.pop((scoped_workspace, normalized_provider), None)
+
     def effective_api_key(
         self,
         *,
@@ -190,6 +196,20 @@ class ScopedProviderKeyManager:
             provider=record.provider,
             encrypted_key=record.encrypted_key,
             key_prefix=record.key_label,
+        )
+
+    async def persist_delete_key(
+        self,
+        *,
+        workspace_id: str,
+        user_id: str | None,
+        provider: str,
+    ) -> list[dict]:
+        repo = ApiKeyRepository()
+        return await repo.deactivate_active_keys(
+            workspace_id=normalize_workspace_id(workspace_id),
+            user_id=user_id or DEFAULT_WORKSPACE_ID,
+            provider=normalize_provider(provider),
         )
 
     def clear(self) -> None:

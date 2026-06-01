@@ -262,6 +262,33 @@ class TestApiKeyEndpoint:
         finally:
             get_provider_key_manager.cache_clear()
 
+    def test_api_key_delete_deactivates_workspace_key_without_plaintext(
+        self,
+        test_client: TestClient,
+        monkeypatch,
+    ):
+        api_key = "AIzaSyDdeleteworkspacekeymaterial123456"
+        get_provider_key_manager.cache_clear()
+        monkeypatch.setattr("src.api.routes._validate_provider_api_key", lambda *_args: None)
+
+        try:
+            test_client.post("/api/v1/apikey", json={"api_key": api_key})
+            delete_resp = test_client.delete("/api/v1/apikey")
+            delete_data = delete_resp.json()
+            status_resp = test_client.get("/api/v1/apikey")
+            status_data = status_resp.json()
+
+            assert delete_resp.status_code == 200
+            assert delete_data["success"] is True
+            assert delete_data["workspace_key_configured"] is False
+            assert delete_data["key_fingerprint"] is None
+            assert status_resp.status_code == 200
+            assert status_data["workspace_key_configured"] is False
+            assert api_key not in str(delete_data)
+            assert api_key not in str(status_data)
+        finally:
+            get_provider_key_manager.cache_clear()
+
 
 class TestAnalytics:
     def test_analytics_summary(self, test_client: TestClient):

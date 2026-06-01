@@ -173,6 +173,18 @@ export interface SettingsUpdate {
   enable_contextual_enrichment?: boolean;
 }
 
+export interface ApiKeyStatusResponse {
+  success?: boolean;
+  message?: string;
+  provider: string;
+  workspace_id: string;
+  workspace_key_configured: boolean;
+  server_key_configured: boolean;
+  key_fingerprint: string | null;
+  created_at?: string | null;
+  storage: "memory" | "supabase";
+}
+
 // ── Analytics ────────────────────────────────────────────────
 
 export interface AnalyticsSummary {

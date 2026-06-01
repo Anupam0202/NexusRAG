@@ -9,6 +9,7 @@
 import type {
   AnalyticsSummary,
   AppSettings,
+  ApiKeyStatusResponse,
   AuditEventListResponse,
   ChatHistoryResponse,
   DocumentChunkListResponse,
@@ -197,19 +198,20 @@ export async function healthCheck(): Promise<{
 
 export async function setApiKey(
   apiKey: string
-): Promise<{
-  success: boolean;
-  message: string;
-  provider: string;
-  workspace_id: string;
-  workspace_key_configured: boolean;
-  server_key_configured: boolean;
-  key_fingerprint: string | null;
-  storage: "memory" | "supabase";
-}> {
+): Promise<ApiKeyStatusResponse> {
   return request("/api/v1/apikey", {
     method: "POST",
     body: JSON.stringify({ api_key: apiKey }),
+  });
+}
+
+export async function getApiKeyStatus(): Promise<ApiKeyStatusResponse> {
+  return request("/api/v1/apikey");
+}
+
+export async function deleteApiKey(): Promise<ApiKeyStatusResponse> {
+  return request("/api/v1/apikey", {
+    method: "DELETE",
   });
 }
 

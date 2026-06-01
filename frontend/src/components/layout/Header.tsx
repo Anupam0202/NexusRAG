@@ -13,6 +13,7 @@ const PAGE_TITLES: Record<string, string> = {
   "/analytics": "Analytics",
   "/evaluations": "Evaluations",
   "/settings": "Settings",
+  "/settings/api-keys": "API Keys",
 };
 
 export function Header() {

@@ -63,8 +63,9 @@ A production-grade **Retrieval-Augmented Generation** platform that lets enterpr
 - Ships with a default Gemini API key for quick start
 - Auto-prompted modal when quota is exceeded
 - Users can enter their own Google API key to continue
-- Hot-swaps key across LLM, OCR, and enrichment singletons
-- Key validated server-side using free `list_models()` call
+- Workspace BYOK status is managed from `/settings/api-keys`
+- Raw keys are never returned to the browser and can be removed without mutating global server settings
+- Key validation runs server-side using a free `list_models()` call
 
 ### Runtime Settings
 - Tunable temperature, top-k, hybrid alpha, context window
