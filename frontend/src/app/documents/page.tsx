@@ -7,13 +7,16 @@ import {
   type UploadLimits,
 } from "@/components/documents/UploadZone";
 import { DocumentList } from "@/components/documents/DocumentList";
+import { DocumentDetailPanel } from "@/components/documents/DocumentDetailPanel";
 import { useDocuments } from "@/hooks/useDocuments";
 import { getSystemStatus } from "@/lib/api";
+import type { DocumentMetadata } from "@/types";
 
 export default function DocumentsPage() {
   const { documents, loading, uploading, error, upload, remove, refresh } =
     useDocuments();
   const [limits, setLimits] = useState<UploadLimits>(DEFAULT_UPLOAD_LIMITS);
+  const [selectedDocument, setSelectedDocument] = useState<DocumentMetadata | null>(null);
 
   useEffect(() => {
     getSystemStatus()
@@ -58,8 +61,13 @@ export default function DocumentsPage() {
           loading={loading}
           onDelete={remove}
           onRefresh={refresh}
+          onSelect={setSelectedDocument}
         />
       </div>
+      <DocumentDetailPanel
+        document={selectedDocument}
+        onClose={() => setSelectedDocument(null)}
+      />
     </div>
   );
 }

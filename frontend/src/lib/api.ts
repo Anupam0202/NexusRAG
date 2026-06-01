@@ -11,6 +11,7 @@ import type {
   AppSettings,
   AuditEventListResponse,
   ChatHistoryResponse,
+  DocumentChunkListResponse,
   DocumentListResponse,
   DocumentUploadResponse,
   IngestionJobStatusResponse,
@@ -107,6 +108,17 @@ export async function getDocumentIngestionStatus(
   documentId: string
 ): Promise<IngestionJobStatusResponse> {
   return request(`/api/v1/documents/${encodeURIComponent(documentId)}/status`);
+}
+
+export async function getDocumentChunks(
+  documentId: string,
+  options: { search?: string; limit?: number } = {}
+): Promise<DocumentChunkListResponse> {
+  const params = new URLSearchParams();
+  if (options.search?.trim()) params.set("search", options.search.trim());
+  if (options.limit) params.set("limit", String(options.limit));
+  const suffix = params.toString() ? `?${params.toString()}` : "";
+  return request(`/api/v1/documents/${encodeURIComponent(documentId)}/chunks${suffix}`);
 }
 
 // Chat

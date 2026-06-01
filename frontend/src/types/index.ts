@@ -56,6 +56,23 @@ export interface DocumentUploadResponse {
   job?: IngestionJobStatusResponse | null;
 }
 
+export interface DocumentChunkPreview {
+  chunk_index: number;
+  content: string;
+  page_number: number;
+  section_title?: string | null;
+  token_count: number;
+  metadata: Record<string, unknown>;
+}
+
+export interface DocumentChunkListResponse {
+  document_id: string;
+  filename: string;
+  chunks: DocumentChunkPreview[];
+  total: number;
+  query?: string | null;
+}
+
 // ── Chat ─────────────────────────────────────────────────────
 
 export interface ChatMessage {

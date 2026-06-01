@@ -211,6 +211,7 @@ class VectorStoreManager:
                 filename,
                 {
                     "filename": filename,
+                    "document_id": metadata.get("document_id") or filename,
                     "chunk_count": 0,
                     "file_size_bytes": 0,
                     "file_type": "",
@@ -234,6 +235,68 @@ class VectorStoreManager:
                 item["extraction_method"] = metadata.get("extraction_method", "")
         return sorted(summaries.values(), key=lambda d: d["filename"].lower())
 
+    def list_document_chunks(
+        self,
+        document_id: str,
+        *,
+        workspace_id: str | None = None,
+        search: str | None = None,
+        limit: int = 50,
+    ) -> dict[str, Any]:
+        """Return bounded chunk previews for one workspace document."""
+        scoped_workspace_id = normalize_workspace_id(workspace_id)
+        safe_limit = max(1, min(int(limit or 50), 200))
+        identifier = str(document_id)
+        needle = (search or "").strip().lower()
+        matches: list[dict[str, Any]] = []
+        filename = ""
+
+        for doc in self._documents:
+            if self._doc_workspace_id(doc) != scoped_workspace_id:
+                continue
+            metadata = doc.metadata
+            doc_identifier = str(metadata.get("document_id") or "")
+            doc_filename = str(metadata.get("filename") or "")
+            if identifier not in {doc_identifier, doc_filename}:
+                continue
+            filename = filename or doc_filename or identifier
+            content = doc.page_content or ""
+            if needle and needle not in content.lower():
+                continue
+            chunk_index = self._safe_int(metadata.get("chunk_index"), default=len(matches))
+            page_number = self._safe_int(
+                metadata.get("page_number") or metadata.get("page"),
+                default=0,
+            )
+            matches.append(
+                {
+                    "chunk_index": chunk_index,
+                    "content": content[:2000],
+                    "page_number": page_number,
+                    "section_title": metadata.get("section_title"),
+                    "token_count": self._safe_int(metadata.get("token_count"), default=0),
+                    "metadata": {
+                        key: value
+                        for key, value in metadata.items()
+                        if key
+                        not in {
+                            "workspace_id",
+                            "document_id",
+                            "filename",
+                            "chunk_index",
+                        }
+                    },
+                }
+            )
+
+        matches.sort(key=lambda item: (item["chunk_index"], item["page_number"]))
+        return {
+            "document_id": identifier,
+            "filename": filename or identifier,
+            "chunks": matches[:safe_limit],
+            "total": len(matches),
+        }
+
     @property
     def total_chunks(self) -> int:
         return len(self._documents)
@@ -243,6 +306,13 @@ class VectorStoreManager:
         return sum(
             1 for doc in self._documents if self._doc_workspace_id(doc) == scoped_workspace_id
         )
+
+    @staticmethod
+    def _safe_int(value: Any, *, default: int = 0) -> int:
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            return default
 
     # ══════════════════════════════════════════════════════════════════
     #  SEARCH
