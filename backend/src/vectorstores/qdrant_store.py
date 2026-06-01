@@ -12,6 +12,11 @@ from src.vectorstores.base import VectorChunk, VectorSearchResult
 
 
 class QdrantVectorStore:
+    _PAYLOAD_INDEXES: tuple[tuple[str, str], ...] = (
+        ("workspace_id", "keyword"),
+        ("document_id", "keyword"),
+    )
+
     def __init__(self, settings: Settings | None = None) -> None:
         self._settings = settings or get_settings()
         self._url = self._settings.qdrant_url.rstrip("/")
@@ -46,6 +51,10 @@ class QdrantVectorStore:
     @staticmethod
     def collection_payload(*, vector_size: int, distance: str = "Cosine") -> dict[str, Any]:
         return {"vectors": {"size": vector_size, "distance": distance}}
+
+    @staticmethod
+    def payload_index_payload(field_name: str, field_schema: str = "keyword") -> dict[str, Any]:
+        return {"field_name": field_name, "field_schema": field_schema}
 
     @staticmethod
     def workspace_filter(
@@ -136,6 +145,7 @@ class QdrantVectorStore:
                 headers=self._headers(),
             )
             if response.status_code == 200:
+                await self._ensure_payload_indexes(client)
                 return
             if response.status_code != 404:
                 response.raise_for_status()
@@ -145,6 +155,20 @@ class QdrantVectorStore:
                 headers=self._headers(),
             )
             create.raise_for_status()
+            await self._ensure_payload_indexes(client)
+
+    async def _ensure_payload_indexes(self, client: httpx.AsyncClient) -> None:
+        for field_name, field_schema in self._PAYLOAD_INDEXES:
+            response = await client.put(
+                self._endpoint("/index?wait=true"),
+                json=self.payload_index_payload(field_name, field_schema),
+                headers=self._headers(),
+            )
+            if response.status_code in {200, 201, 409}:
+                continue
+            if response.status_code == 400 and "already exists" in response.text.lower():
+                continue
+            response.raise_for_status()
 
     async def upsert_chunks(
         self,

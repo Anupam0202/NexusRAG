@@ -53,6 +53,12 @@ def test_qdrant_collection_payload_declares_vector_size() -> None:
     assert payload == {"vectors": {"size": 384, "distance": "Cosine"}}
 
 
+def test_qdrant_payload_index_payload_declares_keyword_field() -> None:
+    payload = QdrantVectorStore.payload_index_payload("workspace_id")
+
+    assert payload == {"field_name": "workspace_id", "field_schema": "keyword"}
+
+
 def test_qdrant_search_response_maps_payload_to_result() -> None:
     results = QdrantVectorStore._results_from_search_response(
         {
