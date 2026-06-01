@@ -52,6 +52,7 @@ class TestVectorStoreManager:
                         score=0.89,
                         payload={
                             "filename": "annapurna.pdf",
+                            "page_number": None,
                             "chunk_index": 0,
                             "metadata": {"file_type": "pdf"},
                         },
@@ -73,6 +74,7 @@ class TestVectorStoreManager:
         assert results[0].method == "qdrant"
         assert results[0].document.metadata["document_id"] == "doc-a"
         assert results[0].document.metadata["filename"] == "annapurna.pdf"
+        assert results[0].document.metadata["page_number"] == 0
 
     def test_add_and_search(self, sample_documents: list[Document], tmp_path):
         vs = VectorStoreManager()

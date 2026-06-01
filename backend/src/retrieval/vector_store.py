@@ -518,14 +518,16 @@ class VectorStoreManager:
                 continue
             payload = item.payload or {}
             metadata = payload.get("metadata") if isinstance(payload.get("metadata"), dict) else {}
+            page_number = payload.get("page_number")
+            chunk_index = payload.get("chunk_index")
             doc_metadata = {
                 **metadata,
                 "workspace_id": workspace_id,
                 "document_id": item.document_id,
                 "chunk_id": item.chunk_id,
                 "filename": payload.get("filename") or metadata.get("filename") or "Unknown",
-                "page_number": payload.get("page_number"),
-                "chunk_index": payload.get("chunk_index", 0),
+                "page_number": int(page_number or 0),
+                "chunk_index": int(chunk_index or 0),
                 "content_hash": payload.get("content_hash"),
                 "score": round(float(item.score), 4),
             }
