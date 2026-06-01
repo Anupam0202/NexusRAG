@@ -33,6 +33,38 @@ services:
       - key: BYOK_ENCRYPTION_KEY
         sync: false
 
+      # Enterprise persistence/auth. Vercel's native Supabase integration does
+      # not copy these values to Render, so mirror them in the Render dashboard.
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: SUPABASE_JWT_SECRET
+        sync: false
+      - key: SUPABASE_STORAGE_BUCKET
+        value: documents
+      - key: ENABLE_ANONYMOUS_DEMO
+        value: "false"
+      - key: ENABLE_ASYNC_INGESTION
+        value: "true"
+
+      # Managed vector database wiring. Leave ENABLE_QDRANT false until the
+      # Qdrant URL/key are configured and the collection exists.
+      - key: QDRANT_URL
+        sync: false
+      - key: QDRANT_API_KEY
+        sync: false
+      - key: QDRANT_COLLECTION
+        value: nexusrag_chunks
+      - key: ENABLE_QDRANT
+        value: "false"
+      - key: ENABLE_PGVECTOR_FALLBACK
+        value: "true"
+      - key: ENABLE_LOCAL_FAISS
+        value: "true"
+
       - key: API_CORS_ORIGINS
         value: "https://nexusrag.vercel.app,https://nexusrag-anupam0202s-projects.vercel.app,http://localhost:3000,http://127.0.0.1:3000"
 

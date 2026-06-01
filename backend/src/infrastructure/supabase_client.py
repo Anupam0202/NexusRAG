@@ -53,7 +53,8 @@ class SupabaseClient:
         if not self.is_configured:
             raise SupabaseNotConfiguredError(
                 "Supabase is not configured. Set SUPABASE_URL, "
-                "SUPABASE_ANON_KEY, and SUPABASE_SERVICE_ROLE_KEY."
+                "SUPABASE_ANON_KEY or SUPABASE_PUBLISHABLE_KEY, and "
+                "SUPABASE_SERVICE_ROLE_KEY or SUPABASE_SECRET_KEY."
             )
 
     def auth_headers(self, *, service_role: bool = True) -> dict[str, str]:
