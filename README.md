@@ -165,6 +165,7 @@ pip install -e ".[dev]"
 # Configure environment
 cp .env.example .env
 # Edit .env and add your GOOGLE_API_KEY
+# For local demo-only runs without Supabase Auth, set ENABLE_ANONYMOUS_DEMO=true.
 ```
 
 ### 2. Setup Frontend
@@ -221,7 +222,7 @@ docker-compose up --build
 6. Keep `ENABLE_ANONYMOUS_DEMO=false` for public deployments.
 7. Click **Deploy** — Render builds the Docker image and starts the service
 
-> Vercel's native Supabase integration only injects variables into Vercel deployments. Render will stay in anonymous/local mode until the same Supabase backend variables are configured in the Render service.
+> Vercel's native Supabase integration only injects variables into Vercel deployments. Render must receive the same Supabase backend variables separately; with `ENABLE_ANONYMOUS_DEMO=false`, protected routes fail closed until those variables are configured.
 
 `API_CORS_ORIGINS` is preconfigured in `render.yaml` for the Vercel production domains. Update it if you add a custom frontend domain.
 

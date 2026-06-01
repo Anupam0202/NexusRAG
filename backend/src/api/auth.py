@@ -86,6 +86,17 @@ def _missing_bearer_error() -> HTTPException:
     )
 
 
+def _enterprise_auth_not_configured_error() -> HTTPException:
+    return HTTPException(
+        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+        detail=(
+            "Enterprise authentication is not configured. Configure Supabase "
+            "backend variables, or set ENABLE_ANONYMOUS_DEMO=true only for "
+            "local/demo mode."
+        ),
+    )
+
+
 def select_workspace_id(
     x_nexus_workspace_id: str | None = None,
     x_workspace_id: str | None = None,
@@ -284,8 +295,10 @@ def require_enterprise_workspace_role(*allowed_roles: WorkspaceRole):
         settings: Settings = Depends(get_settings),
         supabase: SupabaseClient = Depends(get_supabase_client),
     ) -> WorkspaceContext | None:
-        if not settings.auth_required:
+        if settings.enable_anonymous_demo:
             return None
+        if not settings.supabase_configured or not settings.supabase_auth_configured:
+            raise _enterprise_auth_not_configured_error()
 
         token = _extract_bearer_token(authorization)
         if not token:

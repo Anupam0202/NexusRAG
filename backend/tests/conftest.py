@@ -15,17 +15,24 @@ from langchain_core.documents import Document
 @pytest.fixture(autouse=True)
 def _set_test_env(monkeypatch):
     """Ensure tests never hit real APIs unless explicitly enabled."""
+    from config.settings import get_settings
+    from src.infrastructure.supabase_client import get_supabase_client
     from src.telemetry.events import get_telemetry_recorder
 
+    get_settings.cache_clear()
+    get_supabase_client.cache_clear()
     get_telemetry_recorder.cache_clear()
     monkeypatch.setenv("GOOGLE_API_KEY", os.getenv("GOOGLE_API_KEY", "test-key-placeholder"))
     monkeypatch.setenv("LOG_FORMAT", "console")
     monkeypatch.setenv("LOG_LEVEL", "WARNING")
     monkeypatch.setenv("ENABLE_CACHE", "false")
+    monkeypatch.setenv("ENABLE_ANONYMOUS_DEMO", "true")
     monkeypatch.setenv("ENABLE_CONTEXTUAL_ENRICHMENT", "false")
     monkeypatch.setenv("ENABLE_RERANKING", "false")
     monkeypatch.setenv("VECTOR_STORE_PATH", "data/test_vector_store")
     yield
+    get_settings.cache_clear()
+    get_supabase_client.cache_clear()
     get_telemetry_recorder.cache_clear()
 
 
