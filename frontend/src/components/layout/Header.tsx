@@ -19,7 +19,9 @@ const PAGE_TITLES: Record<string, string> = {
 export function Header() {
   const pathname = usePathname();
   const store = useStore();
-  const title = PAGE_TITLES[pathname] ?? "Chat";
+  const title = pathname.startsWith("/documents/")
+    ? "Document Detail"
+    : PAGE_TITLES[pathname] ?? "Chat";
   const [browserOnline, setBrowserOnline] = useState(true);
 
   useEffect(() => {
