@@ -1,8 +1,9 @@
 "use client";
 
+import Link from "next/link";
 import type { DocumentMetadata } from "@/types";
 import { motion } from "framer-motion";
-import { Eye, RefreshCw, Trash2, FileText } from "lucide-react";
+import { ExternalLink, Eye, RefreshCw, Trash2, FileText } from "lucide-react";
 import { cn, formatBytes, fileIcon } from "@/lib/utils";
 
 interface Props {
@@ -42,41 +43,47 @@ export function DocumentList({ documents, loading, onDelete, onRefresh, onSelect
       ) : (
         <div className="space-y-2">
           {documents.map((doc, i) => (
-            <motion.div
+            <motion.article
               key={doc.filename}
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.05, duration: 0.3 }}
-              role="button"
-              tabIndex={0}
-              onClick={() => onSelect(doc)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter" || event.key === " ") {
-                  event.preventDefault();
-                  onSelect(doc);
-                }
-              }}
-              className="flex cursor-pointer items-center gap-3 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] px-3 py-2.5 md:px-4 md:py-3 hover:shadow-md transition group focus:outline-none focus:ring-2 focus:ring-brand-500/50"
+              className="group flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] px-3 py-2.5 transition hover:shadow-md md:px-4 md:py-3"
             >
-              <span className="text-xl md:text-2xl shrink-0">{fileIcon(doc.filename)}</span>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold truncate">{doc.filename}</p>
-                <p className="text-xs text-[var(--text-muted)]">
-                  {doc.chunk_count} chunks
-                  {doc.file_size_bytes > 0 && ` - ${formatBytes(doc.file_size_bytes)}`}
-                </p>
-              </div>
-              <span className={cn(
-                "text-[10px] font-bold uppercase rounded-full px-2 py-0.5 hidden sm:inline-block",
-                doc.status === "ready"
-                  ? "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300"
-                  : "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700"
-              )}>
-                {doc.status}
-              </span>
-              <span className="hidden rounded-lg p-2 text-[var(--text-muted)] sm:inline-flex">
-                <Eye size={15} />
-              </span>
+              <button
+                type="button"
+                onClick={() => onSelect(doc)}
+                className="flex min-w-0 flex-1 items-center gap-3 rounded-lg text-left focus:outline-none focus:ring-2 focus:ring-brand-500/50"
+                aria-label={`Preview ${doc.filename}`}
+              >
+                <span className="text-xl md:text-2xl shrink-0">{fileIcon(doc.filename)}</span>
+                <div className="flex-1 min-w-0">
+                  <p className="truncate text-sm font-semibold">{doc.filename}</p>
+                  <p className="text-xs text-[var(--text-muted)]">
+                    {doc.chunk_count} chunks
+                    {doc.file_size_bytes > 0 && ` - ${formatBytes(doc.file_size_bytes)}`}
+                  </p>
+                </div>
+                <span className={cn(
+                  "hidden rounded-full px-2 py-0.5 text-[10px] font-bold uppercase sm:inline-block",
+                  doc.status === "ready"
+                    ? "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300"
+                    : "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700"
+                )}>
+                  {doc.status}
+                </span>
+                <span className="hidden rounded-lg p-2 text-[var(--text-muted)] sm:inline-flex">
+                  <Eye size={15} />
+                </span>
+              </button>
+              <Link
+                href={`/documents/${encodeURIComponent(doc.document_id)}`}
+                aria-label={`Open details page for ${doc.filename}`}
+                title="Open full details"
+                className="rounded-lg p-2 text-[var(--text-muted)] transition hover:bg-[var(--bg-hover)] hover:text-brand-500 shrink-0"
+              >
+                <ExternalLink size={15} />
+              </Link>
               <button
                 onClick={(event) => {
                   event.stopPropagation();
@@ -87,7 +94,7 @@ export function DocumentList({ documents, loading, onDelete, onRefresh, onSelect
               >
                 <Trash2 size={15} />
               </button>
-            </motion.div>
+            </motion.article>
           ))}
         </div>
       )}
