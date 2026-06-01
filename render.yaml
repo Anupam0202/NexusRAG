@@ -50,8 +50,8 @@ services:
       - key: ENABLE_ASYNC_INGESTION
         value: "true"
 
-      # Managed vector database wiring. Leave ENABLE_QDRANT false until the
-      # Qdrant URL/key are configured and the collection exists.
+      # Managed vector database wiring. The Qdrant URL/key stay secret in
+      # Render, while the production vector mode is managed by this Blueprint.
       - key: QDRANT_URL
         sync: false
       - key: QDRANT_API_KEY
@@ -59,11 +59,11 @@ services:
       - key: QDRANT_COLLECTION
         value: nexusrag_chunks
       - key: ENABLE_QDRANT
-        value: "false"
+        value: "true"
       - key: ENABLE_PGVECTOR_FALLBACK
-        value: "true"
+        value: "false"
       - key: ENABLE_LOCAL_FAISS
-        value: "true"
+        value: "false"
 
       - key: API_CORS_ORIGINS
         value: "https://nexusrag.vercel.app,https://nexusrag-anupam0202s-projects.vercel.app,http://localhost:3000,http://127.0.0.1:3000"
