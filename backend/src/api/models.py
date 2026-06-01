@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from enum import StrEnum
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -246,6 +246,34 @@ class AuditEventListResponse(BaseModel):
     events: list[AuditEventResponse] = Field(default_factory=list)
     total: int = 0
     storage: str = "memory"
+
+
+class EvaluationRunRequest(BaseModel):
+    mode: Literal["retrieval", "extractive"] = "retrieval"
+    top_k: int | None = Field(None, ge=1, le=20)
+    fail_under_recall: float = Field(default=0.8, ge=0.0, le=1.0)
+    fail_under_citation_precision: float = Field(default=0.8, ge=0.0, le=1.0)
+
+
+class EvaluationCaseResponse(BaseModel):
+    id: str
+    question: str
+    workspace_id: str
+    mode: str
+    answer: str
+    sources: list[dict[str, Any]] = Field(default_factory=list)
+    metrics: dict[str, Any] = Field(default_factory=dict)
+    passed: bool
+
+
+class EvaluationReportResponse(BaseModel):
+    dataset: str
+    mode: str
+    generated_at: str
+    duration_ms: float
+    summary: dict[str, Any]
+    gates: dict[str, Any]
+    results: list[EvaluationCaseResponse] = Field(default_factory=list)
 
 
 class SystemStatusResponse(BaseModel):

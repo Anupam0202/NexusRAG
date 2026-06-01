@@ -482,7 +482,9 @@ default sample dataset seeds two isolated workspaces, measures retrieval
 recall@k, MRR, nDCG, citation precision/recall, extractive answer support,
 latency, and cross-workspace leakage. Retrieval and extractive modes use
 lightweight deterministic embeddings, so they can run in CI without a Gemini
-or paid provider call. Use `--mode rag` only for manual provider-backed checks.
+or paid provider call. The app also exposes `/evaluations`, backed by
+`POST /api/v1/evaluations/sample`, for running the same free-tier-safe quality
+gate from the UI. Use `--mode rag` only for manual provider-backed checks.
 
 ---
 

@@ -217,6 +217,54 @@ export interface AuditEventListResponse {
   storage: "memory" | "supabase";
 }
 
+// -- Evaluations -----------------------------------------------------------
+
+export type EvaluationMode = "retrieval" | "extractive";
+
+export interface EvaluationRunRequest {
+  mode?: EvaluationMode;
+  top_k?: number | null;
+  fail_under_recall?: number;
+  fail_under_citation_precision?: number;
+}
+
+export interface EvaluationGateCheck {
+  value: number;
+  threshold: number;
+  passed: boolean;
+}
+
+export interface EvaluationGates {
+  passed: boolean;
+  checks: Record<string, EvaluationGateCheck>;
+}
+
+export interface EvaluationCaseResult {
+  id: string;
+  question: string;
+  workspace_id: string;
+  mode: string;
+  answer: string;
+  sources: Array<{
+    filename: string;
+    document_id: string;
+    workspace_id: string;
+    score: number;
+  }>;
+  metrics: Record<string, number | boolean | string>;
+  passed: boolean;
+}
+
+export interface EvaluationReportResponse {
+  dataset: string;
+  mode: string;
+  generated_at: string;
+  duration_ms: number;
+  summary: Record<string, number | string | boolean>;
+  gates: EvaluationGates;
+  results: EvaluationCaseResult[];
+}
+
 export interface SystemStatusSettings {
   retrieval_top_k?: number;
   enable_reranking?: boolean;

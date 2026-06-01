@@ -356,6 +356,29 @@ class TestAnalytics:
         assert "AIzaSyNeverReturnThisValue" not in str(data)
 
 
+class TestEvaluations:
+    def test_sample_evaluation_endpoint_runs_quality_gates(self, test_client: TestClient):
+        resp = test_client.post(
+            "/api/v1/evaluations/sample",
+            json={"mode": "retrieval", "fail_under_recall": 0.8},
+        )
+        data = resp.json()
+
+        assert resp.status_code == 200
+        assert data["dataset"] == "sample_corpus.json"
+        assert data["mode"] == "retrieval"
+        assert data["summary"]["total"] == 3
+        assert data["summary"]["cross_workspace_leaks"] == 0
+        assert data["gates"]["passed"] is True
+        assert data["gates"]["checks"]["retrieval_recall"]["passed"] is True
+        assert len(data["results"]) == 3
+
+    def test_sample_evaluation_rejects_llm_mode(self, test_client: TestClient):
+        resp = test_client.post("/api/v1/evaluations/sample", json={"mode": "rag"})
+
+        assert resp.status_code == 422
+
+
 class TestChatHistory:
     def test_list_session_messages_uses_in_memory_history_in_demo_mode(
         self,

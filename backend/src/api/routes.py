@@ -21,13 +21,26 @@ from __future__ import annotations
 import asyncio
 import gc
 import io
+import tempfile
+import time
 import uuid
+from datetime import UTC, datetime
 from pathlib import Path
 
-from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, Query, UploadFile
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Body,
+    Depends,
+    File,
+    HTTPException,
+    Query,
+    UploadFile,
+)
 from pydantic import BaseModel, Field
 
 from config.settings import Settings, get_settings
+from evals.run_eval import DEFAULT_DATASET, run_evaluation
 from src.api.auth import WorkspaceContext, WorkspaceRole, require_enterprise_workspace_role
 from src.api.dependencies import get_rag_chain, get_vector_store, verify_api_key
 from src.api.models import (
@@ -43,6 +56,9 @@ from src.api.models import (
     DocumentMetadata,
     DocumentStatus,
     DocumentUploadResponse,
+    EvaluationCaseResponse,
+    EvaluationReportResponse,
+    EvaluationRunRequest,
     IngestionJobStatusResponse,
     QueryRequest,
     QueryResponse,
@@ -1158,6 +1174,111 @@ async def get_api_key_status(
 
 #  ANALYTICS
 # ═══════════════════════════════════════════════════════════════════════════
+
+
+def _evaluation_gates(
+    summary: dict,
+    *,
+    recall_threshold: float,
+    citation_threshold: float,
+) -> dict:
+    recall = float(summary.get("avg_retrieval_recall_at_k", 0.0) or 0.0)
+    citation_precision = float(summary.get("avg_citation_precision", 0.0) or 0.0)
+    leaks = int(summary.get("cross_workspace_leaks", 0) or 0)
+    pass_rate = float(summary.get("pass_rate", 0.0) or 0.0)
+    checks = {
+        "retrieval_recall": {
+            "value": recall,
+            "threshold": recall_threshold,
+            "passed": recall >= recall_threshold,
+        },
+        "citation_precision": {
+            "value": citation_precision,
+            "threshold": citation_threshold,
+            "passed": citation_precision >= citation_threshold,
+        },
+        "cross_workspace_leaks": {
+            "value": leaks,
+            "threshold": 0,
+            "passed": leaks == 0,
+        },
+        "case_pass_rate": {
+            "value": pass_rate,
+            "threshold": 1.0,
+            "passed": pass_rate >= 1.0,
+        },
+    }
+    return {
+        "passed": all(check["passed"] for check in checks.values()),
+        "checks": checks,
+    }
+
+
+@router.post("/evaluations/sample", response_model=EvaluationReportResponse)
+async def run_sample_evaluation(
+    body: EvaluationRunRequest = Body(default_factory=EvaluationRunRequest),
+    workspace: WorkspaceContext | None = Depends(
+        require_enterprise_workspace_role(*VIEWER_ROLES)
+    ),
+    settings: Settings = Depends(get_settings),
+) -> EvaluationReportResponse:
+    """Run the bundled CI-safe evaluation corpus without external LLM calls."""
+    started = time.perf_counter()
+    report_path = Path(
+        tempfile.gettempdir(),
+        f"nexusrag-eval-{uuid.uuid4().hex}.json",
+    )
+    try:
+        report = await asyncio.to_thread(
+            run_evaluation,
+            dataset_path=DEFAULT_DATASET,
+            report_path=report_path,
+            mode=body.mode,
+            top_k=body.top_k,
+            fail_under_recall=0.0,
+            fail_on_leak=False,
+        )
+    except Exception as exc:
+        logger.warning("evaluation_run_failed", mode=body.mode, error=str(exc)[:300])
+        raise HTTPException(
+            status_code=500,
+            detail=f"Evaluation failed to run: {str(exc)[:200]}",
+        ) from exc
+    finally:
+        try:
+            report_path.unlink(missing_ok=True)
+        except Exception:
+            pass
+
+    summary = dict(report.get("summary") or {})
+    gates = _evaluation_gates(
+        summary,
+        recall_threshold=body.fail_under_recall,
+        citation_threshold=body.fail_under_citation_precision,
+    )
+    await _record_audit_event(
+        workspace=workspace,
+        settings=settings,
+        action="evaluation.run",
+        resource_type="evaluation",
+        resource_id=Path(DEFAULT_DATASET).name,
+        metadata={
+            "mode": body.mode,
+            "top_k": body.top_k,
+            "passed": gates["passed"],
+            "total_cases": summary.get("total", 0),
+            "cross_workspace_leaks": summary.get("cross_workspace_leaks", 0),
+        },
+    )
+    return EvaluationReportResponse(
+        dataset=Path(DEFAULT_DATASET).name,
+        mode=str(report.get("mode") or body.mode),
+        generated_at=datetime.now(UTC).isoformat(),
+        duration_ms=round((time.perf_counter() - started) * 1000, 2),
+        summary=summary,
+        gates=gates,
+        results=[EvaluationCaseResponse(**item) for item in report.get("results", [])],
+    )
 
 
 @router.get("/analytics/summary", response_model=AnalyticsSummary)
