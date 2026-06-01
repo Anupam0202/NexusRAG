@@ -10,10 +10,15 @@ import { AuthMenu } from "@/components/auth/AuthMenu";
 const PAGE_TITLES: Record<string, string> = {
   "/chat": "Chat",
   "/documents": "Documents",
+  "/workspaces": "Workspaces",
+  "/onboarding": "Onboarding",
+  "/auth/login": "Sign In",
+  "/auth/callback": "Sign In",
   "/analytics": "Analytics",
   "/evaluations": "Evaluations",
   "/settings": "Settings",
   "/settings/api-keys": "API Keys",
+  "/settings/members": "Members",
 };
 
 export function Header() {

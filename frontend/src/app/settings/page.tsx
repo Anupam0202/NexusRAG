@@ -5,7 +5,7 @@ import Link from "next/link";
 import { getSettings, getSystemStatus, updateSettings } from "@/lib/api";
 import type { AppSettings, SettingsUpdate, SystemStatusResponse } from "@/types";
 import { toast } from "sonner";
-import { ArrowRight, Building2, KeyRound, Loader2, Save, Settings2 } from "lucide-react";
+import { ArrowRight, Building2, KeyRound, Loader2, Save, Settings2, UsersRound } from "lucide-react";
 import { useStore } from "@/hooks/useStore";
 
 export default function SettingsPage() {
@@ -92,6 +92,44 @@ export default function SettingsPage() {
           </span>
           <ArrowRight size={16} className="shrink-0 text-[var(--text-muted)]" />
         </Link>
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Link
+            href="/workspaces"
+            className="flex items-center justify-between gap-3 rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4 transition hover:bg-[var(--bg-hover)]"
+          >
+            <span className="flex min-w-0 items-center gap-3">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-100 text-brand-700 dark:bg-brand-900/30 dark:text-brand-300">
+                <Building2 size={18} />
+              </span>
+              <span className="min-w-0">
+                <span className="block text-sm font-semibold">Workspaces</span>
+                <span className="block truncate text-xs text-[var(--text-muted)]">
+                  Switch or create tenant contexts
+                </span>
+              </span>
+            </span>
+            <ArrowRight size={16} className="shrink-0 text-[var(--text-muted)]" />
+          </Link>
+
+          <Link
+            href="/settings/members"
+            className="flex items-center justify-between gap-3 rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4 transition hover:bg-[var(--bg-hover)]"
+          >
+            <span className="flex min-w-0 items-center gap-3">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">
+                <UsersRound size={18} />
+              </span>
+              <span className="min-w-0">
+                <span className="block text-sm font-semibold">Members</span>
+                <span className="block truncate text-xs text-[var(--text-muted)]">
+                  Review workspace access
+                </span>
+              </span>
+            </span>
+            <ArrowRight size={16} className="shrink-0 text-[var(--text-muted)]" />
+          </Link>
+        </div>
 
         <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4 md:p-6">
           <div className="mb-3 flex items-center gap-2">

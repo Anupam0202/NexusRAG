@@ -4,7 +4,7 @@ import { usePathname } from "next/navigation";
 import Link from "next/link";
 import {
   MessageSquare, FileText, BarChart3, Settings, ChevronLeft,
-  ChevronRight, Sparkles, Menu, X, ClipboardCheck,
+  ChevronRight, Sparkles, Menu, X, ClipboardCheck, Building2,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
@@ -14,6 +14,7 @@ import { useState, useEffect } from "react";
 const NAV = [
   { href: "/chat", label: "Chat", icon: MessageSquare },
   { href: "/documents", label: "Documents", icon: FileText },
+  { href: "/workspaces", label: "Workspaces", icon: Building2 },
   { href: "/analytics", label: "Analytics", icon: BarChart3 },
   { href: "/evaluations", label: "Evaluations", icon: ClipboardCheck },
   { href: "/settings", label: "Settings", icon: Settings },
