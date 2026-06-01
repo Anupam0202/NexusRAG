@@ -3,7 +3,7 @@ import type { UIMessage, DocumentMetadata, SourceChunk } from "@/types";
 import { setStoredWorkspaceId } from "@/lib/api-context";
 import { generateId } from "@/lib/utils";
 
-type AuthMode = "loading" | "demo" | "signed_out" | "authenticated";
+export type AuthMode = "loading" | "demo" | "signed_out" | "authenticated";
 const SESSION_STORAGE_KEY = "nexusrag_chat_session_id";
 
 function getInitialSessionId() {

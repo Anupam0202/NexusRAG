@@ -3,7 +3,7 @@
   <img src="https://img.shields.io/badge/Next.js-16-black?logo=next.js&logoColor=white" alt="Next.js" />
   <img src="https://img.shields.io/badge/FastAPI-0.111+-009688?logo=fastapi&logoColor=white" alt="FastAPI" />
   <img src="https://img.shields.io/badge/Gemini-Failover-4285F4?logo=google&logoColor=white" alt="Gemini" />
-  <img src="https://img.shields.io/badge/FAISS-Vector_Search-FF6F00" alt="FAISS" />
+  <img src="https://img.shields.io/badge/Qdrant-Vector_Search-DC244C" alt="Qdrant" />
   <img src="https://img.shields.io/badge/Deploy-Render_+_Vercel-000?logo=vercel&logoColor=white" alt="Deploy" />
   <img src="https://img.shields.io/badge/License-MIT-green" alt="MIT" />
 </p>
@@ -28,7 +28,7 @@ A production-grade **Retrieval-Augmented Generation** platform that lets enterpr
 - Upload preflight returns clear limits for large PDFs, scanned PDFs, and high-resolution images before processing starts
 
 ### Advanced RAG Pipeline
-- **Hybrid Retrieval** — BM25 keyword + FAISS vector semantic search with RRF fusion
+- **Hybrid Retrieval** — BM25 keyword + Qdrant vector semantic search in production, with local FAISS fallback for development
 - **Cross-Encoder Re-ranking** — `ms-marco-MiniLM-L-6-v2` for precision
 - **Smart Chunking** — recursive, semantic (embedding-based breakpoints), and hierarchical strategies
 - **Contextual Enrichment** — LLM-generated context prepended to each chunk (Anthropic-style)
@@ -134,7 +134,7 @@ A production-grade **Retrieval-Augmented Generation** platform that lets enterpr
 | **OCR** | Gemini Vision + Google Cloud Vision |
 | **Backend** | FastAPI, Uvicorn, LangChain, Pydantic v2 |
 | **Frontend** | Next.js 16, React 19, TailwindCSS, Zustand, Framer Motion |
-| **Vector Store** | FAISS (IndexFlatIP) + BM25Okapi |
+| **Vector Store** | Qdrant primary + BM25Okapi; local FAISS fallback for development/demo |
 | **Streaming** | WebSocket (native JSON frames) |
 | **Deploy** | Render (backend) + Vercel (frontend) |
 | **Styling** | TailwindCSS 3, Inter font, Lucide icons |
@@ -359,7 +359,7 @@ NexusRAG/
 | `QDRANT_API_KEY` | empty | Qdrant API key when `QDRANT_URL` is configured |
 | `QDRANT_COLLECTION` | `nexusrag_chunks` | Qdrant collection name |
 | `ENABLE_QDRANT` | `false` | Enables Qdrant adapter when endpoint/key are ready |
-| `ENABLE_PGVECTOR_FALLBACK` | `true` | Allows Supabase pgvector fallback when configured |
+| `ENABLE_PGVECTOR_FALLBACK` | `false` | Reserved for a future Supabase pgvector migration |
 | `ENABLE_LOCAL_FAISS` | `true` | Allows local FAISS fallback for local/demo environments |
 | `API_CORS_ORIGINS` | `localhost:3000` | Allowed CORS origins |
 | `ENABLE_CACHE` | `true` | Semantic query cache |
@@ -453,7 +453,7 @@ NexusRAG ships with a default API key for quick evaluation. When the free-tier q
 ```
 Upload → File Validation → Format Detection → Loader
   → OCR (if scanned/image) → Smart Chunking → Contextual Enrichment
-  → Embedding (all-MiniLM-L6-v2) → FAISS Index + BM25 Index
+  → Embedding (all-MiniLM-L6-v2) → Qdrant/FAISS vector index + BM25 index
 ```
 
 ### Query Flow
@@ -463,7 +463,7 @@ Question → Input Sanitization → Semantic Cache Check
   → Adaptive K Selection (10–50 based on query type)
   → History-Aware Reformulation (LLM)
   → Multi-Query Expansion (2 alternatives)
-  → Hybrid Search (FAISS dense + BM25 sparse → RRF fusion)
+  → Hybrid Search (Qdrant or FAISS dense + BM25 sparse → RRF fusion)
   → Cross-Encoder Re-ranking (top 5)
   → Prompt Assembly (system + context + history + question)
   → Gemini Streaming Generation (with failover chain)

@@ -12,9 +12,17 @@ interface Props {
   onDelete: (documentId: string) => void;
   onRefresh: () => void;
   onSelect: (document: DocumentMetadata) => void;
+  disabledReason?: string;
 }
 
-export function DocumentList({ documents, loading, onDelete, onRefresh, onSelect }: Props) {
+export function DocumentList({
+  documents,
+  loading,
+  onDelete,
+  onRefresh,
+  onSelect,
+  disabledReason,
+}: Props) {
   return (
     <section>
       <div className="flex items-center justify-between mb-4">
@@ -24,7 +32,7 @@ export function DocumentList({ documents, loading, onDelete, onRefresh, onSelect
         </h2>
         <button
           onClick={onRefresh}
-          disabled={loading}
+          disabled={loading || Boolean(disabledReason)}
           className="flex items-center gap-1.5 rounded-lg border border-[var(--border)] px-3 py-1.5 text-xs font-medium hover:bg-[var(--bg-hover)] transition disabled:opacity-50"
         >
           <RefreshCw size={13} className={cn(loading && "animate-spin")} />
@@ -34,6 +42,12 @@ export function DocumentList({ documents, loading, onDelete, onRefresh, onSelect
 
       {loading && documents.length === 0 ? (
         <DocumentSkeleton />
+      ) : disabledReason ? (
+        <div className="flex flex-col items-center py-16 text-center text-[var(--text-muted)]">
+          <FileText size={40} className="mb-3 opacity-30" />
+          <p className="font-medium text-sm">{disabledReason}</p>
+          <p className="text-xs">Sign in to view and manage indexed files.</p>
+        </div>
       ) : documents.length === 0 ? (
         <div className="flex flex-col items-center py-16 text-[var(--text-muted)]">
           <FileText size={40} className="mb-3 opacity-30" />

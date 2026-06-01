@@ -4,11 +4,13 @@ import { useCallback, useEffect, useRef } from "react";
 import { createChatSocket } from "@/lib/websocket";
 import { chatQuery, getSessionMessages } from "@/lib/api";
 import { useStore } from "@/hooks/useStore";
+import { canUseWorkspaceApi } from "@/hooks/useAuthGate";
 import type { QueryRequest, WSFrame, SourceChunk, UIMessage } from "@/types";
 import { generateId } from "@/lib/utils";
 
 export function useChat() {
   const store = useStore();
+  const canAccessWorkspaceApi = canUseWorkspaceApi(store.authMode);
   const socketRef = useRef<ReturnType<typeof createChatSocket> | null>(null);
   const currentAsstId = useRef<string | null>(null);
   const sourcesBuffer = useRef<SourceChunk[]>([]);
@@ -19,6 +21,7 @@ export function useChat() {
 
   useEffect(() => {
     let cancelled = false;
+    if (!canAccessWorkspaceApi) return;
     if (store.messages.length > 0) return;
 
     getSessionMessages(store.sessionId)
@@ -53,7 +56,7 @@ export function useChat() {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [store.sessionId]);
+  }, [store.sessionId, canAccessWorkspaceApi]);
 
   const handleFrame = useCallback((frame: WSFrame) => {
     const id = currentAsstId.current;
@@ -134,6 +137,13 @@ export function useChat() {
   }, [handleQuotaError]);
 
   useEffect(() => {
+    if (!canAccessWorkspaceApi) {
+      socketRef.current?.close();
+      socketRef.current = null;
+      store.setConnectionStatus(store.authMode === "loading" ? "checking" : "auth_setup_required");
+      return;
+    }
+
     store.setConnectionStatus("checking");
     socketRef.current = createChatSocket(
       handleFrame,
@@ -143,10 +153,13 @@ export function useChat() {
     );
     return () => { socketRef.current?.close(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [handleFrame]);
+  }, [handleFrame, canAccessWorkspaceApi, store.authMode]);
 
   const sendMessage = useCallback((text: string) => {
     if (!text.trim()) return;
+    if (!canAccessWorkspaceApi) {
+      return;
+    }
     store.addUserMessage(text);
     const asstId = generateId();
     currentAsstId.current = asstId;
@@ -168,7 +181,7 @@ export function useChat() {
       void runRestFallback(asstId, request);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [store.sessionId, runRestFallback]);
+  }, [store.sessionId, runRestFallback, canAccessWorkspaceApi]);
 
   return { sendMessage, messages: store.messages };
 }

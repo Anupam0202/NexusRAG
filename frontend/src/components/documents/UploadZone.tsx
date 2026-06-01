@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useDropzone, type FileRejection } from "react-dropzone";
 import { AlertCircle, CheckCircle2, FileUp, Upload } from "lucide-react";
 import { toast } from "sonner";
@@ -49,10 +49,17 @@ interface Props {
   onUpload: (file: File) => Promise<DocumentUploadResponse>;
   uploading: boolean;
   limits: UploadLimits;
+  disabledReason?: string;
 }
 
-export function UploadZone({ onUpload, uploading, limits }: Props) {
+export function UploadZone({ onUpload, uploading, limits, disabledReason }: Props) {
   const [status, setStatus] = useState<"idle" | "success" | "error">("idle");
+  const [mounted, setMounted] = useState(false);
+  const disabled = uploading || Boolean(disabledReason);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const onDrop = useCallback(
     async (files: File[]) => {
@@ -100,7 +107,7 @@ export function UploadZone({ onUpload, uploading, limits }: Props) {
     maxFiles: MAX_FILES_PER_DROP,
     maxSize: limits.maxUploadMb * 1024 * 1024,
     multiple: true,
-    disabled: uploading,
+    disabled,
     useFsAccessApi: false,
   });
 
@@ -112,16 +119,28 @@ export function UploadZone({ onUpload, uploading, limits }: Props) {
         isDragActive
           ? "border-brand-500 bg-brand-50 dark:bg-brand-900/20"
           : "border-[var(--border)] bg-[var(--bg-secondary)] hover:border-brand-400 upload-zone-idle",
-        uploading && "opacity-60 pointer-events-none"
+        disabled && "cursor-not-allowed opacity-65"
       )}
     >
-      <input
-        {...getInputProps({
-          "aria-label": "Upload NexusRAG documents",
-          autoComplete: "off",
-        })}
-      />
-      {uploading ? (
+      {mounted && (
+        <input
+          {...getInputProps({
+            "aria-label": "Upload NexusRAG documents",
+            autoComplete: "off",
+          })}
+        />
+      )}
+      {disabledReason ? (
+        <>
+          <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-xl bg-brand-100 dark:bg-brand-900/30">
+            <AlertCircle className="text-brand-500" size={24} />
+          </div>
+          <p className="text-center text-sm font-semibold">{disabledReason}</p>
+          <p className="mt-2 max-w-md text-center text-xs leading-5 text-[var(--text-muted)]">
+            Your document library is protected by workspace authentication.
+          </p>
+        </>
+      ) : uploading ? (
         <>
           <div className="h-10 w-10 rounded-full border-4 border-brand-500 border-t-transparent animate-spin mb-3" />
           <p className="text-sm font-medium">Processing...</p>

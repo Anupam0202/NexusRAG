@@ -8,6 +8,7 @@ import {
   deleteDocument,
 } from "@/lib/api";
 import { useStore } from "@/hooks/useStore";
+import { canUseWorkspaceApi } from "@/hooks/useAuthGate";
 import type { DocumentListResponse } from "@/types";
 
 function getErrorMessage(err: unknown, fallback: string) {
@@ -23,7 +24,8 @@ function sleep(ms: number) {
 }
 
 export function useDocuments() {
-  const { documents, setDocuments, addDocument, removeDocument } = useStore();
+  const { documents, setDocuments, addDocument, removeDocument, authMode } = useStore();
+  const canAccessWorkspaceApi = canUseWorkspaceApi(authMode);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -31,6 +33,13 @@ export function useDocuments() {
   const refresh = useCallback(async (
     options: RefreshOptions = {}
   ): Promise<DocumentListResponse | null> => {
+    if (!canAccessWorkspaceApi) {
+      setDocuments([]);
+      setLoading(false);
+      setError(null);
+      return null;
+    }
+
     setLoading(true);
     try {
       const resp = await listDocuments();
@@ -45,14 +54,24 @@ export function useDocuments() {
     } finally {
       setLoading(false);
     }
-  }, [setDocuments]);
+  }, [canAccessWorkspaceApi, setDocuments]);
 
   useEffect(() => {
-    refresh();
-  }, [refresh]);
+    if (canAccessWorkspaceApi) {
+      void refresh();
+    } else {
+      setDocuments([]);
+      setLoading(false);
+      setError(null);
+    }
+  }, [canAccessWorkspaceApi, refresh, setDocuments]);
 
   const upload = useCallback(
     async (file: File) => {
+      if (!canAccessWorkspaceApi) {
+        throw new Error("Sign in to upload documents.");
+      }
+
       setUploading(true);
       setError(null);
       try {
@@ -98,11 +117,16 @@ export function useDocuments() {
         setUploading(false);
       }
     },
-    [addDocument, refresh]
+    [addDocument, canAccessWorkspaceApi, refresh]
   );
 
   const remove = useCallback(
     async (documentId: string) => {
+      if (!canAccessWorkspaceApi) {
+        setError("Sign in to delete documents.");
+        return;
+      }
+
       try {
         await deleteDocument(documentId);
         removeDocument(documentId);
@@ -110,8 +134,18 @@ export function useDocuments() {
         setError(getErrorMessage(err, "Delete failed"));
       }
     },
-    [removeDocument]
+    [canAccessWorkspaceApi, removeDocument]
   );
 
-  return { documents, loading, uploading, error, refresh, upload, remove };
+  return {
+    documents,
+    loading,
+    uploading,
+    error,
+    refresh,
+    upload,
+    remove,
+    canAccessWorkspaceApi,
+    authMode,
+  };
 }
