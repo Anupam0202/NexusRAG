@@ -468,9 +468,21 @@ mypy src/
 # CLI document ingestion
 python scripts/ingest.py path/to/files/
 
-# RAG evaluation
-python scripts/evaluate.py --auto --num-questions 10
+# CI-safe RAG evaluation, no paid LLM calls required
+python -m evals.run_eval --fail-under-recall 0.8
+
+# Compatibility wrapper for the same harness
+python scripts/evaluate.py --fail-under-recall 0.8
 ```
+
+### Evaluation Harness
+
+The backend includes `backend/evals/` for quota-safe RAG quality checks. The
+default sample dataset seeds two isolated workspaces, measures retrieval
+recall@k, MRR, nDCG, citation precision/recall, extractive answer support,
+latency, and cross-workspace leakage. Retrieval and extractive modes use
+lightweight deterministic embeddings, so they can run in CI without a Gemini
+or paid provider call. Use `--mode rag` only for manual provider-backed checks.
 
 ---
 
