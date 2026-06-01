@@ -36,6 +36,8 @@ from src.api.models import (
     AuditEventResponse,
     ChatHistoryMessage,
     ChatHistoryResponse,
+    DocumentChunkListResponse,
+    DocumentChunkPreview,
     DocumentDeleteResponse,
     DocumentListResponse,
     DocumentMetadata,
@@ -568,7 +570,7 @@ async def list_documents(
     docs_raw = vs.list_documents(workspace_id=workspace_id)
     docs = [
         DocumentMetadata(
-            document_id=d["filename"],
+            document_id=str(d.get("document_id") or d["filename"]),
             filename=d["filename"],
             file_type=d.get("file_type") or Path(d["filename"]).suffix.lower().lstrip("."),
             file_size_bytes=d.get("file_size_bytes", 0),
@@ -609,6 +611,39 @@ async def get_document_ingestion_status(
     if not job or job.workspace_id != workspace_id:
         raise HTTPException(404, f"Ingestion status for document '{document_id}' not found")
     return job.response()
+
+
+@router.get("/documents/{document_id}/chunks", response_model=DocumentChunkListResponse)
+async def list_document_chunks(
+    document_id: str,
+    search: str | None = Query(default=None, max_length=200),
+    limit: int = Query(default=25, ge=1, le=100),
+    workspace: WorkspaceContext | None = Depends(
+        require_enterprise_workspace_role(*VIEWER_ROLES)
+    ),
+    vs: VectorStoreManager = Depends(get_vector_store),
+) -> DocumentChunkListResponse:
+    workspace_id = _context_workspace_id(workspace)
+    payload = vs.list_document_chunks(
+        document_id,
+        workspace_id=workspace_id,
+        search=search,
+        limit=limit,
+    )
+    if payload["total"] == 0:
+        docs = vs.list_documents(workspace_id=workspace_id)
+        if not any(
+            document_id in {str(doc.get("document_id") or ""), str(doc.get("filename") or "")}
+            for doc in docs
+        ):
+            raise HTTPException(404, f"Document '{document_id}' not found")
+    return DocumentChunkListResponse(
+        document_id=str(payload["document_id"]),
+        filename=str(payload["filename"]),
+        chunks=[DocumentChunkPreview(**chunk) for chunk in payload["chunks"]],
+        total=int(payload["total"]),
+        query=search,
+    )
 
 
 @router.delete("/documents/{filename}", response_model=DocumentDeleteResponse)

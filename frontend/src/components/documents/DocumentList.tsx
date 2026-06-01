@@ -2,7 +2,7 @@
 
 import type { DocumentMetadata } from "@/types";
 import { motion } from "framer-motion";
-import { RefreshCw, Trash2, FileText } from "lucide-react";
+import { Eye, RefreshCw, Trash2, FileText } from "lucide-react";
 import { cn, formatBytes, fileIcon } from "@/lib/utils";
 
 interface Props {
@@ -10,9 +10,10 @@ interface Props {
   loading: boolean;
   onDelete: (filename: string) => void;
   onRefresh: () => void;
+  onSelect: (document: DocumentMetadata) => void;
 }
 
-export function DocumentList({ documents, loading, onDelete, onRefresh }: Props) {
+export function DocumentList({ documents, loading, onDelete, onRefresh, onSelect }: Props) {
   return (
     <section>
       <div className="flex items-center justify-between mb-4">
@@ -46,14 +47,23 @@ export function DocumentList({ documents, loading, onDelete, onRefresh }: Props)
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.05, duration: 0.3 }}
-              className="flex items-center gap-3 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] px-3 py-2.5 md:px-4 md:py-3 hover:shadow-md transition group"
+              role="button"
+              tabIndex={0}
+              onClick={() => onSelect(doc)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  onSelect(doc);
+                }
+              }}
+              className="flex cursor-pointer items-center gap-3 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] px-3 py-2.5 md:px-4 md:py-3 hover:shadow-md transition group focus:outline-none focus:ring-2 focus:ring-brand-500/50"
             >
               <span className="text-xl md:text-2xl shrink-0">{fileIcon(doc.filename)}</span>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-semibold truncate">{doc.filename}</p>
                 <p className="text-xs text-[var(--text-muted)]">
                   {doc.chunk_count} chunks
-                  {doc.file_size_bytes > 0 && ` · ${formatBytes(doc.file_size_bytes)}`}
+                  {doc.file_size_bytes > 0 && ` - ${formatBytes(doc.file_size_bytes)}`}
                 </p>
               </div>
               <span className={cn(
@@ -64,8 +74,14 @@ export function DocumentList({ documents, loading, onDelete, onRefresh }: Props)
               )}>
                 {doc.status}
               </span>
+              <span className="hidden rounded-lg p-2 text-[var(--text-muted)] sm:inline-flex">
+                <Eye size={15} />
+              </span>
               <button
-                onClick={() => onDelete(doc.filename)}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onDelete(doc.filename);
+                }}
                 aria-label={`Delete ${doc.filename}`}
                 className="rounded-lg p-2 text-[var(--text-muted)] hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all shrink-0"
               >

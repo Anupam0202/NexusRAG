@@ -233,6 +233,47 @@ class TestVectorStoreManager:
         assert vs.count_chunks(workspace_id="workspace-alpha") == 0
         assert vs.count_chunks(workspace_id="workspace-beta") == 1
 
+    def test_document_chunk_preview_is_workspace_scoped(self):
+        vs = VectorStoreManager()
+        vs.add_documents(
+            [
+                Document(
+                    page_content="Alpha workspace contract renewal clause.",
+                    metadata={"filename": "contract.txt", "chunk_index": 0},
+                ),
+                Document(
+                    page_content="Alpha workspace payment schedule.",
+                    metadata={"filename": "contract.txt", "chunk_index": 1},
+                ),
+            ],
+            workspace_id="workspace-alpha",
+            document_id="doc-alpha",
+        )
+        vs.add_documents(
+            [
+                Document(
+                    page_content="Beta workspace confidential marker.",
+                    metadata={"filename": "contract.txt", "chunk_index": 0},
+                )
+            ],
+            workspace_id="workspace-beta",
+            document_id="doc-beta",
+        )
+
+        alpha = vs.list_document_chunks("doc-alpha", workspace_id="workspace-alpha")
+        searched = vs.list_document_chunks(
+            "contract.txt",
+            workspace_id="workspace-alpha",
+            search="payment",
+        )
+        beta_from_alpha = vs.list_document_chunks("doc-beta", workspace_id="workspace-alpha")
+
+        assert alpha["total"] == 2
+        assert [chunk["chunk_index"] for chunk in alpha["chunks"]] == [0, 1]
+        assert searched["total"] == 1
+        assert searched["chunks"][0]["content"] == "Alpha workspace payment schedule."
+        assert beta_from_alpha["total"] == 0
+
     def test_lightweight_sparse_matches_do_not_pad_with_dense_noise(self):
         vs = VectorStoreManager()
         sparse_doc = Document(

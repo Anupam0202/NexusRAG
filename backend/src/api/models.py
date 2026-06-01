@@ -95,6 +95,23 @@ class DocumentDeleteResponse(BaseModel):
     document_id: str
 
 
+class DocumentChunkPreview(BaseModel):
+    chunk_index: int = 0
+    content: str
+    page_number: int = 0
+    section_title: str | None = None
+    token_count: int = 0
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class DocumentChunkListResponse(BaseModel):
+    document_id: str
+    filename: str
+    chunks: list[DocumentChunkPreview] = Field(default_factory=list)
+    total: int = 0
+    query: str | None = None
+
+
 # ── Chat / Query ──────────────────────────────────────────────────────────
 
 

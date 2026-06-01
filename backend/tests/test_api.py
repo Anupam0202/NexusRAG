@@ -68,6 +68,31 @@ class TestDocumentEndpoints:
         assert doc_resp.status_code == 200
         assert doc_resp.json()["job_id"] == upload["job_id"]
 
+    def test_document_chunk_preview_endpoint(self, test_client: TestClient):
+        resp = test_client.post(
+            "/api/v1/documents/upload",
+            files={
+                "file": (
+                    "chunk_preview.txt",
+                    b"First marker paragraph.\n\nSecond searchable marker paragraph.",
+                    "text/plain",
+                )
+            },
+        )
+        assert resp.status_code == 200
+        upload = resp.json()
+
+        chunks_resp = test_client.get(
+            f"/api/v1/documents/{upload['document']['document_id']}/chunks?search=searchable"
+        )
+        data = chunks_resp.json()
+
+        assert chunks_resp.status_code == 200
+        assert data["filename"] == "chunk_preview.txt"
+        assert data["total"] >= 1
+        assert "searchable marker" in data["chunks"][0]["content"]
+        assert data["chunks"][0]["metadata"].get("workspace_id") is None
+
     def test_upload_clears_chat_cache(self, test_client: TestClient):
         resp = test_client.post(
             "/api/v1/documents/upload",
