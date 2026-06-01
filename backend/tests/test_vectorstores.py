@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from uuid import UUID
+
 from src.vectorstores import QdrantVectorStore, VectorChunk
 
 
@@ -23,7 +25,7 @@ def test_qdrant_point_payload_contains_workspace_and_document_ids() -> None:
         chunk=chunk,
     )
 
-    assert point["id"] == "chunk-1"
+    assert str(UUID(point["id"])) == point["id"]
     assert point["payload"]["workspace_id"] == "workspace-1"
     assert point["payload"]["document_id"] == "document-1"
     assert point["payload"]["chunk_id"] == "chunk-1"
@@ -43,6 +45,37 @@ def test_qdrant_search_payload_always_filters_workspace() -> None:
     assert {"key": "document_id", "match": {"value": "doc-a"}} in must
     assert {"key": "file_type", "match": {"value": "pdf"}} in must
     assert payload["limit"] == 5
+
+
+def test_qdrant_collection_payload_declares_vector_size() -> None:
+    payload = QdrantVectorStore.collection_payload(vector_size=384)
+
+    assert payload == {"vectors": {"size": 384, "distance": "Cosine"}}
+
+
+def test_qdrant_search_response_maps_payload_to_result() -> None:
+    results = QdrantVectorStore._results_from_search_response(
+        {
+            "result": [
+                {
+                    "id": "point-1",
+                    "score": 0.91,
+                    "payload": {
+                        "chunk_id": "chunk-1",
+                        "document_id": "doc-1",
+                        "content": "hello",
+                        "workspace_id": "workspace-a",
+                    },
+                }
+            ]
+        }
+    )
+
+    assert len(results) == 1
+    assert results[0].chunk_id == "chunk-1"
+    assert results[0].document_id == "doc-1"
+    assert results[0].content == "hello"
+    assert results[0].score == 0.91
 
 
 def test_qdrant_delete_payload_cannot_delete_without_workspace_filter() -> None:

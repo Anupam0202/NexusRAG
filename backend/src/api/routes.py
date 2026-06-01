@@ -76,6 +76,7 @@ from src.generation.provider_keys import (
     get_provider_key_manager,
     normalize_provider,
 )
+from src.ingestion.embedder import get_embedder
 from src.ingestion.job_manager import get_ingestion_job_store
 from src.ingestion.pipeline import IngestionPipeline
 from src.repositories.chunks import ChunkRepository
@@ -91,6 +92,7 @@ from src.telemetry.events import estimate_tokens, get_telemetry_recorder
 from src.utils.logger import get_logger
 from src.utils.security import FileValidator
 from src.utils.tenant import normalize_workspace_id
+from src.vectorstores import QdrantVectorStore, VectorChunk
 
 logger = get_logger(__name__)
 
@@ -467,6 +469,158 @@ def _chunk_rows_from_documents(chunks: list[Document]) -> list[dict[str, Any]]:
     return rows
 
 
+def _stable_chunk_id(
+    *,
+    workspace_id: str,
+    document_id: str,
+    chunk_index: int,
+    content_hash: str,
+) -> str:
+    return str(
+        uuid.uuid5(
+            uuid.NAMESPACE_URL,
+            f"nexusrag:{workspace_id}:{document_id}:{chunk_index}:{content_hash}",
+        )
+    )
+
+
+def _vector_chunks_from_documents(
+    chunks: list[Document],
+    embeddings: list[list[float]],
+    *,
+    workspace_id: str,
+    document_id: str,
+) -> list[VectorChunk]:
+    vector_chunks: list[VectorChunk] = []
+    for index, (chunk, embedding) in enumerate(zip(chunks, embeddings, strict=False)):
+        metadata = chunk.metadata or {}
+        chunk.metadata = metadata
+        content = chunk.page_content or ""
+        content_hash = compute_sha256(content.encode("utf-8", "ignore"))
+        chunk_index = _safe_int(metadata.get("chunk_index"), default=index)
+        chunk_id = str(
+            metadata.get("chunk_id")
+            or _stable_chunk_id(
+                workspace_id=workspace_id,
+                document_id=document_id,
+                chunk_index=chunk_index,
+                content_hash=content_hash,
+            )
+        )
+        metadata["chunk_id"] = chunk_id
+        metadata["content_hash"] = content_hash
+        metadata.setdefault("workspace_id", workspace_id)
+        metadata.setdefault("document_id", document_id)
+        page_number_value = metadata.get("page_number") or metadata.get("page")
+        vector_chunks.append(
+            VectorChunk(
+                chunk_id=chunk_id,
+                content=content,
+                embedding=embedding,
+                filename=str(metadata.get("filename") or ""),
+                chunk_index=chunk_index,
+                page_number=(
+                    _safe_int(page_number_value, default=0)
+                    if page_number_value is not None
+                    else None
+                ),
+                content_hash=content_hash,
+                metadata={
+                    key: value
+                    for key, value in metadata.items()
+                    if key not in {"workspace_id", "document_id"}
+                },
+            )
+        )
+    return vector_chunks
+
+
+async def _sync_qdrant_chunks(
+    *,
+    settings: Settings,
+    workspace_id: str,
+    document_id: str,
+    chunks: list[Document],
+) -> int:
+    if not chunks or not settings.enable_qdrant:
+        return 0
+    if not settings.qdrant_configured:
+        if not settings.enable_local_faiss:
+            raise RuntimeError("Qdrant is enabled as primary storage but is not configured.")
+        logger.warning(
+            "qdrant_index_skipped_not_configured",
+            workspace_id=workspace_id,
+            document_id=document_id,
+        )
+        return 0
+
+    texts = [chunk.page_content or "" for chunk in chunks]
+    try:
+        embeddings = await asyncio.to_thread(get_embedder().embed_texts, texts)
+        vector_chunks = _vector_chunks_from_documents(
+            chunks,
+            embeddings,
+            workspace_id=workspace_id,
+            document_id=document_id,
+        )
+        if not vector_chunks:
+            return 0
+        store = QdrantVectorStore(settings)
+        await store.ensure_collection(vector_size=len(vector_chunks[0].embedding))
+        indexed = await store.upsert_chunks(
+            workspace_id=workspace_id,
+            document_id=document_id,
+            chunks=vector_chunks,
+        )
+        logger.info(
+            "qdrant_chunks_indexed",
+            workspace_id=workspace_id,
+            document_id=document_id,
+            chunks=indexed,
+        )
+        return indexed
+    except Exception as exc:
+        if not settings.enable_local_faiss:
+            raise RuntimeError(f"Qdrant indexing failed: {str(exc)[:300]}") from exc
+        logger.warning(
+            "qdrant_index_failed_using_local_fallback",
+            workspace_id=workspace_id,
+            document_id=document_id,
+            error=str(exc)[:300],
+        )
+        return 0
+
+
+async def _delete_qdrant_document(
+    *,
+    settings: Settings,
+    workspace_id: str,
+    document_id: str,
+) -> bool:
+    if not settings.enable_qdrant:
+        return False
+    if not settings.qdrant_configured:
+        if not settings.enable_local_faiss:
+            raise RuntimeError("Qdrant is enabled as primary storage but is not configured.")
+        return False
+    try:
+        await QdrantVectorStore(settings).delete_document(
+            workspace_id=workspace_id,
+            document_id=document_id,
+        )
+        return True
+    except Exception as exc:
+        if not settings.enable_local_faiss:
+            raise RuntimeError(f"Qdrant delete failed: {str(exc)[:300]}") from exc
+        logger.warning(
+            "qdrant_delete_failed_using_local_fallback",
+            workspace_id=workspace_id,
+            document_id=document_id,
+            error=str(exc)[:300],
+        )
+        return False
+
+
 async def _persist_enterprise_upload_start(
     *,
     workspace: WorkspaceContext | None,
@@ -633,8 +787,17 @@ def _process_upload_job(
     def report(stage: str, pct: float) -> None:
         job_store.mark_processing(job_id, stage=stage, progress=int(pct * 100))
 
+    if not settings.enable_local_faiss and not settings.qdrant_configured:
+        raise ValueError(
+            "No vector backend is configured. Enable local FAISS or configure Qdrant."
+        )
+
     try:
-        pipeline = IngestionPipeline(vector_store=vs, settings=settings, progress_callback=report)
+        pipeline = IngestionPipeline(
+            vector_store=vs if settings.enable_local_faiss else None,
+            settings=settings,
+            progress_callback=report,
+        )
         result = pipeline.ingest(
             file_uploads=[{"filename": safe_name, "content": content}],
             workspace_id=workspace_id,
@@ -701,12 +864,21 @@ async def _process_enterprise_upload_job_background(**kwargs) -> None:
         processed = await asyncio.to_thread(
             _process_upload_job,
             **kwargs,
-            capture_chunks=_should_persist_workspace_event(workspace, settings),
+            capture_chunks=(
+                _should_persist_workspace_event(workspace, settings)
+                or settings.enable_qdrant
+            ),
         )
         if isinstance(processed, tuple):
             doc_meta, chunks = processed
         else:
             doc_meta, chunks = processed, []
+        await _sync_qdrant_chunks(
+            settings=settings,
+            workspace_id=kwargs["workspace_id"],
+            document_id=document_id,
+            chunks=chunks,
+        )
         await _persist_enterprise_upload_success(
             workspace=workspace,
             settings=settings,
@@ -715,6 +887,11 @@ async def _process_enterprise_upload_job_background(**kwargs) -> None:
             chunks=chunks,
         )
     except Exception as exc:
+        get_ingestion_job_store().mark_failed(
+            job_id,
+            stage="processing_error",
+            error_message=str(exc)[:500],
+        )
         await _persist_enterprise_upload_failure(
             workspace=workspace,
             settings=settings,
@@ -852,13 +1029,19 @@ async def upload_document(
                 settings=settings,
                 vs=vs,
                 chain=chain,
-                capture_chunks=bool(enterprise_job_id),
+                capture_chunks=bool(enterprise_job_id) or settings.enable_qdrant,
             ),
         )
         if isinstance(processed, tuple):
             doc_meta, processed_chunks = processed
         else:
             doc_meta, processed_chunks = processed, []
+        await _sync_qdrant_chunks(
+            settings=settings,
+            workspace_id=workspace_id,
+            document_id=document_id,
+            chunks=processed_chunks,
+        )
         if enterprise_job_id:
             await _persist_enterprise_upload_success(
                 workspace=workspace,
@@ -868,6 +1051,11 @@ async def upload_document(
                 chunks=processed_chunks,
             )
     except Exception as exc:
+        job_store.mark_failed(
+            job.job_id,
+            stage="processing_error",
+            error_message=str(exc)[:500],
+        )
         if enterprise_job_id:
             await _persist_enterprise_upload_failure(
                 workspace=workspace,
@@ -1125,6 +1313,14 @@ async def delete_document(
                 document_id=durable_document_id,
             )
             durable_removed = True
+    try:
+        qdrant_removed = await _delete_qdrant_document(
+            settings=settings,
+            workspace_id=workspace_id,
+            document_id=durable_document_id,
+        )
+    except RuntimeError as exc:
+        raise HTTPException(503, str(exc)) from exc
     if removed == 0 and not durable_removed:
         raise HTTPException(404, f"Document '{document_identifier}' not found")
     chain.clear_cache(workspace_id=workspace_id)
@@ -1138,6 +1334,7 @@ async def delete_document(
             "document_identifier": document_identifier,
             "chunks_removed": removed,
             "durable_deleted": durable_removed,
+            "qdrant_deleted": qdrant_removed,
         },
     )
     return DocumentDeleteResponse(
@@ -1957,6 +2154,16 @@ async def system_status(
             "anonymous_demo_enabled": settings.enable_anonymous_demo,
             "qdrant_configured": settings.qdrant_configured,
             "enable_qdrant": settings.enable_qdrant,
+            "qdrant_collection": settings.qdrant_collection,
+            "vector_backend": (
+                "qdrant+local_faiss"
+                if settings.qdrant_configured and settings.enable_local_faiss
+                else "qdrant"
+                if settings.qdrant_configured
+                else "local_faiss"
+                if settings.enable_local_faiss
+                else "unconfigured"
+            ),
             "enable_pgvector_fallback": settings.enable_pgvector_fallback,
             "enable_local_faiss": settings.enable_local_faiss,
             "enable_async_ingestion": settings.enable_async_ingestion,

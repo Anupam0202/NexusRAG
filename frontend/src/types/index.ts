@@ -341,6 +341,8 @@ export interface SystemStatusSettings {
   anonymous_demo_enabled?: boolean;
   qdrant_configured?: boolean;
   enable_qdrant?: boolean;
+  qdrant_collection?: string;
+  vector_backend?: string;
   enable_pgvector_fallback?: boolean;
   enable_local_faiss?: boolean;
   enable_async_ingestion?: boolean;

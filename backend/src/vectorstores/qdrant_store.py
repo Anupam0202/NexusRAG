@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import uuid
 from typing import Any
 
 import httpx
@@ -28,6 +29,23 @@ class QdrantVectorStore:
         if not self._url:
             raise RuntimeError("Qdrant is not configured. Set QDRANT_URL and QDRANT_API_KEY.")
         return f"{self._url}/collections/{self._collection}{path}"
+
+    def _collection_endpoint(self) -> str:
+        if not self._url:
+            raise RuntimeError("Qdrant is not configured. Set QDRANT_URL and QDRANT_API_KEY.")
+        return f"{self._url}/collections/{self._collection}"
+
+    @staticmethod
+    def stable_point_id(value: str) -> str:
+        """Return a Qdrant-compatible point id for any stable chunk identifier."""
+        try:
+            return str(uuid.UUID(str(value)))
+        except (TypeError, ValueError):
+            return str(uuid.uuid5(uuid.NAMESPACE_URL, f"nexusrag:qdrant:{value}"))
+
+    @staticmethod
+    def collection_payload(*, vector_size: int, distance: str = "Cosine") -> dict[str, Any]:
+        return {"vectors": {"size": vector_size, "distance": distance}}
 
     @staticmethod
     def workspace_filter(
@@ -72,7 +90,7 @@ class QdrantVectorStore:
         chunk: VectorChunk,
     ) -> dict[str, Any]:
         return {
-            "id": chunk.chunk_id,
+            "id": cls.stable_point_id(chunk.chunk_id),
             "vector": chunk.embedding,
             "payload": cls.point_payload(
                 workspace_id=workspace_id,
@@ -106,6 +124,28 @@ class QdrantVectorStore:
             )
         }
 
+    async def ensure_collection(self, *, vector_size: int, distance: str = "Cosine") -> None:
+        """Create the collection when it is missing.
+
+        Existing collections are left untouched so deployments do not rewrite
+        production vector configuration during routine uploads.
+        """
+        async with httpx.AsyncClient(timeout=30) as client:
+            response = await client.get(
+                self._collection_endpoint(),
+                headers=self._headers(),
+            )
+            if response.status_code == 200:
+                return
+            if response.status_code != 404:
+                response.raise_for_status()
+            create = await client.put(
+                self._collection_endpoint(),
+                json=self.collection_payload(vector_size=vector_size, distance=distance),
+                headers=self._headers(),
+            )
+            create.raise_for_status()
+
     async def upsert_chunks(
         self,
         *,
@@ -130,6 +170,29 @@ class QdrantVectorStore:
             response.raise_for_status()
         return len(chunks)
 
+    def search_sync(
+        self,
+        *,
+        workspace_id: str,
+        query_embedding: list[float],
+        top_k: int,
+        filters: dict[str, Any] | None = None,
+    ) -> list[VectorSearchResult]:
+        with httpx.Client(timeout=30) as client:
+            response = client.post(
+                self._endpoint("/points/search"),
+                json=self.search_payload(
+                    workspace_id=workspace_id,
+                    query_embedding=query_embedding,
+                    top_k=top_k,
+                    filters=filters,
+                ),
+                headers=self._headers(),
+            )
+            response.raise_for_status()
+            data = response.json()
+        return self._results_from_search_response(data)
+
     async def search(
         self,
         *,
@@ -152,6 +215,10 @@ class QdrantVectorStore:
             response.raise_for_status()
             data = response.json()
 
+        return self._results_from_search_response(data)
+
+    @staticmethod
+    def _results_from_search_response(data: dict[str, Any]) -> list[VectorSearchResult]:
         results: list[VectorSearchResult] = []
         for item in data.get("result", []):
             payload = item.get("payload") or {}
@@ -179,6 +246,20 @@ class QdrantVectorStore:
     async def count_chunks(self, *, workspace_id: str) -> int:
         async with httpx.AsyncClient(timeout=30) as client:
             response = await client.post(
+                self._endpoint("/points/count"),
+                json={
+                    "exact": True,
+                    "filter": self.workspace_filter(workspace_id),
+                },
+                headers=self._headers(),
+            )
+            response.raise_for_status()
+            data = response.json()
+        return int((data.get("result") or {}).get("count") or 0)
+
+    def count_chunks_sync(self, *, workspace_id: str) -> int:
+        with httpx.Client(timeout=10) as client:
+            response = client.post(
                 self._endpoint("/points/count"),
                 json={
                     "exact": True,
