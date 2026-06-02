@@ -15,6 +15,7 @@ from src.generation.llm import LLMProvider
 from src.generation.memory import ConversationMemory, SessionMemoryStore
 from src.generation.prompts import PromptManager
 from src.generation.provider_keys import get_provider_key_manager
+from src.generation.router import LLMRouter, ModelPolicy, ProviderUsageLedger, UsageRecord
 from src.retrieval.retriever import QueryType
 
 
@@ -153,6 +154,66 @@ class TestLLMProvider:
             assert provider._candidates[0] == "gemini-2.5-flash"
         finally:
             get_provider_key_manager.cache_clear()
+
+
+class TestLLMRouter:
+    def test_workspace_byok_is_selected_before_server_default(self):
+        get_provider_key_manager.cache_clear()
+        manager = get_provider_key_manager()
+        manager.store_key(
+            workspace_id="workspace-a",
+            user_id="user-a",
+            provider="gemini",
+            api_key="workspace-key",
+        )
+        try:
+            router = LLMRouter(Settings(_env_file=None, google_api_key="server-key"))
+            configs = router.configs_for_workspace(workspace_id="workspace-a")
+
+            assert configs
+            assert configs[0].mode == "workspace_byok_key"
+            assert configs[0].provider == "gemini"
+            assert configs[0].api_key_fingerprint
+        finally:
+            get_provider_key_manager.cache_clear()
+
+    def test_router_circuit_breaker_removes_unhealthy_model(self):
+        router = LLMRouter(Settings(_env_file=None, google_api_key="server-key"))
+        first = router.configs_for_workspace(workspace_id=None)[0]
+
+        router.record_failure(first, RuntimeError("429 RESOURCE_EXHAUSTED"))
+        next_configs = router.configs_for_workspace(workspace_id=None)
+
+        assert first.model not in [config.model for config in next_configs]
+        assert router.health_snapshot()[0]["quota_exhausted"] is True
+        assert router.health_snapshot()[0]["circuit_open"] is True
+
+    def test_usage_ledger_enforces_workspace_and_user_budget(self):
+        policy = ModelPolicy(workspace_daily_token_limit=10, user_daily_token_limit=8)
+        ledger = ProviderUsageLedger(policy)
+        ledger.record(
+            UsageRecord(
+                workspace_id="workspace-a",
+                user_id="user-a",
+                provider="gemini",
+                model="gemini-2.5-flash",
+                input_tokens=5,
+                output_tokens=3,
+            )
+        )
+
+        assert ledger.can_consume(
+            workspace_id="workspace-a",
+            user_id="user-a",
+            input_tokens=1,
+            output_tokens=1,
+        ) is False
+        assert ledger.can_consume(
+            workspace_id="workspace-b",
+            user_id="user-b",
+            input_tokens=1,
+            output_tokens=1,
+        ) is True
 
 
 class TestRAGChain:

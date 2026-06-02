@@ -3,23 +3,23 @@
 import { FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowRight, Loader2, Mail, ShieldCheck } from "lucide-react";
+import { ArrowRight, Loader2, Mail, ShieldPlus } from "lucide-react";
 import { toast } from "sonner";
 import { createSupabaseBrowserClient, hasPublicSupabaseConfig } from "@/lib/supabase/client";
 import { useStore } from "@/hooks/useStore";
 
 function cleanNextPath(value: string | null) {
-  if (!value?.startsWith("/") || value.startsWith("//")) return "/documents";
+  if (!value?.startsWith("/") || value.startsWith("//")) return "/onboarding";
   return value;
 }
 
-export default function LoginPage() {
+export default function SignupPage() {
   const router = useRouter();
   const authMode = useStore((state) => state.authMode);
   const [email, setEmail] = useState("");
   const [sentTo, setSentTo] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [nextPath, setNextPath] = useState("/documents");
+  const [nextPath, setNextPath] = useState("/onboarding");
   const supabaseReady = hasPublicSupabaseConfig();
 
   useEffect(() => {
@@ -44,13 +44,16 @@ export default function LoginPage() {
       const redirectTo = `${window.location.origin}/auth/callback?next=${encodeURIComponent(nextPath)}`;
       const { error } = await supabase.auth.signInWithOtp({
         email: trimmedEmail,
-        options: { emailRedirectTo: redirectTo },
+        options: {
+          emailRedirectTo: redirectTo,
+          shouldCreateUser: true,
+        },
       });
       if (error) throw error;
       setSentTo(trimmedEmail);
-      toast.success("Magic link sent");
+      toast.success("Signup link sent");
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : "Unable to send magic link");
+      toast.error(err instanceof Error ? err.message : "Unable to send signup link");
     } finally {
       setSubmitting(false);
     }
@@ -61,11 +64,11 @@ export default function LoginPage() {
       <main className="mx-auto flex min-h-full w-full max-w-md flex-col justify-center px-4 py-10">
         <div className="mb-6 flex items-center gap-3">
           <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-brand-100 text-brand-600 dark:bg-brand-900/30 dark:text-brand-300">
-            <ShieldCheck size={22} />
+            <ShieldPlus size={22} />
           </span>
           <div>
-            <h2 className="text-xl font-bold">Sign in to NexusRAG</h2>
-            <p className="text-sm text-[var(--text-muted)]">Secure workspace access</p>
+            <h2 className="text-xl font-bold">Create a NexusRAG account</h2>
+            <p className="text-sm text-[var(--text-muted)]">Start with a secure workspace</p>
           </div>
         </div>
 
@@ -77,7 +80,7 @@ export default function LoginPage() {
           <div className="space-y-4 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] p-5">
             <p className="text-sm font-semibold">Check your inbox</p>
             <p className="text-sm leading-6 text-[var(--text-muted)]">
-              A sign-in link was sent to {sentTo}. Return here after opening the link.
+              A signup link was sent to {sentTo}. Open it to create your session.
             </p>
             <button
               type="button"
@@ -110,24 +113,26 @@ export default function LoginPage() {
               className="flex w-full items-center justify-center gap-2 rounded-xl bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-500 disabled:opacity-50"
             >
               {submitting ? <Loader2 size={16} className="animate-spin" /> : <Mail size={16} />}
-              {submitting ? "Sending" : "Send magic link"}
+              {submitting ? "Sending" : "Send signup link"}
             </button>
           </form>
         )}
 
-        <Link
-          href="/documents"
-          className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-[var(--text-muted)] hover:text-[var(--text-primary)]"
-        >
-          Continue to documents
-          <ArrowRight size={15} />
-        </Link>
-        <Link
-          href={`/auth/signup?next=${encodeURIComponent(nextPath)}`}
-          className="mt-3 text-sm font-semibold text-brand-600 hover:text-brand-500"
-        >
-          Create a new workspace account
-        </Link>
+        <div className="mt-5 flex items-center justify-between gap-3 text-sm">
+          <Link
+            href="/auth/login"
+            className="font-semibold text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+          >
+            Already have access?
+          </Link>
+          <Link
+            href="/documents"
+            className="inline-flex items-center gap-2 font-semibold text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+          >
+            Documents
+            <ArrowRight size={15} />
+          </Link>
+        </div>
       </main>
     </div>
   );

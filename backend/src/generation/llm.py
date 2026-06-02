@@ -30,6 +30,7 @@ from tenacity import (
 
 from config.settings import Settings, get_settings
 from src.generation.provider_keys import GEMINI_PROVIDER, get_provider_key_manager, key_fingerprint
+from src.generation.router import LLMRouter, ProviderConfig
 from src.utils.exceptions import GenerationError, RateLimitError
 from src.utils.logger import get_logger
 
@@ -40,6 +41,7 @@ logger = get_logger(__name__)
 class _ScopedModelState:
     """Per-workspace model state for BYOK keys."""
 
+    workspace_id: str
     api_key_fingerprint: str
     candidates: list[str] = field(default_factory=list)
     model: Any = None
@@ -62,6 +64,7 @@ class LLMProvider:
 
     def __init__(self, settings: Settings | None = None) -> None:
         self._settings = settings or get_settings()
+        self._router = LLMRouter(self._settings)
         self._model: Any = None
         self._model_name: str = ""
         self._had_quota_error: bool = False  # track if any candidate hit quota
@@ -72,18 +75,24 @@ class LLMProvider:
         self._candidates = list(self._base_candidates)
 
     def _candidate_chain(self) -> list[str]:
-        s = self._settings
-        fallbacks = s.llm_fallback_models.split(",") if hasattr(s, "llm_fallback_models") else []
-        candidates_raw = getattr(s, "fallback_models", fallbacks)
-        candidates = [s.llm_model_name] + [name.strip() for name in candidates_raw if name.strip()]
+        return self._router.model_candidates()
 
-        seen: set[str] = set()
-        ordered: list[str] = []
-        for candidate in candidates:
-            if candidate not in seen:
-                seen.add(candidate)
-                ordered.append(candidate)
-        return ordered
+    def _provider_config(
+        self,
+        *,
+        model: str,
+        workspace_id: str | None,
+        api_key: str,
+    ) -> ProviderConfig:
+        mode = self._router.mode_for_workspace(workspace_id=workspace_id, api_key=api_key)
+        return ProviderConfig(
+            provider=GEMINI_PROVIDER,
+            model=model,
+            mode=mode,
+            api_key_fingerprint=key_fingerprint(api_key),
+            max_input_tokens=self._router.policy.max_input_tokens,
+            max_output_tokens=self._router.policy.max_output_tokens,
+        )
 
     # ── Lazy model initialisation ─────────────────────────────────────
 
@@ -140,6 +149,7 @@ class LLMProvider:
         state = self._scoped_states.get(scoped_key)
         if state is None:
             state = _ScopedModelState(
+                workspace_id=workspace_id,
                 api_key_fingerprint=fingerprint,
                 candidates=list(self._base_candidates),
             )
@@ -187,6 +197,15 @@ class LLMProvider:
             self._had_quota_error = True
 
         old_name = self._candidates.pop(0) if self._candidates else self._model_name
+        if old_name:
+            self._router.record_failure(
+                self._provider_config(
+                    model=old_name,
+                    workspace_id=None,
+                    api_key=self._settings.google_api_key,
+                ),
+                exc,
+            )
         self._model = None
         if not self._candidates:
             # If quota was the root cause, surface that so the UI shows the API key modal
@@ -209,6 +228,19 @@ class LLMProvider:
             state.had_quota_error = True
 
         old_name = state.candidates.pop(0) if state.candidates else state.model_name
+        if old_name:
+            self._router.record_failure(
+                self._provider_config(
+                    model=old_name,
+                    workspace_id=state.workspace_id,
+                    api_key=get_provider_key_manager().effective_api_key(
+                        workspace_id=state.workspace_id,
+                        provider=GEMINI_PROVIDER,
+                        settings=self._settings,
+                    ),
+                ),
+                exc,
+            )
         state.model = None
         if not state.candidates:
             if state.had_quota_error:
@@ -245,12 +277,20 @@ class LLMProvider:
     )
     def invoke(self, prompt: str, *, workspace_id: str | None = None, **kwargs: Any) -> str:
         """Blocking LLM call runtime fallback logic."""
+        self._router.ensure_prompt_allowed(prompt, workspace_id=workspace_id)
         scoped_state, api_key = self._scoped_state_and_key(workspace_id)
         if scoped_state is not None:
             while scoped_state.candidates:
                 self._ensure_scoped_model(scoped_state, api_key)
                 try:
                     resp = scoped_state.model.invoke(prompt, **kwargs)
+                    self._router.record_success(
+                        self._provider_config(
+                            model=scoped_state.model_name,
+                            workspace_id=workspace_id,
+                            api_key=api_key,
+                        )
+                    )
                     return resp.content if hasattr(resp, "content") else str(resp)
                 except Exception as exc:
                     self._rotate_scoped_candidate(scoped_state, exc)
@@ -260,6 +300,13 @@ class LLMProvider:
             self._ensure_model()
             try:
                 resp = self._model.invoke(prompt, **kwargs)  # type: ignore[union-attr]
+                self._router.record_success(
+                    self._provider_config(
+                        model=self._model_name,
+                        workspace_id=None,
+                        api_key=self._settings.google_api_key,
+                    )
+                )
                 return resp.content if hasattr(resp, "content") else str(resp)  # type: ignore
             except Exception as exc:
                 self._rotate_candidate(exc)
@@ -279,12 +326,21 @@ class LLMProvider:
         **kwargs: Any,
     ) -> str:
         """Invoke with a list of LangChain messages."""
+        prompt_for_budget = "\n".join(str(getattr(message, "content", "")) for message in messages)
+        self._router.ensure_prompt_allowed(prompt_for_budget, workspace_id=workspace_id)
         scoped_state, api_key = self._scoped_state_and_key(workspace_id)
         if scoped_state is not None:
             while scoped_state.candidates:
                 self._ensure_scoped_model(scoped_state, api_key)
                 try:
                     resp = scoped_state.model.invoke(messages, **kwargs)
+                    self._router.record_success(
+                        self._provider_config(
+                            model=scoped_state.model_name,
+                            workspace_id=workspace_id,
+                            api_key=api_key,
+                        )
+                    )
                     return resp.content if hasattr(resp, "content") else str(resp)
                 except Exception as exc:
                     self._rotate_scoped_candidate(scoped_state, exc)
@@ -294,6 +350,13 @@ class LLMProvider:
             self._ensure_model()
             try:
                 resp = self._model.invoke(messages, **kwargs)  # type: ignore[union-attr]
+                self._router.record_success(
+                    self._provider_config(
+                        model=self._model_name,
+                        workspace_id=None,
+                        api_key=self._settings.google_api_key,
+                    )
+                )
                 return resp.content if hasattr(resp, "content") else str(resp)  # type: ignore
             except Exception as exc:
                 self._rotate_candidate(exc)
@@ -307,6 +370,7 @@ class LLMProvider:
         **kwargs: Any,
     ) -> AsyncIterator[str]:
         """Async streaming with failover on the first chunk."""
+        self._router.ensure_prompt_allowed(prompt, workspace_id=workspace_id)
         scoped_state, api_key = self._scoped_state_and_key(workspace_id)
         if scoped_state is not None:
             while scoped_state.candidates:
@@ -322,6 +386,13 @@ class LLMProvider:
                         token = self._extract_token(chunk)
                         if token:
                             yield token
+                    self._router.record_success(
+                        self._provider_config(
+                            model=scoped_state.model_name,
+                            workspace_id=workspace_id,
+                            api_key=api_key,
+                        )
+                    )
                     return
                 except StopAsyncIteration:
                     return
@@ -343,6 +414,13 @@ class LLMProvider:
                     token = self._extract_token(chunk)
                     if token:
                         yield token
+                self._router.record_success(
+                    self._provider_config(
+                        model=self._model_name,
+                        workspace_id=None,
+                        api_key=self._settings.google_api_key,
+                    )
+                )
                 return  # Success, exit stream
             except StopAsyncIteration:
                 return  # Empty stream
@@ -358,6 +436,8 @@ class LLMProvider:
         **kwargs: Any,
     ) -> AsyncIterator[str]:
         """Async streaming with message list."""
+        prompt_for_budget = "\n".join(str(getattr(message, "content", "")) for message in messages)
+        self._router.ensure_prompt_allowed(prompt_for_budget, workspace_id=workspace_id)
         scoped_state, api_key = self._scoped_state_and_key(workspace_id)
         if scoped_state is not None:
             while scoped_state.candidates:
@@ -373,6 +453,13 @@ class LLMProvider:
                         token = self._extract_token(chunk)
                         if token:
                             yield token
+                    self._router.record_success(
+                        self._provider_config(
+                            model=scoped_state.model_name,
+                            workspace_id=workspace_id,
+                            api_key=api_key,
+                        )
+                    )
                     return
                 except StopAsyncIteration:
                     return
@@ -393,6 +480,13 @@ class LLMProvider:
                     token = self._extract_token(chunk)
                     if token:
                         yield token
+                self._router.record_success(
+                    self._provider_config(
+                        model=self._model_name,
+                        workspace_id=None,
+                        api_key=self._settings.google_api_key,
+                    )
+                )
                 return
             except StopAsyncIteration:
                 return

@@ -13,11 +13,13 @@ const PAGE_TITLES: Record<string, string> = {
   "/workspaces": "Workspaces",
   "/onboarding": "Onboarding",
   "/auth/login": "Sign In",
+  "/auth/signup": "Sign Up",
   "/auth/callback": "Sign In",
   "/analytics": "Analytics",
   "/evaluations": "Evaluations",
   "/settings": "Settings",
   "/settings/api-keys": "API Keys",
+  "/settings/billing-or-usage": "Billing & Usage",
   "/settings/members": "Members",
 };
 

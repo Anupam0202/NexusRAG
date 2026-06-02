@@ -370,6 +370,16 @@ export interface SystemStatusResponse {
   cache: Record<string, unknown>;
   settings: SystemStatusSettings;
   capabilities: SystemCapabilities;
+  provider_health?: Array<{
+    provider: string;
+    model: string;
+    mode: string;
+    consecutive_failures: number;
+    quota_exhausted: boolean;
+    last_error_code?: string | null;
+    circuit_open: boolean;
+    circuit_open_until?: string | null;
+  }>;
 }
 
 // ── UI state ─────────────────────────────────────────────────

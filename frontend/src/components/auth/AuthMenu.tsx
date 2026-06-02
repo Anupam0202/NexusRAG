@@ -79,14 +79,23 @@ export function AuthMenu() {
               </button>
             </div>
           ) : canUseSupabase ? (
-            <Link
-              href="/auth/login"
-              onClick={() => setOpen(false)}
-              className="flex w-full items-center justify-center gap-2 rounded-lg bg-brand-600 px-3 py-2 text-xs font-semibold text-white hover:bg-brand-500"
-            >
-              <ShieldCheck size={14} />
-              Sign in securely
-            </Link>
+            <div className="space-y-2">
+              <Link
+                href="/auth/login"
+                onClick={() => setOpen(false)}
+                className="flex w-full items-center justify-center gap-2 rounded-lg bg-brand-600 px-3 py-2 text-xs font-semibold text-white hover:bg-brand-500"
+              >
+                <ShieldCheck size={14} />
+                Sign in securely
+              </Link>
+              <Link
+                href="/auth/signup"
+                onClick={() => setOpen(false)}
+                className="flex w-full items-center justify-center gap-2 rounded-lg border border-[var(--border)] px-3 py-2 text-xs font-semibold hover:bg-[var(--bg-hover)]"
+              >
+                Create account
+              </Link>
+            </div>
           ) : (
             <p className="text-xs leading-5 text-[var(--text-muted)]">
               Supabase is not configured for this deployment.

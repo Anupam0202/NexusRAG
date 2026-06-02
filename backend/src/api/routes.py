@@ -2117,9 +2117,14 @@ async def system_status(
     try:
         from src.api.dependencies import get_rag_chain as _get_chain
 
-        cache = _get_chain().cache_stats
+        chain = _get_chain()
+        cache = chain.cache_stats
+        provider_health = getattr(chain.llm, "_router", None)
+        provider_health_snapshot = (
+            provider_health.health_snapshot() if provider_health is not None else []
+        )
     except Exception:
-        pass
+        provider_health_snapshot = []
 
     return SystemStatusResponse(
         total_documents=len(docs),
@@ -2177,4 +2182,5 @@ async def system_status(
             "contextual_enrichment": settings.enable_contextual_enrichment,
             "ocr": bool(settings.google_api_key),
         },
+        provider_health=provider_health_snapshot,
     )
