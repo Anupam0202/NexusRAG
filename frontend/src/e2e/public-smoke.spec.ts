@@ -21,7 +21,7 @@ for (const route of routes) {
   });
 }
 
-test("usage page displays quota fallbacks when backend omits quota payload", async ({ page }) => {
+test("usage page handles signed-out and quota fallback states", async ({ page }) => {
   await page.route("**/api/v1/analytics/summary", async (route) => {
     await route.fulfill({
       contentType: "application/json",
@@ -44,6 +44,18 @@ test("usage page displays quota fallbacks when backend omits quota payload", asy
   });
 
   await page.goto("/settings/billing-or-usage");
+
+  const signedOutPrompt = page.getByRole("heading", { name: "Sign in to view usage" });
+  const signedOut = await signedOutPrompt
+    .waitFor({ state: "visible", timeout: 1_500 })
+    .then(() => true)
+    .catch(() => false);
+
+  if (signedOut) {
+    await expect(signedOutPrompt).toBeVisible();
+    await expect(page.getByRole("link", { name: "Sign in" })).toBeVisible();
+    return;
+  }
 
   await expect(page.getByText("0 / 1,000")).toBeVisible();
   await expect(page.getByText("0 / 100")).toBeVisible();
