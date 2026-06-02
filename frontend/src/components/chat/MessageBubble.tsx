@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
 import {
   ChevronDown, ChevronUp, Clock, Target, Layers,
-  FileText, User, Bot, Copy, Check,
+  FileText, User, Bot, Copy, Check, AlertTriangle,
 } from "lucide-react";
 
 interface Props {
@@ -22,6 +22,15 @@ export function MessageBubble({ message, onShowSources }: Props) {
   const [showInlineSources, setShowInlineSources] = useState(false);
   const [copied, setCopied] = useState(false);
   const hasSources = (message.sources?.length ?? 0) > 0;
+  const answerability =
+    typeof message.metadata?.answerability === "string"
+      ? message.metadata.answerability
+      : undefined;
+  const lowConfidence = message.metadata?.low_confidence === true || answerability === "low_confidence";
+  const sourceQuoteCoverage =
+    typeof message.metadata?.source_quote_coverage === "number"
+      ? message.metadata.source_quote_coverage
+      : undefined;
 
   const handleCopy = async () => {
     try {
@@ -77,12 +86,23 @@ export function MessageBubble({ message, onShowSources }: Props) {
               </div>
             )}
 
+            {!message.isStreaming && lowConfidence && (
+              <div className="mt-3 flex gap-2 rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-800 dark:border-amber-800/70 dark:bg-amber-950/30 dark:text-amber-200">
+                <AlertTriangle size={14} className="mt-0.5 shrink-0" />
+                <span>Low confidence answer. Check the attached sources before using it.</span>
+              </div>
+            )}
+
             {/* Metadata + source toggle */}
             {!message.isStreaming && message.content && (
               <div className="flex flex-wrap items-center gap-1.5 mt-3 pt-2.5 border-t border-[var(--border)]">
                 {message.queryType && <Badge icon={<Layers size={11} />} text={message.queryType} />}
+                {answerability && <Badge icon={<AlertTriangle size={11} />} text={answerability} />}
                 {typeof message.confidence === "number" && (
                   <Badge icon={<Target size={11} />} text={`${(message.confidence * 100).toFixed(0)}%`} />
+                )}
+                {typeof sourceQuoteCoverage === "number" && (
+                  <Badge icon={<FileText size={11} />} text={`${(sourceQuoteCoverage * 100).toFixed(0)}% quotes`} />
                 )}
                 {typeof message.responseTime === "number" && (
                   <Badge icon={<Clock size={11} />} text={`${message.responseTime.toFixed(1)}s`} />
@@ -161,7 +181,7 @@ function cleanContent(text: string): string {
   return text.replace(/\[Source\s*\d+(?:\s*[,|]\s*Page\s*\d+)?\]/gi, "").replace(/\s{2,}/g, " ");
 }
 
-function safeHref(href?: string) {
+export function safeHref(href?: string) {
   if (!href) return null;
   if (href.startsWith("/") || href.startsWith("#")) return href;
   try {

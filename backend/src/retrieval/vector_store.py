@@ -348,20 +348,33 @@ class VectorStoreManager:
         top_k: int = 10,
         *,
         workspace_id: str | None = None,
+        filters: dict[str, Any] | None = None,
     ) -> list[SearchHit]:
         scoped_workspace_id = normalize_workspace_id(workspace_id)
         filename_scope = self._explicit_filename_scope(query, workspace_id=scoped_workspace_id)
+        safe_filters = self._normalize_filters(filters)
         search_k = max(top_k * 2, self.total_chunks, top_k)
         qdrant_hits = self._qdrant_search(
             query,
             search_k,
             workspace_id=scoped_workspace_id,
+            filters=safe_filters,
         )
         if not self._documents:
             return qdrant_hits[:top_k]
-        dense = self._dense_search(query, search_k, workspace_id=scoped_workspace_id)
+        dense = self._dense_search(
+            query,
+            search_k,
+            workspace_id=scoped_workspace_id,
+            filters=safe_filters,
+        )
         sparse = (
-            self._sparse_search(query, search_k, workspace_id=scoped_workspace_id)
+            self._sparse_search(
+                query,
+                search_k,
+                workspace_id=scoped_workspace_id,
+                filters=safe_filters,
+            )
             if _BM25_OK
             else []
         )
@@ -374,6 +387,7 @@ class VectorStoreManager:
                 filename_scope,
                 top_k,
                 workspace_id=scoped_workspace_id,
+                filters=safe_filters,
             )
         if not sparse:
             hits = dense[:top_k]
@@ -384,6 +398,7 @@ class VectorStoreManager:
                 filename_scope,
                 top_k,
                 workspace_id=scoped_workspace_id,
+                filters=safe_filters,
             )
         hits = self._fuse(dense, sparse, top_k)
         if qdrant_hits:
@@ -393,6 +408,7 @@ class VectorStoreManager:
             filename_scope,
             top_k,
             workspace_id=scoped_workspace_id,
+            filters=safe_filters,
         )
 
     def _dense_search(
@@ -401,6 +417,7 @@ class VectorStoreManager:
         top_k: int,
         *,
         workspace_id: str,
+        filters: dict[str, Any],
     ) -> list[SearchHit]:
         if self._index is None or self._index.ntotal == 0:
             return []
@@ -414,6 +431,7 @@ class VectorStoreManager:
                 idx >= 0
                 and score >= self._sim_threshold
                 and self._doc_workspace_id(self._documents[idx]) == workspace_id
+                and self._matches_filters(self._documents[idx], filters)
             ):
                 results.append(
                     SearchHit(document=self._documents[idx], score=float(score), method="dense")
@@ -426,6 +444,7 @@ class VectorStoreManager:
         top_k: int,
         *,
         workspace_id: str,
+        filters: dict[str, Any],
     ) -> list[SearchHit]:
         if not self._bm25:
             return []
@@ -436,6 +455,8 @@ class VectorStoreManager:
         results: list[SearchHit] = []
         for i in top_idx:
             if self._doc_workspace_id(self._documents[i]) != workspace_id:
+                continue
+            if not self._matches_filters(self._documents[i], filters):
                 continue
             doc_tokens = set(self._tokenize(self._bm25_text(self._documents[i])))
             if raw_scores[i] > 0 or token_set.intersection(doc_tokens):
@@ -494,7 +515,14 @@ class VectorStoreManager:
                 break
         return merged
 
-    def _qdrant_search(self, query: str, top_k: int, *, workspace_id: str) -> list[SearchHit]:
+    def _qdrant_search(
+        self,
+        query: str,
+        top_k: int,
+        *,
+        workspace_id: str,
+        filters: dict[str, Any],
+    ) -> list[SearchHit]:
         if not self._qdrant:
             return []
         try:
@@ -503,6 +531,7 @@ class VectorStoreManager:
                 workspace_id=workspace_id,
                 query_embedding=query_embedding,
                 top_k=top_k,
+                filters=self._qdrant_filters(filters),
             )
         except Exception as exc:
             logger.warning(
@@ -538,7 +567,7 @@ class VectorStoreManager:
                     method="qdrant",
                 )
             )
-        return hits
+        return [hit for hit in hits if self._matches_filters(hit.document, filters)]
 
     @staticmethod
     def _dedupe_hits(hits: list[SearchHit], top_k: int) -> list[SearchHit]:
@@ -561,6 +590,7 @@ class VectorStoreManager:
         top_k: int,
         *,
         workspace_id: str,
+        filters: dict[str, Any],
     ) -> list[SearchHit]:
         if not filename_scope:
             return hits
@@ -570,6 +600,8 @@ class VectorStoreManager:
         for hit in hits:
             filename = str(hit.document.metadata.get("filename", ""))
             if filename not in filename_scope:
+                continue
+            if not self._matches_filters(hit.document, filters):
                 continue
             key = self._doc_hash(hit.document)
             if key in seen:
@@ -583,6 +615,8 @@ class VectorStoreManager:
             filename = str(doc.metadata.get("filename", ""))
             if filename not in filename_scope:
                 continue
+            if not self._matches_filters(doc, filters):
+                continue
             key = self._doc_hash(doc)
             if key in seen:
                 continue
@@ -592,6 +626,85 @@ class VectorStoreManager:
                 break
 
         return scoped[:top_k]
+
+    @classmethod
+    def _normalize_filters(cls, filters: dict[str, Any] | None) -> dict[str, Any]:
+        if not filters:
+            return {}
+        normalized: dict[str, Any] = {}
+        document_ids = filters.get("document_ids")
+        if document_ids is None and filters.get("document_id"):
+            document_ids = [filters.get("document_id")]
+        if document_ids is not None:
+            values = [
+                str(item).strip()
+                for item in (document_ids if isinstance(document_ids, list) else [document_ids])
+                if str(item).strip()
+            ]
+            if values:
+                normalized["document_ids"] = sorted(set(values))
+        filename = str(filters.get("filename") or "").strip()
+        if filename:
+            normalized["filename"] = filename
+        uploaded_by = str(filters.get("uploaded_by") or "").strip()
+        if uploaded_by:
+            normalized["uploaded_by"] = uploaded_by
+        for key in ("min_page", "max_page"):
+            try:
+                if filters.get(key) is not None:
+                    normalized[key] = int(filters[key])
+            except (TypeError, ValueError):
+                continue
+        return normalized
+
+    @classmethod
+    def _qdrant_filters(cls, filters: dict[str, Any]) -> dict[str, Any]:
+        payload_filters: dict[str, Any] = {}
+        document_ids = filters.get("document_ids")
+        if document_ids:
+            payload_filters["document_id"] = document_ids
+        if filters.get("filename"):
+            payload_filters["filename"] = filters["filename"]
+        if filters.get("uploaded_by"):
+            payload_filters["metadata.uploaded_by"] = filters["uploaded_by"]
+        page_range: dict[str, int] = {}
+        if filters.get("min_page") is not None:
+            page_range["gte"] = int(filters["min_page"])
+        if filters.get("max_page") is not None:
+            page_range["lte"] = int(filters["max_page"])
+        if page_range:
+            payload_filters["page_number"] = page_range
+        return payload_filters
+
+    @classmethod
+    def _matches_filters(cls, doc: Document, filters: dict[str, Any]) -> bool:
+        if not filters:
+            return True
+        metadata = doc.metadata
+        document_ids = filters.get("document_ids")
+        if document_ids:
+            document_id = str(metadata.get("document_id") or "")
+            if document_id not in set(document_ids):
+                return False
+        filename = filters.get("filename")
+        if filename and str(metadata.get("filename") or "") != str(filename):
+            return False
+        uploaded_by = filters.get("uploaded_by")
+        if uploaded_by:
+            owner = str(
+                metadata.get("uploaded_by")
+                or metadata.get("uploader_id")
+                or metadata.get("user_id")
+                or ""
+            )
+            if owner != str(uploaded_by):
+                return False
+        page = cls._safe_int(metadata.get("page_number") or metadata.get("page"), default=0)
+        if filters.get("min_page") is not None and page < int(filters["min_page"]):
+            return False
+        if filters.get("max_page") is not None and page > int(filters["max_page"]):
+            return False
+        return True
 
     def _explicit_filename_scope(
         self,

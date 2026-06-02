@@ -13,6 +13,8 @@ provided.  The streaming path is used by the WebSocket endpoint.
 
 from __future__ import annotations
 
+import json
+import re
 import threading
 import time
 from collections import deque
@@ -85,12 +87,15 @@ class RAGChain:
         conversation_history: list[dict[str, str]] | None = None,
         top_k: int | None = None,
         use_reranking: bool | None = None,
+        retrieval_filters: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Full blocking RAG query → returns structured response dict."""
         t0 = time.perf_counter()
         safe_q = InputSanitizer.sanitize_for_prompt(question)
         scoped_workspace_id = normalize_workspace_id(workspace_id)
         scoped_session_id = self._session_key(scoped_workspace_id, session_id)
+        safe_filters = self._normalize_retrieval_filters(retrieval_filters)
+        cache_namespace = self._retrieval_namespace(safe_filters)
 
         # Memory
         memory = self._memory_store.get(scoped_session_id)
@@ -99,7 +104,11 @@ class RAGChain:
                 memory.add(m["role"], m["content"])
 
         # Cache
-        cached = self._cache.get(safe_q, workspace_id=scoped_workspace_id)
+        cached = self._cache.get(
+            safe_q,
+            workspace_id=scoped_workspace_id,
+            namespace=cache_namespace,
+        )
         if cached is not None:
             logger.info("cache_hit")
             cached["response_time_seconds"] = round(time.perf_counter() - t0, 3)
@@ -114,10 +123,16 @@ class RAGChain:
             history=history_msgs,
             top_k=top_k,
             use_reranking=use_reranking,
+            filters=safe_filters,
         )
         docs: list[Document] = retrieval["documents"]
         query_type: QueryType = retrieval["query_type"]
-        docs = self._with_inventory_context(safe_q, docs, workspace_id=scoped_workspace_id)
+        docs = self._with_inventory_context(
+            safe_q,
+            docs,
+            workspace_id=scoped_workspace_id,
+            retrieval_filters=safe_filters,
+        )
 
         # Build prompt
         context_str = self._format_context(docs)
@@ -148,12 +163,20 @@ class RAGChain:
 
         # Build sources
         sources = self._build_sources(docs)
+        confidence = self._estimate_confidence(docs, answer)
+        quality = self._answer_quality_metadata(
+            docs=docs,
+            sources=sources,
+            answer=answer,
+            confidence=confidence,
+            retrieval_filters=safe_filters,
+        )
 
         result: dict[str, Any] = {
             "answer": answer,
             "sources": sources,
             "query_type": query_type.value,
-            "confidence": self._estimate_confidence(docs, answer),
+            "confidence": confidence,
             "response_time_seconds": round(time.perf_counter() - t0, 3),
             "metadata": {
                 "k_used": retrieval["k_used"],
@@ -163,11 +186,19 @@ class RAGChain:
                 "generation_fallback": generation_fallback,
                 "generation_error": generation_error,
                 "workspace_id": scoped_workspace_id,
+                "retrieval_filters": safe_filters,
+                "cache_namespace": cache_namespace,
+                **quality,
             },
         }
 
         # Cache
-        self._cache.set(safe_q, result, workspace_id=scoped_workspace_id)
+        self._cache.set(
+            safe_q,
+            result,
+            workspace_id=scoped_workspace_id,
+            namespace=cache_namespace,
+        )
 
         # Track metrics
         self._record_metric(
@@ -197,6 +228,7 @@ class RAGChain:
         conversation_history: list[dict[str, str]] | None = None,
         top_k: int | None = None,
         use_reranking: bool | None = None,
+        retrieval_filters: dict[str, Any] | None = None,
     ) -> AsyncIterator[dict[str, Any]]:
         """Async streaming RAG query — yields dicts suitable for WebSocket.
 
@@ -209,6 +241,8 @@ class RAGChain:
         safe_q = InputSanitizer.sanitize_for_prompt(question)
         scoped_workspace_id = normalize_workspace_id(workspace_id)
         scoped_session_id = self._session_key(scoped_workspace_id, session_id)
+        safe_filters = self._normalize_retrieval_filters(retrieval_filters)
+        cache_namespace = self._retrieval_namespace(safe_filters)
 
         memory = self._memory_store.get(scoped_session_id)
         if conversation_history:
@@ -216,7 +250,11 @@ class RAGChain:
                 memory.add(m["role"], m["content"])
 
         # Cache check
-        cached = self._cache.get(safe_q, workspace_id=scoped_workspace_id)
+        cached = self._cache.get(
+            safe_q,
+            workspace_id=scoped_workspace_id,
+            namespace=cache_namespace,
+        )
         if cached is not None:
             yield {"type": "token", "content": cached["answer"]}
             yield {"type": "sources", "sources": cached.get("sources", [])}
@@ -231,10 +269,16 @@ class RAGChain:
             history=history_msgs,
             top_k=top_k,
             use_reranking=use_reranking,
+            filters=safe_filters,
         )
         docs = retrieval["documents"]
         query_type: QueryType = retrieval["query_type"]
-        docs = self._with_inventory_context(safe_q, docs, workspace_id=scoped_workspace_id)
+        docs = self._with_inventory_context(
+            safe_q,
+            docs,
+            workspace_id=scoped_workspace_id,
+            retrieval_filters=safe_filters,
+        )
 
         # Build prompt
         context_str = self._format_context(docs)
@@ -273,16 +317,27 @@ class RAGChain:
         yield {"type": "sources", "sources": sources}
 
         elapsed = round(time.perf_counter() - t0, 3)
+        confidence = self._estimate_confidence(docs, full_answer)
+        quality = self._answer_quality_metadata(
+            docs=docs,
+            sources=sources,
+            answer=full_answer,
+            confidence=confidence,
+            retrieval_filters=safe_filters,
+        )
         metadata = {
             "query_type": query_type.value,
             "k_used": retrieval["k_used"],
             "num_sources": len(docs),
             "response_time_seconds": elapsed,
             "model": self._model_name_safe(scoped_workspace_id),
-            "confidence": self._estimate_confidence(docs, full_answer),
+            "confidence": confidence,
             "generation_fallback": generation_fallback,
             "generation_error": generation_error,
             "workspace_id": scoped_workspace_id,
+            "retrieval_filters": safe_filters,
+            "cache_namespace": cache_namespace,
+            **quality,
         }
         yield {"type": "done", "metadata": metadata}
 
@@ -298,6 +353,7 @@ class RAGChain:
                 "metadata": metadata,
             },
             workspace_id=scoped_workspace_id,
+            namespace=cache_namespace,
         )
 
     # ══════════════════════════════════════════════════════════════════
@@ -382,6 +438,7 @@ class RAGChain:
         docs: list[Document],
         *,
         workspace_id: str,
+        retrieval_filters: dict[str, Any] | None = None,
     ) -> list[Document]:
         if not self._is_document_inventory_query(question):
             return docs
@@ -395,6 +452,21 @@ class RAGChain:
             logger.warning("document_inventory_unavailable", error=str(exc))
             return docs
 
+        if not documents:
+            return docs
+        filters = self._normalize_retrieval_filters(retrieval_filters)
+        document_ids = set(filters.get("document_ids") or [])
+        filename = filters.get("filename")
+        if document_ids or filename:
+            documents = [
+                item
+                for item in documents
+                if (
+                    not document_ids
+                    or str(item.get("document_id") or item.get("id") or "") in document_ids
+                )
+                and (not filename or str(item.get("filename") or "") == filename)
+            ]
         if not documents:
             return docs
 
@@ -419,6 +491,110 @@ class RAGChain:
             },
         )
         return [inventory, *docs]
+
+    @classmethod
+    def _normalize_retrieval_filters(cls, filters: dict[str, Any] | None) -> dict[str, Any]:
+        if not filters:
+            return {}
+        normalized: dict[str, Any] = {}
+        raw_ids = filters.get("document_ids")
+        if raw_ids is None and filters.get("document_id"):
+            raw_ids = [filters.get("document_id")]
+        if raw_ids is not None:
+            values = [
+                str(item).strip()
+                for item in (raw_ids if isinstance(raw_ids, list) else [raw_ids])
+                if str(item).strip()
+            ]
+            if values:
+                normalized["document_ids"] = sorted(set(values))
+        filename = str(filters.get("filename") or "").strip()
+        if filename:
+            normalized["filename"] = filename
+        uploaded_by = str(filters.get("uploaded_by") or "").strip()
+        if uploaded_by:
+            normalized["uploaded_by"] = uploaded_by
+        for key in ("min_page", "max_page"):
+            try:
+                if filters.get(key) is not None:
+                    normalized[key] = int(filters[key])
+            except (TypeError, ValueError):
+                continue
+        return normalized
+
+    @classmethod
+    def _retrieval_namespace(cls, filters: dict[str, Any] | None) -> str:
+        normalized = cls._normalize_retrieval_filters(filters)
+        if not normalized:
+            return "workspace"
+        return "filtered:" + json.dumps(normalized, sort_keys=True, separators=(",", ":"))
+
+    @staticmethod
+    def _answer_quality_metadata(
+        *,
+        docs: list[Document],
+        sources: list[dict[str, Any]],
+        answer: str,
+        confidence: float,
+        retrieval_filters: dict[str, Any],
+    ) -> dict[str, Any]:
+        selected_ids = list(retrieval_filters.get("document_ids") or [])
+        retrieval_scope = (
+            "documents" if selected_ids or retrieval_filters.get("filename") else "workspace"
+        )
+        citation_coverage = round(len(sources) / len(docs), 3) if docs else 0.0
+        quote_checks = RAGChain._source_quote_checks(answer=answer, docs=docs)
+        if not docs:
+            answerability = "no_sources"
+        elif confidence < 0.35:
+            answerability = "low_confidence"
+        else:
+            answerability = "answerable"
+        return {
+            "retrieval_scope": retrieval_scope,
+            "selected_document_ids": selected_ids,
+            "answerability": answerability,
+            "low_confidence": answerability != "answerable",
+            "citation_coverage": min(1.0, citation_coverage),
+            "source_quote_coverage": quote_checks["coverage"],
+            "verified_source_quotes": quote_checks["verified_quotes"],
+        }
+
+    @staticmethod
+    def _source_quote_checks(*, answer: str, docs: list[Document]) -> dict[str, Any]:
+        answer_words = RAGChain._normalized_words(answer)
+        answer_text = " ".join(answer_words)
+        if not answer_text:
+            return {"coverage": 0.0, "verified_quotes": []}
+
+        checked = 0
+        verified: list[dict[str, Any]] = []
+        for doc in docs[:5]:
+            words = RAGChain._normalized_words(doc.page_content)
+            if len(words) < 5:
+                continue
+            checked += 1
+            window = 6 if len(words) >= 6 else len(words)
+            max_start = min(len(words) - window + 1, 80)
+            for start in range(max_start):
+                phrase = " ".join(words[start : start + window])
+                if phrase and phrase in answer_text:
+                    verified.append(
+                        {
+                            "filename": doc.metadata.get("filename", "Unknown"),
+                            "page_number": doc.metadata.get("page_number", 0),
+                            "quote": phrase,
+                        }
+                    )
+                    break
+        return {
+            "coverage": round(len(verified) / checked, 3) if checked else 0.0,
+            "verified_quotes": verified[:5],
+        }
+
+    @staticmethod
+    def _normalized_words(text: str) -> list[str]:
+        return re.findall(r"[a-z0-9]+", text.lower())
 
     @staticmethod
     def _build_extractive_fallback_answer(docs: list[Document], _error: str) -> str:

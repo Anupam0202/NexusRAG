@@ -8,7 +8,7 @@ from langchain_core.documents import Document
 
 from config.settings import get_settings
 from src.retrieval.query_transformer import QueryTransformer
-from src.retrieval.retriever import QueryType, classify_query
+from src.retrieval.retriever import HybridRetriever, QueryType, classify_query
 from src.retrieval.vector_store import SearchHit, VectorStoreManager
 from src.vectorstores import VectorSearchResult
 
@@ -316,6 +316,100 @@ class TestVectorStoreManager:
         assert removed == 1
         assert vs.count_chunks(workspace_id="workspace-alpha") == 0
         assert vs.count_chunks(workspace_id="workspace-beta") == 1
+
+    def test_search_supports_document_and_page_filters(self):
+        vs = VectorStoreManager()
+        vs._use_lightweight = True
+        vs._documents = [
+            Document(
+                page_content="Alpha appendix mentions budget approvals.",
+                metadata={
+                    "workspace_id": "workspace-a",
+                    "document_id": "doc-alpha",
+                    "filename": "alpha.pdf",
+                    "page_number": 4,
+                },
+            ),
+            Document(
+                page_content="Beta appendix mentions budget approvals.",
+                metadata={
+                    "workspace_id": "workspace-a",
+                    "document_id": "doc-beta",
+                    "filename": "beta.pdf",
+                    "page_number": 8,
+                },
+            ),
+            Document(
+                page_content="Alpha opening page has no appendix.",
+                metadata={
+                    "workspace_id": "workspace-a",
+                    "document_id": "doc-alpha",
+                    "filename": "alpha.pdf",
+                    "page_number": 1,
+                },
+            ),
+        ]
+        vs._raw_embeddings = []
+        vs._index = None
+        vs._rebuild_bm25()
+
+        hits = vs.search(
+            "appendix budget approvals",
+            workspace_id="workspace-a",
+            top_k=10,
+            filters={"document_ids": ["doc-alpha"], "min_page": 2},
+        )
+
+        assert hits
+        assert {hit.document.metadata["document_id"] for hit in hits} == {"doc-alpha"}
+        assert {hit.document.metadata["page_number"] for hit in hits} == {4}
+
+
+class TestHybridRetriever:
+    def test_retriever_passes_filters_to_vector_store(self):
+        calls: list[dict] = []
+
+        class FakeStore:
+            def count_chunks(self, *, workspace_id=None):
+                return 4
+
+            def search(self, query, top_k=10, **kwargs):
+                calls.append({"query": query, "top_k": top_k, **kwargs})
+                return [
+                    SearchHit(
+                        Document(
+                            page_content="Filtered chunk",
+                            metadata={"filename": "alpha.pdf", "document_id": "doc-alpha"},
+                        ),
+                        score=0.8,
+                        method="test",
+                    )
+                ]
+
+        retriever = HybridRetriever(
+            vector_store=FakeStore(),  # type: ignore[arg-type]
+        )
+        retriever._transformer = type(
+            "FakeTransformer",
+            (),
+            {"transform": lambda self, query, **kwargs: {"queries": [query]}},
+        )()
+
+        result = retriever.retrieve(
+            "filtered question",
+            workspace_id="workspace-a",
+            filters={"document_ids": ["doc-alpha"]},
+        )
+
+        assert result["documents"]
+        assert calls == [
+            {
+                "query": "filtered question",
+                "top_k": 4,
+                "workspace_id": "workspace-a",
+                "filters": {"document_ids": ["doc-alpha"]},
+            }
+        ]
 
     def test_document_chunk_preview_is_workspace_scoped(self):
         vs = VectorStoreManager()

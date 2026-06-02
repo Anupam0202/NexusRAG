@@ -179,6 +179,22 @@ class TestDocumentEndpoints:
             workspace_id="00000000-0000-0000-0000-000000000000"
         )
 
+    def test_reindex_endpoint_reports_missing_durable_original_in_demo_mode(
+        self,
+        test_client: TestClient,
+    ):
+        upload = test_client.post(
+            "/api/v1/documents/upload",
+            files={"file": ("reindex_demo.txt", b"Reindex me.", "text/plain")},
+        ).json()
+
+        resp = test_client.post(
+            f"/api/v1/documents/{upload['document']['document_id']}/reindex"
+        )
+
+        assert resp.status_code == 409
+        assert "stored original" in resp.json()["detail"].lower()
+
 
 class TestSettingsEndpoints:
     def test_get_settings(self, test_client: TestClient):
@@ -328,6 +344,50 @@ class TestAnalytics:
         assert summary["audit_events"] == 1
         assert summary["llm_total_tokens"] > 0
         assert summary["queries_today"] >= 1
+
+    def test_chat_passes_selected_document_filters(self, test_client: TestClient):
+        test_client.mock_chain.query.return_value = {  # type: ignore[attr-defined]
+            "answer": "Selected document answer.",
+            "sources": [],
+            "query_type": "specific",
+            "confidence": 0.75,
+            "response_time_seconds": 0.05,
+            "metadata": {"model": "gemini-2.5-flash"},
+        }
+
+        resp = test_client.post(
+            "/api/v1/chat",
+            json={
+                "question": "What does this selected file say?",
+                "chat_scope": "documents",
+                "document_ids": ["doc-alpha"],
+                "min_page": 2,
+                "max_page": 5,
+            },
+        )
+
+        assert resp.status_code == 200
+        kwargs = test_client.mock_chain.query.call_args.kwargs  # type: ignore[attr-defined]
+        assert kwargs["retrieval_filters"] == {
+            "document_ids": ["doc-alpha"],
+            "min_page": 2,
+            "max_page": 5,
+        }
+
+    def test_chat_rejects_when_daily_query_quota_exhausted(
+        self, test_client: TestClient, monkeypatch
+    ):
+        monkeypatch.setenv("ENFORCE_TENANT_QUOTAS", "true")
+        monkeypatch.setenv("QUOTA_DAILY_QUERIES", "0")
+        get_settings.cache_clear()
+        try:
+            resp = test_client.post("/api/v1/chat", json={"question": "quota check"})
+        finally:
+            get_settings.cache_clear()
+
+        assert resp.status_code == 429
+        assert "query quota" in resp.json()["detail"].lower()
+        test_client.mock_chain.query.assert_not_called()  # type: ignore[attr-defined]
 
     def test_audit_endpoint_lists_recent_sanitized_events(self, test_client: TestClient):
         test_client.mock_chain.query.return_value = {  # type: ignore[attr-defined]

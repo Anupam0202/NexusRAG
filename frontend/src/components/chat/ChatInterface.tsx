@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useEffect, useState, useCallback } from "react";
+import { useRef, useEffect, useState, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { useChat } from "@/hooks/useChat";
 import { MessageBubble } from "./MessageBubble";
@@ -8,7 +8,7 @@ import { SourcePanel } from "./SourcePanel";
 import type { SourceChunk } from "@/types";
 import {
   Send, ArrowDown, Sparkles, FileSearch, Brain,
-  MessageSquare, Trash2, Zap, BookOpen, Search, Upload,
+  MessageSquare, Trash2, Zap, BookOpen, Search, Upload, Files,
 } from "lucide-react";
 import { AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
@@ -30,6 +30,8 @@ export default function ChatInterface() {
   const [input, setInput] = useState("");
   const [activeSources, setActiveSources] = useState<SourceChunk[] | null>(null);
   const [showScrollBtn, setShowScrollBtn] = useState(false);
+  const [chatScope, setChatScope] = useState<"workspace" | "documents">("workspace");
+  const [selectedDocumentId, setSelectedDocumentId] = useState("");
   const {
     documents,
     loading: documentsLoading,
@@ -44,6 +46,25 @@ export default function ChatInterface() {
   const canChat = store.authMode === "authenticated" || store.authMode === "demo";
   const docCount = documents.length;
   const isStreaming = messages.some((m) => m.isStreaming);
+  const readyDocuments = useMemo(
+    () => documents.filter((doc) => doc.status === "ready"),
+    [documents]
+  );
+  const selectedDocumentIds = useMemo(
+    () => (chatScope === "documents" && selectedDocumentId ? [selectedDocumentId] : []),
+    [chatScope, selectedDocumentId]
+  );
+  const canSend =
+    Boolean(input.trim()) &&
+    !isStreaming &&
+    canChat &&
+    (chatScope === "workspace" || selectedDocumentIds.length > 0);
+
+  useEffect(() => {
+    if (chatScope !== "documents") return;
+    if (readyDocuments.some((doc) => doc.document_id === selectedDocumentId)) return;
+    setSelectedDocumentId(readyDocuments[0]?.document_id ?? "");
+  }, [chatScope, readyDocuments, selectedDocumentId]);
 
   // Auto-scroll on new messages
   useEffect(() => {
@@ -64,11 +85,14 @@ export default function ChatInterface() {
 
   const handleSend = useCallback(() => {
     const q = input.trim();
-    if (!q || isStreaming || !canChat) return;
-    sendMessage(q);
+    if (!canSend) return;
+    sendMessage(q, {
+      chatScope,
+      documentIds: selectedDocumentIds,
+    });
     setInput("");
     if (inputRef.current) inputRef.current.style.height = "auto";
-  }, [input, isStreaming, sendMessage, canChat]);
+  }, [canSend, chatScope, input, selectedDocumentIds, sendMessage]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -145,6 +169,56 @@ export default function ChatInterface() {
         {/* Input bar */}
         <div className="border-t border-[var(--border)] bg-[var(--bg-primary)]/80 backdrop-blur-xl px-3 sm:px-6 py-3 safe-bottom">
           <div className="max-w-3xl mx-auto">
+            {canChat && docCount > 0 && (
+              <div className="mb-2 flex flex-wrap items-center gap-2">
+                <div className="inline-flex rounded-xl border border-[var(--border)] bg-[var(--bg-card)] p-1">
+                  <button
+                    type="button"
+                    onClick={() => setChatScope("workspace")}
+                    className={cn(
+                      "inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition",
+                      chatScope === "workspace"
+                        ? "bg-brand-600 text-white"
+                        : "text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+                    )}
+                  >
+                    <Files size={13} />
+                    Workspace
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setChatScope("documents");
+                      setSelectedDocumentId((current) => current || readyDocuments[0]?.document_id || "");
+                    }}
+                    disabled={readyDocuments.length === 0}
+                    className={cn(
+                      "inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition disabled:opacity-40",
+                      chatScope === "documents"
+                        ? "bg-brand-600 text-white"
+                        : "text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+                    )}
+                  >
+                    <FileSearch size={13} />
+                    Selected
+                  </button>
+                </div>
+                {chatScope === "documents" && (
+                  <select
+                    value={selectedDocumentId}
+                    onChange={(event) => setSelectedDocumentId(event.target.value)}
+                    className="min-w-0 flex-1 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] px-3 py-2 text-xs font-medium text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-brand-500/40"
+                    aria-label="Selected chat document"
+                  >
+                    {readyDocuments.map((doc) => (
+                      <option key={doc.document_id} value={doc.document_id}>
+                        {doc.filename}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
+            )}
             <div className="glass-input flex items-end gap-2 rounded-2xl px-4 py-2.5">
               <textarea
                 ref={inputRef}
@@ -156,6 +230,8 @@ export default function ChatInterface() {
                     ? "Checking document library..."
                     : !canChat
                       ? "Sign in to chat with your documents..."
+                    : chatScope === "documents" && selectedDocumentId
+                      ? "Ask about the selected document..."
                     : docCount > 0
                       ? "Ask about your documents..."
                       : "Upload documents to start chatting..."
@@ -179,11 +255,11 @@ export default function ChatInterface() {
 
                 <button
                   onClick={handleSend}
-                  disabled={!input.trim() || isStreaming || !canChat}
+                  disabled={!canSend}
                   aria-label="Send message"
                   className={cn(
                     "flex h-9 w-9 items-center justify-center rounded-xl transition-all duration-200",
-                    input.trim() && !isStreaming && canChat
+                    canSend
                       ? "bg-gradient-to-r from-brand-500 to-purple-600 text-white shadow-md hover:shadow-lg hover:scale-105 active:scale-95"
                       : "bg-[var(--bg-secondary)] text-[var(--text-muted)] cursor-not-allowed"
                   )}

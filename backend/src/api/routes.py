@@ -76,6 +76,7 @@ from src.generation.provider_keys import (
     get_provider_key_manager,
     normalize_provider,
 )
+from src.infrastructure.supabase_client import get_supabase_client
 from src.ingestion.embedder import get_embedder
 from src.ingestion.job_manager import get_ingestion_job_store
 from src.ingestion.pipeline import IngestionPipeline
@@ -89,6 +90,7 @@ from src.repositories.messages import MessageRepository
 from src.repositories.settings import WorkspaceSettingsRepository
 from src.retrieval.vector_store import VectorStoreManager
 from src.telemetry.events import estimate_tokens, get_telemetry_recorder
+from src.tenancy.quotas import QuotaExceededError, TenantQuotaEnforcer
 from src.utils.logger import get_logger
 from src.utils.security import FileValidator
 from src.utils.tenant import normalize_workspace_id
@@ -160,6 +162,11 @@ def _settings_payload(settings: Settings) -> dict:
         "enable_semantic_chunking": settings.enable_semantic_chunking,
         "enable_contextual_enrichment": settings.enable_contextual_enrichment,
         "embedding_model": settings.embedding_model,
+        "enforce_tenant_quotas": settings.enforce_tenant_quotas,
+        "quota_daily_queries": settings.quota_daily_queries,
+        "quota_daily_tokens": settings.quota_daily_tokens,
+        "quota_max_documents": settings.quota_max_documents,
+        "quota_max_storage_mb": settings.quota_max_storage_mb,
     }
 
 
@@ -184,6 +191,68 @@ def _merge_workspace_settings(payload: dict, row: dict | None) -> dict:
         if row.get(source) is not None:
             merged[target] = row[source]
     return merged
+
+
+def _chat_retrieval_filters(body: QueryRequest) -> dict[str, Any]:
+    filters: dict[str, Any] = {}
+    if body.chat_scope == "documents" or body.document_ids:
+        document_ids = [item.strip() for item in body.document_ids if item.strip()]
+        if document_ids:
+            filters["document_ids"] = sorted(set(document_ids))
+    if body.filename:
+        filters["filename"] = body.filename.strip()
+    if body.uploaded_by:
+        filters["uploaded_by"] = body.uploaded_by.strip()
+    if body.min_page is not None:
+        filters["min_page"] = body.min_page
+    if body.max_page is not None:
+        filters["max_page"] = body.max_page
+    if (
+        filters.get("min_page") is not None
+        and filters.get("max_page") is not None
+        and int(filters["max_page"]) < int(filters["min_page"])
+    ):
+        raise HTTPException(422, "max_page must be greater than or equal to min_page.")
+    if body.chat_scope == "documents" and not any(
+        key in filters for key in ("document_ids", "filename")
+    ):
+        raise HTTPException(422, "Selected-document chat requires at least one document.")
+    return filters
+
+
+async def _quota_documents(
+    *,
+    workspace: WorkspaceContext | None,
+    settings: Settings,
+    workspace_id: str,
+    vs: VectorStoreManager,
+) -> list[dict[str, Any]]:
+    if _should_persist_workspace_event(workspace, settings):
+        try:
+            return await DocumentRepository().list_documents(workspace_id=workspace_id)
+        except Exception as exc:
+            logger.warning(
+                "quota_document_list_failed",
+                workspace_id=workspace_id,
+                error=str(exc)[:300],
+            )
+    return vs.list_documents(workspace_id=workspace_id)
+
+
+async def _quota_payload(
+    *,
+    workspace: WorkspaceContext | None,
+    settings: Settings,
+    workspace_id: str,
+    documents: list[dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    enforcer = TenantQuotaEnforcer(settings)
+    usage = await enforcer.usage(
+        workspace_id=workspace_id,
+        persist=_should_persist_workspace_event(workspace, settings),
+        documents=documents,
+    )
+    return enforcer.payload(usage)
 
 
 def _valid_chat_session_id(session_id: str | None) -> str | None:
@@ -912,6 +981,115 @@ async def _process_enterprise_upload_job_background(**kwargs) -> None:
 # ═══════════════════════════════════════════════════════════════════════════
 
 
+async def _queue_durable_reindex_job(
+    *,
+    background_tasks: BackgroundTasks,
+    workspace: WorkspaceContext | None,
+    settings: Settings,
+    document_id: str,
+    vs: VectorStoreManager,
+    chain: RAGChain,
+    existing_job_id: str | None = None,
+) -> IngestionJobStatusResponse:
+    workspace_id = _context_workspace_id(workspace)
+    if not _should_persist_workspace_event(workspace, settings):
+        docs = vs.list_documents(workspace_id=workspace_id)
+        if any(
+            document_id in {str(doc.get("document_id") or ""), str(doc.get("filename") or "")}
+            for doc in docs
+        ):
+            raise HTTPException(
+                409,
+                "Re-index requires a stored original document. Sign in with Supabase-backed "
+                "storage or upload the file again in demo mode.",
+            )
+        raise HTTPException(404, f"Document '{document_id}' not found")
+
+    doc_repo = DocumentRepository()
+    job_repo = IngestionJobRepository()
+    document = await doc_repo.get_document(workspace_id=workspace_id, document_id=document_id)
+    if not document or str(document.get("status") or "") == "deleted":
+        raise HTTPException(404, f"Document '{document_id}' not found")
+    storage_path = str(document.get("storage_path") or "")
+    if not storage_path:
+        raise HTTPException(
+            409,
+            "Re-index requires a stored original document. This document has no storage path.",
+        )
+
+    safe_name = str(document.get("filename") or document.get("original_filename") or "document")
+    try:
+        content = await get_supabase_client().download_object(storage_path)
+    except Exception as exc:
+        logger.warning(
+            "reindex_original_download_failed",
+            workspace_id=workspace_id,
+            document_id=document_id,
+            error=str(exc)[:300],
+        )
+        raise HTTPException(
+            503,
+            "Stored original document is temporarily unavailable. Please retry later.",
+        ) from exc
+
+    if existing_job_id:
+        job_row = await job_repo.update_job(
+            workspace_id=workspace_id,
+            job_id=existing_job_id,
+            values={
+                "status": "queued",
+                "stage": "queued",
+                "progress": 0,
+                "error_message": None,
+                "completed_at": None,
+            },
+        )
+        if not job_row:
+            raise HTTPException(404, f"Ingestion job '{existing_job_id}' not found")
+    else:
+        job_row = await job_repo.create_job(
+            workspace_id=workspace_id,
+            document_id=document_id,
+            stage="reindex_queued",
+        )
+
+    job_id = str(job_row.get("id") or existing_job_id or "")
+    await doc_repo.update_document(
+        workspace_id=workspace_id,
+        document_id=document_id,
+        values={"status": "queued", "error_message": None},
+    )
+    job = get_ingestion_job_store().create(
+        job_id=job_id,
+        document_id=document_id,
+        filename=safe_name,
+        workspace_id=workspace_id,
+    )
+    vs.delete_by_identifier(document_id, workspace_id=workspace_id)
+    chain.clear_cache(workspace_id=workspace_id)
+    background_tasks.add_task(
+        _process_enterprise_upload_job_background,
+        workspace=workspace,
+        job_id=job.job_id,
+        workspace_id=workspace_id,
+        document_id=document_id,
+        safe_name=safe_name,
+        content=content,
+        settings=settings,
+        vs=vs,
+        chain=chain,
+    )
+    await _record_audit_event(
+        workspace=workspace,
+        settings=settings,
+        action="document.reindex_queued" if not existing_job_id else "document.retry_queued",
+        resource_type="document",
+        resource_id=document_id,
+        metadata={"job_id": job.job_id, "filename": safe_name},
+    )
+    return job.response()
+
+
 @router.post("/documents/upload", response_model=DocumentUploadResponse)
 async def upload_document(
     background_tasks: BackgroundTasks,
@@ -939,6 +1117,25 @@ async def upload_document(
     _preflight_upload_limits(safe_name, content, settings)
 
     workspace_id = _context_workspace_id(workspace)
+    try:
+        quota_docs = await _quota_documents(
+            workspace=workspace,
+            settings=settings,
+            workspace_id=workspace_id,
+            vs=vs,
+        )
+        quota_usage = await TenantQuotaEnforcer(settings).usage(
+            workspace_id=workspace_id,
+            persist=_should_persist_workspace_event(workspace, settings),
+            documents=quota_docs,
+        )
+        TenantQuotaEnforcer(settings).assert_upload_allowed(
+            quota_usage,
+            file_size_bytes=len(content),
+        )
+    except QuotaExceededError as exc:
+        raise HTTPException(status_code=429, detail=str(exc)) from exc
+
     document_id = str(uuid.uuid4())
     try:
         enterprise_job_id = await _persist_enterprise_upload_start(
@@ -1179,6 +1376,45 @@ async def get_ingestion_job_status(
     raise HTTPException(404, f"Ingestion job '{job_id}' not found")
 
 
+@router.post("/documents/jobs/{job_id}/retry", response_model=IngestionJobStatusResponse)
+async def retry_ingestion_job(
+    job_id: str,
+    background_tasks: BackgroundTasks,
+    workspace: WorkspaceContext | None = Depends(
+        require_enterprise_workspace_role(*EDITOR_ROLES)
+    ),
+    settings: Settings = Depends(get_settings),
+    vs: VectorStoreManager = Depends(get_vector_store),
+    chain: RAGChain = Depends(get_rag_chain),
+) -> IngestionJobStatusResponse:
+    workspace_id = _context_workspace_id(workspace)
+    job = get_ingestion_job_store().get(job_id)
+    if job and job.workspace_id == workspace_id:
+        return await _queue_durable_reindex_job(
+            background_tasks=background_tasks,
+            workspace=workspace,
+            settings=settings,
+            document_id=job.document_id,
+            vs=vs,
+            chain=chain,
+            existing_job_id=job_id,
+        )
+
+    if _should_persist_workspace_event(workspace, settings):
+        row = await IngestionJobRepository().get_job(workspace_id=workspace_id, job_id=job_id)
+        if row:
+            return await _queue_durable_reindex_job(
+                background_tasks=background_tasks,
+                workspace=workspace,
+                settings=settings,
+                document_id=str(row.get("document_id") or ""),
+                vs=vs,
+                chain=chain,
+                existing_job_id=job_id,
+            )
+    raise HTTPException(404, f"Ingestion job '{job_id}' not found")
+
+
 @router.get("/documents/{document_id}/status", response_model=IngestionJobStatusResponse)
 async def get_document_ingestion_status(
     document_id: str,
@@ -1204,6 +1440,27 @@ async def get_document_ingestion_status(
             document = _row_to_document_metadata(document_row) if document_row else None
             return _row_to_job_response(rows[0], document=document)
     raise HTTPException(404, f"Ingestion status for document '{document_id}' not found")
+
+
+@router.post("/documents/{document_id}/reindex", response_model=IngestionJobStatusResponse)
+async def reindex_document(
+    document_id: str,
+    background_tasks: BackgroundTasks,
+    workspace: WorkspaceContext | None = Depends(
+        require_enterprise_workspace_role(*EDITOR_ROLES)
+    ),
+    settings: Settings = Depends(get_settings),
+    vs: VectorStoreManager = Depends(get_vector_store),
+    chain: RAGChain = Depends(get_rag_chain),
+) -> IngestionJobStatusResponse:
+    return await _queue_durable_reindex_job(
+        background_tasks=background_tasks,
+        workspace=workspace,
+        settings=settings,
+        document_id=document_id,
+        vs=vs,
+        chain=chain,
+    )
 
 
 @router.get("/documents/{document_id}/chunks", response_model=DocumentChunkListResponse)
@@ -1364,6 +1621,32 @@ async def chat(
     history_token_parts = [m.content for m in body.conversation_history]
     telemetry = get_telemetry_recorder()
     persist_event = _should_persist_workspace_event(workspace, settings)
+    retrieval_filters = _chat_retrieval_filters(body)
+    estimated_input_tokens = estimate_tokens(body.question, *history_token_parts)
+
+    try:
+        enforcer = TenantQuotaEnforcer(settings)
+        quota_usage = await enforcer.usage(
+            workspace_id=workspace_id,
+            persist=persist_event,
+        )
+        enforcer.assert_chat_allowed(
+            quota_usage,
+            estimated_tokens=estimated_input_tokens,
+        )
+    except QuotaExceededError as exc:
+        await _record_audit_event(
+            workspace=workspace,
+            settings=settings,
+            action="quota.chat_blocked",
+            resource_type="chat_session",
+            resource_id=body.session_id,
+            metadata={
+                "reason": str(exc),
+                "quota": exc.payload,
+            },
+        )
+        raise HTTPException(status_code=429, detail=str(exc)) from exc
 
     try:
         result = chain.query(
@@ -1373,6 +1656,7 @@ async def chat(
             conversation_history=history if history else None,
             top_k=body.top_k,
             use_reranking=body.use_reranking,
+            retrieval_filters=retrieval_filters or None,
         )
     except Exception as exc:
         await telemetry.record_llm_usage(
@@ -1398,6 +1682,8 @@ async def chat(
                 "history_messages": len(body.conversation_history),
                 "top_k": body.top_k,
                 "use_reranking": body.use_reranking,
+                "chat_scope": body.chat_scope,
+                "retrieval_filters": retrieval_filters,
                 "error": str(exc)[:200],
             },
         )
@@ -1419,7 +1705,7 @@ async def chat(
         user_id=_context_user_id(workspace),
         model=str(metadata.get("model") or settings.llm_model_name),
         operation="chat.query",
-        input_tokens=0 if cache_hit else estimate_tokens(body.question, *history_token_parts),
+        input_tokens=0 if cache_hit else estimated_input_tokens,
         output_tokens=0 if cache_hit else estimate_tokens(answer),
         latency_ms=latency_ms,
         success=True,
@@ -1439,6 +1725,8 @@ async def chat(
             "history_messages": len(body.conversation_history),
             "top_k": body.top_k,
             "use_reranking": body.use_reranking,
+            "chat_scope": body.chat_scope,
+            "retrieval_filters": retrieval_filters,
             "query_type": result.get("query_type", "general"),
             "source_count": len(sources),
             "cache_hit": cache_hit,
@@ -2005,8 +2293,13 @@ async def analytics_summary(
     vs: VectorStoreManager = Depends(get_vector_store),
 ) -> AnalyticsSummary:
     workspace_id = _context_workspace_id(workspace)
-    docs = vs.list_documents(workspace_id=workspace_id)
     settings_instance = get_settings()
+    docs = await _quota_documents(
+        workspace=workspace,
+        settings=settings_instance,
+        workspace_id=workspace_id,
+        vs=vs,
+    )
     telemetry_summary = await get_telemetry_recorder().analytics_summary(
         workspace_id=workspace_id,
         persist=_should_persist_workspace_event(workspace, settings_instance),
@@ -2077,8 +2370,15 @@ async def analytics_summary(
         llm_fallbacks=telemetry_summary.get("llm_fallbacks", 0),
         llm_cache_hits=telemetry_summary.get("llm_cache_hits", 0),
         usage_avg_latency_ms=telemetry_summary.get("usage_avg_latency_ms", 0),
+        usage_tokens_today=telemetry_summary.get("usage_tokens_today", 0),
         audit_events=telemetry_summary.get("audit_events", 0),
         last_activity_at=telemetry_summary.get("last_activity_at"),
+        quota=await _quota_payload(
+            workspace=workspace,
+            settings=settings_instance,
+            workspace_id=workspace_id,
+            documents=docs,
+        ),
     )
 
 
@@ -2172,6 +2472,11 @@ async def system_status(
             "enable_pgvector_fallback": settings.enable_pgvector_fallback,
             "enable_local_faiss": settings.enable_local_faiss,
             "enable_async_ingestion": settings.enable_async_ingestion,
+            "enforce_tenant_quotas": settings.enforce_tenant_quotas,
+            "quota_daily_queries": settings.quota_daily_queries,
+            "quota_daily_tokens": settings.quota_daily_tokens,
+            "quota_max_documents": settings.quota_max_documents,
+            "quota_max_storage_mb": settings.quota_max_storage_mb,
         },
         capabilities={
             "streaming": True,

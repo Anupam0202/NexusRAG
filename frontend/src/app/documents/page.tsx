@@ -20,6 +20,7 @@ export default function DocumentsPage() {
     error,
     upload,
     remove,
+    reindex,
     refresh,
     canAccessWorkspaceApi,
     authMode,
@@ -80,6 +81,7 @@ export default function DocumentsPage() {
           documents={documents}
           loading={loading}
           onDelete={remove}
+          onReindex={reindex}
           onRefresh={refresh}
           onSelect={setSelectedDocument}
           disabledReason={

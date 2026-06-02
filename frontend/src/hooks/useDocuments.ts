@@ -6,6 +6,7 @@ import {
   listDocuments,
   uploadDocument,
   deleteDocument,
+  reindexDocument,
 } from "@/lib/api";
 import { useStore } from "@/hooks/useStore";
 import { canUseWorkspaceApi } from "@/hooks/useAuthGate";
@@ -137,6 +138,38 @@ export function useDocuments() {
     [canAccessWorkspaceApi, removeDocument]
   );
 
+  const reindex = useCallback(
+    async (documentId: string) => {
+      if (!canAccessWorkspaceApi) {
+        setError("Sign in to re-index documents.");
+        return;
+      }
+
+      setError(null);
+      try {
+        const started = await reindexDocument(documentId);
+        if (started.document) {
+          addDocument(started.document);
+        }
+        for (let attempt = 0; attempt < 30; attempt++) {
+          await sleep(1000);
+          const job = await getIngestionJob(started.job_id);
+          if (job.document) {
+            addDocument(job.document);
+          }
+          if (job.status === "completed") break;
+          if (job.status === "failed") {
+            throw new Error(job.error_message || "Re-index failed");
+          }
+        }
+        await refresh({ suppressError: true });
+      } catch (err: unknown) {
+        setError(getErrorMessage(err, "Re-index failed"));
+      }
+    },
+    [addDocument, canAccessWorkspaceApi, refresh]
+  );
+
   return {
     documents,
     loading,
@@ -145,6 +178,7 @@ export function useDocuments() {
     refresh,
     upload,
     remove,
+    reindex,
     canAccessWorkspaceApi,
     authMode,
   };

@@ -16,6 +16,7 @@ from src.generation.memory import ConversationMemory, SessionMemoryStore
 from src.generation.prompts import PromptManager
 from src.generation.provider_keys import get_provider_key_manager
 from src.generation.router import LLMRouter, ModelPolicy, ProviderUsageLedger, UsageRecord
+from src.retrieval.cache import SemanticCache
 from src.retrieval.retriever import QueryType
 
 
@@ -347,3 +348,78 @@ class TestRAGChain:
         assert "workspace-a" in first["answer"]
         assert "workspace-b" in second["answer"]
         assert cached["from_cache"] is True
+
+    def test_cache_is_isolated_by_retrieval_filter_namespace(self, monkeypatch):
+        cache = SemanticCache(settings=Settings(_env_file=None, enable_cache=True))
+
+        class FakeEmbedder:
+            def embed_query(self, _query: str):
+                return [1.0, 0.0, 0.0]
+
+        cache._embedder = FakeEmbedder()
+        cache.set(
+            "What is the policy?",
+            {"answer": "Workspace answer"},
+            workspace_id="workspace-a",
+            namespace="workspace",
+        )
+
+        assert cache.get(
+            "What is the policy?",
+            workspace_id="workspace-a",
+            namespace="documents:doc-alpha",
+        ) is None
+        assert cache.get(
+            "What is the policy?",
+            workspace_id="workspace-a",
+            namespace="workspace",
+        )["answer"] == "Workspace answer"
+
+    def test_query_includes_answer_quality_metadata_and_filters(self, monkeypatch):
+        calls: list[dict] = []
+
+        class FakeRetriever:
+            def retrieve(self, *args, **kwargs):
+                calls.append(kwargs)
+                return {
+                    "documents": [
+                        Document(
+                            page_content="The policy requires invoice approval before payment.",
+                            metadata={
+                                "filename": "policy.pdf",
+                                "document_id": "doc-alpha",
+                                "page_number": 2,
+                                "score": 0.86,
+                            },
+                        )
+                    ],
+                    "query_type": QueryType.SPECIFIC,
+                    "k_used": 1,
+                    "transformed_queries": ["policy"],
+                }
+
+        class FakeLLM:
+            _model_name = "fake-model"
+
+            def invoke_messages(self, _messages):
+                return "The policy requires invoice approval before payment."
+
+        monkeypatch.setattr("src.generation.chain.get_llm_provider", lambda: FakeLLM())
+        chain = RAGChain(
+            vector_store=SimpleNamespace(),
+            settings=Settings(_env_file=None, enable_cache=True),
+        )
+        chain._retriever = FakeRetriever()
+
+        result = chain.query(
+            "What does the policy require?",
+            workspace_id="workspace-a",
+            retrieval_filters={"document_ids": ["doc-alpha"], "min_page": 2},
+        )
+
+        assert calls[0]["filters"] == {"document_ids": ["doc-alpha"], "min_page": 2}
+        assert result["metadata"]["retrieval_scope"] == "documents"
+        assert result["metadata"]["selected_document_ids"] == ["doc-alpha"]
+        assert result["metadata"]["answerability"] == "answerable"
+        assert result["metadata"]["source_quote_coverage"] > 0
+        assert result["metadata"]["citation_coverage"] == 1.0

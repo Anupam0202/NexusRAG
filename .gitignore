@@ -71,6 +71,8 @@ htmlcov/
 .tox/
 .nox/
 output/
+frontend/test-results/
+frontend/playwright-report/
 
 # ─── Logs ────────────────────────────────────────────────────
 *.log

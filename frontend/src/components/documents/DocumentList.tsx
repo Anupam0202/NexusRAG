@@ -10,6 +10,7 @@ interface Props {
   documents: DocumentMetadata[];
   loading: boolean;
   onDelete: (documentId: string) => void;
+  onReindex: (documentId: string) => void;
   onRefresh: () => void;
   onSelect: (document: DocumentMetadata) => void;
   disabledReason?: string;
@@ -19,6 +20,7 @@ export function DocumentList({
   documents,
   loading,
   onDelete,
+  onReindex,
   onRefresh,
   onSelect,
   disabledReason,
@@ -58,7 +60,7 @@ export function DocumentList({
         <div className="space-y-2">
           {documents.map((doc, i) => (
             <motion.article
-              key={doc.filename}
+              key={doc.document_id}
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.05, duration: 0.3 }}
@@ -98,6 +100,17 @@ export function DocumentList({
               >
                 <ExternalLink size={15} />
               </Link>
+              <button
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onReindex(doc.document_id);
+                }}
+                aria-label={`Re-index ${doc.filename}`}
+                title="Re-index"
+                className="rounded-lg p-2 text-[var(--text-muted)] transition hover:bg-[var(--bg-hover)] hover:text-brand-500 shrink-0"
+              >
+                <RefreshCw size={15} />
+              </button>
               <button
                 onClick={(event) => {
                   event.stopPropagation();

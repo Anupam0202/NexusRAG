@@ -8,6 +8,11 @@ import { canUseWorkspaceApi } from "@/hooks/useAuthGate";
 import type { QueryRequest, WSFrame, SourceChunk, UIMessage } from "@/types";
 import { generateId } from "@/lib/utils";
 
+export type ChatSendOptions = {
+  chatScope?: "workspace" | "documents";
+  documentIds?: string[];
+};
+
 export function useChat() {
   const store = useStore();
   const canAccessWorkspaceApi = canUseWorkspaceApi(store.authMode);
@@ -45,6 +50,7 @@ export function useChat() {
             typeof message.metadata.response_time_seconds === "number"
               ? message.metadata.response_time_seconds
               : undefined,
+          metadata: message.metadata,
         }));
         store.setMessages(restored);
       })
@@ -74,6 +80,7 @@ export function useChat() {
           queryType: frame.metadata?.query_type as string,
           confidence: frame.metadata?.confidence as number,
           responseTime: frame.metadata?.response_time_seconds as number,
+          metadata: frame.metadata,
         });
         currentAsstId.current = null;
         sourcesBuffer.current = [];
@@ -119,6 +126,7 @@ export function useChat() {
         queryType: response.query_type,
         confidence: response.confidence,
         responseTime: response.response_time_seconds,
+        metadata: response.metadata,
       });
       store.setConnectionStatus("online");
     } catch (err: unknown) {
@@ -155,7 +163,7 @@ export function useChat() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [handleFrame, canAccessWorkspaceApi, store.authMode]);
 
-  const sendMessage = useCallback((text: string) => {
+  const sendMessage = useCallback((text: string, options: ChatSendOptions = {}) => {
     if (!text.trim()) return;
     if (!canAccessWorkspaceApi) {
       return;
@@ -173,7 +181,12 @@ export function useChat() {
       question: text,
       session_id: store.sessionId,
       conversation_history: history,
+      chat_scope: options.chatScope ?? "workspace",
     };
+    if (options.documentIds?.length) {
+      request.document_ids = options.documentIds;
+      request.chat_scope = "documents";
+    }
 
     const sent = socketRef.current?.send(request) ?? false;
     if (!sent) {

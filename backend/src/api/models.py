@@ -155,6 +155,12 @@ class QueryRequest(BaseModel):
     conversation_history: list[ChatMessage] = Field(default_factory=list)
     top_k: int | None = None
     use_reranking: bool | None = None
+    chat_scope: Literal["workspace", "documents"] = "workspace"
+    document_ids: list[str] = Field(default_factory=list, max_length=25)
+    filename: str | None = Field(default=None, max_length=255)
+    min_page: int | None = Field(default=None, ge=0)
+    max_page: int | None = Field(default=None, ge=0)
+    uploaded_by: str | None = Field(default=None, max_length=128)
 
     model_config = {
         "json_schema_extra": {
@@ -227,8 +233,10 @@ class AnalyticsSummary(BaseModel):
     llm_fallbacks: int = 0
     llm_cache_hits: int = 0
     usage_avg_latency_ms: int = 0
+    usage_tokens_today: int = 0
     audit_events: int = 0
     last_activity_at: str | None = None
+    quota: dict[str, Any] = Field(default_factory=dict)
 
 
 class AuditEventResponse(BaseModel):
@@ -318,3 +326,8 @@ class SettingsResponse(BaseModel):
     enable_semantic_chunking: bool
     enable_contextual_enrichment: bool
     embedding_model: str
+    enforce_tenant_quotas: bool = True
+    quota_daily_queries: int = 0
+    quota_daily_tokens: int = 0
+    quota_max_documents: int = 0
+    quota_max_storage_mb: int = 0

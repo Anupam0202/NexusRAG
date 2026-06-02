@@ -49,7 +49,24 @@ export default function BillingOrUsagePage() {
   }, [canAccessWorkspaceApi]);
 
   const totalTokens = analytics?.llm_total_tokens ?? 0;
-  const usagePercent = Math.min(100, Math.round((totalTokens / FREE_WORKSPACE_TOKEN_BUDGET) * 100));
+  const tokensToday = analytics?.usage_tokens_today ?? totalTokens;
+  const quota = analytics?.quota;
+  const tokenLimit =
+    quota?.limits?.daily_tokens ??
+    status?.settings.quota_daily_tokens ??
+    FREE_WORKSPACE_TOKEN_BUDGET;
+  const queryLimit =
+    quota?.limits?.daily_queries ??
+    status?.settings.quota_daily_queries ??
+    1000;
+  const documentLimit =
+    quota?.limits?.max_documents ??
+    status?.settings.quota_max_documents ??
+    100;
+  const storageLimit =
+    quota?.limits?.max_storage_bytes ??
+    (status?.settings.quota_max_storage_mb ?? 1024) * 1024 * 1024;
+  const usagePercent = Math.min(100, Math.round((totalTokens / Math.max(tokenLimit, 1)) * 100));
   const avgLatency = analytics?.usage_avg_latency_ms ?? 0;
   const fallbackCount = analytics?.llm_fallbacks ?? 0;
   const failedCalls = analytics?.llm_error_events ?? 0;
@@ -113,26 +130,34 @@ export default function BillingOrUsagePage() {
         ) : (
           <div className="space-y-5">
             <div className="grid gap-3 md:grid-cols-4">
-              <UsageCard icon={<Zap size={16} />} label="LLM tokens" value={totalTokens.toLocaleString()} detail={`${usagePercent}% of free demo budget`} />
+              <UsageCard icon={<Zap size={16} />} label="LLM tokens" value={totalTokens.toLocaleString()} detail={`${usagePercent}% of daily budget`} />
               <UsageCard icon={<Activity size={16} />} label="LLM calls" value={(analytics?.llm_usage_events ?? 0).toLocaleString()} detail={`${analytics?.queries_today ?? 0} today`} />
               <UsageCard icon={<Gauge size={16} />} label="Avg latency" value={avgLatency ? `${avgLatency}ms` : "-"} detail={`${analytics?.llm_successful_events ?? 0} successful`} />
               <UsageCard icon={<AlertTriangle size={16} />} label="Fallbacks" value={fallbackCount.toLocaleString()} detail={`${failedCalls} provider errors`} />
             </div>
 
-            <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
-              <div className="mb-2 flex items-center justify-between gap-3">
-                <p className="text-sm font-semibold">Workspace Token Budget</p>
-                <p className="text-xs text-[var(--text-muted)]">{usagePercent}%</p>
-              </div>
-              <div className="h-2 rounded-full bg-[var(--bg-secondary)]">
-                <div
-                  className="h-2 rounded-full bg-brand-500"
-                  style={{ width: `${usagePercent}%` }}
-                />
-              </div>
-              <p className="mt-2 text-xs leading-5 text-[var(--text-muted)]">
-                The free-first budget is a local planning guard. Production billing should mirror these usage events into your billing provider.
-              </p>
+            <div className="grid gap-3 md:grid-cols-2">
+              <QuotaMeter
+                label="Daily queries"
+                used={quota?.usage?.queries_today ?? analytics?.queries_today ?? 0}
+                limit={queryLimit}
+              />
+              <QuotaMeter
+                label="Daily tokens"
+                used={quota?.usage?.tokens_today ?? tokensToday}
+                limit={tokenLimit}
+              />
+              <QuotaMeter
+                label="Documents"
+                used={quota?.usage?.documents ?? analytics?.total_documents ?? 0}
+                limit={documentLimit}
+              />
+              <QuotaMeter
+                label="Storage"
+                used={quota?.usage?.storage_bytes ?? 0}
+                limit={storageLimit}
+                formatter={formatBytesShort}
+              />
             </div>
 
             <div className="grid gap-3 md:grid-cols-3">
@@ -175,6 +200,41 @@ export default function BillingOrUsagePage() {
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+function formatBytesShort(value: number) {
+  if (value >= 1024 * 1024 * 1024) return `${(value / (1024 * 1024 * 1024)).toFixed(1)} GB`;
+  if (value >= 1024 * 1024) return `${(value / (1024 * 1024)).toFixed(1)} MB`;
+  if (value >= 1024) return `${(value / 1024).toFixed(1)} KB`;
+  return `${value} B`;
+}
+
+function QuotaMeter({
+  label,
+  used,
+  limit,
+  formatter = (value: number) => value.toLocaleString(),
+}: {
+  label: string;
+  used: number;
+  limit: number;
+  formatter?: (value: number) => string;
+}) {
+  const percent = limit > 0 ? Math.min(100, Math.round((used / limit) * 100)) : used > 0 ? 100 : 0;
+  return (
+    <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
+      <div className="mb-2 flex items-center justify-between gap-3">
+        <p className="text-sm font-semibold">{label}</p>
+        <p className="text-xs text-[var(--text-muted)]">{percent}%</p>
+      </div>
+      <div className="h-2 rounded-full bg-[var(--bg-secondary)]">
+        <div className="h-2 rounded-full bg-brand-500" style={{ width: `${percent}%` }} />
+      </div>
+      <p className="mt-2 text-xs text-[var(--text-muted)]">
+        {formatter(used)} / {formatter(limit)}
+      </p>
     </div>
   );
 }

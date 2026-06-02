@@ -36,6 +36,7 @@ from src.api.dependencies import get_rag_chain
 from src.infrastructure.supabase_client import get_supabase_client
 from src.repositories.messages import MessageRepository
 from src.telemetry.events import estimate_tokens, get_telemetry_recorder
+from src.tenancy.quotas import QuotaExceededError, TenantQuotaEnforcer
 from src.utils.logger import get_logger
 from src.utils.tenant import normalize_workspace_id
 
@@ -57,6 +58,32 @@ def _valid_chat_session_id(session_id: str | None) -> str | None:
 def _chat_title(question: str) -> str:
     title = " ".join(question.split())
     return (title[:77] + "...") if len(title) > 80 else title
+
+
+def _stream_retrieval_filters(data: dict) -> dict:
+    filters: dict = {}
+    raw_ids = data.get("document_ids") or []
+    if data.get("chat_scope") == "documents" or raw_ids:
+        document_ids = [
+            str(item).strip()
+            for item in (raw_ids if isinstance(raw_ids, list) else [raw_ids])
+            if str(item).strip()
+        ]
+        if document_ids:
+            filters["document_ids"] = sorted(set(document_ids))
+    filename = str(data.get("filename") or "").strip()
+    if filename:
+        filters["filename"] = filename
+    uploaded_by = str(data.get("uploaded_by") or "").strip()
+    if uploaded_by:
+        filters["uploaded_by"] = uploaded_by
+    for key in ("min_page", "max_page"):
+        try:
+            if data.get(key) is not None:
+                filters[key] = int(data[key])
+        except (TypeError, ValueError):
+            continue
+    return filters
 
 
 async def _persist_stream_history(
@@ -256,12 +283,22 @@ async def chat_stream(ws: WebSocket) -> None:
             history_token_parts = [
                 str(m.get("content", "")) for m in history if isinstance(m, dict)
             ]
+            retrieval_filters = _stream_retrieval_filters(data)
+            estimated_input_tokens = estimate_tokens(question, *history_token_parts)
             answer_parts: list[str] = []
             sources_count = 0
             sources_payload: list[dict] = []
             done_metadata: dict = {}
 
             try:
+                quota_usage = await TenantQuotaEnforcer(settings).usage(
+                    workspace_id=workspace_id,
+                    persist=persist_event,
+                )
+                TenantQuotaEnforcer(settings).assert_chat_allowed(
+                    quota_usage,
+                    estimated_tokens=estimated_input_tokens,
+                )
                 async for frame in chain.stream(
                     question,
                     workspace_id=workspace_id,
@@ -269,6 +306,7 @@ async def chat_stream(ws: WebSocket) -> None:
                     conversation_history=history_dicts,
                     top_k=data.get("top_k"),
                     use_reranking=data.get("use_reranking"),
+                    retrieval_filters=retrieval_filters or None,
                 ):
                     if frame.get("type") == "token":
                         answer_parts.append(str(frame.get("content", "")))
@@ -316,6 +354,8 @@ async def chat_stream(ws: WebSocket) -> None:
                         "history_messages": len(history or []),
                         "top_k": data.get("top_k"),
                         "use_reranking": data.get("use_reranking"),
+                        "chat_scope": data.get("chat_scope", "workspace"),
+                        "retrieval_filters": retrieval_filters,
                         "query_type": done_metadata.get("query_type", "general"),
                         "source_count": sources_count or done_metadata.get("num_sources", 0),
                         "cache_hit": cache_hit,
@@ -338,6 +378,24 @@ async def chat_stream(ws: WebSocket) -> None:
             except WebSocketDisconnect:
                 logger.info("websocket_disconnected_during_stream")
                 return
+            except QuotaExceededError as exc:
+                await telemetry.record_audit_event(
+                    workspace_id=workspace_id,
+                    user_id=workspace.user.id if workspace else None,
+                    action="quota.chat_stream_blocked",
+                    resource_type="chat_session",
+                    resource_id=str(session_id),
+                    metadata={"reason": str(exc), "quota": exc.payload},
+                    persist=persist_event,
+                )
+                await _safe_send(
+                    ws,
+                    {
+                        "type": "error",
+                        "content": str(exc),
+                        "error_code": "QUOTA_EXCEEDED",
+                    },
+                )
             except Exception as exc:
                 err_msg = str(exc)
                 if not err_msg:

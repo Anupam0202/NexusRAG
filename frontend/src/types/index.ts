@@ -97,6 +97,12 @@ export interface QueryRequest {
   conversation_history?: ChatMessage[];
   top_k?: number;
   use_reranking?: boolean;
+  chat_scope?: "workspace" | "documents";
+  document_ids?: string[];
+  filename?: string;
+  min_page?: number;
+  max_page?: number;
+  uploaded_by?: string;
 }
 
 export interface QueryResponse {
@@ -161,6 +167,11 @@ export interface AppSettings {
   enable_semantic_chunking: boolean;
   enable_contextual_enrichment: boolean;
   embedding_model: string;
+  enforce_tenant_quotas?: boolean;
+  quota_daily_queries?: number;
+  quota_daily_tokens?: number;
+  quota_max_documents?: number;
+  quota_max_storage_mb?: number;
 }
 
 export interface SettingsUpdate {
@@ -248,8 +259,15 @@ export interface AnalyticsSummary {
   llm_fallbacks?: number;
   llm_cache_hits?: number;
   usage_avg_latency_ms?: number;
+  usage_tokens_today?: number;
   audit_events?: number;
   last_activity_at?: string | null;
+  quota?: {
+    enforced?: boolean;
+    limits?: Record<string, number>;
+    usage?: Record<string, number>;
+    remaining?: Record<string, number>;
+  };
 }
 
 export interface AuditEvent {
@@ -346,6 +364,11 @@ export interface SystemStatusSettings {
   enable_pgvector_fallback?: boolean;
   enable_local_faiss?: boolean;
   enable_async_ingestion?: boolean;
+  enforce_tenant_quotas?: boolean;
+  quota_daily_queries?: number;
+  quota_daily_tokens?: number;
+  quota_max_documents?: number;
+  quota_max_storage_mb?: number;
 }
 
 export interface SystemCapabilities {
@@ -391,4 +414,5 @@ export interface UIMessage extends ChatMessage {
   confidence?: number;
   responseTime?: number;
   isStreaming?: boolean;
+  metadata?: Record<string, unknown>;
 }
