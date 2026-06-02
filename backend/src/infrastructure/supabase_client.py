@@ -158,6 +158,27 @@ class SupabaseClient:
             data = response.json() if response.content else []
             return data if isinstance(data, list) else [data]
 
+    async def rpc(
+        self,
+        function_name: str,
+        payload: dict[str, Any],
+        *,
+        service_role: bool = True,
+    ) -> Any:
+        """Call a Supabase PostgREST RPC function."""
+        self.require_configured()
+        url = f"{self.config.url}/rest/v1/rpc/{function_name}"
+        async with httpx.AsyncClient(timeout=60) as client:
+            response = await client.post(
+                url,
+                json=payload,
+                headers=self.auth_headers(service_role=service_role),
+            )
+            response.raise_for_status()
+            if not response.content:
+                return []
+            return response.json()
+
     async def upload_object(
         self,
         path: str,

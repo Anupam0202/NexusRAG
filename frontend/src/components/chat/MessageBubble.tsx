@@ -1,5 +1,6 @@
 "use client";
 
+import type { AnchorHTMLAttributes, ReactNode } from "react";
 import { useState } from "react";
 import type { UIMessage } from "@/types";
 import ReactMarkdown from "react-markdown";
@@ -64,7 +65,12 @@ export function MessageBubble({ message, onShowSources }: Props) {
               <TypingIndicator />
             ) : (
               <div className="chat-prose text-sm">
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>{cleanContent(message.content)}</ReactMarkdown>
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm]}
+                  components={{ a: SafeMarkdownLink }}
+                >
+                  {cleanContent(message.content)}
+                </ReactMarkdown>
                 {message.isStreaming && message.content && (
                   <span className="inline-block w-1.5 h-4 ml-0.5 bg-brand-500 animate-pulse rounded-sm align-text-bottom" />
                 )}
@@ -155,7 +161,41 @@ function cleanContent(text: string): string {
   return text.replace(/\[Source\s*\d+(?:\s*[,|]\s*Page\s*\d+)?\]/gi, "").replace(/\s{2,}/g, " ");
 }
 
-function Badge({ icon, text }: { icon: React.ReactNode; text: string }) {
+function safeHref(href?: string) {
+  if (!href) return null;
+  if (href.startsWith("/") || href.startsWith("#")) return href;
+  try {
+    const url = new URL(href);
+    if (["http:", "https:", "mailto:"].includes(url.protocol)) return url.toString();
+  } catch {
+    return null;
+  }
+  return null;
+}
+
+function SafeMarkdownLink({
+  href,
+  children,
+  ...props
+}: AnchorHTMLAttributes<HTMLAnchorElement>) {
+  const safe = safeHref(href);
+  if (!safe) {
+    return <span>{children}</span>;
+  }
+  const external = safe.startsWith("http://") || safe.startsWith("https://");
+  return (
+    <a
+      {...props}
+      href={safe}
+      target={external ? "_blank" : undefined}
+      rel={external ? "noopener noreferrer nofollow" : undefined}
+    >
+      {children}
+    </a>
+  );
+}
+
+function Badge({ icon, text }: { icon: ReactNode; text: string }) {
   return (
     <span className="flex items-center gap-1 rounded-full bg-[var(--bg-secondary)] px-2 py-0.5 text-[11px] font-medium text-[var(--text-muted)]">
       {icon}{text}

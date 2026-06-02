@@ -51,6 +51,7 @@ desktop.ini
 # ─── Data & Storage (runtime artifacts) ─────────────────────
 backend/data/*
 !backend/data/.gitkeep
+data/
 backend/data/vector_store/
 backend/data/scientific_output/
 *.faiss
@@ -74,6 +75,7 @@ output/
 # ─── Logs ────────────────────────────────────────────────────
 *.log
 logs/
+.codex-logs/
 
 # ─── Node / Next.js ──────────────────────────────────────────
 node_modules/

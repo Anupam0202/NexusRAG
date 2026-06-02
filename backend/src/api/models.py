@@ -288,6 +288,7 @@ class SystemStatusResponse(BaseModel):
     cache: dict[str, Any] = Field(default_factory=dict)
     settings: dict[str, Any] = Field(default_factory=dict)
     capabilities: dict[str, bool] = Field(default_factory=dict)
+    provider_health: list[dict[str, Any]] = Field(default_factory=list)
 
 
 # ── Settings ──────────────────────────────────────────────────────────────
