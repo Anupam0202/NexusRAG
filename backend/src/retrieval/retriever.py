@@ -132,6 +132,7 @@ class HybridRetriever:
         history: list[dict[str, str]] | None = None,
         top_k: int | None = None,
         use_reranking: bool | None = None,
+        filters: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Full retrieval pipeline.
 
@@ -161,7 +162,12 @@ class HybridRetriever:
         # 3. Retrieve for every query variant
         all_hits: list[SearchHit] = []
         for q in queries:
-            hits = self._store.search(q, top_k=effective_k, workspace_id=workspace_id)
+            hits = self._store.search(
+                q,
+                top_k=effective_k,
+                workspace_id=workspace_id,
+                filters=filters,
+            )
             all_hits.extend(hits)
 
         # 4. Deduplicate
@@ -201,6 +207,7 @@ class HybridRetriever:
             docs_returned=len(docs),
             reranked=should_rerank,
             workspace_id=workspace_id,
+            filters=filters or {},
         )
 
         return {

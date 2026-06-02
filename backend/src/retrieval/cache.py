@@ -32,6 +32,7 @@ class CacheEntry:
 
     query: str
     workspace_id: str
+    namespace: str
     query_embedding: np.ndarray
     response: dict[str, Any]
     created_at: float = field(default_factory=time.time)
@@ -70,7 +71,13 @@ class SemanticCache:
         self.hits = 0
         self.misses = 0
 
-    def get(self, query: str, *, workspace_id: str | None = None) -> dict[str, Any] | None:
+    def get(
+        self,
+        query: str,
+        *,
+        workspace_id: str | None = None,
+        namespace: str = "workspace",
+    ) -> dict[str, Any] | None:
         """Look up a semantically similar cached response.
 
         Returns:
@@ -90,6 +97,8 @@ class SemanticCache:
         with self._lock:
             for entry in self._entries:
                 if entry.workspace_id != scoped_workspace_id:
+                    continue
+                if entry.namespace != namespace:
                     continue
                 # TTL check
                 if now - entry.created_at > self._ttl:
@@ -116,6 +125,7 @@ class SemanticCache:
         response: dict[str, Any],
         *,
         workspace_id: str | None = None,
+        namespace: str = "workspace",
     ) -> None:
         """Store a query–response pair in the cache."""
         if not self._enabled:
@@ -125,6 +135,7 @@ class SemanticCache:
         entry = CacheEntry(
             query=query,
             workspace_id=normalize_workspace_id(workspace_id),
+            namespace=namespace,
             query_embedding=q_emb,
             response=response,
         )
@@ -162,6 +173,7 @@ class SemanticCache:
         total = self.hits + self.misses
         return {
             "entries": len(self._entries),
+            "namespaces": sorted({entry.namespace for entry in self._entries}),
             "hits": self.hits,
             "misses": self.misses,
             "hit_rate": round(self.hits / total * 100, 1) if total else 0.0,

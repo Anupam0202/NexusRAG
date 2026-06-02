@@ -117,6 +117,22 @@ export async function getDocumentIngestionStatus(
   return request(`/api/v1/documents/${encodeURIComponent(documentId)}/status`);
 }
 
+export async function reindexDocument(
+  documentId: string
+): Promise<IngestionJobStatusResponse> {
+  return request(`/api/v1/documents/${encodeURIComponent(documentId)}/reindex`, {
+    method: "POST",
+  });
+}
+
+export async function retryIngestionJob(
+  jobId: string
+): Promise<IngestionJobStatusResponse> {
+  return request(`/api/v1/documents/jobs/${encodeURIComponent(jobId)}/retry`, {
+    method: "POST",
+  });
+}
+
 export async function getDocumentChunks(
   documentId: string,
   options: { search?: string; limit?: number } = {}

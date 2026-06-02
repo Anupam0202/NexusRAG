@@ -24,6 +24,8 @@ import {
   deleteDocument,
   getDocumentIngestionStatus,
   listDocuments,
+  reindexDocument,
+  retryIngestionJob,
 } from "@/lib/api";
 import { cn, formatBytes, timeAgo } from "@/lib/utils";
 import { useStore } from "@/hooks/useStore";
@@ -86,6 +88,7 @@ export default function DocumentDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [reindexing, setReindexing] = useState(false);
 
   const loadDocument = useCallback(async () => {
     if (!canAccessWorkspaceApi) return;
@@ -185,6 +188,36 @@ export default function DocumentDetailPage() {
     }
   };
 
+  const handleReindex = async () => {
+    if (!canAccessWorkspaceApi || !document) return;
+    setReindexing(true);
+    setError(null);
+    try {
+      const nextJob = await reindexDocument(document.document_id);
+      setJob(nextJob);
+      await loadDocument();
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Unable to re-index document");
+    } finally {
+      setReindexing(false);
+    }
+  };
+
+  const handleRetry = async () => {
+    if (!canAccessWorkspaceApi || !job) return;
+    setReindexing(true);
+    setError(null);
+    try {
+      const nextJob = await retryIngestionJob(job.job_id);
+      setJob(nextJob);
+      await loadDocument();
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Unable to retry ingestion");
+    } finally {
+      setReindexing(false);
+    }
+  };
+
   if (!canAccessWorkspaceApi) {
     return (
       <div className="h-full overflow-y-auto">
@@ -272,6 +305,15 @@ export default function DocumentDetailPage() {
             >
               <RefreshCw size={15} className={cn(refreshing && "animate-spin")} />
               Refresh
+            </button>
+            <button
+              type="button"
+              onClick={() => void handleReindex()}
+              disabled={reindexing}
+              className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] px-3 py-2 text-sm font-semibold text-[var(--text-secondary)] transition hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] disabled:opacity-50"
+            >
+              {reindexing ? <Loader2 size={15} className="animate-spin" /> : <RefreshCw size={15} />}
+              Re-index
             </button>
             <button
               type="button"
@@ -387,6 +429,17 @@ export default function DocumentDetailPage() {
             <div className="mt-4 rounded-xl border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-300">
               {job.error_message}
             </div>
+          )}
+          {job?.status === "failed" && (
+            <button
+              type="button"
+              onClick={() => void handleRetry()}
+              disabled={reindexing}
+              className="mt-4 inline-flex items-center gap-2 rounded-xl bg-brand-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-500 disabled:opacity-50"
+            >
+              {reindexing ? <Loader2 size={15} className="animate-spin" /> : <RefreshCw size={15} />}
+              Retry ingestion
+            </button>
           )}
         </section>
 

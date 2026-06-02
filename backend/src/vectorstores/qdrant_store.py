@@ -68,7 +68,16 @@ class QdrantVectorStore:
             for key, value in extra_filters.items():
                 if value is None:
                     continue
-                must.append({"key": key, "match": {"value": value}})
+                if isinstance(value, dict) and any(
+                    bound in value for bound in ("gt", "gte", "lt", "lte")
+                ):
+                    must.append({"key": key, "range": value})
+                elif isinstance(value, (list, tuple, set)):
+                    values = [item for item in value if item is not None]
+                    if values:
+                        must.append({"key": key, "match": {"any": values}})
+                else:
+                    must.append({"key": key, "match": {"value": value}})
         return {"must": must}
 
     @staticmethod

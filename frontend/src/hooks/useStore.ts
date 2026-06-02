@@ -31,6 +31,7 @@ interface AppState {
     queryType?: string;
     confidence?: number;
     responseTime?: number;
+    metadata?: Record<string, unknown>;
   }) => void;
   setError: (id: string, error: string) => void;
   clearMessages: () => void;

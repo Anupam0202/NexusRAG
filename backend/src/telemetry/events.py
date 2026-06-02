@@ -336,6 +336,11 @@ class TelemetryRecorder:
             "usage_queries_today": sum(
                 1 for event in usage_events if event.created_at.date().isoformat() == today
             ),
+            "usage_tokens_today": sum(
+                event.input_tokens + event.output_tokens
+                for event in usage_events
+                if event.created_at.date().isoformat() == today
+            ),
             "audit_events": len(audit_events),
             "last_activity_at": last_activity.isoformat() if last_activity else None,
         }
@@ -382,6 +387,11 @@ class TelemetryRecorder:
             ),
             "usage_queries_today": sum(
                 1 for value in usage_dates if value and value.date().isoformat() == today
+            ),
+            "usage_tokens_today": sum(
+                int(row.get("input_tokens") or 0) + int(row.get("output_tokens") or 0)
+                for row, value in zip(usage_rows, usage_dates, strict=False)
+                if value and value.date().isoformat() == today
             ),
             "audit_events": len(audit_rows),
             "last_activity_at": last_activity.isoformat() if last_activity else None,

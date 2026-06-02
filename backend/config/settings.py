@@ -224,6 +224,16 @@ class Settings(BaseSettings):
         description="Return upload requests immediately and process ingestion in background tasks",
     )
 
+    # ── Tenant Quotas ─────────────────────────────────────────────────────────
+    enforce_tenant_quotas: bool = Field(
+        default=True,
+        description="Enforce workspace query, token, document, and storage budgets.",
+    )
+    quota_daily_queries: int = Field(default=1000, ge=0)
+    quota_daily_tokens: int = Field(default=250_000, ge=0)
+    quota_max_documents: int = Field(default=100, ge=0)
+    quota_max_storage_mb: int = Field(default=1024, ge=0)
+
     # ── Context / Memory ──────────────────────────────────────────────────
     context_window_messages: int = Field(
         default=10,
