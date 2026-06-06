@@ -359,7 +359,7 @@ NexusRAG/
 | `QDRANT_API_KEY` | empty | Qdrant API key when `QDRANT_URL` is configured |
 | `QDRANT_COLLECTION` | `nexusrag_chunks` | Qdrant collection name |
 | `ENABLE_QDRANT` | `false` | Enables Qdrant adapter when endpoint/key are ready |
-| `ENABLE_PGVECTOR_FALLBACK` | `false` | Reserved for a future Supabase pgvector migration |
+| `ENABLE_PGVECTOR_FALLBACK` | `false` | Use Supabase pgvector when Qdrant is unavailable |
 | `ENABLE_LOCAL_FAISS` | `true` | Allows local FAISS fallback for local/demo environments |
 | `API_CORS_ORIGINS` | `localhost:3000` | Allowed CORS origins |
 | `ENABLE_CACHE` | `true` | Semantic query cache |

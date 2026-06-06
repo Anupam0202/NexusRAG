@@ -55,16 +55,24 @@ NexusRAG is a multi-tenant RAG platform with a Next.js frontend on Vercel and a 
 - Render/Vercel environment alignment, backend status surface, provider health surface, and vector backend status display.
 - Upload validation, file type magic-byte checks, prompt sanitization, PII redaction, rate limiting, JWT validation, and safe markdown links.
 - First-class signup page and billing/usage page with quota, provider key, vector backend, cache, and provider health posture.
+- Workspace member administration with owner protection, role-aware controls, and membership audit events.
+- Workspace-wide and multi-document chat modes with filename, file-type, uploader, and page filters.
+- Uploaded-date and arbitrary metadata retrieval filters across REST, WebSocket, Qdrant, pgvector, and local retrieval.
+- Chat export in Markdown and JSON, privacy controls, and guarded workspace document cleanup.
+- Original document deletion from Supabase Storage alongside metadata, chunks, and vectors.
+- Production CSP/security headers and Qdrant payload indexes for filtered retrieval.
+- Durable provider health snapshots alongside the append-only LLM usage ledger.
+- Workspace-scoped embedding, retrieval, semantic-answer, and contextual-enrichment caches.
+- Structured per-request logging envelopes with request, workspace, user, provider, model, token, fallback, job, and document context.
 - Async ingestion worker script and migration scripts for FAISS-to-Qdrant, legacy store quarantine, and metadata backfill.
-- Backend tests covering routing, pgvector behavior, security contracts, generation fallback primitives, ingestion validation, and API behavior.
+- Backend and frontend tests covering routing, pgvector behavior, security contracts, generation fallback primitives, ingestion validation, safe links, chat filters, and export behavior.
 
 ## Remaining Roadmap Actions
 
-- Persist provider health and usage ledger entries as durable billing/quota records instead of only in-memory runtime guards.
-- Enforce hard tenant plan quotas across upload count, bytes, documents, chunks, tokens, and requests.
-- Add full cache suite with explicit invalidation: embedding cache, parse cache, chunk cache, retrieval cache, answer cache, and source verification cache.
-- Add selected-document chat mode, document/date/uploader/page filters in the UI, and workspace-wide versus selected-document toggles.
-- Add answerability detection, source quote verification, citation coverage scoring, and low-confidence UI states.
-- Add member management, privacy controls, danger-zone UX, export chat, reindex controls, and richer provider health drilldowns.
-- Add committed frontend unit/integration tests and Playwright E2E for signup/login, two users, two workspaces, upload, ingestion, chat, citations, deletion, and quota fallback.
+- Add plan-specific quota configuration and durable billing reconciliation beyond the current hard global workspace quotas.
+- Add the remaining parse, chunk, and source-verification caches with explicit invalidation.
+- Restore persisted provider-health circuit state into the router after backend restarts.
+- Add a durable production scheduler/queue beyond the current durable job table and worker script.
+- Expand privacy controls into configurable retention schedules and full workspace deletion.
+- Expand committed frontend tests and authenticated Playwright E2E for two users, two workspaces, upload, ingestion, chat, citations, deletion, and quota fallback.
 - Run a production authenticated E2E once the deployed frontend and available Supabase admin project are the same project.

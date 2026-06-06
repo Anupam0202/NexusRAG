@@ -13,7 +13,11 @@ This is the main entry-point for the generation layer.
 
 from __future__ import annotations
 
+import copy
+import hashlib
+import json
 import re
+import time
 from collections import defaultdict
 from enum import StrEnum
 from typing import Any
@@ -123,6 +127,9 @@ class HybridRetriever:
         self._transformer = QueryTransformer(settings=s)
         self._enable_rerank = s.enable_reranking
         self._rerank_top_k = s.rerank_top_k
+        self._cache_enabled = s.enable_cache
+        self._cache_ttl = s.cache_ttl_seconds
+        self._cache: dict[str, tuple[float, str, dict[str, Any]]] = {}
 
     def retrieve(
         self,
@@ -141,6 +148,19 @@ class HybridRetriever:
             ``transformed_queries``.
         """
         # 1. Classify query type → adaptive K
+        cache_key = self._cache_key(
+            query=query,
+            workspace_id=workspace_id,
+            history=history,
+            top_k=top_k,
+            use_reranking=use_reranking,
+            filters=filters,
+        )
+        cached = self._cache_get(cache_key)
+        if cached is not None:
+            cached["retrieval_cache_hit"] = True
+            return cached
+
         query_type = classify_query(query)
         effective_k = top_k or _K_BY_TYPE.get(query_type, self._default_k)
         count_chunks = getattr(self._store, "count_chunks", None)
@@ -210,9 +230,77 @@ class HybridRetriever:
             filters=filters or {},
         )
 
-        return {
+        result = {
             "documents": docs,
             "query_type": query_type,
             "k_used": effective_k,
             "transformed_queries": queries,
+            "retrieval_cache_hit": False,
         }
+        self._cache_set(cache_key, workspace_id=workspace_id, value=result)
+        return result
+
+    def clear_cache(self, *, workspace_id: str | None = None) -> None:
+        if workspace_id is None:
+            self._cache.clear()
+            return
+        self._cache = {
+            key: entry
+            for key, entry in self._cache.items()
+            if entry[1] != workspace_id
+        }
+
+    @staticmethod
+    def _cache_key(
+        *,
+        query: str,
+        workspace_id: str | None,
+        history: list[dict[str, str]] | None,
+        top_k: int | None,
+        use_reranking: bool | None,
+        filters: dict[str, Any] | None,
+    ) -> str:
+        payload = json.dumps(
+            {
+                "workspace_id": workspace_id or "default",
+                "query": " ".join(query.lower().split()),
+                "history": history or [],
+                "top_k": top_k,
+                "use_reranking": use_reranking,
+                "filters": filters or {},
+            },
+            sort_keys=True,
+            separators=(",", ":"),
+            default=str,
+        )
+        return hashlib.sha256(payload.encode()).hexdigest()
+
+    def _cache_get(self, key: str) -> dict[str, Any] | None:
+        if not self._cache_enabled:
+            return None
+        entry = self._cache.get(key)
+        if not entry:
+            return None
+        expires_at, _workspace_id, value = entry
+        if expires_at <= time.monotonic():
+            self._cache.pop(key, None)
+            return None
+        return copy.deepcopy(value)
+
+    def _cache_set(
+        self,
+        key: str,
+        *,
+        workspace_id: str | None,
+        value: dict[str, Any],
+    ) -> None:
+        if not self._cache_enabled:
+            return
+        self._cache[key] = (
+            time.monotonic() + self._cache_ttl,
+            workspace_id or "default",
+            copy.deepcopy(value),
+        )
+        if len(self._cache) > 512:
+            oldest = next(iter(self._cache))
+            self._cache.pop(oldest, None)

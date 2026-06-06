@@ -21,6 +21,7 @@ from __future__ import annotations
 import asyncio
 import gc
 import io
+import re
 import tempfile
 import time
 import uuid
@@ -87,6 +88,7 @@ from src.repositories.documents import (
 )
 from src.repositories.jobs import IngestionJobRepository
 from src.repositories.messages import MessageRepository
+from src.repositories.provider_health import persist_provider_health_snapshot
 from src.repositories.settings import WorkspaceSettingsRepository
 from src.retrieval.vector_store import VectorStoreManager
 from src.telemetry.events import estimate_tokens, get_telemetry_recorder
@@ -201,8 +203,38 @@ def _chat_retrieval_filters(body: QueryRequest) -> dict[str, Any]:
             filters["document_ids"] = sorted(set(document_ids))
     if body.filename:
         filters["filename"] = body.filename.strip()
+    file_types = [item.strip().lower().lstrip(".") for item in body.file_types if item.strip()]
+    if file_types:
+        filters["file_types"] = sorted(set(file_types))
     if body.uploaded_by:
         filters["uploaded_by"] = body.uploaded_by.strip()
+    if body.uploaded_after:
+        filters["uploaded_after_epoch"] = int(body.uploaded_after.timestamp())
+    if body.uploaded_before:
+        filters["uploaded_before_epoch"] = int(body.uploaded_before.timestamp())
+    if (
+        filters.get("uploaded_after_epoch") is not None
+        and filters.get("uploaded_before_epoch") is not None
+        and int(filters["uploaded_before_epoch"]) < int(filters["uploaded_after_epoch"])
+    ):
+        raise HTTPException(422, "uploaded_before must be greater than or equal to uploaded_after.")
+    if body.metadata_filters:
+        invalid_keys = [
+            key
+            for key in body.metadata_filters
+            if not re.fullmatch(r"[A-Za-z0-9_.-]{1,64}", key)
+        ]
+        if invalid_keys:
+            raise HTTPException(
+                422,
+                "Metadata filter keys may contain only letters, numbers, dots, underscores, "
+                "and dashes.",
+            )
+        filters["metadata"] = {
+            key: value
+            for key, value in body.metadata_filters.items()
+            if key and len(key) <= 64
+        }
     if body.min_page is not None:
         filters["min_page"] = body.min_page
     if body.max_page is not None:
@@ -440,6 +472,17 @@ def _safe_int(value: Any, *, default: int = 0) -> int:
         return int(value)
     except (TypeError, ValueError):
         return default
+
+
+def _datetime_epoch(value: Any) -> int:
+    if isinstance(value, datetime):
+        return int(value.timestamp())
+    if isinstance(value, str) and value:
+        try:
+            return int(datetime.fromisoformat(value.replace("Z", "+00:00")).timestamp())
+        except ValueError:
+            pass
+    return int(datetime.now(UTC).timestamp())
 
 
 def _row_to_document_metadata(row: dict[str, Any]) -> DocumentMetadata:
@@ -942,6 +985,18 @@ async def _process_enterprise_upload_job_background(**kwargs) -> None:
             doc_meta, chunks = processed
         else:
             doc_meta, chunks = processed, []
+        document_row = await DocumentRepository().get_document(
+            workspace_id=kwargs["workspace_id"],
+            document_id=document_id,
+        )
+        uploaded_at_epoch = _datetime_epoch(
+            document_row.get("created_at") if document_row else None
+        )
+        uploaded_by = _context_user_id(workspace)
+        for chunk in chunks:
+            chunk.metadata.setdefault("uploaded_at_epoch", uploaded_at_epoch)
+            if uploaded_by:
+                chunk.metadata.setdefault("uploaded_by", uploaded_by)
         await _sync_qdrant_chunks(
             settings=settings,
             workspace_id=kwargs["workspace_id"],
@@ -1561,6 +1616,25 @@ async def delete_document(
             )
         if document_row:
             durable_document_id = str(document_row.get("id") or document_identifier)
+            storage_path = str(document_row.get("storage_path") or "")
+            if storage_path:
+                try:
+                    await doc_repo.delete_original(
+                        workspace_id=workspace_id,
+                        document_id=durable_document_id,
+                        storage_path=storage_path,
+                    )
+                except Exception as exc:
+                    logger.warning(
+                        "document_storage_delete_failed",
+                        workspace_id=workspace_id,
+                        document_id=durable_document_id,
+                        error=str(exc)[:300],
+                    )
+                    raise HTTPException(
+                        502,
+                        "Unable to delete the original document from private storage.",
+                    ) from exc
             await ChunkRepository().delete_document_chunks(
                 workspace_id=workspace_id,
                 document_id=durable_document_id,
@@ -1671,6 +1745,11 @@ async def chat(
             error_code=type(exc).__name__,
             persist=persist_event,
         )
+        await persist_provider_health_snapshot(
+            chain,
+            workspace_id=workspace_id,
+            persist=persist_event,
+        )
         await _record_audit_event(
             workspace=workspace,
             settings=settings,
@@ -1712,6 +1791,11 @@ async def chat(
         error_code=(
             "cache_hit" if cache_hit else "generation_fallback" if generation_fallback else None
         ),
+        persist=persist_event,
+    )
+    await persist_provider_health_snapshot(
+        chain,
+        workspace_id=workspace_id,
         persist=persist_event,
     )
     await _record_audit_event(

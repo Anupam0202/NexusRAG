@@ -11,9 +11,13 @@ NexusRAG is designed around tenant isolation, durable auth context, and defensiv
 - Filename sanitization to strip paths, dangerous characters, and control characters.
 - Prompt-injection pattern detection and strict sanitization support.
 - PII redaction helpers for emails, phone numbers, SSNs, and card-like values.
-- Per-IP rate limiting middleware.
+- Per-IP rate limiting middleware that does not trust caller-supplied identity headers.
 - BYOK provider keys are handled server-side and raw keys are not returned to the browser.
 - Markdown links in chat responses are restricted to relative, hash, `http`, `https`, and `mailto` links with safe external-link attributes.
+- Vercel responses include CSP, HSTS, frame denial, restrictive permissions policy, and content-type/referrer protections.
+- Deleting a document also deletes its private Supabase Storage original before removing durable chunks and vectors.
+- Workspace owner membership cannot be removed or downgraded; admins cannot manage other admins.
+- Workspace ownership, plan, document identity, and storage identity fields are immutable to untrusted database clients.
 - Audit events are available for security-relevant actions.
 
 ## Environment Rules
@@ -26,11 +30,10 @@ NexusRAG is designed around tenant isolation, durable auth context, and defensiv
 ## Remaining Security Work
 
 - Add dedicated prompt-injection regression suites for retrieval, summarization, and agentic tool scenarios.
-- Persist and enforce tenant quotas as hard authorization decisions.
+- Add plan-specific durable quota/billing reconciliation beyond current hard workspace quota enforcement.
 - Add allow/deny controls for remote URLs if future document ingestion accepts URLs.
 - Add browser-side frontend tests for markdown rendering and XSS cases.
-- Add security headers and CSP tuning for production domains.
-- Add data retention and workspace deletion workflows with verified storage cleanup.
+- Add configurable data-retention schedules and complete workspace deletion workflows.
 
 ## Incident Checklist
 

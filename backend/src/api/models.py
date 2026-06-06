@@ -152,15 +152,22 @@ class QueryRequest(BaseModel):
 
     question: str = Field(..., min_length=1, max_length=10000)
     session_id: str | None = None
-    conversation_history: list[ChatMessage] = Field(default_factory=list)
+    conversation_history: list[ChatMessage] = Field(default_factory=list, max_length=50)
     top_k: int | None = None
     use_reranking: bool | None = None
     chat_scope: Literal["workspace", "documents"] = "workspace"
     document_ids: list[str] = Field(default_factory=list, max_length=25)
+    file_types: list[str] = Field(default_factory=list, max_length=20)
     filename: str | None = Field(default=None, max_length=255)
     min_page: int | None = Field(default=None, ge=0)
     max_page: int | None = Field(default=None, ge=0)
     uploaded_by: str | None = Field(default=None, max_length=128)
+    uploaded_after: datetime | None = None
+    uploaded_before: datetime | None = None
+    metadata_filters: dict[str, str | int | float | bool] = Field(
+        default_factory=dict,
+        max_length=20,
+    )
 
     model_config = {
         "json_schema_extra": {

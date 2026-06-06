@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import hashlib
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any
 
 from config.settings import get_settings
@@ -17,6 +17,24 @@ def compute_sha256(content: bytes) -> str:
 def document_storage_path(workspace_id: str, document_id: str, filename: str) -> str:
     safe_name = Path(filename).name.strip() or "document"
     return f"{workspace_id}/{document_id}/{safe_name}"
+
+
+def trusted_document_storage_path(
+    *,
+    workspace_id: str,
+    document_id: str,
+    storage_path: str,
+) -> str:
+    raw_path = storage_path.strip()
+    if not raw_path or "\\" in raw_path or raw_path.startswith("/"):
+        raise ValueError("Storage path is outside the trusted document prefix.")
+    normalized = PurePosixPath(raw_path).as_posix()
+    if ".." in PurePosixPath(normalized).parts:
+        raise ValueError("Storage path is outside the trusted document prefix.")
+    trusted_prefix = f"{workspace_id}/{document_id}/"
+    if not normalized.startswith(trusted_prefix) or normalized == trusted_prefix.rstrip("/"):
+        raise ValueError("Storage path is outside the trusted document prefix.")
+    return normalized
 
 
 class DocumentRepository(SupabaseRepository):
@@ -74,6 +92,20 @@ class DocumentRepository(SupabaseRepository):
             content_type=content_type or "application/octet-stream",
             upsert=upsert,
         )
+
+    async def delete_original(
+        self,
+        *,
+        workspace_id: str,
+        document_id: str,
+        storage_path: str,
+    ) -> None:
+        trusted_path = trusted_document_storage_path(
+            workspace_id=workspace_id,
+            document_id=document_id,
+            storage_path=storage_path,
+        )
+        await self._supabase.delete_object(trusted_path)
 
     async def find_duplicate_ready_document(
         self,

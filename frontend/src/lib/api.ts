@@ -24,6 +24,9 @@ import type {
   SystemStatusResponse,
   WorkspaceCreateRequest,
   WorkspaceListResponse,
+  WorkspaceMember,
+  WorkspaceMemberCreateRequest,
+  WorkspaceMemberUpdateRequest,
   WorkspaceMembersResponse,
   WorkspaceSummary,
 } from "@/types";
@@ -267,4 +270,31 @@ export async function createWorkspace(
 
 export async function listCurrentWorkspaceMembers(): Promise<WorkspaceMembersResponse> {
   return request("/api/v1/workspaces/current/members");
+}
+
+export async function addCurrentWorkspaceMember(
+  body: WorkspaceMemberCreateRequest
+): Promise<WorkspaceMember> {
+  return request("/api/v1/workspaces/current/members", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+export async function updateCurrentWorkspaceMember(
+  userId: string,
+  body: WorkspaceMemberUpdateRequest
+): Promise<WorkspaceMember> {
+  return request(`/api/v1/workspaces/current/members/${encodeURIComponent(userId)}`, {
+    method: "PATCH",
+    body: JSON.stringify(body),
+  });
+}
+
+export async function removeCurrentWorkspaceMember(
+  userId: string
+): Promise<{ success: boolean; removed: number; user_id: string }> {
+  return request(`/api/v1/workspaces/current/members/${encodeURIComponent(userId)}`, {
+    method: "DELETE",
+  });
 }

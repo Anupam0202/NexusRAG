@@ -20,10 +20,12 @@ Protocol::
 from __future__ import annotations
 
 import json
+import re
 import uuid
 from asyncio import wait_for
 
 from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect, status
+from pydantic import ValidationError
 from starlette.websockets import WebSocketState
 
 from config.settings import get_settings
@@ -33,8 +35,10 @@ from src.api.auth import (
     resolve_workspace_context,
 )
 from src.api.dependencies import get_rag_chain
+from src.api.models import QueryRequest
 from src.infrastructure.supabase_client import get_supabase_client
 from src.repositories.messages import MessageRepository
+from src.repositories.provider_health import persist_provider_health_snapshot
 from src.telemetry.events import estimate_tokens, get_telemetry_recorder
 from src.tenancy.quotas import QuotaExceededError, TenantQuotaEnforcer
 from src.utils.logger import get_logger
@@ -60,29 +64,58 @@ def _chat_title(question: str) -> str:
     return (title[:77] + "...") if len(title) > 80 else title
 
 
-def _stream_retrieval_filters(data: dict) -> dict:
+def _stream_retrieval_filters(body: QueryRequest) -> dict:
     filters: dict = {}
-    raw_ids = data.get("document_ids") or []
-    if data.get("chat_scope") == "documents" or raw_ids:
-        document_ids = [
-            str(item).strip()
-            for item in (raw_ids if isinstance(raw_ids, list) else [raw_ids])
-            if str(item).strip()
-        ]
+    if body.chat_scope == "documents" or body.document_ids:
+        document_ids = [str(item).strip() for item in body.document_ids if str(item).strip()]
         if document_ids:
             filters["document_ids"] = sorted(set(document_ids))
-    filename = str(data.get("filename") or "").strip()
+    filename = str(body.filename or "").strip()
     if filename:
         filters["filename"] = filename
-    uploaded_by = str(data.get("uploaded_by") or "").strip()
+    file_types = [
+        str(item).strip().lower().lstrip(".")
+        for item in body.file_types
+        if str(item).strip()
+    ]
+    if file_types:
+        filters["file_types"] = sorted(set(file_types))
+    uploaded_by = str(body.uploaded_by or "").strip()
     if uploaded_by:
         filters["uploaded_by"] = uploaded_by
-    for key in ("min_page", "max_page"):
-        try:
-            if data.get(key) is not None:
-                filters[key] = int(data[key])
-        except (TypeError, ValueError):
-            continue
+    if body.uploaded_after:
+        filters["uploaded_after_epoch"] = int(body.uploaded_after.timestamp())
+    if body.uploaded_before:
+        filters["uploaded_before_epoch"] = int(body.uploaded_before.timestamp())
+    if (
+        filters.get("uploaded_after_epoch") is not None
+        and filters.get("uploaded_before_epoch") is not None
+        and filters["uploaded_before_epoch"] < filters["uploaded_after_epoch"]
+    ):
+        raise ValueError("uploaded_before must be greater than or equal to uploaded_after.")
+    invalid_keys = [
+        key for key in body.metadata_filters if not re.fullmatch(r"[A-Za-z0-9_.-]{1,64}", key)
+    ]
+    if invalid_keys:
+        raise ValueError(
+            "Metadata filter keys may contain only letters, numbers, dots, underscores, and dashes."
+        )
+    if body.metadata_filters:
+        filters["metadata"] = dict(body.metadata_filters)
+    if body.min_page is not None:
+        filters["min_page"] = body.min_page
+    if body.max_page is not None:
+        filters["max_page"] = body.max_page
+    if (
+        filters.get("min_page") is not None
+        and filters.get("max_page") is not None
+        and filters["max_page"] < filters["min_page"]
+    ):
+        raise ValueError("max_page must be greater than or equal to min_page.")
+    if body.chat_scope == "documents" and not any(
+        key in filters for key in ("document_ids", "filename")
+    ):
+        raise ValueError("Selected-document chat requires at least one document.")
     return filters
 
 
@@ -267,23 +300,28 @@ async def chat_stream(ws: WebSocket) -> None:
                 await _safe_send(ws, {"type": "error", "content": "Invalid JSON"})
                 continue
 
+            if not isinstance(data, dict):
+                await _safe_send(ws, {"type": "error", "content": "Invalid chat request"})
+                continue
             if data.get("type") == "auth":
                 continue
 
-            question = data.get("question", "").strip()
-            if not question:
-                await _safe_send(ws, {"type": "error", "content": "Empty question"})
+            try:
+                body = QueryRequest.model_validate(data)
+                retrieval_filters = _stream_retrieval_filters(body)
+            except (ValidationError, ValueError) as exc:
+                await _safe_send(
+                    ws,
+                    {"type": "error", "content": f"Invalid chat request: {exc}"},
+                )
                 continue
 
-            session_id = data.get("session_id", "ws-default")
-            history = data.get("conversation_history", [])
-            history_dicts = (
-                [{"role": m["role"], "content": m["content"]} for m in history] if history else None
-            )
-            history_token_parts = [
-                str(m.get("content", "")) for m in history if isinstance(m, dict)
+            question = body.question.strip()
+            session_id = body.session_id or "ws-default"
+            history_dicts = [
+                message.model_dump(mode="json") for message in body.conversation_history
             ]
-            retrieval_filters = _stream_retrieval_filters(data)
+            history_token_parts = [message.content for message in body.conversation_history]
             estimated_input_tokens = estimate_tokens(question, *history_token_parts)
             answer_parts: list[str] = []
             sources_count = 0
@@ -303,9 +341,9 @@ async def chat_stream(ws: WebSocket) -> None:
                     question,
                     workspace_id=workspace_id,
                     session_id=session_id,
-                    conversation_history=history_dicts,
-                    top_k=data.get("top_k"),
-                    use_reranking=data.get("use_reranking"),
+                    conversation_history=history_dicts or None,
+                    top_k=body.top_k,
+                    use_reranking=body.use_reranking,
                     retrieval_filters=retrieval_filters or None,
                 ):
                     if frame.get("type") == "token":
@@ -343,6 +381,11 @@ async def chat_stream(ws: WebSocket) -> None:
                     ),
                     persist=persist_event,
                 )
+                await persist_provider_health_snapshot(
+                    chain,
+                    workspace_id=workspace_id,
+                    persist=persist_event,
+                )
                 await telemetry.record_audit_event(
                     workspace_id=workspace_id,
                     user_id=workspace.user.id if workspace else None,
@@ -351,10 +394,10 @@ async def chat_stream(ws: WebSocket) -> None:
                     resource_id=str(session_id),
                     metadata={
                         "question_chars": len(question),
-                        "history_messages": len(history or []),
-                        "top_k": data.get("top_k"),
-                        "use_reranking": data.get("use_reranking"),
-                        "chat_scope": data.get("chat_scope", "workspace"),
+                        "history_messages": len(body.conversation_history),
+                        "top_k": body.top_k,
+                        "use_reranking": body.use_reranking,
+                        "chat_scope": body.chat_scope,
                         "retrieval_filters": retrieval_filters,
                         "query_type": done_metadata.get("query_type", "general"),
                         "source_count": sources_count or done_metadata.get("num_sources", 0),
@@ -423,6 +466,11 @@ async def chat_stream(ws: WebSocket) -> None:
                     error_code="quota" if is_quota else type(exc).__name__,
                     persist=persist_event,
                 )
+                await persist_provider_health_snapshot(
+                    chain,
+                    workspace_id=workspace_id,
+                    persist=persist_event,
+                )
                 await telemetry.record_audit_event(
                     workspace_id=workspace_id,
                     user_id=workspace.user.id if workspace else None,
@@ -431,9 +479,9 @@ async def chat_stream(ws: WebSocket) -> None:
                     resource_id=str(session_id),
                     metadata={
                         "question_chars": len(question),
-                        "history_messages": len(history or []),
-                        "top_k": data.get("top_k"),
-                        "use_reranking": data.get("use_reranking"),
+                        "history_messages": len(body.conversation_history),
+                        "top_k": body.top_k,
+                        "use_reranking": body.use_reranking,
                         "error": err_msg[:200],
                     },
                     persist=persist_event,

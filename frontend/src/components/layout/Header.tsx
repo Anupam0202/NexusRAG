@@ -21,6 +21,7 @@ const PAGE_TITLES: Record<string, string> = {
   "/settings/api-keys": "API Keys",
   "/settings/billing-or-usage": "Billing & Usage",
   "/settings/members": "Members",
+  "/settings/privacy": "Privacy & Data",
 };
 
 export function Header() {

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import math
 import re
+import statistics
 from collections.abc import Iterable
 from dataclasses import dataclass, field
 from typing import Any
@@ -273,4 +274,37 @@ def summarize_metrics(results: list[dict[str, Any]]) -> dict[str, Any]:
     for metric in metric_names:
         values = [float(item.get("metrics", {}).get(metric, 0.0) or 0.0) for item in results]
         summary[f"avg_{metric}"] = round(sum(values) / total, 4) if total else 0.0
+    latencies = sorted(
+        float(item.get("metrics", {}).get("latency_ms", 0.0) or 0.0)
+        for item in results
+    )
+    summary["latency_p50_ms"] = round(_percentile(latencies, 0.50), 2)
+    summary["latency_p95_ms"] = round(_percentile(latencies, 0.95), 2)
+    summary["fallback_rate"] = round(
+        sum(bool(item.get("metrics", {}).get("generation_fallback")) for item in results)
+        / total,
+        4,
+    ) if total else 0.0
+    summary["quota_failure_rate"] = round(
+        sum(bool(item.get("metrics", {}).get("quota_failure")) for item in results) / total,
+        4,
+    ) if total else 0.0
+    costs = [
+        float(item.get("metrics", {}).get("estimated_cost_usd", 0.0) or 0.0)
+        for item in results
+    ]
+    summary["avg_estimated_cost_usd"] = round(statistics.fmean(costs), 6) if costs else 0.0
     return summary
+
+
+def _percentile(values: list[float], percentile: float) -> float:
+    if not values:
+        return 0.0
+    if len(values) == 1:
+        return values[0]
+    position = (len(values) - 1) * percentile
+    lower = math.floor(position)
+    upper = math.ceil(position)
+    if lower == upper:
+        return values[lower]
+    return values[lower] + (values[upper] - values[lower]) * (position - lower)
