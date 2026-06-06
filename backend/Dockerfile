@@ -13,7 +13,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Install CPU-only PyTorch FIRST (saves ~400MB vs full torch)
 RUN pip install --no-cache-dir --upgrade "pip>=26.1" && \
-    pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu
+    pip install --no-cache-dir "torch>=2.11.0" --index-url https://download.pytorch.org/whl/cpu && \
+    pip install --no-cache-dir "setuptools>=78.1.1,<82"
 
 COPY pyproject.toml ./
 # Install the rest of the deps (torch already satisfied)
