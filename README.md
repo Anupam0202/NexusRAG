@@ -238,7 +238,14 @@ docker-compose up --build
    - `NEXT_PUBLIC_API_URL` — your actual Render backend URL (e.g., `https://your-render-service.onrender.com`)
    - `NEXT_PUBLIC_SUPABASE_URL`
    - `NEXT_PUBLIC_SUPABASE_ANON_KEY` or `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
+   - `NEXT_PUBLIC_SITE_URL` — the canonical HTTPS frontend URL used by auth callbacks
 4. Vercel auto-detects Next.js and deploys
+
+Set the matching Supabase project's **Authentication > URL Configuration >
+Site URL** to the canonical frontend URL and allow
+`https://<frontend-domain>/auth/callback`. If the callback is not allowlisted,
+Supabase falls back to the Site URL; leaving that value on localhost breaks
+production email confirmation links.
 
 ### Connecting Frontend and Backend
 
@@ -381,6 +388,7 @@ NexusRAG/
 | `NEXT_PUBLIC_API_URL` | `http://localhost:8000` locally | Render backend URL in Vercel |
 | `NEXT_PUBLIC_SUPABASE_URL` | empty | Supabase project URL injected by the Vercel Supabase integration |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` / `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | empty | Supabase browser key injected by Vercel or set manually |
+| `NEXT_PUBLIC_SITE_URL` | current browser origin | Canonical production frontend origin for email auth callbacks |
 
 ---
 

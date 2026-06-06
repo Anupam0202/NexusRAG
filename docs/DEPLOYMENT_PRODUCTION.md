@@ -36,6 +36,30 @@ LLM_OUTPUT_COST_USD_PER_MILLION=<current-estimated-output-rate>
 FRONTEND_URL=<production-frontend-url>
 ```
 
+## Production Authentication
+
+Set the canonical frontend URL in Vercel:
+
+```txt
+NEXT_PUBLIC_SITE_URL=https://nexusrag.vercel.app
+```
+
+In the same Supabase project referenced by `NEXT_PUBLIC_SUPABASE_URL`, open
+**Authentication > URL Configuration** and set:
+
+```txt
+Site URL: https://nexusrag.vercel.app
+Redirect URL: https://nexusrag.vercel.app/auth/callback
+```
+
+Add local callback URLs only as additional development redirects, never as the
+production Site URL. Supabase falls back to the Site URL when an
+`emailRedirectTo` destination is absent from the allowlist, so a localhost Site
+URL causes production confirmation emails to send users back to localhost.
+If custom confirmation or magic-link templates are enabled, use Supabase's
+`{{ .ConfirmationURL }}` or `{{ .RedirectTo }}` variables. Do not hardcode a
+localhost URL in an email template.
+
 ## Production Controls
 
 - Apply all Supabase migrations before deployment.

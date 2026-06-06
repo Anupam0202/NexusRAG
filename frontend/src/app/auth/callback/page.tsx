@@ -1,16 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Loader2, ShieldAlert, ShieldCheck } from "lucide-react";
 import { getCurrentWorkspace } from "@/lib/api";
+import { getAuthCallbackError, sanitizeAuthNextPath } from "@/lib/auth-redirect";
 import { createSupabaseBrowserClient, hasPublicSupabaseConfig } from "@/lib/supabase/client";
 import { useStore } from "@/hooks/useStore";
-
-function cleanNextPath(value: string | null) {
-  if (!value?.startsWith("/") || value.startsWith("//")) return "/documents";
-  return value;
-}
 
 export default function AuthCallbackPage() {
   const router = useRouter();
@@ -22,13 +19,19 @@ export default function AuthCallbackPage() {
     let active = true;
 
     const complete = async () => {
+      const url = new URL(window.location.href);
+      const callbackError = getAuthCallbackError(url);
+      if (callbackError) {
+        setError(callbackError);
+        return;
+      }
+
       if (!hasPublicSupabaseConfig()) {
         setError("Supabase browser variables are missing from this frontend deployment.");
         return;
       }
 
-      const url = new URL(window.location.href);
-      const nextPath = cleanNextPath(url.searchParams.get("next"));
+      const nextPath = sanitizeAuthNextPath(url.searchParams.get("next"), "/documents");
       const code = url.searchParams.get("code");
 
       try {
@@ -80,6 +83,12 @@ export default function AuthCallbackPage() {
             <ShieldAlert size={28} className="mx-auto mb-3 text-red-500" />
             <p className="text-sm font-semibold">Sign-in could not be completed</p>
             <p className="mt-2 text-sm leading-6 text-[var(--text-muted)]">{error}</p>
+            <Link
+              href="/auth/login"
+              className="mt-4 inline-flex rounded-lg bg-brand-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-brand-500"
+            >
+              Request a new sign-in link
+            </Link>
           </>
         ) : (
           <>

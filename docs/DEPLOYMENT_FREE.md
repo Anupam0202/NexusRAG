@@ -18,9 +18,17 @@ Set these variables in the Vercel project:
 NEXT_PUBLIC_API_URL=https://nexusrag-backend-wv2f.onrender.com
 NEXT_PUBLIC_SUPABASE_URL=<supabase-project-url>
 NEXT_PUBLIC_SUPABASE_ANON_KEY=<supabase-anon-key>
+NEXT_PUBLIC_SITE_URL=https://nexusrag.vercel.app
 ```
 
 Vercel Marketplace Supabase variables are frontend-only. Mirror the matching Supabase server variables into Render manually.
+
+In that Supabase project, set **Authentication > URL Configuration > Site URL**
+to `https://nexusrag.vercel.app` and allow
+`https://nexusrag.vercel.app/auth/callback`. Keep localhost callbacks only as
+additional development redirects. Custom email templates must use
+`{{ .ConfirmationURL }}` or `{{ .RedirectTo }}` instead of a hardcoded
+localhost URL.
 
 ## Render Backend
 
