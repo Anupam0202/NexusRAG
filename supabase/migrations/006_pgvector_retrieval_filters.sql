@@ -1,7 +1,7 @@
 -- Expand pgvector fallback filtering to match the Qdrant/local retrieval surface.
 
 create or replace function public.match_document_chunks(
-  query_embedding vector(384),
+  query_embedding extensions.vector(384),
   match_workspace_id uuid,
   match_count int default 10,
   match_filters jsonb default '{}'::jsonb
@@ -22,7 +22,7 @@ returns table (
 language sql
 stable
 security invoker
-set search_path = public
+set search_path = public, extensions, pg_temp
 as $$
   select
     dc.id,
@@ -92,5 +92,5 @@ as $$
   limit greatest(1, least(coalesce(match_count, 10), 100));
 $$;
 
-grant execute on function public.match_document_chunks(vector, uuid, int, jsonb)
+grant execute on function public.match_document_chunks(extensions.vector, uuid, int, jsonb)
 to authenticated, service_role;

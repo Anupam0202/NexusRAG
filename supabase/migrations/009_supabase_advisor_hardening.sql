@@ -110,7 +110,7 @@ create policy "eval_results_delete_admins"
 on public.eval_results for delete to authenticated
 using (public.has_workspace_role(workspace_id, array['owner', 'admin']));
 
-revoke execute on function public.match_document_chunks(vector, uuid, int, jsonb)
+revoke execute on function public.match_document_chunks(extensions.vector, uuid, int, jsonb)
 from anon, authenticated;
 
 revoke all privileges on all tables in schema public from anon, authenticated;
