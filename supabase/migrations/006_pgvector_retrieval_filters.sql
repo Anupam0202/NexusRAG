@@ -78,7 +78,7 @@ as $$
     )
     and (
       not (match_filters ? 'metadata')
-      or dc.metadata @> match_filters->'metadata'
+      or dc.metadata @> (match_filters->'metadata')
     )
     and (
       not (match_filters ? 'min_page')
