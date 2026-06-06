@@ -19,10 +19,10 @@ Verified on June 6, 2026:
 
 - Vercel production JavaScript targets Supabase project `fcjaomiceajcdownarel`.
 - The connected Supabase administration plugin exposes project `hvmmfwteawrzxzusnndf`.
-- Migrations `001` through `009` exist on the connected project. Migration
-  `010_move_vector_extension.sql` is pending, and no migration should be treated
-  as production-applied until the connected project is confirmed as the intended
-  production database.
+- Migrations `001` through `010` exist on the connected project, pgvector is in
+  the `extensions` schema, and Supabase security advisors report zero findings.
+  These results still must not be treated as proof for the different Supabase
+  project targeted by Vercel production.
 
 ## Next Deployment Checks
 
