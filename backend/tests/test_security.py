@@ -81,6 +81,18 @@ def test_supabase_hardening_migration_enforces_tenant_invariants() -> None:
     assert "set search_path = public, pg_temp" in migration
 
 
+def test_pgvector_filter_migration_parenthesizes_json_containment_operand() -> None:
+    migration = (
+        Path(__file__).resolve().parents[2]
+        / "supabase"
+        / "migrations"
+        / "006_pgvector_retrieval_filters.sql"
+    ).read_text(encoding="utf-8")
+
+    assert "dc.metadata @> (match_filters->'metadata')" in migration
+    assert "dc.metadata @> match_filters->'metadata'" not in migration
+
+
 def test_rate_limit_cannot_be_bypassed_with_untrusted_identity_headers() -> None:
     app = FastAPI()
     app.add_middleware(RateLimitMiddleware, rpm=2)
