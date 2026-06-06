@@ -306,6 +306,37 @@ class SystemStatusResponse(BaseModel):
     provider_health: list[dict[str, Any]] = Field(default_factory=list)
 
 
+class BillingUsageResponse(BaseModel):
+    storage: Literal["memory", "supabase"] = "memory"
+    daily: list[dict[str, Any]] = Field(default_factory=list)
+    totals: dict[str, int] = Field(default_factory=dict)
+
+
+class PrivacySettingsResponse(BaseModel):
+    retention_enabled: bool = False
+    retention_days: int = 0
+    last_retention_at: str | None = None
+    next_retention_at: str | None = None
+
+
+class PrivacySettingsUpdateRequest(BaseModel):
+    retention_enabled: bool
+    retention_days: int = Field(default=0, ge=0, le=3650)
+
+
+class WorkspaceDeleteRequest(BaseModel):
+    confirmation: Literal["DELETE WORKSPACE"]
+
+
+class WorkspaceLifecycleResponse(BaseModel):
+    workspace_deleted: bool = False
+    documents_deleted: int = 0
+    chat_sessions_deleted: int = 0
+    local_chunks_deleted: int = 0
+    qdrant_chunks_deleted: int = 0
+    failures: list[dict[str, str]] = Field(default_factory=list)
+
+
 # ── Settings ──────────────────────────────────────────────────────────────
 
 

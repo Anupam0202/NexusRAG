@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   canManageWorkspaceMember,
   deleteDocumentsBestEffort,
+  normalizeRetentionSchedule,
   toggleDocumentSelection,
 } from "./workspace-controls";
 
@@ -85,5 +86,18 @@ describe("deleteDocumentsBestEffort", () => {
       failures: [{ documentId: "two", message: "locked" }],
     });
     expect(remove).toHaveBeenCalledTimes(3);
+  });
+});
+
+describe("normalizeRetentionSchedule", () => {
+  it("clears days when retention is disabled", () => {
+    expect(normalizeRetentionSchedule(false, 90)).toEqual({
+      retention_enabled: false,
+      retention_days: 0,
+    });
+  });
+
+  it("rejects an enabled schedule without a positive day count", () => {
+    expect(() => normalizeRetentionSchedule(true, 0)).toThrow("at least 1 day");
   });
 });

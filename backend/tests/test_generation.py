@@ -423,3 +423,46 @@ class TestRAGChain:
         assert result["metadata"]["answerability"] == "answerable"
         assert result["metadata"]["source_quote_coverage"] > 0
         assert result["metadata"]["citation_coverage"] == 1.0
+
+    def test_source_verification_cache_is_workspace_scoped_and_clearable(self):
+        chain = RAGChain(
+            vector_store=SimpleNamespace(),
+            settings=Settings(_env_file=None, enable_cache=True),
+        )
+        docs = [
+            Document(
+                page_content="The policy requires invoice approval before payment.",
+                metadata={"filename": "policy.pdf", "page_number": 2},
+            )
+        ]
+        answer = "The policy requires invoice approval before payment."
+
+        first = chain._source_quote_checks(
+            answer=answer,
+            docs=docs,
+            workspace_id="workspace-a",
+        )
+        misses = chain._layer_cache.misses
+        second = chain._source_quote_checks(
+            answer=answer,
+            docs=docs,
+            workspace_id="workspace-a",
+        )
+        assert second == first
+        assert chain._layer_cache.hits >= 1
+
+        chain._source_quote_checks(
+            answer=answer,
+            docs=docs,
+            workspace_id="workspace-b",
+        )
+        assert chain._layer_cache.misses > misses
+
+        chain.clear_cache(workspace_id="workspace-a")
+        misses = chain._layer_cache.misses
+        chain._source_quote_checks(
+            answer=answer,
+            docs=docs,
+            workspace_id="workspace-a",
+        )
+        assert chain._layer_cache.misses > misses

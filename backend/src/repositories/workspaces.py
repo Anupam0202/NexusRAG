@@ -156,3 +156,10 @@ class WorkspaceRepository(SupabaseRepository):
             ),
         )
         return first_row(rows)
+
+    async def delete_workspace(self, *, workspace_id: str) -> int:
+        rows = await self._supabase.table_delete(
+            "workspaces",
+            query=eq_filter("id", workspace_id),
+        )
+        return len(rows)

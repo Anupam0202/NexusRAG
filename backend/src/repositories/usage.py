@@ -19,6 +19,7 @@ class UsageRepository(SupabaseRepository):
         input_tokens: int | None = None,
         output_tokens: int | None = None,
         latency_ms: int | None = None,
+        cost_microusd: int = 0,
         success: bool = True,
         error_code: str | None = None,
     ) -> dict[str, Any]:
@@ -33,6 +34,7 @@ class UsageRepository(SupabaseRepository):
                 "input_tokens": input_tokens,
                 "output_tokens": output_tokens,
                 "latency_ms": latency_ms,
+                "cost_microusd": max(0, int(cost_microusd or 0)),
                 "success": success,
                 "error_code": error_code,
             },

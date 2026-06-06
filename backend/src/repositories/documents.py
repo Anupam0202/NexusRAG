@@ -107,6 +107,20 @@ class DocumentRepository(SupabaseRepository):
         )
         await self._supabase.delete_object(trusted_path)
 
+    async def download_original(
+        self,
+        *,
+        workspace_id: str,
+        document_id: str,
+        storage_path: str,
+    ) -> bytes:
+        trusted_path = trusted_document_storage_path(
+            workspace_id=workspace_id,
+            document_id=document_id,
+            storage_path=storage_path,
+        )
+        return await self._supabase.download_object(trusted_path)
+
     async def find_duplicate_ready_document(
         self,
         *,

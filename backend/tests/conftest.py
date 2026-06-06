@@ -13,15 +13,20 @@ from langchain_core.documents import Document
 
 
 @pytest.fixture(autouse=True)
-def _set_test_env(monkeypatch):
+def _set_test_env(monkeypatch, tmp_path):
     """Ensure tests never hit real APIs unless explicitly enabled."""
     from config.settings import get_settings
+    from src.api.dependencies import get_rag_chain, get_vector_store
     from src.infrastructure.supabase_client import get_supabase_client
     from src.telemetry.events import get_telemetry_recorder
+    from src.utils.layered_cache import get_layered_cache
 
     get_settings.cache_clear()
+    get_vector_store.cache_clear()
+    get_rag_chain.cache_clear()
     get_supabase_client.cache_clear()
     get_telemetry_recorder.cache_clear()
+    get_layered_cache.cache_clear()
     monkeypatch.setenv("GOOGLE_API_KEY", os.getenv("GOOGLE_API_KEY", "test-key-placeholder"))
     monkeypatch.setenv("LOG_FORMAT", "console")
     monkeypatch.setenv("LOG_LEVEL", "WARNING")
@@ -29,11 +34,14 @@ def _set_test_env(monkeypatch):
     monkeypatch.setenv("ENABLE_ANONYMOUS_DEMO", "true")
     monkeypatch.setenv("ENABLE_CONTEXTUAL_ENRICHMENT", "false")
     monkeypatch.setenv("ENABLE_RERANKING", "false")
-    monkeypatch.setenv("VECTOR_STORE_PATH", "data/test_vector_store")
+    monkeypatch.setenv("VECTOR_STORE_PATH", str(tmp_path / "vector_store"))
     yield
     get_settings.cache_clear()
+    get_vector_store.cache_clear()
+    get_rag_chain.cache_clear()
     get_supabase_client.cache_clear()
     get_telemetry_recorder.cache_clear()
+    get_layered_cache.cache_clear()
 
 
 @pytest.fixture

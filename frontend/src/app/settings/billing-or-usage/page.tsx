@@ -3,11 +3,16 @@
 import type { ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Activity, AlertTriangle, ArrowLeft, Gauge, KeyRound, Loader2, Zap } from "lucide-react";
-import { getAnalytics, getApiKeyStatus, getSystemStatus } from "@/lib/api";
+import { Activity, AlertTriangle, ArrowLeft, Gauge, KeyRound, Loader2, ReceiptText, Zap } from "lucide-react";
+import { getAnalytics, getApiKeyStatus, getBillingUsage, getSystemStatus } from "@/lib/api";
 import { AuthRequiredState } from "@/components/auth/AuthRequiredState";
 import { useWorkspaceApiAccess } from "@/hooks/useAuthGate";
-import type { AnalyticsSummary, ApiKeyStatusResponse, SystemStatusResponse } from "@/types";
+import type {
+  AnalyticsSummary,
+  ApiKeyStatusResponse,
+  BillingUsageResponse,
+  SystemStatusResponse,
+} from "@/types";
 
 const FREE_WORKSPACE_TOKEN_BUDGET = 250_000;
 
@@ -16,6 +21,7 @@ export default function BillingOrUsagePage() {
   const [analytics, setAnalytics] = useState<AnalyticsSummary | null>(null);
   const [status, setStatus] = useState<SystemStatusResponse | null>(null);
   const [keyStatus, setKeyStatus] = useState<ApiKeyStatusResponse | null>(null);
+  const [billing, setBilling] = useState<BillingUsageResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -29,12 +35,14 @@ export default function BillingOrUsagePage() {
       getAnalytics(),
       getSystemStatus(),
       getApiKeyStatus().catch(() => null),
+      getBillingUsage(),
     ])
-      .then(([analyticsData, systemStatus, apiKey]) => {
+      .then(([analyticsData, systemStatus, apiKey, billingUsage]) => {
         if (cancelled) return;
         setAnalytics(analyticsData);
         setStatus(systemStatus);
         setKeyStatus(apiKey);
+        setBilling(billingUsage);
         setError(null);
       })
       .catch((err) => {
@@ -73,6 +81,8 @@ export default function BillingOrUsagePage() {
   const byokActive = keyStatus?.workspace_key_configured === true;
   const vectorBackend = status?.settings.vector_backend ?? "unknown";
   const providerHealth = status?.provider_health ?? [];
+  const reconciledTokens = billing?.totals.total_tokens ?? 0;
+  const estimatedCost = (billing?.totals.estimated_cost_microusd ?? 0) / 1_000_000;
 
   const posture = useMemo(() => {
     if (fallbackCount > 0 || failedCalls > 0) return "Needs attention";
@@ -164,6 +174,23 @@ export default function BillingOrUsagePage() {
               <StatusPanel label="Provider key" value={byokActive ? "Workspace BYOK active" : "Server default key"} />
               <StatusPanel label="Vector backend" value={vectorBackend} />
               <StatusPanel label="Cache hits" value={`${analytics?.llm_cache_hits ?? analytics?.cache_hits ?? 0}`} />
+            </div>
+
+            <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <ReceiptText size={16} className="text-brand-500" />
+                  <p className="text-sm font-semibold">Durable usage ledger</p>
+                </div>
+                <span className="text-xs font-semibold text-[var(--text-muted)]">
+                  {billing?.storage === "supabase" ? "Reconciled in Supabase" : "Runtime only"}
+                </span>
+              </div>
+              <div className="mt-3 grid gap-3 sm:grid-cols-3">
+                <StatusPanel label="Reconciled calls" value={(billing?.totals.query_count ?? 0).toLocaleString()} />
+                <StatusPanel label="Reconciled tokens" value={reconciledTokens.toLocaleString()} />
+                <StatusPanel label="Estimated cost" value={`$${estimatedCost.toFixed(4)}`} />
+              </div>
             </div>
 
             <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-card)] p-4">

@@ -63,3 +63,14 @@ export async function deleteDocumentsBestEffort(
 
   return { deletedIds, failures };
 }
+
+export function normalizeRetentionSchedule(enabled: boolean, days: number) {
+  if (!enabled) {
+    return { retention_enabled: false, retention_days: 0 };
+  }
+  const normalizedDays = Math.floor(Number(days));
+  if (!Number.isFinite(normalizedDays) || normalizedDays < 1) {
+    throw new Error("Retention must be at least 1 day.");
+  }
+  return { retention_enabled: true, retention_days: normalizedDays };
+}

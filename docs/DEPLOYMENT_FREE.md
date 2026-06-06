@@ -44,6 +44,8 @@ ENABLE_PGVECTOR_FALLBACK=false
 ENABLE_ASYNC_INGESTION=true
 AUTH_REQUIRED=true
 ENABLE_ANONYMOUS_DEMO=false
+LLM_INPUT_COST_USD_PER_MILLION=0
+LLM_OUTPUT_COST_USD_PER_MILLION=0
 ```
 
 Use `ENABLE_PGVECTOR_FALLBACK=true` only when the Supabase `005_pgvector_fallback.sql` and `006_pgvector_retrieval_filters.sql` migrations have been applied and Qdrant is intentionally unavailable.
@@ -51,7 +53,17 @@ Use `ENABLE_PGVECTOR_FALLBACK=true` only when the Supabase `005_pgvector_fallbac
 Apply `007_security_hardening.sql`, `008_provider_health_state.sql`, and
 `009_supabase_advisor_hardening.sql`, followed by
 `010_move_vector_extension.sql`, to the same Supabase project used by both
-Vercel and Render before treating a public deployment as production-ready.
+Vercel and Render, then apply `011_durable_queue_billing_retention.sql`, before
+treating a public deployment as production-ready.
+
+Render Free does not provide an always-on background worker. The durable queue
+and retention leases prevent duplicate work, but production automation still
+requires a paid worker/cron service or equivalent external scheduler running:
+
+```txt
+python scripts/process_jobs.py --poll
+python scripts/process_retention.py
+```
 
 ## Free-Tier Limits To Show Users
 
