@@ -1,6 +1,8 @@
 import { expect, test } from "@playwright/test";
 
 const routes = [
+  { path: "/auth/login", heading: "Sign in to NexusRAG" },
+  { path: "/auth/signup", heading: "Create a NexusRAG account" },
   { path: "/chat", heading: "Chat" },
   { path: "/documents", heading: "Documents" },
   { path: "/settings/billing-or-usage", heading: "Billing & Usage" },
@@ -61,4 +63,15 @@ test("usage page handles signed-out and quota fallback states", async ({ page })
   await expect(page.getByText("0 / 1,000")).toBeVisible();
   await expect(page.getByText("0 / 100")).toBeVisible();
   await expect(page.getByText("0 B / 1.0 GB")).toBeVisible();
+});
+
+test("auth callback shows a recoverable error state", async ({ page }) => {
+  await page.goto("/auth/callback?error_description=This+link+has+expired");
+
+  await expect(page.getByText("Sign-in could not be completed")).toBeVisible();
+  await expect(page.getByText("This link has expired")).toBeVisible();
+  await expect(page.getByRole("link", { name: "Request a new sign-in link" })).toHaveAttribute(
+    "href",
+    "/auth/login"
+  );
 });

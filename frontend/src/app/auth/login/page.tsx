@@ -5,13 +5,9 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowRight, Loader2, Mail, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
+import { buildAuthCallbackUrl, sanitizeAuthNextPath } from "@/lib/auth-redirect";
 import { createSupabaseBrowserClient, hasPublicSupabaseConfig } from "@/lib/supabase/client";
 import { useStore } from "@/hooks/useStore";
-
-function cleanNextPath(value: string | null) {
-  if (!value?.startsWith("/") || value.startsWith("//")) return "/documents";
-  return value;
-}
 
 export default function LoginPage() {
   const router = useRouter();
@@ -24,7 +20,7 @@ export default function LoginPage() {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    setNextPath(cleanNextPath(params.get("next")));
+    setNextPath(sanitizeAuthNextPath(params.get("next"), "/documents"));
   }, []);
 
   useEffect(() => {
@@ -41,10 +37,17 @@ export default function LoginPage() {
     setSubmitting(true);
     try {
       const supabase = createSupabaseBrowserClient();
-      const redirectTo = `${window.location.origin}/auth/callback?next=${encodeURIComponent(nextPath)}`;
+      const redirectTo = buildAuthCallbackUrl(
+        window.location.origin,
+        nextPath,
+        process.env.NEXT_PUBLIC_SITE_URL
+      );
       const { error } = await supabase.auth.signInWithOtp({
         email: trimmedEmail,
-        options: { emailRedirectTo: redirectTo },
+        options: {
+          emailRedirectTo: redirectTo,
+          shouldCreateUser: false,
+        },
       });
       if (error) throw error;
       setSentTo(trimmedEmail);
