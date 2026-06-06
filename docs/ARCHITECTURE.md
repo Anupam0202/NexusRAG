@@ -61,6 +61,8 @@ NexusRAG is a multi-tenant RAG platform with a Next.js frontend on Vercel and a 
 - Chat export in Markdown and JSON, privacy controls, and guarded workspace document cleanup.
 - Original document deletion from Supabase Storage alongside metadata, chunks, and vectors.
 - Production CSP/security headers and Qdrant payload indexes for filtered retrieval.
+- Supabase advisor hardening: backend-only public-schema grants, optimized RLS
+  expressions, non-overlapping policies, and pgvector isolated in `extensions`.
 - Durable provider health snapshots alongside the append-only LLM usage ledger.
 - Workspace-scoped embedding, retrieval, semantic-answer, and contextual-enrichment caches.
 - Structured per-request logging envelopes with request, workspace, user, provider, model, token, fallback, job, and document context.
