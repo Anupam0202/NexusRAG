@@ -10,6 +10,10 @@ from src.repositories.documents import (
 )
 from src.repositories.jobs import IngestionJobRepository
 from src.repositories.messages import MessageRepository
+from src.repositories.provider_health import (
+    ProviderHealthRepository,
+    persist_provider_health_snapshot,
+)
 from src.repositories.settings import WorkspaceSettingsRepository
 from src.repositories.usage import UsageRepository
 from src.repositories.workspaces import WorkspaceRepository
@@ -21,6 +25,8 @@ __all__ = [
     "DocumentRepository",
     "IngestionJobRepository",
     "MessageRepository",
+    "ProviderHealthRepository",
+    "persist_provider_health_snapshot",
     "UsageRepository",
     "WorkspaceRepository",
     "WorkspaceSettingsRepository",

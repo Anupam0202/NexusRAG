@@ -13,6 +13,7 @@ from src.repositories import (
     DocumentRepository,
     IngestionJobRepository,
     MessageRepository,
+    ProviderHealthRepository,
     UsageRepository,
     WorkspaceRepository,
     compute_sha256,
@@ -123,12 +124,46 @@ class FakeSupabase:
             )
         )
 
+    async def delete_object(self, path: str) -> None:
+        self.calls.append(("delete", "storage", path, {}))
+
 
 def test_document_storage_path_and_sha256_are_deterministic() -> None:
     assert compute_sha256(b"nexus") == compute_sha256(b"nexus")
     assert document_storage_path("workspace", "document", "../invoice.pdf") == (
         "workspace/document/invoice.pdf"
     )
+
+
+@pytest.mark.asyncio
+async def test_document_repository_deletes_original_from_workspace_storage_path() -> None:
+    fake = FakeSupabase()
+    repo = DocumentRepository(fake)  # type: ignore[arg-type]
+
+    await repo.delete_original(
+        workspace_id="workspace-1",
+        document_id="doc-1",
+        storage_path="workspace-1/doc-1/report.pdf",
+    )
+
+    assert fake.calls == [
+        ("delete", "storage", "workspace-1/doc-1/report.pdf", {})
+    ]
+
+
+@pytest.mark.asyncio
+async def test_document_repository_rejects_untrusted_storage_delete_path() -> None:
+    fake = FakeSupabase()
+    repo = DocumentRepository(fake)  # type: ignore[arg-type]
+
+    with pytest.raises(ValueError, match="trusted document prefix"):
+        await repo.delete_original(
+            workspace_id="workspace-1",
+            document_id="doc-1",
+            storage_path="workspace-2/doc-9/private.pdf",
+        )
+
+    assert fake.calls == []
 
 
 @pytest.mark.asyncio
@@ -236,6 +271,17 @@ async def test_workspace_repository_bootstraps_owner_and_settings() -> None:
 
 
 @pytest.mark.asyncio
+async def test_workspace_repository_treats_hyphenated_email_as_email() -> None:
+    fake = FakeSupabase()
+    repo = WorkspaceRepository(fake)  # type: ignore[arg-type]
+
+    await repo.find_profile("team-member@example.com")
+
+    assert "email=eq.team-member%40example.com" in fake.calls[0][2]
+    assert "id=eq." not in fake.calls[0][2]
+
+
+@pytest.mark.asyncio
 async def test_api_key_repository_never_lists_encrypted_key_by_default() -> None:
     fake = FakeSupabase()
     repo = ApiKeyRepository(fake)  # type: ignore[arg-type]
@@ -302,6 +348,34 @@ async def test_usage_repository_records_and_lists_workspace_events() -> None:
     assert events[0]["operation"] == "chat.query"
     select_call = fake.calls[1]
     assert "workspace_id=eq.workspace-1" in select_call[2]
+
+
+@pytest.mark.asyncio
+async def test_provider_health_repository_persists_workspace_snapshot() -> None:
+    fake = FakeSupabase()
+    repo = ProviderHealthRepository(fake)  # type: ignore[arg-type]
+
+    persisted = await repo.upsert_snapshot(
+        workspace_id="workspace-1",
+        snapshot=[
+            {
+                "provider": "gemini",
+                "model": "gemini-2.5-flash",
+                "mode": "server_default_key",
+                "consecutive_failures": 2,
+                "quota_exhausted": True,
+                "last_error_code": "quota",
+                "circuit_open_until": "2026-06-06T12:00:00Z",
+            }
+        ],
+    )
+
+    assert persisted == 1
+    upsert_call = fake.calls[0]
+    assert upsert_call[1] == "provider_health_state"
+    assert upsert_call[2][0]["workspace_id"] == "workspace-1"
+    assert upsert_call[2][0]["quota_exhausted"] is True
+    assert upsert_call[3]["on_conflict"] == "workspace_id,provider,model,mode"
 
 
 @pytest.mark.asyncio

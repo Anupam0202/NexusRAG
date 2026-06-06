@@ -646,9 +646,33 @@ class VectorStoreManager:
         filename = str(filters.get("filename") or "").strip()
         if filename:
             normalized["filename"] = filename
+        raw_file_types = filters.get("file_types") or []
+        file_types = [
+            str(item).strip().lower().lstrip(".")
+            for item in raw_file_types
+            if str(item).strip()
+        ]
+        if file_types:
+            normalized["file_types"] = sorted(set(file_types))
         uploaded_by = str(filters.get("uploaded_by") or "").strip()
         if uploaded_by:
             normalized["uploaded_by"] = uploaded_by
+        for key in ("uploaded_after_epoch", "uploaded_before_epoch"):
+            try:
+                if filters.get(key) is not None:
+                    normalized[key] = int(filters[key])
+            except (TypeError, ValueError):
+                continue
+        metadata_filters = filters.get("metadata")
+        if isinstance(metadata_filters, dict):
+            normalized_metadata = {
+                str(key): value
+                for key, value in metadata_filters.items()
+                if re.fullmatch(r"[A-Za-z0-9_.-]{1,64}", str(key))
+                and isinstance(value, (str, int, float, bool))
+            }
+            if normalized_metadata:
+                normalized["metadata"] = normalized_metadata
         for key in ("min_page", "max_page"):
             try:
                 if filters.get(key) is not None:
@@ -665,8 +689,19 @@ class VectorStoreManager:
             payload_filters["document_id"] = document_ids
         if filters.get("filename"):
             payload_filters["filename"] = filters["filename"]
+        if filters.get("file_types"):
+            payload_filters["metadata.file_type"] = filters["file_types"]
         if filters.get("uploaded_by"):
             payload_filters["metadata.uploaded_by"] = filters["uploaded_by"]
+        uploaded_range: dict[str, int] = {}
+        if filters.get("uploaded_after_epoch") is not None:
+            uploaded_range["gte"] = int(filters["uploaded_after_epoch"])
+        if filters.get("uploaded_before_epoch") is not None:
+            uploaded_range["lte"] = int(filters["uploaded_before_epoch"])
+        if uploaded_range:
+            payload_filters["metadata.uploaded_at_epoch"] = uploaded_range
+        for key, value in (filters.get("metadata") or {}).items():
+            payload_filters[f"metadata.{key}"] = value
         page_range: dict[str, int] = {}
         if filters.get("min_page") is not None:
             page_range["gte"] = int(filters["min_page"])
@@ -689,6 +724,11 @@ class VectorStoreManager:
         filename = filters.get("filename")
         if filename and str(metadata.get("filename") or "") != str(filename):
             return False
+        file_types = filters.get("file_types")
+        if file_types:
+            file_type = str(metadata.get("file_type") or "").lower().lstrip(".")
+            if file_type not in set(file_types):
+                return False
         uploaded_by = filters.get("uploaded_by")
         if uploaded_by:
             owner = str(
@@ -698,6 +738,20 @@ class VectorStoreManager:
                 or ""
             )
             if owner != str(uploaded_by):
+                return False
+        uploaded_at_epoch = cls._safe_int(metadata.get("uploaded_at_epoch"), default=0)
+        if (
+            filters.get("uploaded_after_epoch") is not None
+            and uploaded_at_epoch < int(filters["uploaded_after_epoch"])
+        ):
+            return False
+        if (
+            filters.get("uploaded_before_epoch") is not None
+            and uploaded_at_epoch > int(filters["uploaded_before_epoch"])
+        ):
+            return False
+        for key, value in (filters.get("metadata") or {}).items():
+            if metadata.get(key) != value:
                 return False
         page = cls._safe_int(metadata.get("page_number") or metadata.get("page"), default=0)
         if filters.get("min_page") is not None and page < int(filters["min_page"]):

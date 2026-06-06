@@ -99,10 +99,14 @@ export interface QueryRequest {
   use_reranking?: boolean;
   chat_scope?: "workspace" | "documents";
   document_ids?: string[];
+  file_types?: string[];
   filename?: string;
   min_page?: number;
   max_page?: number;
   uploaded_by?: string;
+  uploaded_after?: string;
+  uploaded_before?: string;
+  metadata_filters?: Record<string, string | number | boolean>;
 }
 
 export interface QueryResponse {
@@ -234,6 +238,15 @@ export interface WorkspaceMembersResponse {
   workspace_id: string;
   members: WorkspaceMember[];
   total: number;
+}
+
+export interface WorkspaceMemberCreateRequest {
+  email_or_user_id: string;
+  role: Exclude<WorkspaceRole, "owner">;
+}
+
+export interface WorkspaceMemberUpdateRequest {
+  role: Exclude<WorkspaceRole, "owner">;
 }
 
 // ── Analytics ────────────────────────────────────────────────

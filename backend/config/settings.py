@@ -130,7 +130,7 @@ class Settings(BaseSettings):
     qdrant_collection: str = Field(default="nexusrag_chunks")
     enable_pgvector_fallback: bool = Field(
         default=False,
-        description="Reserved for a future Supabase pgvector adapter migration",
+        description="Use Supabase pgvector when Qdrant is unavailable",
     )
     enable_local_faiss: bool = Field(
         default=True,

@@ -15,6 +15,11 @@ class QdrantVectorStore:
     _PAYLOAD_INDEXES: tuple[tuple[str, str], ...] = (
         ("workspace_id", "keyword"),
         ("document_id", "keyword"),
+        ("filename", "keyword"),
+        ("metadata.file_type", "keyword"),
+        ("metadata.uploaded_by", "keyword"),
+        ("metadata.uploaded_at_epoch", "integer"),
+        ("page_number", "integer"),
     )
 
     def __init__(self, settings: Settings | None = None) -> None:

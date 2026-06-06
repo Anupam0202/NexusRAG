@@ -9,12 +9,16 @@ import type { SourceChunk } from "@/types";
 import {
   Send, ArrowDown, Sparkles, FileSearch, Brain,
   MessageSquare, Trash2, Zap, BookOpen, Search, Upload, Files,
+  Download, FileJson, SlidersHorizontal, X,
 } from "lucide-react";
 import { AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { useStore } from "@/hooks/useStore";
 import { useDocuments } from "@/hooks/useDocuments";
 import { clearSession } from "@/lib/api";
+import { buildChatRequestFilters, exportChatJson, exportChatMarkdown } from "@/lib/chat-tools";
+import { toggleDocumentSelection } from "@/lib/workspace-controls";
+import { toast } from "sonner";
 
 const SUGGESTIONS = [
   { icon: <FileSearch size={15} />, text: "Summarize this document" },
@@ -31,7 +35,17 @@ export default function ChatInterface() {
   const [activeSources, setActiveSources] = useState<SourceChunk[] | null>(null);
   const [showScrollBtn, setShowScrollBtn] = useState(false);
   const [chatScope, setChatScope] = useState<"workspace" | "documents">("workspace");
-  const [selectedDocumentId, setSelectedDocumentId] = useState("");
+  const [selectedDocumentIds, setSelectedDocumentIds] = useState<string[]>([]);
+  const [selectedFileTypes, setSelectedFileTypes] = useState<string[]>([]);
+  const [showFilters, setShowFilters] = useState(false);
+  const [filenameFilter, setFilenameFilter] = useState("");
+  const [uploaderFilter, setUploaderFilter] = useState("");
+  const [minPage, setMinPage] = useState("");
+  const [maxPage, setMaxPage] = useState("");
+  const [uploadedAfter, setUploadedAfter] = useState("");
+  const [uploadedBefore, setUploadedBefore] = useState("");
+  const [metadataKey, setMetadataKey] = useState("");
+  const [metadataValue, setMetadataValue] = useState("");
   const {
     documents,
     loading: documentsLoading,
@@ -50,21 +64,24 @@ export default function ChatInterface() {
     () => documents.filter((doc) => doc.status === "ready"),
     [documents]
   );
-  const selectedDocumentIds = useMemo(
-    () => (chatScope === "documents" && selectedDocumentId ? [selectedDocumentId] : []),
-    [chatScope, selectedDocumentId]
+  const availableFileTypes = useMemo(
+    () => [...new Set(readyDocuments.map((doc) => doc.file_type).filter(Boolean))].sort(),
+    [readyDocuments]
   );
+  const hasDocumentFilter =
+    selectedDocumentIds.length > 0 || Boolean(filenameFilter.trim());
   const canSend =
     Boolean(input.trim()) &&
     !isStreaming &&
     canChat &&
-    (chatScope === "workspace" || selectedDocumentIds.length > 0);
+    (chatScope === "workspace" || hasDocumentFilter);
 
   useEffect(() => {
     if (chatScope !== "documents") return;
-    if (readyDocuments.some((doc) => doc.document_id === selectedDocumentId)) return;
-    setSelectedDocumentId(readyDocuments[0]?.document_id ?? "");
-  }, [chatScope, readyDocuments, selectedDocumentId]);
+    setSelectedDocumentIds((current) =>
+      current.filter((id) => readyDocuments.some((doc) => doc.document_id === id))
+    );
+  }, [chatScope, readyDocuments]);
 
   // Auto-scroll on new messages
   useEffect(() => {
@@ -86,13 +103,54 @@ export default function ChatInterface() {
   const handleSend = useCallback(() => {
     const q = input.trim();
     if (!canSend) return;
-    sendMessage(q, {
-      chatScope,
-      documentIds: selectedDocumentIds,
-    });
+    try {
+      const filters = buildChatRequestFilters({
+        chatScope,
+        documentIds: chatScope === "documents" ? selectedDocumentIds : [],
+        fileTypes: selectedFileTypes,
+        filename: filenameFilter,
+        uploadedBy: uploaderFilter,
+        minPage,
+        maxPage,
+        uploadedAfter,
+        uploadedBefore,
+        metadataKey,
+        metadataValue,
+      });
+      sendMessage(q, {
+        chatScope,
+        documentIds: filters.document_ids,
+        fileTypes: filters.file_types,
+        filename: filters.filename,
+        uploadedBy: filters.uploaded_by,
+        minPage: filters.min_page,
+        maxPage: filters.max_page,
+        uploadedAfter: filters.uploaded_after,
+        uploadedBefore: filters.uploaded_before,
+        metadataFilters: filters.metadata_filters,
+      });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Invalid chat filters");
+      return;
+    }
     setInput("");
     if (inputRef.current) inputRef.current.style.height = "auto";
-  }, [canSend, chatScope, input, selectedDocumentIds, sendMessage]);
+  }, [
+    canSend,
+    chatScope,
+    filenameFilter,
+    input,
+    maxPage,
+    minPage,
+    selectedDocumentIds,
+    selectedFileTypes,
+    sendMessage,
+    uploadedAfter,
+    uploadedBefore,
+    uploaderFilter,
+    metadataKey,
+    metadataValue,
+  ]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -117,6 +175,41 @@ export default function ChatInterface() {
     if (canChat) {
       clearSession(store.sessionId).catch(() => {/* best-effort */ });
     }
+  };
+
+  const downloadChat = (format: "markdown" | "json") => {
+    if (messages.length === 0) return;
+    const content =
+      format === "markdown" ? exportChatMarkdown(messages) : exportChatJson(messages);
+    const blob = new Blob([content], {
+      type: format === "markdown" ? "text/markdown;charset=utf-8" : "application/json;charset=utf-8",
+    });
+    const href = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = href;
+    anchor.download = `nexusrag-chat-${new Date().toISOString().slice(0, 10)}.${
+      format === "markdown" ? "md" : "json"
+    }`;
+    anchor.click();
+    URL.revokeObjectURL(href);
+  };
+
+  const toggleDocument = (documentId: string) => {
+    setSelectedDocumentIds((current) => {
+      const result = toggleDocumentSelection(current, documentId);
+      if (result.limitReached) {
+        toast.error("You can select up to 25 documents at a time.");
+      }
+      return result.selected;
+    });
+  };
+
+  const toggleFileType = (fileType: string) => {
+    setSelectedFileTypes((current) =>
+      current.includes(fileType)
+        ? current.filter((item) => item !== fileType)
+        : [...current, fileType]
+    );
   };
 
   const isEmpty = messages.length === 0;
@@ -175,6 +268,7 @@ export default function ChatInterface() {
                   <button
                     type="button"
                     onClick={() => setChatScope("workspace")}
+                    aria-pressed={chatScope === "workspace"}
                     className={cn(
                       "inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition",
                       chatScope === "workspace"
@@ -189,9 +283,12 @@ export default function ChatInterface() {
                     type="button"
                     onClick={() => {
                       setChatScope("documents");
-                      setSelectedDocumentId((current) => current || readyDocuments[0]?.document_id || "");
+                      setSelectedDocumentIds((current) =>
+                        current.length || !readyDocuments[0] ? current : [readyDocuments[0].document_id]
+                      );
                     }}
                     disabled={readyDocuments.length === 0}
+                    aria-pressed={chatScope === "documents"}
                     className={cn(
                       "inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition disabled:opacity-40",
                       chatScope === "documents"
@@ -203,20 +300,171 @@ export default function ChatInterface() {
                     Selected
                   </button>
                 </div>
-                {chatScope === "documents" && (
-                  <select
-                    value={selectedDocumentId}
-                    onChange={(event) => setSelectedDocumentId(event.target.value)}
-                    className="min-w-0 flex-1 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] px-3 py-2 text-xs font-medium text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-brand-500/40"
-                    aria-label="Selected chat document"
+                <button
+                  type="button"
+                  onClick={() => setShowFilters((current) => !current)}
+                  aria-expanded={showFilters}
+                  aria-controls="retrieval-filters"
+                  className={cn(
+                    "inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-semibold transition",
+                    showFilters
+                      ? "border-brand-400 bg-brand-50 text-brand-700 dark:bg-brand-900/20 dark:text-brand-200"
+                      : "border-[var(--border)] bg-[var(--bg-card)] text-[var(--text-muted)]"
+                  )}
+                >
+                  <SlidersHorizontal size={13} />
+                  Filters
+                </button>
+              </div>
+            )}
+            {canChat && docCount > 0 && showFilters && (
+              <div
+                id="retrieval-filters"
+                className="mb-2 max-h-[min(60vh,28rem)] overflow-y-auto rounded-xl border border-[var(--border)] bg-[var(--bg-card)] p-3"
+              >
+                <div className="mb-2 flex items-center justify-between gap-2">
+                  <p className="text-xs font-semibold">Retrieval filters</p>
+                  <button
+                    type="button"
+                    onClick={() => setShowFilters(false)}
+                    className="flex h-7 w-7 items-center justify-center rounded-lg text-[var(--text-muted)] hover:bg-[var(--bg-hover)]"
+                    aria-label="Close filters"
                   >
+                    <X size={14} />
+                  </button>
+                </div>
+                {chatScope === "documents" && (
+                  <div className="mb-3 max-h-28 space-y-1 overflow-y-auto rounded-lg border border-[var(--border)] p-2">
                     {readyDocuments.map((doc) => (
-                      <option key={doc.document_id} value={doc.document_id}>
-                        {doc.filename}
-                      </option>
+                      <label
+                        key={doc.document_id}
+                        className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-xs hover:bg-[var(--bg-hover)]"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selectedDocumentIds.includes(doc.document_id)}
+                          onChange={() => toggleDocument(doc.document_id)}
+                          className="accent-brand-600"
+                        />
+                        <span className="truncate">{doc.filename}</span>
+                      </label>
                     ))}
-                  </select>
+                  </div>
                 )}
+                {availableFileTypes.length > 0 && (
+                  <div className="mb-3">
+                    <p className="mb-1.5 text-[11px] font-semibold text-[var(--text-muted)]">
+                      File types
+                    </p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {availableFileTypes.map((fileType) => (
+                        <label
+                          key={fileType}
+                          className={cn(
+                            "cursor-pointer rounded-lg border px-2 py-1 text-[11px] font-semibold transition",
+                            selectedFileTypes.includes(fileType)
+                              ? "border-brand-400 bg-brand-50 text-brand-700 dark:bg-brand-900/20 dark:text-brand-200"
+                              : "border-[var(--border)] text-[var(--text-muted)]"
+                          )}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={selectedFileTypes.includes(fileType)}
+                            onChange={() => toggleFileType(fileType)}
+                            className="sr-only"
+                          />
+                          {fileType.toUpperCase()}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <label htmlFor="chat-filename-filter" className="sr-only">
+                    Filter by filename
+                  </label>
+                  <input
+                    id="chat-filename-filter"
+                    value={filenameFilter}
+                    onChange={(event) => setFilenameFilter(event.target.value)}
+                    placeholder="Filename filter"
+                    className="rounded-lg border border-[var(--border)] bg-[var(--bg-secondary)] px-3 py-2 text-xs outline-none focus:border-brand-500"
+                  />
+                  <label htmlFor="chat-uploader-filter" className="sr-only">
+                    Filter by uploader user ID
+                  </label>
+                  <input
+                    id="chat-uploader-filter"
+                    value={uploaderFilter}
+                    onChange={(event) => setUploaderFilter(event.target.value)}
+                    placeholder="Uploader user ID"
+                    className="rounded-lg border border-[var(--border)] bg-[var(--bg-secondary)] px-3 py-2 text-xs outline-none focus:border-brand-500"
+                  />
+                  <label htmlFor="chat-min-page-filter" className="sr-only">
+                    Minimum page
+                  </label>
+                  <input
+                    id="chat-min-page-filter"
+                    type="number"
+                    min={0}
+                    value={minPage}
+                    onChange={(event) => setMinPage(event.target.value)}
+                    placeholder="Minimum page"
+                    className="rounded-lg border border-[var(--border)] bg-[var(--bg-secondary)] px-3 py-2 text-xs outline-none focus:border-brand-500"
+                  />
+                  <label htmlFor="chat-max-page-filter" className="sr-only">
+                    Maximum page
+                  </label>
+                  <input
+                    id="chat-max-page-filter"
+                    type="number"
+                    min={0}
+                    value={maxPage}
+                    onChange={(event) => setMaxPage(event.target.value)}
+                    placeholder="Maximum page"
+                    className="rounded-lg border border-[var(--border)] bg-[var(--bg-secondary)] px-3 py-2 text-xs outline-none focus:border-brand-500"
+                  />
+                  <label htmlFor="chat-uploaded-after-filter" className="sr-only">
+                    Uploaded after
+                  </label>
+                  <input
+                    id="chat-uploaded-after-filter"
+                    type="date"
+                    value={uploadedAfter}
+                    onChange={(event) => setUploadedAfter(event.target.value)}
+                    className="rounded-lg border border-[var(--border)] bg-[var(--bg-secondary)] px-3 py-2 text-xs outline-none focus:border-brand-500"
+                  />
+                  <label htmlFor="chat-uploaded-before-filter" className="sr-only">
+                    Uploaded before
+                  </label>
+                  <input
+                    id="chat-uploaded-before-filter"
+                    type="date"
+                    value={uploadedBefore}
+                    onChange={(event) => setUploadedBefore(event.target.value)}
+                    className="rounded-lg border border-[var(--border)] bg-[var(--bg-secondary)] px-3 py-2 text-xs outline-none focus:border-brand-500"
+                  />
+                  <label htmlFor="chat-metadata-key-filter" className="sr-only">
+                    Metadata key
+                  </label>
+                  <input
+                    id="chat-metadata-key-filter"
+                    value={metadataKey}
+                    onChange={(event) => setMetadataKey(event.target.value)}
+                    placeholder="Metadata key"
+                    className="rounded-lg border border-[var(--border)] bg-[var(--bg-secondary)] px-3 py-2 text-xs outline-none focus:border-brand-500"
+                  />
+                  <label htmlFor="chat-metadata-value-filter" className="sr-only">
+                    Metadata value
+                  </label>
+                  <input
+                    id="chat-metadata-value-filter"
+                    value={metadataValue}
+                    onChange={(event) => setMetadataValue(event.target.value)}
+                    placeholder="Metadata value"
+                    className="rounded-lg border border-[var(--border)] bg-[var(--bg-secondary)] px-3 py-2 text-xs outline-none focus:border-brand-500"
+                  />
+                </div>
               </div>
             )}
             <div className="glass-input flex items-end gap-2 rounded-2xl px-4 py-2.5">
@@ -230,8 +478,8 @@ export default function ChatInterface() {
                     ? "Checking document library..."
                     : !canChat
                       ? "Sign in to chat with your documents..."
-                    : chatScope === "documents" && selectedDocumentId
-                      ? "Ask about the selected document..."
+                    : chatScope === "documents" && hasDocumentFilter
+                      ? "Ask about the selected documents..."
                     : docCount > 0
                       ? "Ask about your documents..."
                       : "Upload documents to start chatting..."
@@ -243,6 +491,26 @@ export default function ChatInterface() {
               />
 
               <div className="flex items-center gap-1 shrink-0 pb-0.5">
+                {messages.length > 0 && (
+                  <>
+                    <button
+                      onClick={() => downloadChat("markdown")}
+                      title="Export chat as Markdown"
+                      aria-label="Export chat as Markdown"
+                      className="flex h-8 w-8 items-center justify-center rounded-xl text-[var(--text-muted)] hover:bg-[var(--bg-hover)] hover:text-brand-500 transition-all"
+                    >
+                      <Download size={15} />
+                    </button>
+                    <button
+                      onClick={() => downloadChat("json")}
+                      title="Export chat as JSON"
+                      aria-label="Export chat as JSON"
+                      className="flex h-8 w-8 items-center justify-center rounded-xl text-[var(--text-muted)] hover:bg-[var(--bg-hover)] hover:text-brand-500 transition-all"
+                    >
+                      <FileJson size={15} />
+                    </button>
+                  </>
+                )}
                 {messages.length > 0 && (
                   <button
                     onClick={clearChat}

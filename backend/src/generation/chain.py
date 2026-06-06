@@ -511,6 +511,14 @@ class RAGChain:
         filename = str(filters.get("filename") or "").strip()
         if filename:
             normalized["filename"] = filename
+        raw_file_types = filters.get("file_types") or []
+        file_types = [
+            str(item).strip().lower().lstrip(".")
+            for item in raw_file_types
+            if str(item).strip()
+        ]
+        if file_types:
+            normalized["file_types"] = sorted(set(file_types))
         uploaded_by = str(filters.get("uploaded_by") or "").strip()
         if uploaded_by:
             normalized["uploaded_by"] = uploaded_by
@@ -680,6 +688,9 @@ class RAGChain:
 
     def clear_cache(self, *, workspace_id: str | None = None) -> None:
         self._cache.clear(workspace_id=workspace_id)
+        clear_retrieval_cache = getattr(self._retriever, "clear_cache", None)
+        if callable(clear_retrieval_cache):
+            clear_retrieval_cache(workspace_id=workspace_id)
 
     def get_session_history(
         self,
@@ -693,6 +704,10 @@ class RAGChain:
     @property
     def cache_stats(self) -> dict[str, Any]:
         return self._cache.stats
+
+    @property
+    def llm(self) -> Any:
+        return self._llm
 
     def _record_metric(self, response_time: float, confidence: float) -> None:
         """Record query metrics for analytics."""

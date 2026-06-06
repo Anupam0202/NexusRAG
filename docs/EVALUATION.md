@@ -4,8 +4,11 @@ Evaluation should prove that NexusRAG answers from uploaded documents, cites the
 
 ## Current Coverage
 
-- Backend tests cover API behavior, ingestion validation, generation primitives, routing, pgvector fallback, security helpers, and vector-store scoping.
+- Backend tests cover API behavior, ingestion validation, generation primitives, routing, pgvector fallback, member administration, security helpers, and vector-store scoping.
+- Frontend Vitest coverage includes safe markdown links, low-confidence rendering, multi-document filter normalization, and chat export.
+- A committed Playwright public smoke suite covers guarded production routes.
 - Sample evaluation routes and result models exist for RAG quality checks.
+- Evaluation summaries include p50/p95 latency, fallback rate, quota failure rate, and estimated cost posture.
 - Analytics records usage, errors, fallback posture, cache behavior, and ingestion status.
 - Status endpoints expose deployment, vector backend, Supabase/Qdrant, upload, OCR, and provider health signals.
 
@@ -32,8 +35,8 @@ Evaluation should prove that NexusRAG answers from uploaded documents, cites the
 
 ## Remaining Evaluation Work
 
-- Add committed frontend test runner and component tests.
-- Add Playwright E2E tests that can run locally and in CI.
-- Add automated citation coverage scoring and answerability detection.
+- Expand component coverage for members, privacy controls, uploads, and streaming.
+- Add authenticated Playwright E2E that can create two users/workspaces and upload real fixtures.
+- Expand automated citation coverage, answerability, faithfulness, and synthetic evaluation datasets.
 - Add prompt-injection test datasets.
 - Add regression fixtures for scanned PDFs and embedded-image OCR.

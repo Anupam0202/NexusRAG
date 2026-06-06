@@ -11,6 +11,14 @@ import { generateId } from "@/lib/utils";
 export type ChatSendOptions = {
   chatScope?: "workspace" | "documents";
   documentIds?: string[];
+  fileTypes?: string[];
+  filename?: string;
+  uploadedBy?: string;
+  minPage?: number;
+  maxPage?: number;
+  uploadedAfter?: string;
+  uploadedBefore?: string;
+  metadataFilters?: Record<string, string | number | boolean>;
 };
 
 export function useChat() {
@@ -187,6 +195,14 @@ export function useChat() {
       request.document_ids = options.documentIds;
       request.chat_scope = "documents";
     }
+    if (options.fileTypes?.length) request.file_types = options.fileTypes;
+    if (options.filename) request.filename = options.filename;
+    if (options.uploadedBy) request.uploaded_by = options.uploadedBy;
+    if (options.minPage !== undefined) request.min_page = options.minPage;
+    if (options.maxPage !== undefined) request.max_page = options.maxPage;
+    if (options.uploadedAfter) request.uploaded_after = options.uploadedAfter;
+    if (options.uploadedBefore) request.uploaded_before = options.uploadedBefore;
+    if (options.metadataFilters) request.metadata_filters = options.metadataFilters;
 
     const sent = socketRef.current?.send(request) ?? false;
     if (!sent) {

@@ -10,11 +10,11 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import Any
+from typing import Any, Literal
 from uuid import UUID
 
 import httpx
-from fastapi import APIRouter, Depends, Header, HTTPException, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
 from pydantic import BaseModel, Field
 
 from config.settings import Settings, get_settings
@@ -103,6 +103,15 @@ class WorkspaceMembersResponse(BaseModel):
     total: int
 
 
+class WorkspaceMemberCreateRequest(BaseModel):
+    email_or_user_id: str = Field(..., min_length=3, max_length=320)
+    role: Literal["admin", "editor", "viewer"] = "viewer"
+
+
+class WorkspaceMemberUpdateRequest(BaseModel):
+    role: Literal["admin", "editor", "viewer"]
+
+
 router = APIRouter(prefix="/auth", tags=["auth"])
 workspace_router = APIRouter(prefix="/workspaces", tags=["workspaces"])
 
@@ -164,6 +173,70 @@ def _demo_workspace_summary() -> WorkspaceSummaryResponse:
         role=WorkspaceRole.OWNER,
         owner_id="00000000-0000-0000-0000-000000000000",
     )
+
+
+def _member_response(
+    *,
+    user_id: str,
+    role: WorkspaceRole,
+    profile: dict[str, Any] | None = None,
+    created_at: str | None = None,
+) -> WorkspaceMemberResponse:
+    profile = profile or {}
+    return WorkspaceMemberResponse(
+        user_id=user_id,
+        email=profile.get("email") if isinstance(profile.get("email"), str) else None,
+        display_name=(
+            profile.get("display_name") if isinstance(profile.get("display_name"), str) else None
+        ),
+        avatar_url=(
+            profile.get("avatar_url") if isinstance(profile.get("avatar_url"), str) else None
+        ),
+        role=role,
+        created_at=created_at,
+    )
+
+
+def _assert_member_manageable(
+    *,
+    actor_role: WorkspaceRole,
+    target_role: WorkspaceRole,
+    action: str,
+) -> None:
+    if target_role == WorkspaceRole.OWNER:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"The workspace owner cannot be {action}.",
+        )
+    if actor_role == WorkspaceRole.ADMIN and target_role == WorkspaceRole.ADMIN:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only the workspace owner can manage administrators.",
+        )
+
+
+async def _record_member_audit(
+    *,
+    supabase: SupabaseClient,
+    context: WorkspaceContext,
+    action: str,
+    target_user_id: str,
+    metadata: dict[str, Any] | None = None,
+) -> None:
+    from src.repositories.audit import AuditRepository
+
+    try:
+        await AuditRepository(supabase).record_event(
+            action=action,
+            workspace_id=context.workspace_id,
+            user_id=context.user.id,
+            resource_type="workspace_member",
+            resource_id=target_user_id,
+            metadata=metadata,
+        )
+    except Exception:
+        # Membership mutations must not fail solely because telemetry storage is unavailable.
+        return
 
 
 def _enterprise_auth_not_configured_error() -> HTTPException:
@@ -273,22 +346,27 @@ def authenticate_supabase_token(token: str, settings: Settings) -> CurrentUser:
 
 
 async def get_current_user(
+    request: Request,
     authorization: str | None = Header(None),
     settings: Settings = Depends(get_settings),
 ) -> CurrentUser:
     token = _extract_bearer_token(authorization)
     if not token:
         if settings.enable_anonymous_demo:
-            return CurrentUser(
+            user = CurrentUser(
                 id="00000000-0000-0000-0000-000000000000",
                 email=None,
                 role="demo",
                 claims={},
                 is_demo=True,
             )
+            request.state.user_id = user.id
+            return user
         raise _missing_bearer_error()
 
-    return authenticate_supabase_token(token, settings)
+    user = authenticate_supabase_token(token, settings)
+    request.state.user_id = user.id
+    return user
 
 
 async def resolve_workspace_context(
@@ -339,13 +417,17 @@ async def resolve_workspace_context(
 
 
 async def get_workspace_context(
+    request: Request,
     x_nexus_workspace_id: str | None = Header(None, alias=WORKSPACE_HEADER),
     x_workspace_id: str | None = Header(None, alias=LEGACY_WORKSPACE_HEADER),
     user: CurrentUser = Depends(get_current_user),
     supabase: SupabaseClient = Depends(get_supabase_client),
 ) -> WorkspaceContext:
     workspace_id = select_workspace_id(x_nexus_workspace_id, x_workspace_id)
-    return await resolve_workspace_context(user, workspace_id, supabase)
+    context = await resolve_workspace_context(user, workspace_id, supabase)
+    request.state.workspace_id = context.workspace_id
+    request.state.user_id = context.user.id
+    return context
 
 
 def require_workspace_role(*allowed_roles: WorkspaceRole):
@@ -369,6 +451,7 @@ def require_enterprise_workspace_role(*allowed_roles: WorkspaceRole):
     allowed = set(allowed_roles)
 
     async def dependency(
+        request: Request,
         authorization: str | None = Header(None),
         x_nexus_workspace_id: str | None = Header(None, alias=WORKSPACE_HEADER),
         x_workspace_id: str | None = Header(None, alias=LEGACY_WORKSPACE_HEADER),
@@ -376,6 +459,7 @@ def require_enterprise_workspace_role(*allowed_roles: WorkspaceRole):
         supabase: SupabaseClient = Depends(get_supabase_client),
     ) -> WorkspaceContext | None:
         if settings.enable_anonymous_demo:
+            request.state.workspace_id = DEFAULT_WORKSPACE_ID
             return None
         if not settings.supabase_configured or not settings.supabase_auth_configured:
             raise _enterprise_auth_not_configured_error()
@@ -387,6 +471,8 @@ def require_enterprise_workspace_role(*allowed_roles: WorkspaceRole):
         user = authenticate_supabase_token(token, settings)
         workspace_id = select_workspace_id(x_nexus_workspace_id, x_workspace_id)
         context = await resolve_workspace_context(user, workspace_id, supabase)
+        request.state.workspace_id = context.workspace_id
+        request.state.user_id = context.user.id
         if context.role not in allowed:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
@@ -567,3 +653,199 @@ async def list_current_workspace_members(
         members=members,
         total=len(members),
     )
+
+
+@workspace_router.post(
+    "/current/members",
+    response_model=WorkspaceMemberResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def add_current_workspace_member(
+    payload: WorkspaceMemberCreateRequest,
+    context: WorkspaceContext = Depends(
+        require_workspace_role(WorkspaceRole.OWNER, WorkspaceRole.ADMIN)
+    ),
+    supabase: SupabaseClient = Depends(get_supabase_client),
+) -> WorkspaceMemberResponse:
+    if context.user.is_demo:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Demo mode cannot manage durable workspace members.",
+        )
+
+    from src.repositories.workspaces import WorkspaceRepository
+
+    repo = WorkspaceRepository(supabase)
+    try:
+        profile = await repo.find_profile(payload.email_or_user_id)
+        if not profile or not profile.get("id"):
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No existing NexusRAG user matches that email or user ID.",
+            )
+        role = WorkspaceRole(payload.role)
+        if context.role == WorkspaceRole.ADMIN and role == WorkspaceRole.ADMIN:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Only the workspace owner can add administrators.",
+            )
+        existing = await repo.get_membership(
+            workspace_id=context.workspace_id,
+            user_id=str(profile["id"]),
+        )
+        if existing:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="This user is already a workspace member.",
+            )
+        membership = await repo.add_member(
+            workspace_id=context.workspace_id,
+            user_id=str(profile["id"]),
+            role=role,
+        )
+        await _record_member_audit(
+            supabase=supabase,
+            context=context,
+            action="workspace.member_added",
+            target_user_id=str(profile["id"]),
+            metadata={"role": role.value},
+        )
+    except HTTPException:
+        raise
+    except SupabaseNotConfiguredError as exc:
+        raise _enterprise_auth_not_configured_error() from exc
+    except httpx.HTTPStatusError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Unable to add the workspace member.",
+        ) from exc
+
+    return _member_response(
+        user_id=str(profile["id"]),
+        role=role,
+        profile=profile,
+        created_at=str(membership["created_at"]) if membership.get("created_at") else None,
+    )
+
+
+@workspace_router.patch(
+    "/current/members/{user_id}",
+    response_model=WorkspaceMemberResponse,
+)
+async def update_current_workspace_member(
+    user_id: str,
+    payload: WorkspaceMemberUpdateRequest,
+    context: WorkspaceContext = Depends(
+        require_workspace_role(WorkspaceRole.OWNER, WorkspaceRole.ADMIN)
+    ),
+    supabase: SupabaseClient = Depends(get_supabase_client),
+) -> WorkspaceMemberResponse:
+    validate_workspace_id(user_id, header_name="user_id")
+    from src.repositories.workspaces import WorkspaceRepository
+
+    repo = WorkspaceRepository(supabase)
+    try:
+        membership = await repo.get_membership(
+            workspace_id=context.workspace_id,
+            user_id=user_id,
+        )
+        if not membership:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Member not found.")
+        target_role = WorkspaceRole(str(membership["role"]))
+        _assert_member_manageable(
+            actor_role=context.role,
+            target_role=target_role,
+            action="changed",
+        )
+        next_role = WorkspaceRole(payload.role)
+        if context.role == WorkspaceRole.ADMIN and next_role == WorkspaceRole.ADMIN:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Only the workspace owner can assign administrators.",
+            )
+        updated = await repo.update_member_role(
+            workspace_id=context.workspace_id,
+            user_id=user_id,
+            role=next_role,
+        )
+        profile = await repo.find_profile(user_id)
+        await _record_member_audit(
+            supabase=supabase,
+            context=context,
+            action="workspace.member_role_updated",
+            target_user_id=user_id,
+            metadata={"previous_role": target_role.value, "role": next_role.value},
+        )
+    except HTTPException:
+        raise
+    except (KeyError, ValueError) as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Workspace membership has an invalid role.",
+        ) from exc
+    except httpx.HTTPStatusError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Unable to update the workspace member.",
+        ) from exc
+
+    return _member_response(
+        user_id=user_id,
+        role=next_role,
+        profile=profile,
+        created_at=str(updated["created_at"]) if updated and updated.get("created_at") else None,
+    )
+
+
+@workspace_router.delete("/current/members/{user_id}")
+async def remove_current_workspace_member(
+    user_id: str,
+    context: WorkspaceContext = Depends(
+        require_workspace_role(WorkspaceRole.OWNER, WorkspaceRole.ADMIN)
+    ),
+    supabase: SupabaseClient = Depends(get_supabase_client),
+) -> dict[str, Any]:
+    validate_workspace_id(user_id, header_name="user_id")
+    if user_id == context.user.id:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="You cannot remove yourself from the active workspace.",
+        )
+    from src.repositories.workspaces import WorkspaceRepository
+
+    repo = WorkspaceRepository(supabase)
+    try:
+        membership = await repo.get_membership(
+            workspace_id=context.workspace_id,
+            user_id=user_id,
+        )
+        if not membership:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Member not found.")
+        target_role = WorkspaceRole(str(membership["role"]))
+        _assert_member_manageable(
+            actor_role=context.role,
+            target_role=target_role,
+            action="removed",
+        )
+        removed = await repo.remove_member(workspace_id=context.workspace_id, user_id=user_id)
+        await _record_member_audit(
+            supabase=supabase,
+            context=context,
+            action="workspace.member_removed",
+            target_user_id=user_id,
+            metadata={"previous_role": target_role.value},
+        )
+    except HTTPException:
+        raise
+    except (KeyError, ValueError) as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Workspace membership has an invalid role.",
+        ) from exc
+    except httpx.HTTPStatusError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Unable to remove the workspace member.",
+        ) from exc
+
+    return {"success": True, "removed": removed, "user_id": user_id}

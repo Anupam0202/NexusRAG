@@ -116,6 +116,21 @@ def test_auth_me_requires_bearer_token(test_client: TestClient, monkeypatch) -> 
         ("post", "/api/v1/workspaces", {"json": {"name": "Acme"}}),
         ("get", "/api/v1/workspaces/current", {}),
         ("get", "/api/v1/workspaces/current/members", {}),
+        (
+            "post",
+            "/api/v1/workspaces/current/members",
+            {"json": {"email_or_user_id": "member@example.com", "role": "viewer"}},
+        ),
+        (
+            "patch",
+            "/api/v1/workspaces/current/members/11111111-1111-1111-1111-111111111111",
+            {"json": {"role": "viewer"}},
+        ),
+        (
+            "delete",
+            "/api/v1/workspaces/current/members/11111111-1111-1111-1111-111111111111",
+            {},
+        ),
     ],
 )
 def test_enterprise_routes_require_bearer_token(

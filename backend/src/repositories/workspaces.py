@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 from typing import Any
+from uuid import UUID
 
 from src.api.auth import WorkspaceRole
-from src.repositories.base import SupabaseRepository, and_query, eq_filter, first_row
+from src.repositories.base import SupabaseRepository, and_query, encoded, eq_filter, first_row
 
 
 class WorkspaceRepository(SupabaseRepository):
@@ -29,6 +30,23 @@ class WorkspaceRepository(SupabaseRepository):
         rows = await self._supabase.table_select(
             "workspaces",
             query=and_query("select=*", eq_filter("id", workspace_id), "limit=1"),
+        )
+        return first_row(rows)
+
+    async def find_profile(self, email_or_user_id: str) -> dict[str, Any] | None:
+        value = email_or_user_id.strip()
+        try:
+            UUID(value)
+            column = "id"
+        except ValueError:
+            column = "email"
+        rows = await self._supabase.table_select(
+            "profiles",
+            query=and_query(
+                "select=id,email,display_name,avatar_url",
+                f"{column}=eq.{encoded(value)}",
+                "limit=1",
+            ),
         )
         return first_row(rows)
 
@@ -105,14 +123,13 @@ class WorkspaceRepository(SupabaseRepository):
         user_id: str,
         role: WorkspaceRole,
     ) -> dict[str, Any]:
-        rows = await self._supabase.table_upsert(
+        rows = await self._supabase.table_insert(
             "workspace_members",
             {
                 "workspace_id": workspace_id,
                 "user_id": user_id,
                 "role": role.value,
             },
-            on_conflict="workspace_id,user_id",
         )
         return rows[0]
 
@@ -122,3 +139,20 @@ class WorkspaceRepository(SupabaseRepository):
             query=and_query(eq_filter("workspace_id", workspace_id), eq_filter("user_id", user_id)),
         )
         return len(rows)
+
+    async def update_member_role(
+        self,
+        *,
+        workspace_id: str,
+        user_id: str,
+        role: WorkspaceRole,
+    ) -> dict[str, Any] | None:
+        rows = await self._supabase.table_update(
+            "workspace_members",
+            {"role": role.value},
+            query=and_query(
+                eq_filter("workspace_id", workspace_id),
+                eq_filter("user_id", user_id),
+            ),
+        )
+        return first_row(rows)

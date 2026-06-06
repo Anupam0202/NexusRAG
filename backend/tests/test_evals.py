@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 
-from evals.metrics import RetrievedSource, evaluate_case, token_f1
+from evals.metrics import RetrievedSource, evaluate_case, summarize_metrics, token_f1
 from evals.run_eval import DEFAULT_DATASET, run_evaluation
 
 
@@ -48,3 +48,33 @@ def test_sample_eval_runs_without_llm_and_writes_report(tmp_path) -> None:
     assert report["summary"]["avg_retrieval_recall_at_k"] >= 0.8
     assert all(item["passed"] for item in report["results"])
 
+
+def test_summary_reports_percentiles_fallback_quota_and_cost() -> None:
+    results = [
+        {
+            "passed": True,
+            "metrics": {
+                "latency_ms": 100,
+                "generation_fallback": False,
+                "quota_failure": False,
+                "estimated_cost_usd": 0.01,
+            },
+        },
+        {
+            "passed": False,
+            "metrics": {
+                "latency_ms": 400,
+                "generation_fallback": True,
+                "quota_failure": True,
+                "estimated_cost_usd": 0.03,
+            },
+        },
+    ]
+
+    summary = summarize_metrics(results)
+
+    assert summary["latency_p50_ms"] == 250.0
+    assert summary["latency_p95_ms"] == 385.0
+    assert summary["fallback_rate"] == 0.5
+    assert summary["quota_failure_rate"] == 0.5
+    assert summary["avg_estimated_cost_usd"] == 0.02

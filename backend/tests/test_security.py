@@ -4,6 +4,10 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
+
+from src.api.middleware import RateLimitMiddleware
 from src.utils.security import FileValidator, InputSanitizer, redact_pii
 
 
@@ -58,3 +62,62 @@ def test_chat_markdown_renderer_has_safe_link_protocol_contract() -> None:
     assert "function safeHref" in message_bubble
     assert '["http:", "https:", "mailto:"]' in message_bubble
     assert "noopener noreferrer nofollow" in message_bubble
+
+
+def test_supabase_hardening_migration_enforces_tenant_invariants() -> None:
+    migration = (
+        Path(__file__).resolve().parents[2]
+        / "supabase"
+        / "migrations"
+        / "007_security_hardening.sql"
+    ).read_text(encoding="utf-8")
+
+    assert "enforce_workspace_member_invariants" in migration
+    assert "enforce_workspace_identity_immutable" in migration
+    assert "enforce_document_identity_immutable" in migration
+    assert "workspace_members_update_admins" in migration
+    assert "workspace_members_delete_admins" in migration
+    assert "revoke execute on function public.handle_new_user()" in migration
+    assert "set search_path = public, pg_temp" in migration
+
+
+def test_rate_limit_cannot_be_bypassed_with_untrusted_identity_headers() -> None:
+    app = FastAPI()
+    app.add_middleware(RateLimitMiddleware, rpm=2)
+
+    @app.get("/limited")
+    async def limited() -> dict[str, bool]:
+        return {"ok": True}
+
+    with TestClient(app) as client:
+        first = client.get(
+            "/limited",
+            headers={"Authorization": "Bearer fake-a", "X-Nexus-Workspace-Id": "workspace-a"},
+        )
+        second = client.get(
+            "/limited",
+            headers={"Authorization": "Bearer fake-b", "X-Nexus-Workspace-Id": "workspace-b"},
+        )
+        blocked = client.get(
+            "/limited",
+            headers={"Authorization": "Bearer fake-c", "X-Nexus-Workspace-Id": "workspace-c"},
+        )
+
+    assert first.status_code == 200
+    assert second.status_code == 200
+    assert blocked.status_code == 429
+
+
+def test_provider_health_migration_is_workspace_scoped_and_rls_protected() -> None:
+    migration = (
+        Path(__file__).resolve().parents[2]
+        / "supabase"
+        / "migrations"
+        / "008_provider_health_state.sql"
+    ).read_text(encoding="utf-8")
+
+    assert "provider_health_state" in migration
+    assert "primary key (workspace_id, provider, model, mode)" in migration
+    assert "enable row level security" in migration
+    assert "public.is_workspace_member(workspace_id)" in migration
+    assert "revoke all on public.provider_health_state from anon" in migration

@@ -62,6 +62,17 @@ def test_qdrant_payload_index_payload_declares_keyword_field() -> None:
     assert payload == {"field_name": "workspace_id", "field_schema": "keyword"}
 
 
+def test_qdrant_indexes_all_frequently_filtered_payload_fields() -> None:
+    assert set(QdrantVectorStore._PAYLOAD_INDEXES) >= {
+        ("workspace_id", "keyword"),
+        ("document_id", "keyword"),
+        ("filename", "keyword"),
+        ("metadata.file_type", "keyword"),
+        ("metadata.uploaded_by", "keyword"),
+        ("page_number", "integer"),
+    }
+
+
 def test_qdrant_search_response_maps_payload_to_result() -> None:
     results = QdrantVectorStore._results_from_search_response(
         {

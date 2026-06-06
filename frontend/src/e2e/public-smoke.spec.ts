@@ -4,6 +4,7 @@ const routes = [
   { path: "/chat", heading: "Chat" },
   { path: "/documents", heading: "Documents" },
   { path: "/settings/billing-or-usage", heading: "Billing & Usage" },
+  { path: "/settings/privacy", heading: "Privacy & Data" },
 ];
 
 for (const route of routes) {

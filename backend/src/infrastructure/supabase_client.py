@@ -219,6 +219,25 @@ class SupabaseClient:
             response.raise_for_status()
             return response.content
 
+    async def delete_object(self, path: str) -> None:
+        """Delete an original document from the configured private bucket."""
+        self.require_configured()
+        headers = {
+            "apikey": self.config.service_role_key,
+            "Authorization": f"Bearer {self.config.service_role_key}",
+        }
+        url = (
+            f"{self.config.url}/storage/v1/object/"
+            f"{self.config.storage_bucket}"
+        )
+        async with httpx.AsyncClient(timeout=120) as client:
+            response = await client.delete(
+                url,
+                json={"prefixes": [path.lstrip("/")]},
+                headers=headers,
+            )
+            response.raise_for_status()
+
 
 @lru_cache(maxsize=1)
 def get_supabase_client() -> SupabaseClient:

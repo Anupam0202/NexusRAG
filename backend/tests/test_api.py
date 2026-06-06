@@ -7,10 +7,14 @@ These tests use the TestClient and mock heavy components where needed.
 from __future__ import annotations
 
 import os
+from datetime import UTC, datetime
 
 from fastapi.testclient import TestClient
+from pydantic import ValidationError
 
 from config.settings import get_settings
+from src.api.models import QueryRequest
+from src.api.websocket import _stream_retrieval_filters
 from src.generation.provider_keys import get_provider_key_manager
 
 
@@ -34,6 +38,35 @@ class TestHealthEndpoint:
         assert resp.status_code == 200
         data = resp.json()
         assert data["status"] == "healthy"
+
+
+def test_stream_chat_filters_match_rest_date_and_metadata_surface() -> None:
+    filters = _stream_retrieval_filters(
+        QueryRequest(
+            question="Find the finance policy",
+            uploaded_after=datetime(2026, 1, 1, tzinfo=UTC),
+            uploaded_before=datetime(2026, 6, 1, tzinfo=UTC),
+            metadata_filters={"department": "finance"},
+        )
+    )
+
+    assert filters["uploaded_after_epoch"] < filters["uploaded_before_epoch"]
+    assert filters["metadata"] == {"department": "finance"}
+
+
+def test_chat_request_bounds_history_and_metadata_filter_counts() -> None:
+    oversized_history = [{"role": "user", "content": "hello"} for _ in range(51)]
+    oversized_metadata = {f"key_{index}": "value" for index in range(21)}
+
+    for payload in (
+        {"question": "hello", "conversation_history": oversized_history},
+        {"question": "hello", "metadata_filters": oversized_metadata},
+    ):
+        try:
+            QueryRequest.model_validate(payload)
+        except ValidationError:
+            continue
+        raise AssertionError("QueryRequest accepted an oversized collection")
 
 
 class TestDocumentEndpoints:
@@ -361,6 +394,7 @@ class TestAnalytics:
                 "question": "What does this selected file say?",
                 "chat_scope": "documents",
                 "document_ids": ["doc-alpha"],
+                "file_types": ["pdf"],
                 "min_page": 2,
                 "max_page": 5,
             },
@@ -370,9 +404,35 @@ class TestAnalytics:
         kwargs = test_client.mock_chain.query.call_args.kwargs  # type: ignore[attr-defined]
         assert kwargs["retrieval_filters"] == {
             "document_ids": ["doc-alpha"],
+            "file_types": ["pdf"],
             "min_page": 2,
             "max_page": 5,
         }
+
+    def test_chat_passes_uploaded_date_and_metadata_filters(self, test_client: TestClient):
+        test_client.mock_chain.query.return_value = {  # type: ignore[attr-defined]
+            "answer": "Filtered answer.",
+            "sources": [],
+            "query_type": "specific",
+            "confidence": 0.75,
+            "response_time_seconds": 0.05,
+            "metadata": {"model": "gemini-2.5-flash"},
+        }
+
+        resp = test_client.post(
+            "/api/v1/chat",
+            json={
+                "question": "Find the finance policy",
+                "uploaded_after": "2026-01-01T00:00:00Z",
+                "uploaded_before": "2026-06-01T00:00:00Z",
+                "metadata_filters": {"department": "finance"},
+            },
+        )
+
+        assert resp.status_code == 200
+        filters = test_client.mock_chain.query.call_args.kwargs["retrieval_filters"]  # type: ignore[attr-defined]
+        assert filters["uploaded_after_epoch"] < filters["uploaded_before_epoch"]
+        assert filters["metadata"] == {"department": "finance"}
 
     def test_chat_rejects_when_daily_query_quota_exhausted(
         self, test_client: TestClient, monkeypatch
@@ -491,6 +551,9 @@ class TestSystemStatus:
     def test_system_status(self, test_client: TestClient):
         resp = test_client.get("/api/v1/status")
         assert resp.status_code == 200
+        assert resp.headers["X-Request-ID"]
+        assert resp.headers["Server-Timing"].startswith("app;dur=")
+        assert resp.headers["X-RateLimit-Limit"]
         data = resp.json()
         assert data["service"] == "NexusRAG API"
         assert "capabilities" in data

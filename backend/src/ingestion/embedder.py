@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import hashlib
 import re
+import threading
 from functools import lru_cache
 from typing import Any
 
@@ -39,6 +40,10 @@ class Embedder:
         self._lightweight_dim = 384
         self._lightweight_logged = False
         self._model: Any | None = None
+        self._cache_enabled = s.enable_cache
+        self._embedding_cache: dict[str, list[float]] = {}
+        self._cache_lock = threading.RLock()
+        self._max_cache_entries = 10_000
 
     @property
     def model(self) -> Any:
@@ -67,6 +72,8 @@ class Embedder:
         if self._lightweight:
             self._log_lightweight_once()
             return [self._hash_embedding(text) for text in texts]
+        if self._cache_enabled:
+            return self._embed_texts_cached(texts)
 
         all_embeddings: list[list[float]] = []
         total = len(texts)
@@ -83,7 +90,16 @@ class Embedder:
         if self._lightweight:
             self._log_lightweight_once()
             return self._hash_embedding(query)
-        return self.model.embed_query(query)
+        if not self._cache_enabled:
+            return self.model.embed_query(query)
+        key = self._cache_key(query)
+        with self._cache_lock:
+            cached = self._embedding_cache.get(key)
+        if cached is not None:
+            return cached
+        embedding = self.model.embed_query(query)
+        self._store_cached(key, embedding)
+        return embedding
 
     @property
     def dimension(self) -> int:
@@ -98,6 +114,35 @@ class Embedder:
             return
         logger.info("lightweight_embeddings_enabled", dimensions=self._lightweight_dim)
         self._lightweight_logged = True
+
+    def _cache_key(self, text: str) -> str:
+        value = f"{self._model_name}:{self._normalize}:{text}".encode()
+        return hashlib.sha256(value).hexdigest()
+
+    def _store_cached(self, key: str, embedding: list[float]) -> None:
+        with self._cache_lock:
+            self._embedding_cache[key] = embedding
+            if len(self._embedding_cache) > self._max_cache_entries:
+                oldest = next(iter(self._embedding_cache))
+                del self._embedding_cache[oldest]
+
+    def _embed_texts_cached(self, texts: list[str]) -> list[list[float]]:
+        keys = [self._cache_key(text) for text in texts]
+        missing: dict[str, str] = {}
+        with self._cache_lock:
+            for key, text in zip(keys, texts, strict=True):
+                if key not in self._embedding_cache:
+                    missing.setdefault(key, text)
+
+        missing_items = list(missing.items())
+        for start in range(0, len(missing_items), self._batch_size):
+            batch_items = missing_items[start : start + self._batch_size]
+            embeddings = self.model.embed_documents([text for _, text in batch_items])
+            for (key, _), embedding in zip(batch_items, embeddings, strict=True):
+                self._store_cached(key, embedding)
+
+        with self._cache_lock:
+            return [self._embedding_cache[key] for key in keys]
 
     def _hash_embedding(self, text: str) -> list[float]:
         tokens = re.findall(r"[a-zA-Z0-9_]{2,}", text.lower())

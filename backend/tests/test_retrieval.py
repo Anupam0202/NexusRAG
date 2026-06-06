@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from langchain_core.documents import Document
 
-from config.settings import get_settings
+from config.settings import Settings, get_settings
 from src.retrieval.query_transformer import QueryTransformer
 from src.retrieval.retriever import HybridRetriever, QueryType, classify_query
 from src.retrieval.vector_store import SearchHit, VectorStoreManager
@@ -364,6 +364,47 @@ class TestVectorStoreManager:
         assert {hit.document.metadata["document_id"] for hit in hits} == {"doc-alpha"}
         assert {hit.document.metadata["page_number"] for hit in hits} == {4}
 
+    def test_search_supports_uploaded_date_and_arbitrary_metadata_filters(self):
+        vs = VectorStoreManager()
+        vs._use_lightweight = True
+        vs._documents = [
+            Document(
+                page_content="Approved finance policy.",
+                metadata={
+                    "workspace_id": "workspace-a",
+                    "document_id": "doc-alpha",
+                    "filename": "alpha.pdf",
+                    "department": "finance",
+                    "uploaded_at_epoch": 100,
+                },
+            ),
+            Document(
+                page_content="Approved engineering policy.",
+                metadata={
+                    "workspace_id": "workspace-a",
+                    "document_id": "doc-beta",
+                    "filename": "beta.pdf",
+                    "department": "engineering",
+                    "uploaded_at_epoch": 200,
+                },
+            ),
+        ]
+        vs._raw_embeddings = []
+        vs._index = None
+        vs._rebuild_bm25()
+
+        hits = vs.search(
+            "approved policy",
+            workspace_id="workspace-a",
+            top_k=10,
+            filters={
+                "uploaded_after_epoch": 150,
+                "metadata": {"department": "engineering"},
+            },
+        )
+
+        assert [hit.document.metadata["document_id"] for hit in hits] == ["doc-beta"]
+
 
 class TestHybridRetriever:
     def test_retriever_passes_filters_to_vector_store(self):
@@ -410,6 +451,47 @@ class TestHybridRetriever:
                 "filters": {"document_ids": ["doc-alpha"]},
             }
         ]
+
+    def test_retrieval_cache_is_workspace_scoped_and_invalidated(self):
+        calls: list[str | None] = []
+
+        class FakeStore:
+            def count_chunks(self, *, workspace_id=None):
+                return 1
+
+            def search(self, query, top_k=10, **kwargs):
+                calls.append(kwargs.get("workspace_id"))
+                return [
+                    SearchHit(
+                        Document(
+                            page_content=f"Result for {kwargs.get('workspace_id')}",
+                            metadata={"filename": "result.txt"},
+                        ),
+                        score=0.8,
+                        method="test",
+                    )
+                ]
+
+        retriever = HybridRetriever(  # type: ignore[arg-type]
+            vector_store=FakeStore(),
+            settings=Settings(_env_file=None, enable_cache=True),
+        )
+        retriever._transformer = type(
+            "FakeTransformer",
+            (),
+            {"transform": lambda self, query, **kwargs: {"queries": [query]}},
+        )()
+
+        first = retriever.retrieve("cached question", workspace_id="workspace-a")
+        cached = retriever.retrieve("cached question", workspace_id="workspace-a")
+        other = retriever.retrieve("cached question", workspace_id="workspace-b")
+        retriever.clear_cache(workspace_id="workspace-a")
+        refreshed = retriever.retrieve("cached question", workspace_id="workspace-a")
+
+        assert first["documents"][0].page_content == cached["documents"][0].page_content
+        assert other["documents"][0].page_content == "Result for workspace-b"
+        assert refreshed["documents"][0].page_content == "Result for workspace-a"
+        assert calls == ["workspace-a", "workspace-b", "workspace-a"]
 
     def test_document_chunk_preview_is_workspace_scoped(self):
         vs = VectorStoreManager()
@@ -472,6 +554,25 @@ class TestHybridRetriever:
         assert [hit.document.metadata["filename"] for hit in results] == [
             "Invoice_Anupam_Roy_MSPO1549.docx"
         ]
+
+
+def test_vector_store_maps_file_type_filters_to_qdrant_metadata() -> None:
+    assert VectorStoreManager._qdrant_filters({"file_types": ["md", "pdf"]}) == {
+        "metadata.file_type": ["md", "pdf"]
+    }
+
+
+def test_vector_store_maps_date_and_metadata_filters_to_qdrant() -> None:
+    assert VectorStoreManager._qdrant_filters(
+        {
+            "uploaded_after_epoch": 100,
+            "uploaded_before_epoch": 200,
+            "metadata": {"department": "finance"},
+        }
+    ) == {
+        "metadata.uploaded_at_epoch": {"gte": 100, "lte": 200},
+        "metadata.department": "finance",
+    }
 
 
 class TestQueryTransformer:

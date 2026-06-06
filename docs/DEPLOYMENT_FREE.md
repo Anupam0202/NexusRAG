@@ -46,7 +46,9 @@ AUTH_REQUIRED=true
 ENABLE_ANONYMOUS_DEMO=false
 ```
 
-Use `ENABLE_PGVECTOR_FALLBACK=true` only when the Supabase `005_pgvector_fallback.sql` migration has been applied and Qdrant is intentionally unavailable.
+Use `ENABLE_PGVECTOR_FALLBACK=true` only when the Supabase `005_pgvector_fallback.sql` and `006_pgvector_retrieval_filters.sql` migrations have been applied and Qdrant is intentionally unavailable.
+
+Apply `007_security_hardening.sql` and `008_provider_health_state.sql` to the same Supabase project used by both Vercel and Render before treating a public deployment as production-ready.
 
 ## Free-Tier Limits To Show Users
 

@@ -15,6 +15,7 @@ import {
   Loader2,
   Save,
   Settings2,
+  ShieldCheck,
   UsersRound,
 } from "lucide-react";
 import { useStore } from "@/hooks/useStore";
@@ -161,7 +162,7 @@ export default function SettingsPage() {
           <ArrowRight size={16} className="shrink-0 text-[var(--text-muted)]" />
         </Link>
 
-        <div className="grid gap-3 sm:grid-cols-3">
+        <div className="grid gap-3 sm:grid-cols-2">
           <Link
             href="/workspaces"
             className="flex items-center justify-between gap-3 rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4 transition hover:bg-[var(--bg-hover)]"
@@ -210,6 +211,24 @@ export default function SettingsPage() {
                 <span className="block text-sm font-semibold">Usage</span>
                 <span className="block truncate text-xs text-[var(--text-muted)]">
                   Quotas and provider posture
+                </span>
+              </span>
+            </span>
+            <ArrowRight size={16} className="shrink-0 text-[var(--text-muted)]" />
+          </Link>
+
+          <Link
+            href="/settings/privacy"
+            className="flex items-center justify-between gap-3 rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4 transition hover:bg-[var(--bg-hover)]"
+          >
+            <span className="flex min-w-0 items-center gap-3">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-300">
+                <ShieldCheck size={18} />
+              </span>
+              <span className="min-w-0">
+                <span className="block text-sm font-semibold">Privacy</span>
+                <span className="block truncate text-xs text-[var(--text-muted)]">
+                  Clear workspace-scoped data
                 </span>
               </span>
             </span>
