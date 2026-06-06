@@ -2,6 +2,7 @@
 
 from src.repositories.api_keys import ApiKeyRepository
 from src.repositories.audit import AuditRepository
+from src.repositories.billing import BillingRepository
 from src.repositories.chunks import ChunkRepository
 from src.repositories.documents import (
     DocumentRepository,
@@ -21,6 +22,7 @@ from src.repositories.workspaces import WorkspaceRepository
 __all__ = [
     "ApiKeyRepository",
     "AuditRepository",
+    "BillingRepository",
     "ChunkRepository",
     "DocumentRepository",
     "IngestionJobRepository",

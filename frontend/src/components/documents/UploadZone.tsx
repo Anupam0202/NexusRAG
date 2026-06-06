@@ -113,7 +113,7 @@ export function UploadZone({ onUpload, uploading, limits, disabledReason }: Prop
 
   return (
     <div
-      {...getRootProps()}
+      {...getRootProps({ "aria-disabled": disabled })}
       className={cn(
         "relative flex flex-col items-center justify-center rounded-xl border border-dashed px-4 py-6 sm:py-7 md:py-8 transition-all cursor-pointer",
         isDragActive
@@ -127,6 +127,7 @@ export function UploadZone({ onUpload, uploading, limits, disabledReason }: Prop
           {...getInputProps({
             "aria-label": "Upload NexusRAG documents",
             autoComplete: "off",
+            disabled,
           })}
         />
       )}

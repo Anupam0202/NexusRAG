@@ -16,6 +16,7 @@ from datetime import UTC, datetime
 from functools import lru_cache
 from typing import Any
 
+from config.settings import Settings, get_settings
 from src.repositories.audit import AuditRepository
 from src.repositories.usage import UsageRepository
 from src.utils.logger import get_logger
@@ -37,6 +38,7 @@ class LLMUsageEvent:
     operation: str
     input_tokens: int
     output_tokens: int
+    cost_microusd: int
     latency_ms: int
     success: bool
     error_code: str | None
@@ -98,9 +100,11 @@ class TelemetryRecorder:
         *,
         usage_repository: UsageRepository | None = None,
         audit_repository: AuditRepository | None = None,
+        settings: Settings | None = None,
     ) -> None:
         self._usage_repository = usage_repository
         self._audit_repository = audit_repository
+        self._settings = settings or get_settings()
         self._usage_events: deque[LLMUsageEvent] = deque(maxlen=MAX_IN_MEMORY_EVENTS)
         self._audit_events: deque[AuditEvent] = deque(maxlen=MAX_IN_MEMORY_EVENTS)
         self._lock = threading.RLock()
@@ -120,14 +124,21 @@ class TelemetryRecorder:
         error_code: str | None = None,
         persist: bool = False,
     ) -> LLMUsageEvent:
+        safe_input_tokens = max(0, int(input_tokens or 0))
+        safe_output_tokens = max(0, int(output_tokens or 0))
+        cost_microusd = round(
+            safe_input_tokens * self._settings.llm_input_cost_usd_per_million
+            + safe_output_tokens * self._settings.llm_output_cost_usd_per_million
+        )
         event = LLMUsageEvent(
             workspace_id=normalize_workspace_id(workspace_id),
             user_id=user_id,
             provider=provider,
             model=model,
             operation=operation,
-            input_tokens=max(0, int(input_tokens or 0)),
-            output_tokens=max(0, int(output_tokens or 0)),
+            input_tokens=safe_input_tokens,
+            output_tokens=safe_output_tokens,
+            cost_microusd=cost_microusd,
             latency_ms=max(0, int(latency_ms or 0)),
             success=bool(success),
             error_code=error_code,
@@ -147,6 +158,7 @@ class TelemetryRecorder:
                     input_tokens=event.input_tokens,
                     output_tokens=event.output_tokens,
                     latency_ms=event.latency_ms,
+                    cost_microusd=event.cost_microusd,
                     success=event.success,
                     error_code=event.error_code,
                 )

@@ -11,6 +11,7 @@ import type {
   AppSettings,
   ApiKeyStatusResponse,
   AuditEventListResponse,
+  BillingUsageResponse,
   ChatHistoryResponse,
   DocumentChunkListResponse,
   DocumentListResponse,
@@ -20,6 +21,7 @@ import type {
   IngestionJobStatusResponse,
   QueryRequest,
   QueryResponse,
+  PrivacySettingsResponse,
   SettingsUpdate,
   SystemStatusResponse,
   WorkspaceCreateRequest,
@@ -28,6 +30,7 @@ import type {
   WorkspaceMemberCreateRequest,
   WorkspaceMemberUpdateRequest,
   WorkspaceMembersResponse,
+  WorkspaceLifecycleResponse,
   WorkspaceSummary,
 } from "@/types";
 import { getApiHeaders } from "@/lib/api-context";
@@ -189,6 +192,35 @@ export async function updateSettings(
 
 export async function getAnalytics(): Promise<AnalyticsSummary> {
   return request("/api/v1/analytics/summary");
+}
+
+export async function getBillingUsage(): Promise<BillingUsageResponse> {
+  return request("/api/v1/billing/usage");
+}
+
+export async function getPrivacySettings(): Promise<PrivacySettingsResponse> {
+  return request("/api/v1/privacy/settings");
+}
+
+export async function updatePrivacySettings(body: {
+  retention_enabled: boolean;
+  retention_days: number;
+}): Promise<PrivacySettingsResponse> {
+  return request("/api/v1/privacy/settings", {
+    method: "PATCH",
+    body: JSON.stringify(body),
+  });
+}
+
+export async function runRetention(): Promise<WorkspaceLifecycleResponse> {
+  return request("/api/v1/privacy/retention/run", { method: "POST" });
+}
+
+export async function deleteCurrentWorkspace(): Promise<WorkspaceLifecycleResponse> {
+  return request("/api/v1/workspaces/current", {
+    method: "DELETE",
+    body: JSON.stringify({ confirmation: "DELETE WORKSPACE" }),
+  });
 }
 
 export async function getAuditEvents(limit = 20): Promise<AuditEventListResponse> {

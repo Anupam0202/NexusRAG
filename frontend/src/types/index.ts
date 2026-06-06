@@ -249,6 +249,38 @@ export interface WorkspaceMemberUpdateRequest {
   role: Exclude<WorkspaceRole, "owner">;
 }
 
+export interface BillingUsageResponse {
+  storage: "memory" | "supabase";
+  daily: Array<{
+    usage_date: string;
+    query_count: number;
+    total_tokens: number;
+    estimated_cost_microusd: number;
+    reconciled_at: string;
+  }>;
+  totals: {
+    query_count?: number;
+    total_tokens?: number;
+    estimated_cost_microusd?: number;
+  };
+}
+
+export interface PrivacySettingsResponse {
+  retention_enabled: boolean;
+  retention_days: number;
+  last_retention_at?: string | null;
+  next_retention_at?: string | null;
+}
+
+export interface WorkspaceLifecycleResponse {
+  workspace_deleted: boolean;
+  documents_deleted: number;
+  chat_sessions_deleted: number;
+  local_chunks_deleted: number;
+  qdrant_chunks_deleted: number;
+  failures: Array<{ document_id: string; message: string }>;
+}
+
 // ── Analytics ────────────────────────────────────────────────
 
 export interface AnalyticsSummary {

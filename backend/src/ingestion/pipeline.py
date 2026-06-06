@@ -5,6 +5,8 @@ Ingestion Pipeline Orchestrator — v2 (+ scientific mode)
 
 from __future__ import annotations
 
+import hashlib
+import json
 import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -17,6 +19,7 @@ from config.settings import Settings, get_settings
 from src.ingestion.chunker import SmartChunker
 from src.ingestion.contextualizer import ContextualEnricher
 from src.ingestion.loader import LoaderFactory
+from src.utils.layered_cache import get_layered_cache
 from src.utils.logger import get_logger
 from src.utils.tenant import normalize_workspace_id
 
@@ -52,6 +55,7 @@ class IngestionPipeline:
         self._progress = progress_callback
         self._chunker = SmartChunker(self._settings)
         self._enricher = ContextualEnricher(settings=self._settings)
+        self._layer_cache = get_layered_cache()
 
     def _report(self, msg: str, pct: float) -> None:
         if self._progress:
@@ -75,7 +79,23 @@ class IngestionPipeline:
 
         for i, (path, content) in enumerate(items):
             try:
-                docs = self._load_single(path, content, result)
+                parse_key = self._parse_cache_key(path, content)
+                docs = self._layer_cache.get(
+                    "parse",
+                    parse_key,
+                    workspace_id=scoped_workspace_id,
+                    document_id=document_id,
+                )
+                if docs is None:
+                    docs = self._load_single(path, content, result)
+                    if self._settings.enable_cache:
+                        self._layer_cache.set(
+                            "parse",
+                            parse_key,
+                            docs,
+                            workspace_id=scoped_workspace_id,
+                            document_id=document_id,
+                        )
                 for doc in docs:
                     doc.metadata["workspace_id"] = scoped_workspace_id
                     if document_id:
@@ -96,7 +116,23 @@ class IngestionPipeline:
         result.source_docs = [d for d in all_docs if d.metadata.get("document_type") == "full_data"]
 
         self._report("Chunking documents…", 0.40)
-        chunks = self._chunker.chunk(all_docs)
+        chunk_key = self._chunk_cache_key(all_docs)
+        chunks = self._layer_cache.get(
+            "chunk",
+            chunk_key,
+            workspace_id=scoped_workspace_id,
+            document_id=document_id,
+        )
+        if chunks is None:
+            chunks = self._chunker.chunk(all_docs)
+            if self._settings.enable_cache:
+                self._layer_cache.set(
+                    "chunk",
+                    chunk_key,
+                    chunks,
+                    workspace_id=scoped_workspace_id,
+                    document_id=document_id,
+                )
         for chunk in chunks:
             chunk.metadata["workspace_id"] = scoped_workspace_id
             if document_id:
@@ -136,6 +172,62 @@ class IngestionPipeline:
             time_s=result.processing_time_seconds,
         )
         return result
+
+    def clear_cache(
+        self,
+        *,
+        workspace_id: str | None = None,
+        document_id: str | None = None,
+    ) -> int:
+        return self._layer_cache.invalidate(
+            workspace_id=workspace_id,
+            document_id=document_id,
+            layers={"parse", "chunk"},
+        )
+
+    def _parse_cache_key(self, path: Path, content: bytes | None) -> str:
+        raw = content if content is not None else path.read_bytes()
+        parser_settings = {
+            "enable_scientific_mode": self._settings.enable_scientific_mode,
+            "memory_constrained": self._settings.memory_constrained,
+            "max_pdf_pages": self._settings.max_pdf_pages,
+            "max_pdf_ocr_pages": self._settings.max_pdf_ocr_pages,
+            "pdf_ocr_dpi": self._settings.pdf_ocr_dpi,
+            "enable_pdf_embedded_image_ocr": self._settings.enable_pdf_embedded_image_ocr,
+            "enable_docx_embedded_image_ocr": self._settings.enable_docx_embedded_image_ocr,
+            "max_pdf_embedded_images": self._settings.max_pdf_embedded_images,
+            "max_docx_embedded_images": self._settings.max_docx_embedded_images,
+            "max_image_megapixels": self._settings.max_image_megapixels,
+        }
+        fingerprint = json.dumps(
+            parser_settings,
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode()
+        return hashlib.sha256(
+            path.name.encode("utf-8", "ignore") + b"\0" + raw + b"\0" + fingerprint
+        ).hexdigest()
+
+    def _chunk_cache_key(self, documents: list[Document]) -> str:
+        payload = {
+            "documents": [
+                {
+                    "content": document.page_content,
+                    "metadata": {
+                        key: value
+                        for key, value in document.metadata.items()
+                        if key not in {"workspace_id", "document_id"}
+                    },
+                }
+                for document in documents
+            ],
+            "chunk_size": self._settings.chunk_size,
+            "chunk_overlap": self._settings.chunk_overlap,
+            "semantic": self._settings.enable_semantic_chunking,
+        }
+        return hashlib.sha256(
+            json.dumps(payload, sort_keys=True, default=str, separators=(",", ":")).encode()
+        ).hexdigest()
 
     def _load_single(
         self, path: Path, content: bytes | None, result: IngestionResult

@@ -31,6 +31,8 @@ QDRANT_URL=<production-qdrant-url>
 QDRANT_API_KEY=<production-qdrant-key>
 QDRANT_COLLECTION=nexusrag_chunks
 GOOGLE_API_KEY=<server-default-gemini-key>
+LLM_INPUT_COST_USD_PER_MILLION=<current-estimated-input-rate>
+LLM_OUTPUT_COST_USD_PER_MILLION=<current-estimated-output-rate>
 FRONTEND_URL=<production-frontend-url>
 ```
 
@@ -44,6 +46,9 @@ FRONTEND_URL=<production-frontend-url>
 - Back up Supabase Postgres and storage.
 - Monitor Render memory, Gemini quota failures, Qdrant latency, ingestion job failures, and upload error rates.
 - Persist quota enforcement decisions in durable tables before billing users.
+- Run `python scripts/process_jobs.py --poll` as a continuously running worker.
+- Schedule `python scripts/process_retention.py` daily.
+- Treat reconciled cost as an estimate until it is matched against provider invoices.
 
 ## Upgrade Path
 

@@ -78,6 +78,12 @@ services:
         value: "gemini-2.5-flash"
       - key: LLM_FALLBACK_MODELS
         value: "gemini-2.5-flash-lite,gemini-2.0-flash,gemini-2.0-flash-lite"
+      # Configure these from current provider pricing to enable estimated-cost
+      # reconciliation. Defaults stay at zero so the UI never implies exact billing.
+      - key: LLM_INPUT_COST_USD_PER_MILLION
+        value: "0"
+      - key: LLM_OUTPUT_COST_USD_PER_MILLION
+        value: "0"
       - key: CHUNK_SIZE
         value: "1000"
       - key: CHUNK_OVERLAP

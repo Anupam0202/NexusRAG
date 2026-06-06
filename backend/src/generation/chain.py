@@ -13,6 +13,7 @@ provided.  The streaming path is used by the WebSocket endpoint.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 import threading
@@ -33,6 +34,7 @@ from src.retrieval.cache import SemanticCache
 from src.retrieval.retriever import HybridRetriever, QueryType
 from src.retrieval.vector_store import VectorStoreManager
 from src.utils.helpers import truncate
+from src.utils.layered_cache import get_layered_cache
 from src.utils.logger import get_logger
 from src.utils.security import InputSanitizer
 from src.utils.tenant import normalize_workspace_id
@@ -66,6 +68,7 @@ class RAGChain:
         self._llm = get_llm_provider()
         self._prompts = PromptManager()
         self._cache = SemanticCache(settings=self._settings)
+        self._layer_cache = get_layered_cache()
         self._memory_store = SessionMemoryStore(ttl_seconds=7200)
 
         # In-memory query metrics (rolling window)
@@ -170,6 +173,7 @@ class RAGChain:
             answer=answer,
             confidence=confidence,
             retrieval_filters=safe_filters,
+            workspace_id=scoped_workspace_id,
         )
 
         result: dict[str, Any] = {
@@ -324,6 +328,7 @@ class RAGChain:
             answer=full_answer,
             confidence=confidence,
             retrieval_filters=safe_filters,
+            workspace_id=scoped_workspace_id,
         )
         metadata = {
             "query_type": query_type.value,
@@ -537,21 +542,26 @@ class RAGChain:
             return "workspace"
         return "filtered:" + json.dumps(normalized, sort_keys=True, separators=(",", ":"))
 
-    @staticmethod
     def _answer_quality_metadata(
+        self,
         *,
         docs: list[Document],
         sources: list[dict[str, Any]],
         answer: str,
         confidence: float,
         retrieval_filters: dict[str, Any],
+        workspace_id: str,
     ) -> dict[str, Any]:
         selected_ids = list(retrieval_filters.get("document_ids") or [])
         retrieval_scope = (
             "documents" if selected_ids or retrieval_filters.get("filename") else "workspace"
         )
         citation_coverage = round(len(sources) / len(docs), 3) if docs else 0.0
-        quote_checks = RAGChain._source_quote_checks(answer=answer, docs=docs)
+        quote_checks = self._source_quote_checks(
+            answer=answer,
+            docs=docs,
+            workspace_id=workspace_id,
+        )
         if not docs:
             answerability = "no_sources"
         elif confidence < 0.35:
@@ -568,8 +578,35 @@ class RAGChain:
             "verified_source_quotes": quote_checks["verified_quotes"],
         }
 
-    @staticmethod
-    def _source_quote_checks(*, answer: str, docs: list[Document]) -> dict[str, Any]:
+    def _source_quote_checks(
+        self,
+        *,
+        answer: str,
+        docs: list[Document],
+        workspace_id: str,
+    ) -> dict[str, Any]:
+        payload = {
+            "answer": answer,
+            "documents": [
+                {
+                    "content": doc.page_content,
+                    "filename": doc.metadata.get("filename"),
+                    "page_number": doc.metadata.get("page_number"),
+                }
+                for doc in docs[:5]
+            ],
+        }
+        cache_key = hashlib.sha256(
+            json.dumps(payload, sort_keys=True, default=str, separators=(",", ":")).encode()
+        ).hexdigest()
+        cached = self._layer_cache.get(
+            "source_verification",
+            cache_key,
+            workspace_id=workspace_id,
+        )
+        if cached is not None:
+            return cached
+
         answer_words = RAGChain._normalized_words(answer)
         answer_text = " ".join(answer_words)
         if not answer_text:
@@ -595,10 +632,18 @@ class RAGChain:
                         }
                     )
                     break
-        return {
+        result = {
             "coverage": round(len(verified) / checked, 3) if checked else 0.0,
             "verified_quotes": verified[:5],
         }
+        if self._settings.enable_cache:
+            self._layer_cache.set(
+                "source_verification",
+                cache_key,
+                result,
+                workspace_id=workspace_id,
+            )
+        return result
 
     @staticmethod
     def _normalized_words(text: str) -> list[str]:
@@ -688,6 +733,10 @@ class RAGChain:
 
     def clear_cache(self, *, workspace_id: str | None = None) -> None:
         self._cache.clear(workspace_id=workspace_id)
+        self._layer_cache.invalidate(
+            workspace_id=workspace_id,
+            layers={"source_verification"},
+        )
         clear_retrieval_cache = getattr(self._retriever, "clear_cache", None)
         if callable(clear_retrieval_cache):
             clear_retrieval_cache(workspace_id=workspace_id)

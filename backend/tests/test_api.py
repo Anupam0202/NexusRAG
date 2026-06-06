@@ -503,6 +503,27 @@ class TestAnalytics:
         assert "test-never-return-this-value" not in str(data)
 
 
+class TestBillingAndPrivacy:
+    def test_billing_usage_has_durable_reconciliation_shape_in_demo_mode(
+        self, test_client: TestClient
+    ):
+        resp = test_client.get("/api/v1/billing/usage")
+
+        assert resp.status_code == 200
+        assert resp.json()["storage"] == "memory"
+        assert resp.json()["daily"] == []
+
+    def test_demo_mode_cannot_delete_a_durable_workspace(self, test_client: TestClient):
+        resp = test_client.request(
+            "DELETE",
+            "/api/v1/workspaces/current",
+            json={"confirmation": "DELETE WORKSPACE"},
+        )
+
+        assert resp.status_code == 403
+        assert "demo mode" in resp.json()["detail"].lower()
+
+
 class TestEvaluations:
     def test_sample_evaluation_endpoint_runs_quality_gates(self, test_client: TestClient):
         resp = test_client.post(

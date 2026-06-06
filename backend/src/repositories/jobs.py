@@ -70,16 +70,38 @@ class IngestionJobRepository(SupabaseRepository):
         )
         return first_row(rows)
 
-    async def claim_next_queued(self, *, workspace_id: str | None = None) -> dict[str, Any] | None:
-        filters = ["select=*", "status=eq.queued", "order=created_at.asc", "limit=1"]
-        if workspace_id:
-            filters.insert(1, eq_filter("workspace_id", workspace_id))
-        rows = await self._supabase.table_select("ingestion_jobs", query=and_query(*filters))
-        job = first_row(rows)
-        if not job:
-            return None
-        return await self.update_job(
-            workspace_id=str(job["workspace_id"]),
-            job_id=str(job["id"]),
-            values={"status": "processing", "stage": "claimed", "progress": 1},
+    async def claim_next_queued(
+        self,
+        *,
+        worker_id: str,
+        lease_seconds: int = 300,
+        workspace_id: str | None = None,
+    ) -> dict[str, Any] | None:
+        rows = await self._supabase.rpc(
+            "claim_ingestion_job",
+            {
+                "p_worker_id": worker_id,
+                "p_lease_seconds": max(30, min(int(lease_seconds), 3600)),
+                "p_workspace_id": workspace_id,
+            },
         )
+        return first_row(rows if isinstance(rows, list) else [rows])
+
+    async def requeue_claimed_job(
+        self,
+        *,
+        job_id: str,
+        worker_id: str,
+        error_message: str,
+        retry_seconds: int = 30,
+    ) -> dict[str, Any] | None:
+        rows = await self._supabase.rpc(
+            "requeue_ingestion_job",
+            {
+                "p_job_id": job_id,
+                "p_worker_id": worker_id,
+                "p_error_message": error_message[:2000],
+                "p_retry_seconds": max(1, min(int(retry_seconds), 86400)),
+            },
+        )
+        return first_row(rows if isinstance(rows, list) else [rows])

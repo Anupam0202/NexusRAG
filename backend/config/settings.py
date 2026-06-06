@@ -61,6 +61,16 @@ class Settings(BaseSettings):
     llm_max_tokens: int = Field(default=8192, ge=128, le=65536)
     llm_top_p: float = Field(default=0.95, ge=0.0, le=1.0)
     llm_top_k: int = Field(default=40, ge=1, le=100)
+    llm_input_cost_usd_per_million: float = Field(
+        default=0.0,
+        ge=0.0,
+        description="Configured estimated input-token cost used for billing reconciliation",
+    )
+    llm_output_cost_usd_per_million: float = Field(
+        default=0.0,
+        ge=0.0,
+        description="Configured estimated output-token cost used for billing reconciliation",
+    )
     byok_encryption_key: str = Field(
         default="",
         description=(

@@ -9,6 +9,7 @@ import pytest
 from src.api.auth import WorkspaceRole
 from src.repositories import (
     ApiKeyRepository,
+    BillingRepository,
     ChunkRepository,
     DocumentRepository,
     IngestionJobRepository,
@@ -16,6 +17,7 @@ from src.repositories import (
     ProviderHealthRepository,
     UsageRepository,
     WorkspaceRepository,
+    WorkspaceSettingsRepository,
     compute_sha256,
     document_storage_path,
 )
@@ -127,6 +129,20 @@ class FakeSupabase:
     async def delete_object(self, path: str) -> None:
         self.calls.append(("delete", "storage", path, {}))
 
+    async def download_object(self, path: str) -> bytes:
+        self.calls.append(("download", "storage", path, {}))
+        return b"private document"
+
+    async def rpc(
+        self,
+        function_name: str,
+        payload: dict[str, Any],
+        *,
+        service_role: bool = True,
+    ) -> Any:
+        self.calls.append(("rpc", function_name, payload, {"service_role": service_role}))
+        return self.rows.get(function_name, [])
+
 
 def test_document_storage_path_and_sha256_are_deterministic() -> None:
     assert compute_sha256(b"nexus") == compute_sha256(b"nexus")
@@ -158,6 +174,38 @@ async def test_document_repository_rejects_untrusted_storage_delete_path() -> No
 
     with pytest.raises(ValueError, match="trusted document prefix"):
         await repo.delete_original(
+            workspace_id="workspace-1",
+            document_id="doc-1",
+            storage_path="workspace-2/doc-9/private.pdf",
+        )
+
+    assert fake.calls == []
+
+
+@pytest.mark.asyncio
+async def test_document_repository_downloads_only_from_trusted_workspace_storage_path() -> None:
+    fake = FakeSupabase()
+    repo = DocumentRepository(fake)  # type: ignore[arg-type]
+
+    content = await repo.download_original(
+        workspace_id="workspace-1",
+        document_id="doc-1",
+        storage_path="workspace-1/doc-1/report.pdf",
+    )
+
+    assert content == b"private document"
+    assert fake.calls == [
+        ("download", "storage", "workspace-1/doc-1/report.pdf", {})
+    ]
+
+
+@pytest.mark.asyncio
+async def test_document_repository_rejects_untrusted_storage_download_path() -> None:
+    fake = FakeSupabase()
+    repo = DocumentRepository(fake)  # type: ignore[arg-type]
+
+    with pytest.raises(ValueError, match="trusted document prefix"):
+        await repo.download_original(
             workspace_id="workspace-1",
             document_id="doc-1",
             storage_path="workspace-2/doc-9/private.pdf",
@@ -218,20 +266,40 @@ async def test_chunk_repository_replaces_chunks_with_workspace_scope() -> None:
 
 
 @pytest.mark.asyncio
-async def test_job_repository_claims_next_job_with_workspace_scoped_update() -> None:
+async def test_job_repository_claims_next_job_atomically_with_worker_lease() -> None:
     fake = FakeSupabase()
-    fake.rows["ingestion_jobs"] = [{"id": "job-1", "workspace_id": "workspace-1"}]
+    fake.rows["claim_ingestion_job"] = [{"id": "job-1", "workspace_id": "workspace-1"}]
     repo = IngestionJobRepository(fake)  # type: ignore[arg-type]
 
-    job = await repo.claim_next_queued()
+    job = await repo.claim_next_queued(worker_id="worker-a", lease_seconds=120)
 
     assert job is not None
-    update_call = fake.calls[-1]
-    assert update_call[0] == "update"
-    assert update_call[1] == "ingestion_jobs"
-    assert update_call[2]["status"] == "processing"
-    assert "workspace_id=eq.workspace-1" in update_call[3]["query"]
-    assert "id=eq.job-1" in update_call[3]["query"]
+    assert fake.calls == [
+        (
+            "rpc",
+            "claim_ingestion_job",
+            {"p_worker_id": "worker-a", "p_lease_seconds": 120, "p_workspace_id": None},
+            {"service_role": True},
+        )
+    ]
+
+
+@pytest.mark.asyncio
+async def test_job_repository_requeues_claimed_job_with_backoff() -> None:
+    fake = FakeSupabase()
+    fake.rows["requeue_ingestion_job"] = [{"id": "job-1", "status": "queued"}]
+    repo = IngestionJobRepository(fake)  # type: ignore[arg-type]
+
+    row = await repo.requeue_claimed_job(
+        job_id="job-1",
+        worker_id="worker-a",
+        error_message="temporary failure",
+        retry_seconds=45,
+    )
+
+    assert row and row["status"] == "queued"
+    assert fake.calls[0][1] == "requeue_ingestion_job"
+    assert fake.calls[0][2]["p_retry_seconds"] == 45
 
 
 @pytest.mark.asyncio
@@ -337,6 +405,7 @@ async def test_usage_repository_records_and_lists_workspace_events() -> None:
         input_tokens=12,
         output_tokens=20,
         latency_ms=450,
+        cost_microusd=52,
     )
     events = await repo.list_events(workspace_id="workspace-1")
 
@@ -345,9 +414,76 @@ async def test_usage_repository_records_and_lists_workspace_events() -> None:
     assert insert_call[1] == "llm_usage_events"
     assert insert_call[2]["workspace_id"] == "workspace-1"
     assert insert_call[2]["input_tokens"] == 12
+    assert insert_call[2]["cost_microusd"] == 52
     assert events[0]["operation"] == "chat.query"
     select_call = fake.calls[1]
     assert "workspace_id=eq.workspace-1" in select_call[2]
+
+
+@pytest.mark.asyncio
+async def test_billing_repository_reconciles_and_lists_daily_workspace_usage() -> None:
+    fake = FakeSupabase()
+    fake.rows["reconcile_workspace_usage"] = [
+        {
+            "workspace_id": "workspace-1",
+            "usage_date": "2026-06-07",
+            "query_count": 2,
+            "total_tokens": 42,
+            "estimated_cost_microusd": 12,
+        }
+    ]
+    fake.rows["workspace_usage_daily"] = fake.rows["reconcile_workspace_usage"]
+    repo = BillingRepository(fake)  # type: ignore[arg-type]
+
+    reconciled = await repo.reconcile_day(workspace_id="workspace-1", usage_date="2026-06-07")
+    rows = await repo.list_daily(workspace_id="workspace-1", limit=30)
+
+    assert reconciled and reconciled["total_tokens"] == 42
+    assert fake.calls[0][1] == "reconcile_workspace_usage"
+    assert fake.calls[0][2]["p_workspace_id"] == "workspace-1"
+    assert rows[0]["estimated_cost_microusd"] == 12
+
+
+@pytest.mark.asyncio
+async def test_workspace_repository_deletes_only_the_scoped_workspace() -> None:
+    fake = FakeSupabase()
+    repo = WorkspaceRepository(fake)  # type: ignore[arg-type]
+
+    deleted = await repo.delete_workspace(workspace_id="workspace-1")
+
+    assert deleted == 1
+    assert fake.calls[0][0] == "delete"
+    assert fake.calls[0][1] == "workspaces"
+    assert fake.calls[0][2] == "id=eq.workspace-1"
+
+
+@pytest.mark.asyncio
+async def test_workspace_settings_repository_claims_due_retention_schedules() -> None:
+    fake = FakeSupabase()
+    fake.rows["claim_retention_schedules"] = [
+        {
+            "workspace_id": "workspace-1",
+            "retention_enabled": True,
+            "retention_days": 30,
+            "next_retention_at": "2026-06-07T00:00:00+00:00",
+        }
+    ]
+    repo = WorkspaceSettingsRepository(fake)  # type: ignore[arg-type]
+
+    rows = await repo.claim_due_retention(
+        worker_id="retention-worker-a",
+        limit=25,
+        lease_seconds=600,
+    )
+
+    assert rows[0]["workspace_id"] == "workspace-1"
+    rpc_call = fake.calls[0]
+    assert rpc_call[1] == "claim_retention_schedules"
+    assert rpc_call[2] == {
+        "p_worker_id": "retention-worker-a",
+        "p_limit": 25,
+        "p_lease_seconds": 600,
+    }
 
 
 @pytest.mark.asyncio

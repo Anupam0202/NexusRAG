@@ -25,7 +25,7 @@ import re
 import tempfile
 import time
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any, cast
 
@@ -50,6 +50,7 @@ from src.api.models import (
     AnalyticsSummary,
     AuditEventListResponse,
     AuditEventResponse,
+    BillingUsageResponse,
     ChatHistoryMessage,
     ChatHistoryResponse,
     DocumentChunkListResponse,
@@ -64,12 +65,16 @@ from src.api.models import (
     EvaluationRunRequest,
     IngestionJobStatus,
     IngestionJobStatusResponse,
+    PrivacySettingsResponse,
+    PrivacySettingsUpdateRequest,
     QueryRequest,
     QueryResponse,
     SettingsResponse,
     SettingsUpdateRequest,
     SourceChunk,
     SystemStatusResponse,
+    WorkspaceDeleteRequest,
+    WorkspaceLifecycleResponse,
 )
 from src.generation.chain import RAGChain
 from src.generation.provider_keys import (
@@ -77,10 +82,10 @@ from src.generation.provider_keys import (
     get_provider_key_manager,
     normalize_provider,
 )
-from src.infrastructure.supabase_client import get_supabase_client
 from src.ingestion.embedder import get_embedder
 from src.ingestion.job_manager import get_ingestion_job_store
 from src.ingestion.pipeline import IngestionPipeline
+from src.repositories.billing import BillingRepository
 from src.repositories.chunks import ChunkRepository
 from src.repositories.documents import (
     DocumentRepository,
@@ -92,7 +97,9 @@ from src.repositories.provider_health import persist_provider_health_snapshot
 from src.repositories.settings import WorkspaceSettingsRepository
 from src.retrieval.vector_store import VectorStoreManager
 from src.telemetry.events import estimate_tokens, get_telemetry_recorder
+from src.tenancy.lifecycle import WorkspaceLifecycleService
 from src.tenancy.quotas import QuotaExceededError, TenantQuotaEnforcer
+from src.utils.layered_cache import get_layered_cache
 from src.utils.logger import get_logger
 from src.utils.security import FileValidator
 from src.utils.tenant import normalize_workspace_id
@@ -1074,7 +1081,11 @@ async def _queue_durable_reindex_job(
 
     safe_name = str(document.get("filename") or document.get("original_filename") or "document")
     try:
-        content = await get_supabase_client().download_object(storage_path)
+        content = await doc_repo.download_original(
+            workspace_id=workspace_id,
+            document_id=document_id,
+            storage_path=storage_path,
+        )
     except Exception as exc:
         logger.warning(
             "reindex_original_download_failed",
@@ -1655,6 +1666,10 @@ async def delete_document(
     if removed == 0 and not durable_removed:
         raise HTTPException(404, f"Document '{document_identifier}' not found")
     chain.clear_cache(workspace_id=workspace_id)
+    get_layered_cache().invalidate(
+        workspace_id=workspace_id,
+        document_id=durable_document_id,
+    )
     await _record_audit_event(
         workspace=workspace,
         settings=settings,
@@ -2258,6 +2273,195 @@ async def delete_api_key(
         "key_fingerprint": None,
         "storage": storage,
     }
+
+
+@router.get("/billing/usage", response_model=BillingUsageResponse)
+async def billing_usage(
+    workspace: WorkspaceContext | None = Depends(
+        require_enterprise_workspace_role(*VIEWER_ROLES)
+    ),
+    settings: Settings = Depends(get_settings),
+) -> BillingUsageResponse:
+    if not _should_persist_workspace_event(workspace, settings):
+        return BillingUsageResponse(storage="memory", daily=[], totals={})
+    workspace_id = _context_workspace_id(workspace)
+    repo = BillingRepository()
+    try:
+        await repo.reconcile_day(workspace_id=workspace_id)
+        daily = await repo.list_daily(workspace_id=workspace_id)
+    except Exception as exc:
+        logger.warning(
+            "billing_reconciliation_failed",
+            workspace_id=workspace_id,
+            error=str(exc)[:300],
+        )
+        raise HTTPException(502, "Unable to reconcile durable workspace usage.") from exc
+    totals = {
+        "query_count": sum(_safe_int(row.get("query_count")) for row in daily),
+        "total_tokens": sum(_safe_int(row.get("total_tokens")) for row in daily),
+        "estimated_cost_microusd": sum(
+            _safe_int(row.get("estimated_cost_microusd")) for row in daily
+        ),
+    }
+    return BillingUsageResponse(storage="supabase", daily=daily, totals=totals)
+
+
+@router.get("/privacy/settings", response_model=PrivacySettingsResponse)
+async def privacy_settings(
+    workspace: WorkspaceContext | None = Depends(
+        require_enterprise_workspace_role(*VIEWER_ROLES)
+    ),
+    settings: Settings = Depends(get_settings),
+) -> PrivacySettingsResponse:
+    if not _should_persist_workspace_event(workspace, settings):
+        return PrivacySettingsResponse()
+    row = await WorkspaceSettingsRepository().get_settings(
+        workspace_id=_context_workspace_id(workspace)
+    )
+    return PrivacySettingsResponse(
+        retention_enabled=bool((row or {}).get("retention_enabled")),
+        retention_days=_safe_int((row or {}).get("retention_days")),
+        last_retention_at=(row or {}).get("last_retention_at"),
+        next_retention_at=(row or {}).get("next_retention_at"),
+    )
+
+
+@router.patch("/privacy/settings", response_model=PrivacySettingsResponse)
+async def update_privacy_settings(
+    body: PrivacySettingsUpdateRequest,
+    workspace: WorkspaceContext | None = Depends(
+        require_enterprise_workspace_role(*ADMIN_ROLES)
+    ),
+    settings: Settings = Depends(get_settings),
+) -> PrivacySettingsResponse:
+    if not _should_persist_workspace_event(workspace, settings):
+        raise HTTPException(403, "Demo mode cannot configure durable retention.")
+    if body.retention_enabled and body.retention_days < 1:
+        raise HTTPException(422, "Retention days must be at least 1 when retention is enabled.")
+    workspace_id = _context_workspace_id(workspace)
+    next_retention = (
+        datetime.now(UTC) + timedelta(days=1) if body.retention_enabled else None
+    )
+    await WorkspaceSettingsRepository().upsert_settings(
+        workspace_id=workspace_id,
+        values={
+            "retention_enabled": body.retention_enabled,
+            "retention_days": body.retention_days if body.retention_enabled else 0,
+            "next_retention_at": next_retention.isoformat() if next_retention else None,
+            "retention_lease_owner": None,
+            "retention_lease_expires_at": None,
+        },
+    )
+    await _record_audit_event(
+        workspace=workspace,
+        settings=settings,
+        action="privacy.retention_updated",
+        resource_type="workspace_settings",
+        resource_id=workspace_id,
+        metadata=body.model_dump(),
+    )
+    return await privacy_settings(workspace=workspace, settings=settings)
+
+
+@router.post("/privacy/retention/run", response_model=WorkspaceLifecycleResponse)
+async def run_retention(
+    workspace: WorkspaceContext | None = Depends(
+        require_enterprise_workspace_role(*ADMIN_ROLES)
+    ),
+    settings: Settings = Depends(get_settings),
+    vs: VectorStoreManager = Depends(get_vector_store),
+) -> WorkspaceLifecycleResponse:
+    if not _should_persist_workspace_event(workspace, settings):
+        raise HTTPException(403, "Demo mode cannot run durable retention.")
+    workspace_id = _context_workspace_id(workspace)
+    row = await WorkspaceSettingsRepository().get_settings(workspace_id=workspace_id)
+    retention_days = _safe_int((row or {}).get("retention_days"))
+    if not (row or {}).get("retention_enabled") or retention_days < 1:
+        raise HTTPException(409, "Enable a retention schedule before running cleanup.")
+    qdrant = QdrantVectorStore(settings) if settings.qdrant_configured else None
+    result = await WorkspaceLifecycleService(vector_store=vs, qdrant_store=qdrant).apply_retention(
+        workspace_id=workspace_id,
+        retention_days=retention_days,
+    )
+    now = datetime.now(UTC)
+    if result.failures:
+        await WorkspaceSettingsRepository().upsert_settings(
+            workspace_id=workspace_id,
+            values={
+                "next_retention_at": (now + timedelta(hours=1)).isoformat(),
+                "retention_lease_owner": None,
+                "retention_lease_expires_at": None,
+            },
+        )
+        await _record_audit_event(
+            workspace=workspace,
+            settings=settings,
+            action="privacy.retention_failed",
+            resource_type="workspace",
+            resource_id=workspace_id,
+            metadata={
+                "documents_deleted": result.documents_deleted,
+                "chat_sessions_deleted": result.chat_sessions_deleted,
+                "failures": result.failures,
+            },
+        )
+        raise HTTPException(
+            502,
+            "Retention cleanup completed with partial failures and was scheduled for retry.",
+        )
+    await WorkspaceSettingsRepository().upsert_settings(
+        workspace_id=workspace_id,
+        values={
+            "last_retention_at": now.isoformat(),
+            "next_retention_at": (now + timedelta(days=1)).isoformat(),
+            "retention_lease_owner": None,
+            "retention_lease_expires_at": None,
+        },
+    )
+    await _record_audit_event(
+        workspace=workspace,
+        settings=settings,
+        action="privacy.retention_run",
+        resource_type="workspace",
+        resource_id=workspace_id,
+        metadata={
+            "documents_deleted": result.documents_deleted,
+            "chat_sessions_deleted": result.chat_sessions_deleted,
+            "failures": len(result.failures),
+        },
+    )
+    return WorkspaceLifecycleResponse(**result.__dict__)
+
+
+@router.delete("/workspaces/current", response_model=WorkspaceLifecycleResponse)
+async def delete_current_workspace(
+    _body: WorkspaceDeleteRequest,
+    workspace: WorkspaceContext | None = Depends(
+        require_enterprise_workspace_role(WorkspaceRole.OWNER)
+    ),
+    settings: Settings = Depends(get_settings),
+    vs: VectorStoreManager = Depends(get_vector_store),
+    chain: RAGChain = Depends(get_rag_chain),
+) -> WorkspaceLifecycleResponse:
+    if not _should_persist_workspace_event(workspace, settings):
+        raise HTTPException(403, "Demo mode cannot delete a durable workspace.")
+    workspace_id = _context_workspace_id(workspace)
+    qdrant = QdrantVectorStore(settings) if settings.qdrant_configured else None
+    result = await WorkspaceLifecycleService(vector_store=vs, qdrant_store=qdrant).delete_workspace(
+        workspace_id=workspace_id
+    )
+    if result.failures:
+        raise HTTPException(
+            502,
+            {
+                "message": "Workspace deletion stopped because data cleanup was incomplete.",
+                "failures": result.failures,
+            },
+        )
+    if not result.workspace_deleted:
+        raise HTTPException(404, "Workspace not found.")
+    chain.clear_cache(workspace_id=workspace_id)
+    return WorkspaceLifecycleResponse(**result.__dict__)
 
 
 #  ANALYTICS

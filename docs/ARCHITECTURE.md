@@ -34,7 +34,8 @@ NexusRAG is a multi-tenant RAG platform with a Next.js frontend on Vercel and a 
 - `backend/src/retrieval/*` owns hybrid retrieval, query transformation, reranking, and caches.
 - `backend/src/generation/llm.py` and `backend/src/generation/router.py` own LLM calls, routing, fallback, provider health, and quota guards.
 - `backend/src/vectorstores/*` owns Qdrant, pgvector fallback, and common vector-store contracts.
-- `backend/scripts/process_jobs.py` can run queued ingestion outside the web request path.
+- `backend/scripts/process_jobs.py` atomically claims leased ingestion jobs outside the web request path.
+- `backend/scripts/process_retention.py` atomically claims due workspace retention schedules.
 
 ## Data Stores
 
@@ -65,16 +66,16 @@ NexusRAG is a multi-tenant RAG platform with a Next.js frontend on Vercel and a 
   expressions, non-overlapping policies, and pgvector isolated in `extensions`.
 - Durable provider health snapshots alongside the append-only LLM usage ledger.
 - Workspace-scoped embedding, retrieval, semantic-answer, and contextual-enrichment caches.
+- Workspace/document-scoped parse, chunk, and source-verification caches with explicit invalidation.
 - Structured per-request logging envelopes with request, workspace, user, provider, model, token, fallback, job, and document context.
-- Async ingestion worker script and migration scripts for FAISS-to-Qdrant, legacy store quarantine, and metadata backfill.
+- Leased async ingestion and retention workers, durable daily usage reconciliation, configurable estimated cost tracking, retention schedules, and fail-closed full workspace deletion.
+- Migration scripts for FAISS-to-Qdrant, legacy store quarantine, and metadata backfill.
+- Opt-in authenticated Playwright isolation coverage that creates and cleans up dedicated two-user/two-workspace fixtures.
 - Backend and frontend tests covering routing, pgvector behavior, security contracts, generation fallback primitives, ingestion validation, safe links, chat filters, and export behavior.
 
 ## Remaining Roadmap Actions
 
-- Add plan-specific quota configuration and durable billing reconciliation beyond the current hard global workspace quotas.
-- Add the remaining parse, chunk, and source-verification caches with explicit invalidation.
+- Add plan-specific quota configuration and payment-provider invoice reconciliation beyond the current hard workspace quotas and configurable estimated-cost ledger.
 - Restore persisted provider-health circuit state into the router after backend restarts.
-- Add a durable production scheduler/queue beyond the current durable job table and worker script.
-- Expand privacy controls into configurable retention schedules and full workspace deletion.
-- Expand committed frontend tests and authenticated Playwright E2E for two users, two workspaces, upload, ingestion, chat, citations, deletion, and quota fallback.
-- Run a production authenticated E2E once the deployed frontend and available Supabase admin project are the same project.
+- Provision the leased ingestion worker and retention scheduler as continuously running/scheduled production services; the code and database contracts exist, but Render Free only runs the web service.
+- Run the committed authenticated isolation E2E against production once the deployed frontend and available Supabase admin project are the same project and dedicated test accounts are available.

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from src.repositories.base import SupabaseRepository, and_query, eq_filter, first_row
+from src.repositories.base import SupabaseRepository, and_query, encoded, eq_filter, first_row
 
 
 class MessageRepository(SupabaseRepository):
@@ -106,6 +106,16 @@ class MessageRepository(SupabaseRepository):
             query=and_query(
                 eq_filter("workspace_id", workspace_id),
                 eq_filter("session_id", session_id),
+            ),
+        )
+        return len(rows)
+
+    async def delete_sessions_before(self, *, workspace_id: str, created_before: str) -> int:
+        rows = await self._supabase.table_delete(
+            "chat_sessions",
+            query=and_query(
+                eq_filter("workspace_id", workspace_id),
+                f"created_at=lt.{encoded(created_before)}",
             ),
         )
         return len(rows)
