@@ -133,3 +133,22 @@ def test_provider_health_migration_is_workspace_scoped_and_rls_protected() -> No
     assert "enable row level security" in migration
     assert "public.is_workspace_member(workspace_id)" in migration
     assert "revoke all on public.provider_health_state from anon" in migration
+
+
+def test_supabase_advisor_hardening_removes_direct_table_access_and_policy_hotspots() -> None:
+    migration = (
+        Path(__file__).resolve().parents[2]
+        / "supabase"
+        / "migrations"
+        / "009_supabase_advisor_hardening.sql"
+    ).read_text(encoding="utf-8")
+
+    assert (
+        "revoke all privileges on all tables in schema public from anon, authenticated"
+        in migration
+    )
+    assert "create index if not exists documents_uploaded_by_idx" in migration
+    assert "(select auth.uid())" in migration
+    assert 'drop policy if exists "workspace_settings_write_admins"' in migration
+    assert 'drop policy if exists "eval_runs_write_admins"' in migration
+    assert 'drop policy if exists "eval_results_write_admins"' in migration
