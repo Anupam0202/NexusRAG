@@ -152,3 +152,17 @@ def test_supabase_advisor_hardening_removes_direct_table_access_and_policy_hotsp
     assert 'drop policy if exists "workspace_settings_write_admins"' in migration
     assert 'drop policy if exists "eval_runs_write_admins"' in migration
     assert 'drop policy if exists "eval_results_write_admins"' in migration
+
+
+def test_pgvector_extension_is_kept_outside_public_schema() -> None:
+    migrations = Path(__file__).resolve().parents[2] / "supabase" / "migrations"
+    fallback = (migrations / "005_pgvector_fallback.sql").read_text(encoding="utf-8")
+    filters = (migrations / "006_pgvector_retrieval_filters.sql").read_text(encoding="utf-8")
+    grants = (migrations / "009_supabase_advisor_hardening.sql").read_text(encoding="utf-8")
+    relocation = (migrations / "010_move_vector_extension.sql").read_text(encoding="utf-8")
+
+    assert "create extension if not exists vector with schema extensions" in fallback
+    assert "embedding extensions.vector(384)" in fallback
+    assert "query_embedding extensions.vector(384)" in filters
+    assert "public.match_document_chunks(extensions.vector, uuid, int, jsonb)" in grants
+    assert "alter extension vector set schema extensions" in relocation

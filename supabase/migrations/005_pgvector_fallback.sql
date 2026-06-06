@@ -1,18 +1,19 @@
 -- Optional Supabase pgvector fallback for small/free demos.
 -- Qdrant remains the recommended production vector database.
 
-create extension if not exists vector;
+create schema if not exists extensions;
+create extension if not exists vector with schema extensions;
 
 alter table public.document_chunks
-  add column if not exists embedding vector(384);
+  add column if not exists embedding extensions.vector(384);
 
 create index if not exists document_chunks_workspace_embedding_hnsw
 on public.document_chunks
-using hnsw (embedding vector_cosine_ops)
+using hnsw (embedding extensions.vector_cosine_ops)
 where embedding is not null;
 
 create or replace function public.match_document_chunks(
-  query_embedding vector(384),
+  query_embedding extensions.vector(384),
   match_workspace_id uuid,
   match_count int default 10,
   match_filters jsonb default '{}'::jsonb
@@ -33,7 +34,7 @@ returns table (
 language sql
 stable
 security invoker
-set search_path = public
+set search_path = public, extensions, pg_temp
 as $$
   select
     dc.id,
@@ -74,5 +75,5 @@ as $$
   limit greatest(1, least(coalesce(match_count, 10), 100));
 $$;
 
-grant execute on function public.match_document_chunks(vector, uuid, int, jsonb)
+grant execute on function public.match_document_chunks(extensions.vector, uuid, int, jsonb)
 to authenticated, service_role;

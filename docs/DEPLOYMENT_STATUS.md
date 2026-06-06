@@ -19,16 +19,16 @@ Verified on June 6, 2026:
 
 - Vercel production JavaScript targets Supabase project `fcjaomiceajcdownarel`.
 - The connected Supabase administration plugin exposes project `hvmmfwteawrzxzusnndf`.
-- Migrations `001` through `008` exist on the connected project. Migration
-  `009_supabase_advisor_hardening.sql` is pending, and no migration should be
-  treated as production-applied until the connected project is confirmed as the
-  intended production database.
+- Migrations `001` through `009` exist on the connected project. Migration
+  `010_move_vector_extension.sql` is pending, and no migration should be treated
+  as production-applied until the connected project is confirmed as the intended
+  production database.
 
 ## Next Deployment Checks
 
 1. Confirm Vercel production variables point to the intended Supabase project and Render backend URL.
 2. Confirm Render has the same Supabase project variables, service role key, JWT secret or JWKS URL, and Qdrant variables.
-3. Apply all Supabase migrations through `009_supabase_advisor_hardening.sql` to
+3. Apply all Supabase migrations through `010_move_vector_extension.sql` to
    the intended production project; enable pgvector only if fallback is needed.
 4. Deploy backend and frontend from the same Git commit.
 5. Run the smoke test from `docs/DEPLOYMENT_FREE.md`.
