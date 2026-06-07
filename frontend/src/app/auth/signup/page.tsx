@@ -80,7 +80,8 @@ export default function SignupPage() {
           <div className="space-y-4 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] p-5">
             <p className="text-sm font-semibold">Check your inbox</p>
             <p className="text-sm leading-6 text-[var(--text-muted)]">
-              A signup link was sent to {sentTo}. Open it to create your session.
+              A signup link was sent to {sentTo}. Open it in any browser or device, then confirm
+              the secure sign-in.
             </p>
             <button
               type="button"

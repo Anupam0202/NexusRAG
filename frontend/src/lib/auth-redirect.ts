@@ -1,5 +1,7 @@
 const FALLBACK_AUTH_PATH = "/documents";
 const INTERNAL_URL_BASE = "https://nexusrag.invalid";
+export const AUTH_LINK_ERROR_MESSAGE =
+  "This sign-in link is invalid or expired. Request a new one.";
 
 function isLoopbackHost(hostname: string) {
   return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "[::1]";
@@ -58,10 +60,14 @@ export function buildAuthCallbackUrl(
 
 export function getAuthCallbackError(url: URL) {
   const fragmentParams = new URLSearchParams(url.hash.replace(/^#/, ""));
-  return (
+  const providerError =
     url.searchParams.get("error_description") ||
     fragmentParams.get("error_description") ||
     url.searchParams.get("error") ||
-    fragmentParams.get("error")
-  );
+    fragmentParams.get("error");
+  return providerError ? AUTH_LINK_ERROR_MESSAGE : null;
+}
+
+export function getSafeAuthErrorMessage() {
+  return AUTH_LINK_ERROR_MESSAGE;
 }

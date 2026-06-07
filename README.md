@@ -245,7 +245,12 @@ Set the matching Supabase project's **Authentication > URL Configuration >
 Site URL** to the canonical frontend URL and allow
 `https://<frontend-domain>/auth/callback`. If the callback is not allowlisted,
 Supabase falls back to the Site URL; leaving that value on localhost breaks
-production email confirmation links.
+production email confirmation links. Copy the committed
+`supabase/templates/confirm-sign-up.html` and
+`supabase/templates/magic-link.html` files into the matching hosted Supabase
+email templates. These token-hash templates complete authentication through the
+prefetch-safe `/auth/confirm` server flow and work when an email is opened in a
+different browser or device.
 
 ### Connecting Frontend and Backend
 

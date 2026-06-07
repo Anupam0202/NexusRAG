@@ -15,6 +15,7 @@ const PAGE_TITLES: Record<string, string> = {
   "/auth/login": "Sign In",
   "/auth/signup": "Sign Up",
   "/auth/callback": "Sign In",
+  "/auth/confirm": "Confirm Sign In",
   "/analytics": "Analytics",
   "/evaluations": "Evaluations",
   "/settings": "Settings",

@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  AUTH_LINK_ERROR_MESSAGE,
   buildAuthCallbackUrl,
   getAuthCallbackError,
+  getSafeAuthErrorMessage,
   sanitizeAuthNextPath,
 } from "./auth-redirect";
 
@@ -61,7 +63,7 @@ describe("getAuthCallbackError", () => {
       getAuthCallbackError(
         new URL("https://nexusrag.vercel.app/auth/callback?error_description=Link+expired")
       )
-    ).toBe("Link expired");
+    ).toBe(AUTH_LINK_ERROR_MESSAGE);
   });
 
   it("reads callback failures from URL fragments", () => {
@@ -69,7 +71,7 @@ describe("getAuthCallbackError", () => {
       getAuthCallbackError(
         new URL("https://nexusrag.vercel.app/auth/callback#error=access_denied&error_description=Try+again")
       )
-    ).toBe("Try again");
+    ).toBe(AUTH_LINK_ERROR_MESSAGE);
   });
 
   it("returns null for a successful callback", () => {
@@ -78,5 +80,11 @@ describe("getAuthCallbackError", () => {
         new URL("https://nexusrag.vercel.app/auth/callback?code=valid-code")
       )
     ).toBeNull();
+  });
+});
+
+describe("getSafeAuthErrorMessage", () => {
+  it("does not expose PKCE or provider implementation details", () => {
+    expect(getSafeAuthErrorMessage()).toBe(AUTH_LINK_ERROR_MESSAGE);
   });
 });

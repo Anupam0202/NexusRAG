@@ -26,9 +26,12 @@ Vercel Marketplace Supabase variables are frontend-only. Mirror the matching Sup
 In that Supabase project, set **Authentication > URL Configuration > Site URL**
 to `https://nexusrag.vercel.app` and allow
 `https://nexusrag.vercel.app/auth/callback`. Keep localhost callbacks only as
-additional development redirects. Custom email templates must use
-`{{ .ConfirmationURL }}` or `{{ .RedirectTo }}` instead of a hardcoded
-localhost URL.
+additional development redirects. Copy
+`supabase/templates/confirm-sign-up.html` and
+`supabase/templates/magic-link.html` into the matching hosted Supabase email
+templates. The committed token-hash templates support cross-browser/device
+sign-in and avoid PKCE verifier failures; do not replace them with
+`{{ .ConfirmationURL }}` while using `@supabase/ssr`.
 
 ## Render Backend
 
