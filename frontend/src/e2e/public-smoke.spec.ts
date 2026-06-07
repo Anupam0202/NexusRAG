@@ -69,7 +69,33 @@ test("auth callback shows a recoverable error state", async ({ page }) => {
   await page.goto("/auth/callback?error_description=This+link+has+expired");
 
   await expect(page.getByText("Sign-in could not be completed")).toBeVisible();
-  await expect(page.getByText("This link has expired")).toBeVisible();
+  await expect(
+    page.getByText("This sign-in link is invalid or expired. Request a new one.")
+  ).toBeVisible();
+  await expect(page.getByRole("link", { name: "Request a new sign-in link" })).toHaveAttribute(
+    "href",
+    "/auth/login"
+  );
+});
+
+test("email confirmation is prefetch-safe and requires an explicit user action", async ({ page }) => {
+  let verificationRequests = 0;
+  page.on("request", (request) => {
+    if (request.url().includes("/auth/confirm/verify")) verificationRequests += 1;
+  });
+
+  await page.goto("/auth/confirm?token_hash=test-token&type=email&next=%2Fdocuments");
+
+  await expect(page.getByRole("heading", { name: "Confirm your secure sign-in" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Confirm and sign in" })).toBeVisible();
+  await expect(page.locator('meta[name="referrer"]')).toHaveAttribute("content", "no-referrer");
+  expect(verificationRequests).toBe(0);
+});
+
+test("invalid email confirmation links fail safely", async ({ page }) => {
+  await page.goto("/auth/confirm?type=email");
+
+  await expect(page.getByRole("heading", { name: "This sign-in link is invalid" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Request a new sign-in link" })).toHaveAttribute(
     "href",
     "/auth/login"

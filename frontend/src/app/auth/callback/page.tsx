@@ -5,7 +5,11 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Loader2, ShieldAlert, ShieldCheck } from "lucide-react";
 import { getCurrentWorkspace } from "@/lib/api";
-import { getAuthCallbackError, sanitizeAuthNextPath } from "@/lib/auth-redirect";
+import {
+  getAuthCallbackError,
+  getSafeAuthErrorMessage,
+  sanitizeAuthNextPath,
+} from "@/lib/auth-redirect";
 import { createSupabaseBrowserClient, hasPublicSupabaseConfig } from "@/lib/supabase/client";
 import { useStore } from "@/hooks/useStore";
 
@@ -62,9 +66,9 @@ export default function AuthCallbackPage() {
         } catch {
           router.replace("/onboarding");
         }
-      } catch (err: unknown) {
+      } catch {
         if (!active) return;
-        setError(err instanceof Error ? err.message : "Unable to complete sign-in");
+        setError(getSafeAuthErrorMessage());
       }
     };
 

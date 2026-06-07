@@ -56,9 +56,17 @@ Add local callback URLs only as additional development redirects, never as the
 production Site URL. Supabase falls back to the Site URL when an
 `emailRedirectTo` destination is absent from the allowlist, so a localhost Site
 URL causes production confirmation emails to send users back to localhost.
-If custom confirmation or magic-link templates are enabled, use Supabase's
-`{{ .ConfirmationURL }}` or `{{ .RedirectTo }}` variables. Do not hardcode a
-localhost URL in an email template.
+
+Because `@supabase/ssr` uses PKCE, do not use `{{ .ConfirmationURL }}` for the
+hosted **Confirm sign up** or **Magic link or OTP** templates. That URL returns
+an authorization code which depends on a verifier stored in the browser that
+requested the email. Instead, copy the committed templates from
+`supabase/templates/confirm-sign-up.html` and
+`supabase/templates/magic-link.html` into the matching Supabase dashboard
+templates. They send `{{ .TokenHash }}` to `/auth/confirm`, where an explicit
+POST verifies the one-time token, stores the session in cookies, and safely
+redirects through `/auth/callback`. This works across browsers/devices and
+prevents email link scanners from consuming the token with a GET request.
 
 ## Production Controls
 
