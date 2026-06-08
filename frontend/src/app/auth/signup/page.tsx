@@ -20,6 +20,9 @@ export default function SignupPage() {
   const [confirmation, setConfirmation] = useState("");
   const [sentTo, setSentTo] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
+  const [resendMessage, setResendMessage] = useState<string | null>(null);
+  const [resendCooldown, setResendCooldown] = useState(0);
+  const [resending, setResending] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [nextPath, setNextPath] = useState("/onboarding");
   const supabaseReady = hasPublicSupabaseConfig();
@@ -33,6 +36,15 @@ export default function SignupPage() {
     if (authMode === "authenticated") router.replace(nextPath);
   }, [authMode, nextPath, router]);
 
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const timer = window.setTimeout(() => setResendCooldown(resendCooldown - 1), 1_000);
+    return () => window.clearTimeout(timer);
+  }, [resendCooldown]);
+
+  const verificationRedirectTo = () =>
+    buildAuthCallbackUrl(window.location.origin, nextPath, process.env.NEXT_PUBLIC_SITE_URL);
+
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const normalizedEmail = email.trim().toLowerCase();
@@ -42,18 +54,15 @@ export default function SignupPage() {
 
     setSubmitting(true);
     try {
-      const redirectTo = buildAuthCallbackUrl(
-        window.location.origin,
-        nextPath,
-        process.env.NEXT_PUBLIC_SITE_URL
-      );
       const supabase = createSupabaseBrowserClient();
       const { error } = await supabase.auth.signUp({
         email: normalizedEmail,
         password,
-        options: { emailRedirectTo: redirectTo },
+        options: { emailRedirectTo: verificationRedirectTo() },
       });
       if (error) throw error;
+      setFormError(null);
+      setResendMessage(null);
       setSentTo(normalizedEmail);
       toast.success("Verification requested");
     } catch (error: unknown) {
@@ -62,6 +71,34 @@ export default function SignupPage() {
       toast.error(message);
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const resendConfirmation = async () => {
+    if (!sentTo || resending || resendCooldown > 0) return;
+
+    setFormError(null);
+    setResendMessage(null);
+    setResending(true);
+    try {
+      const supabase = createSupabaseBrowserClient();
+      const { error } = await supabase.auth.resend({
+        type: "signup",
+        email: sentTo,
+        options: { emailRedirectTo: verificationRedirectTo() },
+      });
+      if (error) throw error;
+      const message =
+        "If the account is awaiting verification, a new confirmation link has been requested.";
+      setResendMessage(message);
+      toast.success("Verification requested");
+    } catch (error: unknown) {
+      const message = publicAuthErrorMessage("email-delivery", error);
+      setFormError(message);
+      toast.error(message);
+    } finally {
+      setResendCooldown(60);
+      setResending(false);
     }
   };
 
@@ -94,6 +131,29 @@ export default function SignupPage() {
               Already registered or still missing the message? Sign in or reset your password
               without creating another account.
             </p>
+            {resendMessage ? (
+              <p role="status" className="text-sm text-emerald-700 dark:text-emerald-300">
+                {resendMessage}
+              </p>
+            ) : null}
+            {formError ? (
+              <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+                {formError}
+              </p>
+            ) : null}
+            <button
+              type="button"
+              onClick={resendConfirmation}
+              disabled={resending || resendCooldown > 0}
+              className="flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-[var(--border)] px-3 text-sm font-semibold transition hover:bg-[var(--bg-secondary)] disabled:opacity-50"
+            >
+              {resending ? <Loader2 size={16} className="animate-spin" /> : null}
+              {resending
+                ? "Requesting confirmation"
+                : resendCooldown > 0
+                  ? `Resend available in ${resendCooldown}s`
+                  : "Resend confirmation email"}
+            </button>
             <div className="flex flex-wrap gap-3 text-sm font-semibold">
               <Link href="/auth/login" className="text-brand-600 hover:text-brand-500">
                 Sign in
@@ -104,7 +164,12 @@ export default function SignupPage() {
             </div>
             <button
               type="button"
-              onClick={() => setSentTo(null)}
+              onClick={() => {
+                setSentTo(null);
+                setFormError(null);
+                setResendMessage(null);
+                setResendCooldown(0);
+              }}
               className="text-sm font-semibold text-brand-600 hover:text-brand-500"
             >
               Use another email

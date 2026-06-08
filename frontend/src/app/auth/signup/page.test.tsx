@@ -1,9 +1,11 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { replace, signUp, toastSuccess } = vi.hoisted(() => ({
+const { replace, resend, signUp, toastError, toastSuccess } = vi.hoisted(() => ({
   replace: vi.fn(),
+  resend: vi.fn(),
   signUp: vi.fn(),
+  toastError: vi.fn(),
   toastSuccess: vi.fn(),
 }));
 
@@ -16,17 +18,20 @@ vi.mock("@/hooks/useStore", () => ({
 }));
 vi.mock("@/lib/supabase/client", () => ({
   hasPublicSupabaseConfig: () => true,
-  createSupabaseBrowserClient: () => ({ auth: { signUp } }),
+  createSupabaseBrowserClient: () => ({ auth: { resend, signUp } }),
 }));
-vi.mock("sonner", () => ({ toast: { success: toastSuccess, error: vi.fn() } }));
+vi.mock("sonner", () => ({ toast: { success: toastSuccess, error: toastError } }));
 
 import SignupPage from "./page";
 
 describe("SignupPage", () => {
   beforeEach(() => {
     replace.mockReset();
+    resend.mockReset();
     signUp.mockReset();
+    toastError.mockReset();
     toastSuccess.mockReset();
+    resend.mockResolvedValue({ error: null });
     signUp.mockResolvedValue({ error: null });
   });
 
@@ -97,5 +102,61 @@ describe("SignupPage", () => {
         "Verification email requests are temporarily rate-limited. Wait a few minutes and try again."
       )
     ).toBeVisible();
+  });
+
+  it("allows a safe confirmation email resend after signup", async () => {
+    render(<SignupPage />);
+
+    fireEvent.change(screen.getByLabelText("Email"), { target: { value: "USER@Example.com" } });
+    fireEvent.change(screen.getByLabelText("Password"), { target: { value: "SecurePass1!" } });
+    fireEvent.change(screen.getByLabelText("Confirm password"), {
+      target: { value: "SecurePass1!" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Create account" }));
+
+    const resendButton = await screen.findByRole("button", { name: "Resend confirmation email" });
+    fireEvent.click(resendButton);
+
+    await waitFor(() =>
+      expect(resend).toHaveBeenCalledWith({
+        type: "signup",
+        email: "user@example.com",
+        options: expect.objectContaining({
+          emailRedirectTo: expect.stringContaining("/auth/callback"),
+        }),
+      })
+    );
+    expect(
+      await screen.findByText(
+        "If the account is awaiting verification, a new confirmation link has been requested."
+      )
+    ).toBeVisible();
+  });
+
+  it("rate-limits failed confirmation email resend attempts in the UI", async () => {
+    resend.mockResolvedValue({
+      error: {
+        code: "over_email_send_rate_limit",
+        status: 429,
+        message: "email rate limit exceeded",
+      },
+    });
+    render(<SignupPage />);
+
+    fireEvent.change(screen.getByLabelText("Email"), { target: { value: "user@example.com" } });
+    fireEvent.change(screen.getByLabelText("Password"), { target: { value: "SecurePass1!" } });
+    fireEvent.change(screen.getByLabelText("Confirm password"), {
+      target: { value: "SecurePass1!" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Create account" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Resend confirmation email" }));
+
+    expect(
+      await screen.findByText(
+        "Verification email requests are temporarily rate-limited. Wait a few minutes and try again."
+      )
+    ).toBeVisible();
+    expect(screen.getByRole("button", { name: /Resend available in/ })).toBeDisabled();
+    expect(toastError).toHaveBeenCalled();
   });
 });
