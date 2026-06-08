@@ -52,12 +52,18 @@ function authErrorCode(error: unknown) {
   return typeof error.code === "string" ? error.code : null;
 }
 
+function authErrorStatus(error: unknown) {
+  if (!error || typeof error !== "object" || !("status" in error)) return null;
+  return typeof error.status === "number" ? error.status : null;
+}
+
 export function publicAuthErrorMessage(operation: AuthOperation, error: unknown) {
   const code = authErrorCode(error);
-  if (code === "over_email_send_rate_limit") {
+  const status = authErrorStatus(error);
+  if (code === "over_email_send_rate_limit" || (status === 429 && operation !== "sign-in")) {
     return "Verification email requests are temporarily rate-limited. Wait a few minutes and try again.";
   }
-  if (code === "over_request_rate_limit") {
+  if (code === "over_request_rate_limit" || status === 429) {
     return "Too many authentication requests. Wait a few minutes and try again.";
   }
   if (code === "email_address_not_authorized") {
