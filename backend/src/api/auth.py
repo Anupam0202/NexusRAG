@@ -280,33 +280,30 @@ def _decode_supabase_jwt(token: str, settings: Settings) -> dict[str, Any]:
         ) from exc
 
     try:
-        if settings.supabase_jwks_url:
-            signing_key = PyJWKClient(settings.supabase_jwks_url).get_signing_key_from_jwt(token)
-            return jwt.decode(
-                token,
-                signing_key.key,
-                algorithms=list(JWT_ALGORITHMS),
-                audience=AUTHENTICATED_AUDIENCE,
-            )
+        algorithm = jwt.get_unverified_header(token).get("alg")
+        if algorithm not in JWT_ALGORITHMS:
+            raise jwt.InvalidAlgorithmError("Unsupported Supabase JWT algorithm.")
 
-        if settings.supabase_jwt_secret:
-            return jwt.decode(
-                token,
-                settings.supabase_jwt_secret,
-                algorithms=list(JWT_ALGORITHMS),
-                audience=AUTHENTICATED_AUDIENCE,
-            )
-    except jwt.InvalidAudienceError:
-        key: Any
-        if settings.supabase_jwks_url:
-            key = PyJWKClient(settings.supabase_jwks_url).get_signing_key_from_jwt(token).key
+        if algorithm == "HS256":
+            if not settings.supabase_jwt_secret:
+                raise HTTPException(
+                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                    detail="Supabase legacy JWT verification is not configured.",
+                )
+            key: Any = settings.supabase_jwt_secret
         else:
-            key = settings.supabase_jwt_secret
+            if not settings.supabase_jwks_url:
+                raise HTTPException(
+                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                    detail="Supabase JWKS verification is not configured.",
+                )
+            key = PyJWKClient(settings.supabase_jwks_url).get_signing_key_from_jwt(token).key
+
         return jwt.decode(
             token,
             key,
-            algorithms=list(JWT_ALGORITHMS),
-            options={"verify_aud": False},
+            algorithms=[algorithm],
+            audience=AUTHENTICATED_AUDIENCE,
         )
     except jwt.PyJWTError as exc:
         raise HTTPException(

@@ -386,7 +386,7 @@ class Settings(BaseSettings):
                 "SUPABASE_SERVICE_ROLE_KEY",
                 "SUPABASE_SECRET_KEY",
             )
-        if not self.supabase_jwks_url and not self.supabase_jwt_secret:
+        if not self.supabase_jwks_url:
             self.supabase_jwks_url = _supabase_jwks_url(self.supabase_url)
         return self
 

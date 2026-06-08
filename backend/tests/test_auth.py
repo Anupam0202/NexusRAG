@@ -6,10 +6,12 @@ from uuid import uuid4
 
 import jwt
 import pytest
+from fastapi import HTTPException
 from fastapi.testclient import TestClient
 from starlette.websockets import WebSocketDisconnect
 
 from config.settings import get_settings
+from src.api.auth import authenticate_supabase_token
 from src.infrastructure.supabase_client import get_supabase_client
 
 
@@ -92,6 +94,86 @@ def test_auth_me_requires_bearer_token(test_client: TestClient, monkeypatch) -> 
 
     assert response.status_code == 401
     assert response.json()["detail"] == "Missing bearer token."
+
+
+def test_hs256_token_uses_legacy_secret_when_jwks_is_also_configured(
+    enterprise_auth_env,
+    monkeypatch,
+) -> None:
+    settings = get_settings()
+    assert settings.supabase_jwks_url
+
+    class UnexpectedJwkClient:
+        def __init__(self, _url: str) -> None:
+            raise AssertionError("HS256 tokens must not use the JWKS client")
+
+    monkeypatch.setattr(jwt, "PyJWKClient", UnexpectedJwkClient)
+    user_id = str(uuid4())
+    token = jwt.encode(
+        {"sub": user_id, "email": "reader@example.com", "aud": "authenticated"},
+        "test-secret-with-at-least-thirty-two-bytes",
+        algorithm="HS256",
+    )
+
+    user = authenticate_supabase_token(token, settings)
+
+    assert user.id == user_id
+    assert user.email == "reader@example.com"
+
+
+def test_es256_token_uses_jwks_when_legacy_secret_is_also_configured(
+    enterprise_auth_env,
+    monkeypatch,
+) -> None:
+    settings = get_settings()
+    calls: dict[str, object] = {}
+    user_id = str(uuid4())
+
+    class FakeJwkClient:
+        def __init__(self, url: str) -> None:
+            calls["url"] = url
+
+        def get_signing_key_from_jwt(self, token: str):
+            calls["token"] = token
+            return type("SigningKey", (), {"key": "jwks-public-key"})()
+
+    def fake_decode(token: str, key: str, *, algorithms: list[str], **kwargs):
+        calls["decode"] = {
+            "token": token,
+            "key": key,
+            "algorithms": algorithms,
+            "kwargs": kwargs,
+        }
+        return {"sub": user_id, "email": "reader@example.com", "aud": "authenticated"}
+
+    monkeypatch.setattr(jwt, "PyJWKClient", FakeJwkClient)
+    monkeypatch.setattr(jwt, "decode", fake_decode)
+    token = "eyJhbGciOiJFUzI1NiIsImtpZCI6InRlc3QifQ.e30.c2lnbmF0dXJl"
+
+    user = authenticate_supabase_token(token, settings)
+
+    assert user.id == user_id
+    assert calls["url"] == "https://example.supabase.co/auth/v1/.well-known/jwks.json"
+    assert calls["decode"] == {
+        "token": token,
+        "key": "jwks-public-key",
+        "algorithms": ["ES256"],
+        "kwargs": {"audience": "authenticated"},
+    }
+
+
+def test_token_with_wrong_audience_is_rejected(enterprise_auth_env) -> None:
+    token = jwt.encode(
+        {"sub": str(uuid4()), "aud": "another-service"},
+        "test-secret-with-at-least-thirty-two-bytes",
+        algorithm="HS256",
+    )
+
+    with pytest.raises(HTTPException) as exc_info:
+        authenticate_supabase_token(token, get_settings())
+
+    assert exc_info.value.status_code == 401
+    assert exc_info.value.detail == "Invalid or expired Supabase session."
 
 
 @pytest.mark.parametrize(
