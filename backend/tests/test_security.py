@@ -166,3 +166,15 @@ def test_pgvector_extension_is_kept_outside_public_schema() -> None:
     assert "query_embedding extensions.vector(384)" in filters
     assert "public.match_document_chunks(extensions.vector, uuid, int, jsonb)" in grants
     assert "alter extension vector set schema extensions" in relocation
+
+
+def test_render_blueprint_pins_production_supabase_jwks() -> None:
+    blueprint = (
+        Path(__file__).resolve().parents[2] / "render.yaml"
+    ).read_text(encoding="utf-8")
+
+    assert "- key: SUPABASE_JWKS_URL" in blueprint
+    assert (
+        "https://fcjaomiceajcdownarel.supabase.co/auth/v1/.well-known/jwks.json"
+        in blueprint
+    )
