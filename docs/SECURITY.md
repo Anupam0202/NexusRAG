@@ -33,6 +33,8 @@ NexusRAG is designed around tenant isolation, durable auth context, and defensiv
 - Render should receive server secrets and mirrored Supabase/Qdrant variables.
 - Do not enable anonymous demo mode in production.
 - Keep Supabase email verification, authentication rate limits, and a compatible server-side password policy enabled.
+- Require custom SMTP before public registration; the Supabase built-in mailer is development-only and restricted.
+- Keep auth-email provider logs, bounce handling, suppression handling, SPF, DKIM, and DMARC under operational review.
 
 ## Remaining Security Work
 
