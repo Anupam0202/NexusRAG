@@ -43,6 +43,11 @@ services:
         sync: false
       - key: SUPABASE_JWT_SECRET
         sync: false
+      # Public verification endpoint pinned to the same Supabase project used
+      # by the Vercel frontend. This prevents stale legacy JWT secrets or a
+      # mismatched Supabase project from rejecting current ES256 sessions.
+      - key: SUPABASE_JWKS_URL
+        value: "https://fcjaomiceajcdownarel.supabase.co/auth/v1/.well-known/jwks.json"
       - key: SUPABASE_STORAGE_BUCKET
         value: documents
       - key: ENABLE_ANONYMOUS_DEMO
