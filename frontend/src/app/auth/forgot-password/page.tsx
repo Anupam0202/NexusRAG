@@ -5,6 +5,7 @@ import Link from "next/link";
 import { KeyRound, Loader2, Mail } from "lucide-react";
 import { toast } from "sonner";
 import { buildAuthRecoveryUrl } from "@/lib/auth-redirect";
+import { publicAuthErrorMessage } from "@/lib/password-policy";
 import { createSupabaseBrowserClient, hasPublicSupabaseConfig } from "@/lib/supabase/client";
 
 const SAFE_SUCCESS_MESSAGE =
@@ -13,6 +14,7 @@ const SAFE_SUCCESS_MESSAGE =
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
   const [submitted, setSubmitted] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const supabaseReady = hasPublicSupabaseConfig();
 
@@ -22,6 +24,7 @@ export default function ForgotPasswordPage() {
     if (!normalizedEmail || !supabaseReady) return;
 
     setSubmitting(true);
+    setFormError(null);
     try {
       const supabase = createSupabaseBrowserClient();
       const redirectTo = buildAuthRecoveryUrl(
@@ -31,8 +34,10 @@ export default function ForgotPasswordPage() {
       const { error } = await supabase.auth.resetPasswordForEmail(normalizedEmail, { redirectTo });
       if (error) throw error;
       setSubmitted(true);
-    } catch {
-      toast.error("We could not send a password-reset link. Please try again.");
+    } catch (error: unknown) {
+      const message = publicAuthErrorMessage("email-delivery", error);
+      setFormError(message);
+      toast.error(message);
     } finally {
       setSubmitting(false);
     }
@@ -85,6 +90,11 @@ export default function ForgotPasswordPage() {
                 className="mt-1.5 h-11 w-full rounded-xl border border-[var(--border)] bg-[var(--bg-secondary)] px-3 text-sm outline-none transition focus:border-brand-500"
               />
             </label>
+            {formError ? (
+              <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+                {formError}
+              </p>
+            ) : null}
             <button
               type="submit"
               disabled={submitting || !email.trim()}

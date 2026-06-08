@@ -79,4 +79,25 @@ describe("LoginPage", () => {
     ).toBeVisible();
     expect(screen.queryByText(/sensitive detail/i)).not.toBeInTheDocument();
   });
+
+  it("shows an actionable safe message when magic-link email delivery is rate-limited", async () => {
+    signInWithOtp.mockResolvedValue({
+      error: {
+        code: "over_email_send_rate_limit",
+        status: 429,
+        message: "email rate limit exceeded",
+      },
+    });
+    render(<LoginPage />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Magic link" }));
+    fireEvent.change(screen.getByLabelText("Email"), { target: { value: "user@example.com" } });
+    fireEvent.click(screen.getByRole("button", { name: "Send magic link" }));
+
+    expect(
+      await screen.findByText(
+        "Verification email requests are temporarily rate-limited. Wait a few minutes and try again."
+      )
+    ).toBeVisible();
+  });
 });

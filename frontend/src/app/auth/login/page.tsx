@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import { PasswordField } from "@/components/auth/PasswordField";
 import { useStore } from "@/hooks/useStore";
 import { buildAuthCallbackUrl, sanitizeAuthNextPath } from "@/lib/auth-redirect";
-import { genericAuthError } from "@/lib/password-policy";
+import { publicAuthErrorMessage } from "@/lib/password-policy";
 import { createSupabaseBrowserClient, hasPublicSupabaseConfig } from "@/lib/supabase/client";
 
 type SignInMode = "password" | "magic-link";
@@ -65,11 +65,11 @@ export default function LoginPage() {
         setSentTo(normalizedEmail);
         toast.success("Magic link sent");
       }
-    } catch {
-      const message =
-        mode === "password"
-          ? genericAuthError("sign-in")
-          : "We could not send a magic link. Please try again.";
+    } catch (error: unknown) {
+      const message = publicAuthErrorMessage(
+        mode === "password" ? "sign-in" : "email-delivery",
+        error
+      );
       setFormError(message);
       toast.error(message);
     } finally {

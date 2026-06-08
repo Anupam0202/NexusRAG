@@ -84,6 +84,24 @@ In **Authentication > Providers > Email** and the Auth settings:
   enabled;
 - configure production SMTP for reliable branded delivery.
 
+Custom SMTP is a production launch gate, not an optional deliverability
+improvement. Supabase's built-in mailer is restricted to organization team
+members and a very small project-wide hourly send limit. Before launch:
+
+1. Configure and enable custom SMTP in **Authentication > Emails > SMTP Settings**.
+2. Verify the sending domain with SPF, DKIM, and DMARC.
+3. Keep provider link tracking disabled so token-hash confirmation links are
+   not rewritten.
+4. Set appropriate Supabase Auth email and per-recipient rate limits.
+5. Run controlled external-address tests for signup confirmation, resend,
+   recovery, and magic-link delivery, and inspect provider bounce/suppression
+   logs.
+
+The frontend handles Supabase's stable `over_email_send_rate_limit`,
+`over_request_rate_limit`, and `email_address_not_authorized` codes with safe,
+actionable messages. It does not expose raw provider responses or account
+existence.
+
 Supabase Auth stores and verifies password hashes. Do not add passwords or
 password hashes to NexusRAG tables, Vercel variables, Render variables, logs, or
 FastAPI routes.

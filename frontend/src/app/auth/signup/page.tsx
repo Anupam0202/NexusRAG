@@ -9,7 +9,7 @@ import { PasswordField } from "@/components/auth/PasswordField";
 import { PasswordRequirements } from "@/components/auth/PasswordRequirements";
 import { useStore } from "@/hooks/useStore";
 import { buildAuthCallbackUrl, sanitizeAuthNextPath } from "@/lib/auth-redirect";
-import { genericAuthError, passwordValidationError } from "@/lib/password-policy";
+import { passwordValidationError, publicAuthErrorMessage } from "@/lib/password-policy";
 import { createSupabaseBrowserClient, hasPublicSupabaseConfig } from "@/lib/supabase/client";
 
 export default function SignupPage() {
@@ -55,9 +55,9 @@ export default function SignupPage() {
       });
       if (error) throw error;
       setSentTo(normalizedEmail);
-      toast.success("Verification email sent");
-    } catch {
-      const message = genericAuthError("signup");
+      toast.success("Verification requested");
+    } catch (error: unknown) {
+      const message = publicAuthErrorMessage("signup", error);
       setFormError(message);
       toast.error(message);
     } finally {
@@ -86,9 +86,22 @@ export default function SignupPage() {
           <div className="space-y-4 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] p-5">
             <p className="text-sm font-semibold">Verify your email</p>
             <p className="text-sm leading-6 text-[var(--text-muted)]">
-              We sent a confirmation link to {sentTo}. Your account becomes active after you
-              confirm the address.
+              If this address can be registered, a confirmation link has been requested for{" "}
+              {sentTo}. Check your inbox and spam folder. Your account becomes active only after
+              confirmation.
             </p>
+            <p className="text-sm leading-6 text-[var(--text-muted)]">
+              Already registered or still missing the message? Sign in or reset your password
+              without creating another account.
+            </p>
+            <div className="flex flex-wrap gap-3 text-sm font-semibold">
+              <Link href="/auth/login" className="text-brand-600 hover:text-brand-500">
+                Sign in
+              </Link>
+              <Link href="/auth/forgot-password" className="text-brand-600 hover:text-brand-500">
+                Reset password
+              </Link>
+            </div>
             <button
               type="button"
               onClick={() => setSentTo(null)}

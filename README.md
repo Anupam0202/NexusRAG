@@ -259,6 +259,13 @@ email templates. These token-hash templates complete authentication through the
 prefetch-safe `/auth/confirm` server flow and work when an email is opened in a
 different browser or device.
 
+Public production registration also requires custom SMTP in the same Supabase
+project. Supabase's built-in mailer is intended only for development: it sends
+only to organization team members and has a very small project-wide hourly
+limit. Configure **Authentication > Emails > SMTP Settings**, then verify a
+fresh external-address signup, confirmation, recovery, and magic-link flow
+before enabling public registration.
+
 ### Connecting Frontend and Backend
 
 The frontend calls the Render backend directly for REST requests, uploads, and WebSocket chat streaming. This keeps every backend workflow on the same service and avoids Vercel's serverless timeout/proxy limitations.
