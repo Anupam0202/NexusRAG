@@ -20,9 +20,17 @@ function callbackUrl(requestUrl: URL, nextPath?: string) {
   return callback;
 }
 
+function isTrustedSameOriginPost(request: Request, requestUrl: URL) {
+  const origin = request.headers.get("origin");
+  return (
+    origin === requestUrl.origin ||
+    (origin === "null" && request.headers.get("sec-fetch-site") === "same-origin")
+  );
+}
+
 export async function POST(request: Request) {
   const requestUrl = new URL(request.url);
-  if (request.headers.get("origin") !== requestUrl.origin) {
+  if (!isTrustedSameOriginPost(request, requestUrl)) {
     return NextResponse.redirect(callbackUrl(requestUrl), 303);
   }
 
