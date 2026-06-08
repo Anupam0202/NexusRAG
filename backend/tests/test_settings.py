@@ -50,7 +50,7 @@ def test_supabase_vercel_aliases_activate_enterprise_auth(monkeypatch) -> None:
     assert settings.auth_required is True
 
 
-def test_supabase_jwt_secret_prevents_implicit_jwks(monkeypatch) -> None:
+def test_supabase_jwt_secret_keeps_implicit_jwks_for_asymmetric_tokens(monkeypatch) -> None:
     for key in SUPABASE_ENV_KEYS:
         monkeypatch.delenv(key, raising=False)
 
@@ -64,5 +64,7 @@ def test_supabase_jwt_secret_prevents_implicit_jwks(monkeypatch) -> None:
     settings = get_settings()
 
     assert settings.supabase_jwt_secret == "jwt-secret"
-    assert settings.supabase_jwks_url == ""
+    assert settings.supabase_jwks_url == (
+        "https://project.supabase.co/auth/v1/.well-known/jwks.json"
+    )
     assert settings.auth_required is True
