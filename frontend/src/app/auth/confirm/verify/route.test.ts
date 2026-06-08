@@ -12,12 +12,15 @@ vi.mock("@/lib/supabase/server", () => ({
 
 import { POST } from "./route";
 
-function confirmationRequest(values: Record<string, string>) {
+function confirmationRequest(
+  values: Record<string, string>,
+  headers: Record<string, string> = {
+    origin: "https://nexusrag.vercel.app",
+  }
+) {
   return new Request("https://nexusrag.vercel.app/auth/confirm/verify", {
     method: "POST",
-    headers: {
-      origin: "https://nexusrag.vercel.app",
-    },
+    headers,
     body: new URLSearchParams(values),
   });
 }
@@ -130,6 +133,54 @@ describe("POST /auth/confirm/verify", () => {
     request.headers.set("origin", "https://evil.example");
 
     const response = await POST(request);
+
+    expect(verifyOtp).not.toHaveBeenCalled();
+    expect(response.status).toBe(303);
+    expect(response.headers.get("location")).toBe(
+      "https://nexusrag.vercel.app/auth/callback?error_description=This+sign-in+link+is+invalid+or+expired.+Request+a+new+one."
+    );
+  });
+
+  it("accepts a no-referrer form post when Fetch Metadata proves it is same-origin", async () => {
+    verifyOtp.mockResolvedValue({ error: null });
+
+    const response = await POST(
+      confirmationRequest(
+        {
+          token_hash: "valid-no-referrer-hash",
+          type: "email",
+          next: "/documents",
+        },
+        {
+          origin: "null",
+          "sec-fetch-site": "same-origin",
+        }
+      )
+    );
+
+    expect(verifyOtp).toHaveBeenCalledWith({
+      token_hash: "valid-no-referrer-hash",
+      type: "email",
+    });
+    expect(response.headers.get("location")).toBe(
+      "https://nexusrag.vercel.app/auth/callback?next=%2Fdocuments"
+    );
+  });
+
+  it("rejects a null-origin form post when Fetch Metadata does not prove it is same-origin", async () => {
+    const response = await POST(
+      confirmationRequest(
+        {
+          token_hash: "attacker-hash",
+          type: "email",
+          next: "/documents",
+        },
+        {
+          origin: "null",
+          "sec-fetch-site": "cross-site",
+        }
+      )
+    );
 
     expect(verifyOtp).not.toHaveBeenCalled();
     expect(response.status).toBe(303);
