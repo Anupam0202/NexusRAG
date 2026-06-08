@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Building2, LogOut, ShieldCheck, UserRound } from "lucide-react";
 import { toast } from "sonner";
 import { useStore } from "@/hooks/useStore";
@@ -11,6 +12,7 @@ import {
 } from "@/lib/supabase/client";
 
 export function AuthMenu() {
+  const router = useRouter();
   const authMode = useStore((state) => state.authMode);
   const authUser = useStore((state) => state.authUser);
   const workspaceId = useStore((state) => state.workspaceId);
@@ -35,8 +37,9 @@ export function AuthMenu() {
       setWorkspaceId(null);
       setOpen(false);
       toast.success("Signed out");
-    } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : "Unable to sign out");
+      router.replace("/auth/login");
+    } catch {
+      toast.error("Unable to sign out. Please try again.");
     }
   };
 
