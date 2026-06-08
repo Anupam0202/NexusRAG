@@ -136,7 +136,6 @@ describe("SignupPage", () => {
   it("rate-limits failed confirmation email resend attempts in the UI", async () => {
     resend.mockResolvedValue({
       error: {
-        code: "over_email_send_rate_limit",
         status: 429,
         message: "email rate limit exceeded",
       },

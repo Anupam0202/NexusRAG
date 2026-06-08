@@ -89,6 +89,26 @@ describe("publicAuthErrorMessage", () => {
     ).toBe("Too many authentication requests. Wait a few minutes and try again.");
   });
 
+  it("recognizes provider email throttling when only the HTTP status is stable", () => {
+    expect(
+      publicAuthErrorMessage("signup", {
+        status: 429,
+        message: "provider-specific email rate limit response",
+      })
+    ).toBe(
+      "Verification email requests are temporarily rate-limited. Wait a few minutes and try again."
+    );
+    expect(
+      publicAuthErrorMessage("email-delivery", {
+        code: 429,
+        status: 429,
+        message: "provider-specific email rate limit response",
+      })
+    ).toBe(
+      "Verification email requests are temporarily rate-limited. Wait a few minutes and try again."
+    );
+  });
+
   it("explains when public email delivery is not configured", () => {
     expect(
       publicAuthErrorMessage("signup", {
