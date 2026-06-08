@@ -60,11 +60,10 @@ class SupabaseClient:
     def auth_headers(self, *, service_role: bool = True) -> dict[str, str]:
         self.require_configured()
         key = self.config.service_role_key if service_role else self.config.anon_key
-        return {
-            "apikey": key,
-            "Authorization": f"Bearer {key}",
-            "Content-Type": "application/json",
-        }
+        headers = {"apikey": key, "Content-Type": "application/json"}
+        if not key.startswith(("sb_secret_", "sb_publishable_")):
+            headers["Authorization"] = f"Bearer {key}"
+        return headers
 
     async def table_select(
         self,
@@ -190,8 +189,7 @@ class SupabaseClient:
         """Upload an original document to Supabase Storage."""
         self.require_configured()
         headers = {
-            "apikey": self.config.service_role_key,
-            "Authorization": f"Bearer {self.config.service_role_key}",
+            **self.auth_headers(),
             "Content-Type": content_type,
             "x-upsert": "true" if upsert else "false",
         }
@@ -206,10 +204,7 @@ class SupabaseClient:
     async def download_object(self, path: str) -> bytes:
         """Download an object from Supabase Storage."""
         self.require_configured()
-        headers = {
-            "apikey": self.config.service_role_key,
-            "Authorization": f"Bearer {self.config.service_role_key}",
-        }
+        headers = self.auth_headers()
         url = (
             f"{self.config.url}/storage/v1/object/"
             f"{self.config.storage_bucket}/{path.lstrip('/')}"
@@ -222,10 +217,7 @@ class SupabaseClient:
     async def delete_object(self, path: str) -> None:
         """Delete an original document from the configured private bucket."""
         self.require_configured()
-        headers = {
-            "apikey": self.config.service_role_key,
-            "Authorization": f"Bearer {self.config.service_role_key}",
-        }
+        headers = self.auth_headers()
         url = (
             f"{self.config.url}/storage/v1/object/"
             f"{self.config.storage_bucket}"

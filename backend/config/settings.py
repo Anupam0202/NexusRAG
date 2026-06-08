@@ -381,11 +381,15 @@ class Settings(BaseSettings):
                 "NEXT_PUBLIC_SUPABASE_ANON_KEY",
                 "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
             )
-        if not self.supabase_service_role_key:
-            self.supabase_service_role_key = _first_env(
-                "SUPABASE_SERVICE_ROLE_KEY",
-                "SUPABASE_SECRET_KEY",
-            )
+        # Supabase secret keys are the current server-side credential format.
+        # Prefer them over a legacy service_role JWT when both were mirrored
+        # into a deployment, so stale legacy credentials cannot silently route
+        # persistence to a different project.
+        modern_secret_key = _first_env("SUPABASE_SECRET_KEY")
+        if modern_secret_key:
+            self.supabase_service_role_key = modern_secret_key
+        elif not self.supabase_service_role_key:
+            self.supabase_service_role_key = _first_env("SUPABASE_SERVICE_ROLE_KEY")
         if not self.supabase_jwks_url:
             self.supabase_jwks_url = _supabase_jwks_url(self.supabase_url)
         return self

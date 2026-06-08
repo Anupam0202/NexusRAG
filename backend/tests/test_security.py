@@ -168,11 +168,13 @@ def test_pgvector_extension_is_kept_outside_public_schema() -> None:
     assert "alter extension vector set schema extensions" in relocation
 
 
-def test_render_blueprint_pins_production_supabase_jwks() -> None:
+def test_render_blueprint_pins_production_supabase_project() -> None:
     blueprint = (
         Path(__file__).resolve().parents[2] / "render.yaml"
     ).read_text(encoding="utf-8")
 
+    assert "- key: SUPABASE_URL" in blueprint
+    assert "value: \"https://fcjaomiceajcdownarel.supabase.co\"" in blueprint
     assert "- key: SUPABASE_JWKS_URL" in blueprint
     assert (
         "https://fcjaomiceajcdownarel.supabase.co/auth/v1/.well-known/jwks.json"

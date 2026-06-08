@@ -50,6 +50,19 @@ def test_supabase_vercel_aliases_activate_enterprise_auth(monkeypatch) -> None:
     assert settings.auth_required is True
 
 
+def test_supabase_modern_secret_key_wins_over_legacy_service_role(monkeypatch) -> None:
+    for key in SUPABASE_ENV_KEYS:
+        monkeypatch.delenv(key, raising=False)
+
+    monkeypatch.setenv("SUPABASE_SERVICE_ROLE_KEY", "stale-legacy-key")
+    monkeypatch.setenv("SUPABASE_SECRET_KEY", "current-secret-key")
+    get_settings.cache_clear()
+
+    settings = get_settings()
+
+    assert settings.supabase_service_role_key == "current-secret-key"
+
+
 def test_supabase_jwt_secret_keeps_implicit_jwks_for_asymmetric_tokens(monkeypatch) -> None:
     for key in SUPABASE_ENV_KEYS:
         monkeypatch.delenv(key, raising=False)
