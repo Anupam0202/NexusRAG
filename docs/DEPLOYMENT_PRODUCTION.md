@@ -50,6 +50,7 @@ In the same Supabase project referenced by `NEXT_PUBLIC_SUPABASE_URL`, open
 ```txt
 Site URL: https://nexusrag.vercel.app
 Redirect URL: https://nexusrag.vercel.app/auth/callback
+Redirect URL: https://nexusrag.vercel.app/auth/confirm
 ```
 
 Add local callback URLs only as additional development redirects, never as the
@@ -67,6 +68,25 @@ templates. They send `{{ .TokenHash }}` to `/auth/confirm`, where an explicit
 POST verifies the one-time token, stores the session in cookies, and safely
 redirects through `/auth/callback`. This works across browsers/devices and
 prevents email link scanners from consuming the token with a GET request.
+
+Install the committed `supabase/templates/recovery.html` template for password
+recovery as well. It sends a `recovery` token hash to `/auth/confirm` and then
+routes the verified recovery session to `/auth/update-password`.
+
+In **Authentication > Providers > Email** and the Auth settings:
+
+- enable email/password signups and password sign-in;
+- require email confirmation before first sign-in;
+- keep magic links enabled as an optional secondary sign-in method;
+- configure a minimum password policy compatible with NexusRAG's 12-character
+  client policy and enable leaked-password protection when available;
+- keep signup, sign-in, verification-email, magic-link, and recovery rate limits
+  enabled;
+- configure production SMTP for reliable branded delivery.
+
+Supabase Auth stores and verifies password hashes. Do not add passwords or
+password hashes to NexusRAG tables, Vercel variables, Render variables, logs, or
+FastAPI routes.
 
 ## Production Controls
 

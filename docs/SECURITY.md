@@ -5,6 +5,11 @@ NexusRAG is designed around tenant isolation, durable auth context, and defensiv
 ## Implemented Controls
 
 - Supabase JWT validation and workspace-scoped API context.
+- Supabase Auth is the sole password authority; NexusRAG tables, logs, and FastAPI routes never receive plaintext passwords or password hashes.
+- Password sign-in is primary, email verification is mandatory, and magic-link sign-in remains an optional secondary method.
+- Password recovery uses a cross-device token-hash confirmation flow with an explicit same-origin POST before the one-time token is consumed.
+- Public sign-in and recovery responses avoid account enumeration and provider-detail leakage.
+- Account-security controls use explicit Supabase sign-out scopes instead of relying on the SDK's global default.
 - Workspace membership checks for protected document, chat, settings, analytics, and key routes.
 - Supabase storage and metadata tables used instead of Render local disk for production user data.
 - File validation for extension, empty content, upload size, and magic bytes for PDFs and common image formats.
@@ -23,9 +28,11 @@ NexusRAG is designed around tenant isolation, durable auth context, and defensiv
 ## Environment Rules
 
 - Never expose `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_SECRET_KEY`, `GOOGLE_API_KEY`, or `QDRANT_API_KEY` to the frontend.
+- Never log passwords, auth form bodies, token hashes, access tokens, or refresh tokens.
 - Vercel should only receive `NEXT_PUBLIC_*` variables and the public backend URL.
 - Render should receive server secrets and mirrored Supabase/Qdrant variables.
 - Do not enable anonymous demo mode in production.
+- Keep Supabase email verification, authentication rate limits, and a compatible server-side password policy enabled.
 
 ## Remaining Security Work
 

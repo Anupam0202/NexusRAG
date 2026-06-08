@@ -18,8 +18,12 @@ interface AuthConfirmPageProps {
 export default async function AuthConfirmPage({ searchParams }: AuthConfirmPageProps) {
   const params = await searchParams;
   const tokenHash = params.token_hash;
-  const validLink = typeof tokenHash === "string" && tokenHash.length > 0 && params.type === "email";
-  const nextPath = sanitizeAuthNextPath(params.next, "/documents");
+  const type = params.type === "recovery" ? "recovery" : params.type === "email" ? "email" : null;
+  const validLink = typeof tokenHash === "string" && tokenHash.length > 0 && type !== null;
+  const recovery = type === "recovery";
+  const nextPath = recovery
+    ? "/auth/update-password"
+    : sanitizeAuthNextPath(params.next, "/documents");
 
   return (
     <div className="flex h-full items-center justify-center px-4">
@@ -27,28 +31,32 @@ export default async function AuthConfirmPage({ searchParams }: AuthConfirmPageP
         {validLink ? (
           <>
             <ShieldCheck size={28} className="mx-auto mb-3 text-brand-500" />
-            <h2 className="text-sm font-semibold">Confirm your secure sign-in</h2>
+            <h2 className="text-sm font-semibold">
+              {recovery ? "Confirm password recovery" : "Confirm your secure sign-in"}
+            </h2>
             <p className="mt-2 text-sm leading-6 text-[var(--text-muted)]">
-              Continue to verify this one-time link and securely sign in to NexusRAG.
+              {recovery
+                ? "Continue to verify this one-time recovery link before choosing a new password."
+                : "Continue to verify this one-time link and securely sign in to NexusRAG."}
             </p>
             <form action="/auth/confirm/verify" method="post" className="mt-4">
               <input type="hidden" name="token_hash" value={tokenHash} />
-              <input type="hidden" name="type" value="email" />
+              <input type="hidden" name="type" value={type ?? ""} />
               <input type="hidden" name="next" value={nextPath} />
               <button
                 type="submit"
                 className="inline-flex rounded-lg bg-brand-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-brand-500"
               >
-                Confirm and sign in
+                {recovery ? "Confirm and reset password" : "Confirm and sign in"}
               </button>
             </form>
           </>
         ) : (
           <>
             <ShieldAlert size={28} className="mx-auto mb-3 text-red-500" />
-            <h2 className="text-sm font-semibold">This sign-in link is invalid</h2>
+            <h2 className="text-sm font-semibold">This authentication link is invalid</h2>
             <p className="mt-2 text-sm leading-6 text-[var(--text-muted)]">
-              Request a new one-time link to continue securely.
+              Request a new sign-in or password-recovery link to continue securely.
             </p>
             <Link
               href="/auth/login"

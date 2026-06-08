@@ -3,17 +3,24 @@
 import { FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowRight, Loader2, Mail, ShieldCheck } from "lucide-react";
+import { KeyRound, Loader2, Mail, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
-import { buildAuthCallbackUrl, sanitizeAuthNextPath } from "@/lib/auth-redirect";
-import { createSupabaseBrowserClient, hasPublicSupabaseConfig } from "@/lib/supabase/client";
+import { PasswordField } from "@/components/auth/PasswordField";
 import { useStore } from "@/hooks/useStore";
+import { buildAuthCallbackUrl, sanitizeAuthNextPath } from "@/lib/auth-redirect";
+import { genericAuthError } from "@/lib/password-policy";
+import { createSupabaseBrowserClient, hasPublicSupabaseConfig } from "@/lib/supabase/client";
+
+type SignInMode = "password" | "magic-link";
 
 export default function LoginPage() {
   const router = useRouter();
   const authMode = useStore((state) => state.authMode);
+  const [mode, setMode] = useState<SignInMode>("password");
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [sentTo, setSentTo] = useState<string | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [nextPath, setNextPath] = useState("/documents");
   const supabaseReady = hasPublicSupabaseConfig();
@@ -24,36 +31,47 @@ export default function LoginPage() {
   }, []);
 
   useEffect(() => {
-    if (authMode === "authenticated") {
-      router.replace(nextPath);
-    }
+    if (authMode === "authenticated") router.replace(nextPath);
   }, [authMode, nextPath, router]);
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const trimmedEmail = email.trim().toLowerCase();
-    if (!trimmedEmail || !supabaseReady) return;
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!normalizedEmail || !supabaseReady || (mode === "password" && !password)) return;
 
     setSubmitting(true);
+    setFormError(null);
     try {
       const supabase = createSupabaseBrowserClient();
-      const redirectTo = buildAuthCallbackUrl(
-        window.location.origin,
-        nextPath,
-        process.env.NEXT_PUBLIC_SITE_URL
-      );
-      const { error } = await supabase.auth.signInWithOtp({
-        email: trimmedEmail,
-        options: {
-          emailRedirectTo: redirectTo,
-          shouldCreateUser: false,
-        },
-      });
-      if (error) throw error;
-      setSentTo(trimmedEmail);
-      toast.success("Magic link sent");
-    } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : "Unable to send magic link");
+      if (mode === "password") {
+        const { error } = await supabase.auth.signInWithPassword({
+          email: normalizedEmail,
+          password,
+        });
+        if (error) throw error;
+        toast.success("Signed in");
+        router.replace(nextPath);
+      } else {
+        const redirectTo = buildAuthCallbackUrl(
+          window.location.origin,
+          nextPath,
+          process.env.NEXT_PUBLIC_SITE_URL
+        );
+        const { error } = await supabase.auth.signInWithOtp({
+          email: normalizedEmail,
+          options: { emailRedirectTo: redirectTo, shouldCreateUser: false },
+        });
+        if (error) throw error;
+        setSentTo(normalizedEmail);
+        toast.success("Magic link sent");
+      }
+    } catch {
+      const message =
+        mode === "password"
+          ? genericAuthError("sign-in")
+          : "We could not send a magic link. Please try again.";
+      setFormError(message);
+      toast.error(message);
     } finally {
       setSubmitting(false);
     }
@@ -80,8 +98,7 @@ export default function LoginPage() {
           <div className="space-y-4 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] p-5">
             <p className="text-sm font-semibold">Check your inbox</p>
             <p className="text-sm leading-6 text-[var(--text-muted)]">
-              A sign-in link was sent to {sentTo}. Open it in any browser or device, then confirm
-              the secure sign-in.
+              A secure sign-in link was sent to {sentTo}. Open it in any browser or device.
             </p>
             <button
               type="button"
@@ -96,39 +113,94 @@ export default function LoginPage() {
             onSubmit={submit}
             className="space-y-4 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] p-5"
           >
-            <label className="block">
+            <div
+              role="group"
+              aria-label="Sign-in method"
+              className="grid grid-cols-2 rounded-xl bg-[var(--bg-secondary)] p-1"
+            >
+              <button
+                type="button"
+                onClick={() => {
+                  setMode("password");
+                  setFormError(null);
+                }}
+                className={`rounded-lg px-3 py-2 text-sm font-semibold transition ${mode === "password" ? "bg-[var(--bg-card)] text-[var(--text-primary)] shadow-sm" : "text-[var(--text-muted)]"}`}
+              >
+                Password
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setMode("magic-link");
+                  setFormError(null);
+                }}
+                className={`rounded-lg px-3 py-2 text-sm font-semibold transition ${mode === "magic-link" ? "bg-[var(--bg-card)] text-[var(--text-primary)] shadow-sm" : "text-[var(--text-muted)]"}`}
+              >
+                Magic link
+              </button>
+            </div>
+
+            <label className="block" htmlFor="login-email">
               <span className="text-xs font-semibold text-[var(--text-muted)]">Email</span>
               <input
+                id="login-email"
                 type="email"
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
                 placeholder="you@example.com"
                 autoComplete="email"
                 required
-                className="mt-1.5 w-full rounded-xl border border-[var(--border)] bg-[var(--bg-secondary)] px-3 py-2.5 text-sm outline-none transition focus:border-brand-500"
+                className="mt-1.5 h-11 w-full rounded-xl border border-[var(--border)] bg-[var(--bg-secondary)] px-3 text-sm outline-none transition focus:border-brand-500"
               />
             </label>
+
+            {mode === "password" ? (
+              <>
+                <PasswordField
+                  id="login-password"
+                  label="Password"
+                  value={password}
+                  onChange={setPassword}
+                  autoComplete="current-password"
+                  disabled={submitting}
+                />
+                <div className="text-right">
+                  <Link
+                    href="/auth/forgot-password"
+                    className="text-xs font-semibold text-brand-600 hover:text-brand-500"
+                  >
+                    Forgot password?
+                  </Link>
+                </div>
+              </>
+            ) : null}
+
+            {formError ? (
+              <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+                {formError}
+              </p>
+            ) : null}
+
             <button
               type="submit"
-              disabled={submitting || !email.trim()}
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-500 disabled:opacity-50"
+              disabled={submitting || !email.trim() || (mode === "password" && !password)}
+              className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-brand-600 px-4 text-sm font-semibold text-white transition hover:bg-brand-500 disabled:opacity-50"
             >
-              {submitting ? <Loader2 size={16} className="animate-spin" /> : <Mail size={16} />}
-              {submitting ? "Sending" : "Send magic link"}
+              {submitting ? (
+                <Loader2 size={16} className="animate-spin" />
+              ) : mode === "password" ? (
+                <KeyRound size={16} />
+              ) : (
+                <Mail size={16} />
+              )}
+              {submitting ? "Working" : mode === "password" ? "Sign in" : "Send magic link"}
             </button>
           </form>
         )}
 
         <Link
-          href="/documents"
-          className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-[var(--text-muted)] hover:text-[var(--text-primary)]"
-        >
-          Continue to documents
-          <ArrowRight size={15} />
-        </Link>
-        <Link
           href={`/auth/signup?next=${encodeURIComponent(nextPath)}`}
-          className="mt-3 text-sm font-semibold text-brand-600 hover:text-brand-500"
+          className="mt-5 text-sm font-semibold text-brand-600 hover:text-brand-500"
         >
           Create a new workspace account
         </Link>

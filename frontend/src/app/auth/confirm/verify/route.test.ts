@@ -48,6 +48,43 @@ describe("POST /auth/confirm/verify", () => {
     expect(response.status).toBe(303);
   });
 
+  it("verifies a recovery token hash and redirects to the password update page", async () => {
+    verifyOtp.mockResolvedValue({ error: null });
+
+    const response = await POST(
+      confirmationRequest({
+        token_hash: "valid-recovery-hash",
+        type: "recovery",
+        next: "/auth/update-password",
+      })
+    );
+
+    expect(verifyOtp).toHaveBeenCalledWith({
+      token_hash: "valid-recovery-hash",
+      type: "recovery",
+    });
+    expect(response.headers.get("location")).toBe(
+      "https://nexusrag.vercel.app/auth/callback?next=%2Fauth%2Fupdate-password"
+    );
+    expect(response.status).toBe(303);
+  });
+
+  it("does not allow a recovery token to override the password update destination", async () => {
+    verifyOtp.mockResolvedValue({ error: null });
+
+    const response = await POST(
+      confirmationRequest({
+        token_hash: "valid-recovery-hash",
+        type: "recovery",
+        next: "/documents",
+      })
+    );
+
+    expect(response.headers.get("location")).toBe(
+      "https://nexusrag.vercel.app/auth/callback?next=%2Fauth%2Fupdate-password"
+    );
+  });
+
   it("rejects missing or unsupported verification parameters without calling Supabase", async () => {
     const response = await POST(
       confirmationRequest({

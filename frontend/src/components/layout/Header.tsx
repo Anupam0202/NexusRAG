@@ -14,6 +14,8 @@ const PAGE_TITLES: Record<string, string> = {
   "/onboarding": "Onboarding",
   "/auth/login": "Sign In",
   "/auth/signup": "Sign Up",
+  "/auth/forgot-password": "Reset Password",
+  "/auth/update-password": "Update Password",
   "/auth/callback": "Sign In",
   "/auth/confirm": "Confirm Sign In",
   "/analytics": "Analytics",
@@ -23,6 +25,7 @@ const PAGE_TITLES: Record<string, string> = {
   "/settings/billing-or-usage": "Billing & Usage",
   "/settings/members": "Members",
   "/settings/privacy": "Privacy & Data",
+  "/settings/security": "Account Security",
 };
 
 export function Header() {

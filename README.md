@@ -73,6 +73,8 @@ A production-grade **Retrieval-Augmented Generation** platform that lets enterpr
 - Persistent sessions with configurable TTL
 
 ### Security
+- Password-first Supabase Auth with mandatory email verification, secure password recovery, and optional magic-link sign-in
+- Account-security controls for password changes and explicit current-session or all-session sign-out
 - Input sanitization (anti-prompt-injection, XSS, SQL injection detection)
 - File validation with magic-byte checks (PDF, PNG, JPEG, GIF, BMP)
 - PII redaction patterns (email, phone, SSN, credit card)
@@ -176,6 +178,11 @@ npm install
 cp .env.example .env.local
 # Edit .env.local if backend is not on localhost:8000
 ```
+
+NexusRAG never stores or verifies application passwords. Supabase Auth is the
+sole credential authority and the FastAPI backend receives only Supabase-issued
+JWTs. In production, keep email confirmation and Supabase Auth rate limits
+enabled.
 
 ### 3. Run Both Servers
 

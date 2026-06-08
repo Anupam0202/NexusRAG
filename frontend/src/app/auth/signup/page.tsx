@@ -3,17 +3,23 @@
 import { FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowRight, Loader2, Mail, ShieldPlus } from "lucide-react";
+import { Loader2, ShieldPlus, UserPlus } from "lucide-react";
 import { toast } from "sonner";
-import { buildAuthCallbackUrl, sanitizeAuthNextPath } from "@/lib/auth-redirect";
-import { createSupabaseBrowserClient, hasPublicSupabaseConfig } from "@/lib/supabase/client";
+import { PasswordField } from "@/components/auth/PasswordField";
+import { PasswordRequirements } from "@/components/auth/PasswordRequirements";
 import { useStore } from "@/hooks/useStore";
+import { buildAuthCallbackUrl, sanitizeAuthNextPath } from "@/lib/auth-redirect";
+import { genericAuthError, passwordValidationError } from "@/lib/password-policy";
+import { createSupabaseBrowserClient, hasPublicSupabaseConfig } from "@/lib/supabase/client";
 
 export default function SignupPage() {
   const router = useRouter();
   const authMode = useStore((state) => state.authMode);
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmation, setConfirmation] = useState("");
   const [sentTo, setSentTo] = useState<string | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [nextPath, setNextPath] = useState("/onboarding");
   const supabaseReady = hasPublicSupabaseConfig();
@@ -24,36 +30,36 @@ export default function SignupPage() {
   }, []);
 
   useEffect(() => {
-    if (authMode === "authenticated") {
-      router.replace(nextPath);
-    }
+    if (authMode === "authenticated") router.replace(nextPath);
   }, [authMode, nextPath, router]);
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const trimmedEmail = email.trim().toLowerCase();
-    if (!trimmedEmail || !supabaseReady) return;
+    const normalizedEmail = email.trim().toLowerCase();
+    const validationError = passwordValidationError(password, confirmation);
+    setFormError(validationError);
+    if (!normalizedEmail || validationError || !supabaseReady) return;
 
     setSubmitting(true);
     try {
-      const supabase = createSupabaseBrowserClient();
       const redirectTo = buildAuthCallbackUrl(
         window.location.origin,
         nextPath,
         process.env.NEXT_PUBLIC_SITE_URL
       );
-      const { error } = await supabase.auth.signInWithOtp({
-        email: trimmedEmail,
-        options: {
-          emailRedirectTo: redirectTo,
-          shouldCreateUser: true,
-        },
+      const supabase = createSupabaseBrowserClient();
+      const { error } = await supabase.auth.signUp({
+        email: normalizedEmail,
+        password,
+        options: { emailRedirectTo: redirectTo },
       });
       if (error) throw error;
-      setSentTo(trimmedEmail);
-      toast.success("Signup link sent");
-    } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : "Unable to send signup link");
+      setSentTo(normalizedEmail);
+      toast.success("Verification email sent");
+    } catch {
+      const message = genericAuthError("signup");
+      setFormError(message);
+      toast.error(message);
     } finally {
       setSubmitting(false);
     }
@@ -68,7 +74,7 @@ export default function SignupPage() {
           </span>
           <div>
             <h2 className="text-xl font-bold">Create a NexusRAG account</h2>
-            <p className="text-sm text-[var(--text-muted)]">Start with a secure workspace</p>
+            <p className="text-sm text-[var(--text-muted)]">Verified email and secure password</p>
           </div>
         </div>
 
@@ -78,10 +84,10 @@ export default function SignupPage() {
           </div>
         ) : sentTo ? (
           <div className="space-y-4 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] p-5">
-            <p className="text-sm font-semibold">Check your inbox</p>
+            <p className="text-sm font-semibold">Verify your email</p>
             <p className="text-sm leading-6 text-[var(--text-muted)]">
-              A signup link was sent to {sentTo}. Open it in any browser or device, then confirm
-              the secure sign-in.
+              We sent a confirmation link to {sentTo}. Your account becomes active after you
+              confirm the address.
             </p>
             <button
               type="button"
@@ -96,44 +102,58 @@ export default function SignupPage() {
             onSubmit={submit}
             className="space-y-4 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] p-5"
           >
-            <label className="block">
+            <label className="block" htmlFor="signup-email">
               <span className="text-xs font-semibold text-[var(--text-muted)]">Email</span>
               <input
+                id="signup-email"
                 type="email"
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
                 placeholder="you@example.com"
                 autoComplete="email"
                 required
-                className="mt-1.5 w-full rounded-xl border border-[var(--border)] bg-[var(--bg-secondary)] px-3 py-2.5 text-sm outline-none transition focus:border-brand-500"
+                className="mt-1.5 h-11 w-full rounded-xl border border-[var(--border)] bg-[var(--bg-secondary)] px-3 text-sm outline-none transition focus:border-brand-500"
               />
             </label>
+            <PasswordField
+              id="signup-password"
+              label="Password"
+              value={password}
+              onChange={setPassword}
+              autoComplete="new-password"
+              disabled={submitting}
+            />
+            <PasswordField
+              id="signup-password-confirmation"
+              label="Confirm password"
+              value={confirmation}
+              onChange={setConfirmation}
+              autoComplete="new-password"
+              disabled={submitting}
+            />
+            <PasswordRequirements password={password} />
+            {formError ? (
+              <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+                {formError}
+              </p>
+            ) : null}
             <button
               type="submit"
-              disabled={submitting || !email.trim()}
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-500 disabled:opacity-50"
+              disabled={submitting || !email.trim() || !password || !confirmation}
+              className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-brand-600 px-4 text-sm font-semibold text-white transition hover:bg-brand-500 disabled:opacity-50"
             >
-              {submitting ? <Loader2 size={16} className="animate-spin" /> : <Mail size={16} />}
-              {submitting ? "Sending" : "Send signup link"}
+              {submitting ? <Loader2 size={16} className="animate-spin" /> : <UserPlus size={16} />}
+              {submitting ? "Creating account" : "Create account"}
             </button>
           </form>
         )}
 
-        <div className="mt-5 flex items-center justify-between gap-3 text-sm">
-          <Link
-            href="/auth/login"
-            className="font-semibold text-[var(--text-muted)] hover:text-[var(--text-primary)]"
-          >
-            Already have access?
-          </Link>
-          <Link
-            href="/documents"
-            className="inline-flex items-center gap-2 font-semibold text-[var(--text-muted)] hover:text-[var(--text-primary)]"
-          >
-            Documents
-            <ArrowRight size={15} />
-          </Link>
-        </div>
+        <Link
+          href="/auth/login"
+          className="mt-5 text-sm font-semibold text-brand-600 hover:text-brand-500"
+        >
+          Already have an account? Sign in
+        </Link>
       </main>
     </div>
   );

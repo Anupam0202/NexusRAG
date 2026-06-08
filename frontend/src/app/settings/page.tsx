@@ -16,6 +16,7 @@ import {
   Save,
   Settings2,
   ShieldCheck,
+  ShieldEllipsis,
   UsersRound,
 } from "lucide-react";
 import { useStore } from "@/hooks/useStore";
@@ -211,6 +212,24 @@ export default function SettingsPage() {
                 <span className="block text-sm font-semibold">Usage</span>
                 <span className="block truncate text-xs text-[var(--text-muted)]">
                   Quotas and provider posture
+                </span>
+              </span>
+            </span>
+            <ArrowRight size={16} className="shrink-0 text-[var(--text-muted)]" />
+          </Link>
+
+          <Link
+            href="/settings/security"
+            className="flex items-center justify-between gap-3 rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4 transition hover:bg-[var(--bg-hover)]"
+          >
+            <span className="flex min-w-0 items-center gap-3">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300">
+                <ShieldEllipsis size={18} />
+              </span>
+              <span className="min-w-0">
+                <span className="block text-sm font-semibold">Account Security</span>
+                <span className="block truncate text-xs text-[var(--text-muted)]">
+                  Password and session controls
                 </span>
               </span>
             </span>

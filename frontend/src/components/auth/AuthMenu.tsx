@@ -30,7 +30,8 @@ export function AuthMenu() {
   const signOut = async () => {
     try {
       const supabase = createSupabaseBrowserClient();
-      await supabase.auth.signOut();
+      const { error } = await supabase.auth.signOut({ scope: "local" });
+      if (error) throw error;
       setWorkspaceId(null);
       setOpen(false);
       toast.success("Signed out");
@@ -61,6 +62,14 @@ export function AuthMenu() {
                   {workspaceId ?? "No workspace selected"}
                 </p>
               </div>
+              <Link
+                href="/settings/security"
+                onClick={() => setOpen(false)}
+                className="flex w-full items-center justify-center gap-2 rounded-lg border border-[var(--border)] px-3 py-2 text-xs font-semibold hover:bg-[var(--bg-hover)]"
+              >
+                <ShieldCheck size={14} />
+                Account security
+              </Link>
               <Link
                 href="/workspaces"
                 onClick={() => setOpen(false)}

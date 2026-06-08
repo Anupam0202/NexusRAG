@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest";
 import {
   AUTH_LINK_ERROR_MESSAGE,
   buildAuthCallbackUrl,
+  buildAuthRecoveryUrl,
   getAuthCallbackError,
   getSafeAuthErrorMessage,
+  isWorkspaceIndependentAuthDestination,
   sanitizeAuthNextPath,
 } from "./auth-redirect";
 
@@ -57,6 +59,19 @@ describe("buildAuthCallbackUrl", () => {
   });
 });
 
+describe("buildAuthRecoveryUrl", () => {
+  it("uses the canonical production site and safe update-password destination", () => {
+    expect(
+      buildAuthRecoveryUrl(
+        "https://nexusrag-git-preview.vercel.app",
+        "https://nexusrag.vercel.app"
+      )
+    ).toBe(
+      "https://nexusrag.vercel.app/auth/confirm?next=%2Fauth%2Fupdate-password"
+    );
+  });
+});
+
 describe("getAuthCallbackError", () => {
   it("reads callback failures from query parameters", () => {
     expect(
@@ -86,5 +101,13 @@ describe("getAuthCallbackError", () => {
 describe("getSafeAuthErrorMessage", () => {
   it("does not expose PKCE or provider implementation details", () => {
     expect(getSafeAuthErrorMessage()).toBe(AUTH_LINK_ERROR_MESSAGE);
+  });
+});
+
+describe("isWorkspaceIndependentAuthDestination", () => {
+  it("keeps password recovery independent of workspace resolution", () => {
+    expect(isWorkspaceIndependentAuthDestination("/auth/update-password")).toBe(true);
+    expect(isWorkspaceIndependentAuthDestination("/documents")).toBe(false);
+    expect(isWorkspaceIndependentAuthDestination("/onboarding")).toBe(false);
   });
 });
