@@ -3,10 +3,13 @@ import { expect, test } from "@playwright/test";
 const routes = [
   { path: "/auth/login", heading: "Sign in to NexusRAG" },
   { path: "/auth/signup", heading: "Create a NexusRAG account" },
+  { path: "/auth/forgot-password", heading: "Reset your password" },
+  { path: "/auth/update-password", heading: "Update Password" },
   { path: "/chat", heading: "Chat" },
   { path: "/documents", heading: "Documents" },
   { path: "/settings/billing-or-usage", heading: "Billing & Usage" },
   { path: "/settings/privacy", heading: "Privacy & Data" },
+  { path: "/settings/security", heading: "Account Security" },
 ];
 
 for (const route of routes) {
@@ -92,10 +95,30 @@ test("email confirmation is prefetch-safe and requires an explicit user action",
   expect(verificationRequests).toBe(0);
 });
 
+test("password recovery confirmation is prefetch-safe and requires an explicit user action", async ({
+  page,
+}) => {
+  let verificationRequests = 0;
+  page.on("request", (request) => {
+    if (request.url().includes("/auth/confirm/verify")) verificationRequests += 1;
+  });
+
+  await page.goto(
+    "/auth/confirm?token_hash=test-token&type=recovery&next=%2Fauth%2Fupdate-password"
+  );
+
+  await expect(page.getByRole("heading", { name: "Confirm password recovery" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Confirm and reset password" })).toBeVisible();
+  await expect(page.locator('meta[name="referrer"]')).toHaveAttribute("content", "no-referrer");
+  expect(verificationRequests).toBe(0);
+});
+
 test("invalid email confirmation links fail safely", async ({ page }) => {
   await page.goto("/auth/confirm?type=email");
 
-  await expect(page.getByRole("heading", { name: "This sign-in link is invalid" })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "This authentication link is invalid" })
+  ).toBeVisible();
   await expect(page.getByRole("link", { name: "Request a new sign-in link" })).toHaveAttribute(
     "href",
     "/auth/login"

@@ -8,6 +8,7 @@ import { getCurrentWorkspace } from "@/lib/api";
 import {
   getAuthCallbackError,
   getSafeAuthErrorMessage,
+  isWorkspaceIndependentAuthDestination,
   sanitizeAuthNextPath,
 } from "@/lib/auth-redirect";
 import { createSupabaseBrowserClient, hasPublicSupabaseConfig } from "@/lib/supabase/client";
@@ -58,6 +59,11 @@ export default function AuthCallbackPage() {
           id: user.id,
           email: user.email ?? null,
         });
+
+        if (isWorkspaceIndependentAuthDestination(nextPath)) {
+          router.replace(nextPath);
+          return;
+        }
 
         try {
           const workspace = await getCurrentWorkspace();

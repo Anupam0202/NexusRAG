@@ -58,6 +58,23 @@ export function buildAuthCallbackUrl(
   return callback.toString();
 }
 
+export function buildAuthRecoveryUrl(currentOrigin: string, configuredSiteUrl?: string) {
+  const currentUrl = new URL(currentOrigin);
+  const localDevelopment = isLoopbackHost(currentUrl.hostname);
+  const recoveryOrigin =
+    !localDevelopment && configuredSiteUrl?.trim()
+      ? requireSecureAppOrigin(configuredSiteUrl.trim(), "NEXT_PUBLIC_SITE_URL")
+      : requireSecureAppOrigin(currentOrigin, "Authentication origin");
+
+  const recovery = new URL("/auth/confirm", recoveryOrigin);
+  recovery.searchParams.set("next", "/auth/update-password");
+  return recovery.toString();
+}
+
+export function isWorkspaceIndependentAuthDestination(path: string) {
+  return path === "/auth/update-password";
+}
+
 export function getAuthCallbackError(url: URL) {
   const fragmentParams = new URLSearchParams(url.hash.replace(/^#/, ""));
   const providerError =
