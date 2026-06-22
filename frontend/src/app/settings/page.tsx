@@ -229,7 +229,7 @@ export default function SettingsPage() {
               <span className="min-w-0">
                 <span className="block text-sm font-semibold">Account Security</span>
                 <span className="block truncate text-xs text-[var(--text-muted)]">
-                  Password and session controls
+                  OAuth identities and session controls
                 </span>
               </span>
             </span>
