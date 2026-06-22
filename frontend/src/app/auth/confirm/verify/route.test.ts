@@ -98,7 +98,7 @@ describe("POST /auth/confirm/verify", () => {
 
     expect(verifyOtp).not.toHaveBeenCalled();
     expect(response.headers.get("location")).toBe(
-      "https://nexusrag.vercel.app/auth/callback?error_description=This+sign-in+link+is+invalid+or+expired.+Request+a+new+one."
+      "https://nexusrag.vercel.app/auth/callback?error_description=Authentication+could+not+be+completed.+Return+to+sign+in+and+try+again."
     );
     expect(response.status).toBe(303);
   });
@@ -118,7 +118,7 @@ describe("POST /auth/confirm/verify", () => {
 
     const location = response.headers.get("location");
     expect(location).toBe(
-      "https://nexusrag.vercel.app/auth/callback?error_description=This+sign-in+link+is+invalid+or+expired.+Request+a+new+one."
+      "https://nexusrag.vercel.app/auth/callback?error_description=Authentication+could+not+be+completed.+Return+to+sign+in+and+try+again."
     );
     expect(location).not.toContain("sensitive");
     expect(location).not.toContain("evil.example");
@@ -137,7 +137,7 @@ describe("POST /auth/confirm/verify", () => {
     expect(verifyOtp).not.toHaveBeenCalled();
     expect(response.status).toBe(303);
     expect(response.headers.get("location")).toBe(
-      "https://nexusrag.vercel.app/auth/callback?error_description=This+sign-in+link+is+invalid+or+expired.+Request+a+new+one."
+      "https://nexusrag.vercel.app/auth/callback?error_description=Authentication+could+not+be+completed.+Return+to+sign+in+and+try+again."
     );
   });
 
@@ -185,7 +185,7 @@ describe("POST /auth/confirm/verify", () => {
     expect(verifyOtp).not.toHaveBeenCalled();
     expect(response.status).toBe(303);
     expect(response.headers.get("location")).toBe(
-      "https://nexusrag.vercel.app/auth/callback?error_description=This+sign-in+link+is+invalid+or+expired.+Request+a+new+one."
+      "https://nexusrag.vercel.app/auth/callback?error_description=Authentication+could+not+be+completed.+Return+to+sign+in+and+try+again."
     );
   });
 });

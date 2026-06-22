@@ -8,7 +8,6 @@ import { getCurrentWorkspace } from "@/lib/api";
 import {
   getAuthCallbackError,
   getSafeAuthErrorMessage,
-  isWorkspaceIndependentAuthDestination,
   sanitizeAuthNextPath,
 } from "@/lib/auth-redirect";
 import { createSupabaseBrowserClient, hasPublicSupabaseConfig } from "@/lib/supabase/client";
@@ -60,11 +59,6 @@ export default function AuthCallbackPage() {
           email: user.email ?? null,
         });
 
-        if (isWorkspaceIndependentAuthDestination(nextPath)) {
-          router.replace(nextPath);
-          return;
-        }
-
         try {
           const workspace = await getCurrentWorkspace();
           setWorkspaceId(workspace.workspace_id);
@@ -97,7 +91,7 @@ export default function AuthCallbackPage() {
               href="/auth/login"
               className="mt-4 inline-flex rounded-lg bg-brand-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-brand-500"
             >
-              Request a new sign-in link
+              Back to sign in
             </Link>
           </>
         ) : (

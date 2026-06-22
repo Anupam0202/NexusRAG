@@ -1,7 +1,7 @@
 const FALLBACK_AUTH_PATH = "/documents";
 const INTERNAL_URL_BASE = "https://nexusrag.invalid";
 export const AUTH_LINK_ERROR_MESSAGE =
-  "This sign-in link is invalid or expired. Request a new one.";
+  "Authentication could not be completed. Return to sign in and try again.";
 
 function isLoopbackHost(hostname: string) {
   return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "[::1]";
@@ -56,23 +56,6 @@ export function buildAuthCallbackUrl(
   const callback = new URL("/auth/callback", callbackOrigin);
   callback.searchParams.set("next", sanitizeAuthNextPath(nextPath, FALLBACK_AUTH_PATH));
   return callback.toString();
-}
-
-export function buildAuthRecoveryUrl(currentOrigin: string, configuredSiteUrl?: string) {
-  const currentUrl = new URL(currentOrigin);
-  const localDevelopment = isLoopbackHost(currentUrl.hostname);
-  const recoveryOrigin =
-    !localDevelopment && configuredSiteUrl?.trim()
-      ? requireSecureAppOrigin(configuredSiteUrl.trim(), "NEXT_PUBLIC_SITE_URL")
-      : requireSecureAppOrigin(currentOrigin, "Authentication origin");
-
-  const recovery = new URL("/auth/confirm", recoveryOrigin);
-  recovery.searchParams.set("next", "/auth/update-password");
-  return recovery.toString();
-}
-
-export function isWorkspaceIndependentAuthDestination(path: string) {
-  return path === "/auth/update-password";
 }
 
 export function getAuthCallbackError(url: URL) {
