@@ -98,3 +98,4 @@ docker-compose.override.yml
 *.temp
 .cache/
 repo.xml
+.worktrees/
