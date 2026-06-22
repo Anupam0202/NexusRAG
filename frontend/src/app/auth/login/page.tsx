@@ -81,14 +81,15 @@ export default function LoginPage() {
         </div>
 
         {!supabaseReady ? (
-          <div className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-200">
+          <div className="mb-4 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-200">
             Supabase browser variables are missing from this frontend deployment.
           </div>
-        ) : (
-          <section
-            aria-label="Authentication providers"
-            className="space-y-4 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] p-5"
-          >
+        ) : null}
+
+        <section
+          aria-label="Authentication providers"
+          className="space-y-4 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] p-5"
+        >
             <div className="space-y-2">
               <button
                 type="button"
@@ -138,8 +139,7 @@ export default function LoginPage() {
                 ? "Your verified provider identity creates your account without a password or confirmation email."
                 : "NexusRAG uses your verified provider identity and never receives your provider password."}
             </p>
-          </section>
-        )}
+        </section>
       </main>
     </div>
   );
