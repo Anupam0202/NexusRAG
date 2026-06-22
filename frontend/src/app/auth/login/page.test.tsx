@@ -1,8 +1,9 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { authState, replace, signInWithOAuth, toastError } = vi.hoisted(() => ({
+const { authState, configState, replace, signInWithOAuth, toastError } = vi.hoisted(() => ({
   authState: { mode: "signed_out" },
+  configState: { ready: true },
   replace: vi.fn(),
   signInWithOAuth: vi.fn(),
   toastError: vi.fn(),
@@ -16,7 +17,7 @@ vi.mock("@/hooks/useStore", () => ({
     selector({ authMode: authState.mode }),
 }));
 vi.mock("@/lib/supabase/client", () => ({
-  hasPublicSupabaseConfig: () => true,
+  hasPublicSupabaseConfig: () => configState.ready,
   createSupabaseBrowserClient: () => ({
     auth: { signInWithOAuth },
   }),
@@ -28,6 +29,7 @@ import LoginPage from "./page";
 describe("LoginPage", () => {
   beforeEach(() => {
     authState.mode = "signed_out";
+    configState.ready = true;
     replace.mockReset();
     signInWithOAuth.mockReset();
     toastError.mockReset();
@@ -42,6 +44,20 @@ describe("LoginPage", () => {
     expect(
       screen.getAllByRole("button").map((button) => button.textContent?.trim())
     ).toEqual(["Continue with Google", "Continue with GitHub"]);
+  });
+
+  it("keeps provider choices visible but disabled when Supabase is not configured", () => {
+    configState.ready = false;
+
+    render(<LoginPage />);
+
+    expect(screen.getByRole("button", { name: "Continue with Google" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Continue with GitHub" })).toBeDisabled();
+    expect(
+      screen.getByText(
+        "Supabase browser variables are missing from this frontend deployment."
+      )
+    ).toBeVisible();
   });
 
   it.each(["google", "github"] as const)("starts the %s OAuth flow", async (provider) => {
