@@ -1,10 +1,11 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { replace, signInWithOtp, signInWithPassword } = vi.hoisted(() => ({
+const { authState, replace, signInWithOAuth, toastError } = vi.hoisted(() => ({
+  authState: { mode: "signed_out" },
   replace: vi.fn(),
-  signInWithOtp: vi.fn(),
-  signInWithPassword: vi.fn(),
+  signInWithOAuth: vi.fn(),
+  toastError: vi.fn(),
 }));
 
 vi.mock("next/navigation", () => ({
@@ -12,92 +13,129 @@ vi.mock("next/navigation", () => ({
 }));
 vi.mock("@/hooks/useStore", () => ({
   useStore: (selector: (state: { authMode: string }) => unknown) =>
-    selector({ authMode: "signed_out" }),
+    selector({ authMode: authState.mode }),
 }));
 vi.mock("@/lib/supabase/client", () => ({
   hasPublicSupabaseConfig: () => true,
   createSupabaseBrowserClient: () => ({
-    auth: { signInWithOtp, signInWithPassword },
+    auth: { signInWithOAuth },
   }),
 }));
-vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
+vi.mock("sonner", () => ({ toast: { error: toastError } }));
 
 import LoginPage from "./page";
 
 describe("LoginPage", () => {
   beforeEach(() => {
+    authState.mode = "signed_out";
     replace.mockReset();
-    signInWithOtp.mockReset();
-    signInWithPassword.mockReset();
-    signInWithOtp.mockResolvedValue({ error: null });
-    signInWithPassword.mockResolvedValue({ error: null });
+    signInWithOAuth.mockReset();
+    toastError.mockReset();
+    signInWithOAuth.mockResolvedValue({ error: null });
+    process.env.NEXT_PUBLIC_SITE_URL = "https://nexusrag.vercel.app";
+    window.history.replaceState({}, "", "/auth/login");
   });
 
-  it("defaults to password sign-in", async () => {
+  it("renders Google before GitHub", () => {
     render(<LoginPage />);
-
-    fireEvent.change(screen.getByLabelText("Email"), { target: { value: "USER@Example.com" } });
-    fireEvent.change(screen.getByLabelText("Password"), { target: { value: "SecurePass1!" } });
-    fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
-
-    await waitFor(() =>
-      expect(signInWithPassword).toHaveBeenCalledWith({
-        email: "user@example.com",
-        password: "SecurePass1!",
-      })
-    );
-    expect(signInWithOtp).not.toHaveBeenCalled();
-  });
-
-  it("keeps magic-link sign-in as an optional secondary method", async () => {
-    render(<LoginPage />);
-
-    fireEvent.click(screen.getByRole("button", { name: "Magic link" }));
-    fireEvent.change(screen.getByLabelText("Email"), { target: { value: "user@example.com" } });
-    fireEvent.click(screen.getByRole("button", { name: "Send magic link" }));
-
-    await waitFor(() =>
-      expect(signInWithOtp).toHaveBeenCalledWith(
-        expect.objectContaining({
-          email: "user@example.com",
-          options: expect.objectContaining({ shouldCreateUser: false }),
-        })
-      )
-    );
-  });
-
-  it("shows a generic inline error instead of provider details", async () => {
-    signInWithPassword.mockResolvedValue({ error: new Error("user not found: sensitive detail") });
-    render(<LoginPage />);
-
-    fireEvent.change(screen.getByLabelText("Email"), { target: { value: "user@example.com" } });
-    fireEvent.change(screen.getByLabelText("Password"), { target: { value: "WrongPass1!" } });
-    fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
 
     expect(
-      await screen.findByText("We could not sign you in with those credentials.")
-    ).toBeVisible();
-    expect(screen.queryByText(/sensitive detail/i)).not.toBeInTheDocument();
+      screen.getAllByRole("button").map((button) => button.textContent?.trim())
+    ).toEqual(["Continue with Google", "Continue with GitHub"]);
   });
 
-  it("shows an actionable safe message when magic-link email delivery is rate-limited", async () => {
-    signInWithOtp.mockResolvedValue({
-      error: {
-        code: "over_email_send_rate_limit",
-        status: 429,
-        message: "email rate limit exceeded",
+  it.each(["google", "github"] as const)("starts the %s OAuth flow", async (provider) => {
+    render(<LoginPage />);
+
+    const button = screen.getByRole("button", {
+      name: provider === "google" ? "Continue with Google" : "Continue with GitHub",
+    });
+    await waitFor(() => expect(button).toBeEnabled());
+    fireEvent.click(button);
+
+    await waitFor(() =>
+      expect(signInWithOAuth).toHaveBeenCalledWith({
+        provider,
+        options: {
+          redirectTo: "http://localhost:3000/auth/callback?next=%2Fdocuments",
+        },
+      })
+    );
+  });
+
+  it("uses onboarding for signup intent and blocks duplicate starts", async () => {
+    window.history.replaceState({}, "", "/auth/login?intent=signup");
+    let resolveRequest: (value: { error: null }) => void = () => undefined;
+    signInWithOAuth.mockReturnValue(
+      new Promise((resolve) => {
+        resolveRequest = resolve;
+      })
+    );
+    render(<LoginPage />);
+
+    expect(await screen.findByText("Create your NexusRAG account")).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "Continue with Google" }));
+
+    expect(
+      await screen.findByRole("button", { name: "Connecting with Google" })
+    ).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Continue with GitHub" })).toBeDisabled();
+    expect(signInWithOAuth).toHaveBeenCalledWith({
+      provider: "google",
+      options: {
+        redirectTo: "http://localhost:3000/auth/callback?next=%2Fonboarding",
       },
+    });
+
+    resolveRequest({ error: null });
+  });
+
+  it("sanitizes unsafe requested destinations", async () => {
+    window.history.replaceState(
+      {},
+      "",
+      "/auth/login?next=https%3A%2F%2Fattacker.example%2Fsteal"
+    );
+    render(<LoginPage />);
+
+    const button = screen.getByRole("button", { name: "Continue with GitHub" });
+    await waitFor(() => expect(button).toBeEnabled());
+    fireEvent.click(button);
+
+    await waitFor(() =>
+      expect(signInWithOAuth).toHaveBeenCalledWith({
+        provider: "github",
+        options: {
+          redirectTo: "http://localhost:3000/auth/callback?next=%2Fdocuments",
+        },
+      })
+    );
+  });
+
+  it("shows a safe error instead of provider details", async () => {
+    signInWithOAuth.mockResolvedValue({
+      error: new Error("sensitive provider payload"),
     });
     render(<LoginPage />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Magic link" }));
-    fireEvent.change(screen.getByLabelText("Email"), { target: { value: "user@example.com" } });
-    fireEvent.click(screen.getByRole("button", { name: "Send magic link" }));
+    const button = screen.getByRole("button", { name: "Continue with GitHub" });
+    await waitFor(() => expect(button).toBeEnabled());
+    fireEvent.click(button);
 
     expect(
-      await screen.findByText(
-        "Verification email requests are temporarily rate-limited. Wait a few minutes and try again."
-      )
+      await screen.findByText("We could not start secure sign-in. Please try again.")
     ).toBeVisible();
+    expect(screen.queryByText(/sensitive provider payload/i)).not.toBeInTheDocument();
+    expect(toastError).toHaveBeenCalledWith(
+      "We could not start secure sign-in. Please try again."
+    );
+  });
+
+  it("redirects an authenticated user without starting OAuth", async () => {
+    authState.mode = "authenticated";
+    render(<LoginPage />);
+
+    await waitFor(() => expect(replace).toHaveBeenCalledWith("/documents"));
+    expect(signInWithOAuth).not.toHaveBeenCalled();
   });
 });
