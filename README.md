@@ -73,8 +73,8 @@ A production-grade **Retrieval-Augmented Generation** platform that lets enterpr
 - Persistent sessions with configurable TTL
 
 ### Security
-- Password-first Supabase Auth with mandatory email verification, secure password recovery, and optional magic-link sign-in
-- Account-security controls for password changes and explicit current-session or all-session sign-out
+- Google-first and GitHub-second OAuth through Supabase Auth, with no transactional auth email dependency
+- Account-security posture for linked providers plus explicit current-session or all-session sign-out
 - Input sanitization (anti-prompt-injection, XSS, SQL injection detection)
 - File validation with magic-byte checks (PDF, PNG, JPEG, GIF, BMP)
 - PII redaction patterns (email, phone, SSN, credit card)
@@ -179,10 +179,10 @@ cp .env.example .env.local
 # Edit .env.local if backend is not on localhost:8000
 ```
 
-NexusRAG never stores or verifies application passwords. Supabase Auth is the
-sole credential authority and the FastAPI backend receives only Supabase-issued
-JWTs. In production, keep email confirmation and Supabase Auth rate limits
-enabled.
+NexusRAG never receives Google or GitHub credentials. Supabase Auth is the sole
+identity and session authority, and the FastAPI backend receives only
+Supabase-issued JWTs. Provider secrets belong only in Supabase Auth
+configuration.
 
 ### 3. Run Both Servers
 
@@ -252,19 +252,20 @@ Set the matching Supabase project's **Authentication > URL Configuration >
 Site URL** to the canonical frontend URL and allow
 `https://<frontend-domain>/auth/callback`. If the callback is not allowlisted,
 Supabase falls back to the Site URL; leaving that value on localhost breaks
-production email confirmation links. Copy the committed
-`supabase/templates/confirm-sign-up.html` and
-`supabase/templates/magic-link.html` files into the matching hosted Supabase
-email templates. These token-hash templates complete authentication through the
-prefetch-safe `/auth/confirm` server flow and work when an email is opened in a
-different browser or device.
+production OAuth return routing.
 
-Public production registration also requires custom SMTP in the same Supabase
-project. Supabase's built-in mailer is intended only for development: it sends
-only to organization team members and has a very small project-wide hourly
-limit. Configure **Authentication > Emails > SMTP Settings**, then verify a
-fresh external-address signup, confirmation, recovery, and magic-link flow
-before enabling public registration.
+Create Google and GitHub OAuth applications and use the Supabase callback URL
+shown by the provider settings:
+
+```txt
+https://<supabase-project-ref>.supabase.co/auth/v1/callback
+```
+
+Store both provider client IDs and secrets only in Supabase
+**Authentication > Providers**. NexusRAG requests the standard Google
+`openid email profile` scopes, shows Google first, and uses GitHub as the
+secondary provider. OAuth-only public authentication does not require Resend,
+custom SMTP, or a paid domain.
 
 ### Connecting Frontend and Backend
 

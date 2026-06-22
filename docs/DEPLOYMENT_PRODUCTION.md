@@ -38,73 +38,84 @@ FRONTEND_URL=<production-frontend-url>
 
 ## Production Authentication
 
-Set the canonical frontend URL in Vercel:
+NexusRAG exposes Google OAuth first and GitHub OAuth second. Supabase Auth remains
+the session authority, and FastAPI continues to validate only Supabase-issued
+JWTs. The frontend and backend never receive provider passwords or OAuth client
+secrets.
+
+### Vercel
+
+Set the canonical frontend and matching public Supabase project:
 
 ```txt
 NEXT_PUBLIC_SITE_URL=https://nexusrag.vercel.app
+NEXT_PUBLIC_SUPABASE_URL=https://fcjaomiceajcdownarel.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=<production-anon-or-publishable-key>
 ```
 
-In the same Supabase project referenced by `NEXT_PUBLIC_SUPABASE_URL`, open
-**Authentication > URL Configuration** and set:
+Do not place Google or GitHub client secrets in Vercel variables.
+
+### Supabase URL Configuration
+
+In the same Supabase project referenced by `NEXT_PUBLIC_SUPABASE_URL`, set:
 
 ```txt
 Site URL: https://nexusrag.vercel.app
 Redirect URL: https://nexusrag.vercel.app/auth/callback
-Redirect URL: https://nexusrag.vercel.app/auth/confirm
+Local redirect URL: http://localhost:3000/auth/callback
 ```
 
-Add local callback URLs only as additional development redirects, never as the
-production Site URL. Supabase falls back to the Site URL when an
-`emailRedirectTo` destination is absent from the allowlist, so a localhost Site
-URL causes production confirmation emails to send users back to localhost.
+Allowlist only deliberate application origins. Do not use wildcard external
+origins and do not leave localhost as the production Site URL.
 
-Because `@supabase/ssr` uses PKCE, do not use `{{ .ConfirmationURL }}` for the
-hosted **Confirm sign up** or **Magic link or OTP** templates. That URL returns
-an authorization code which depends on a verifier stored in the browser that
-requested the email. Instead, copy the committed templates from
-`supabase/templates/confirm-sign-up.html` and
-`supabase/templates/magic-link.html` into the matching Supabase dashboard
-templates. They send `{{ .TokenHash }}` to `/auth/confirm`, where an explicit
-POST verifies the one-time token, stores the session in cookies, and safely
-redirects through `/auth/callback`. This works across browsers/devices and
-prevents email link scanners from consuming the token with a GET request.
+### Provider Applications
 
-Install the committed `supabase/templates/recovery.html` template for password
-recovery as well. It sends a `recovery` token hash to `/auth/confirm` and then
-routes the verified recovery session to `/auth/update-password`.
+Both provider applications use the Supabase callback:
 
-In **Authentication > Providers > Email** and the Auth settings:
+```txt
+https://fcjaomiceajcdownarel.supabase.co/auth/v1/callback
+```
 
-- enable email/password signups and password sign-in;
-- require email confirmation before first sign-in;
-- keep magic links enabled as an optional secondary sign-in method;
-- configure a minimum password policy compatible with NexusRAG's 12-character
-  client policy and enable leaked-password protection when available;
-- keep signup, sign-in, verification-email, magic-link, and recovery rate limits
-  enabled;
-- configure production SMTP for reliable branded delivery.
+Google configuration:
 
-Custom SMTP is a production launch gate, not an optional deliverability
-improvement. Supabase's built-in mailer is restricted to organization team
-members and a very small project-wide hourly send limit. Before launch:
+- Create an OAuth web client for NexusRAG.
+- Configure the consent screen for the application.
+- Use only the standard `openid email profile` scopes requested by Supabase.
+- Add the Supabase callback as an authorized redirect URI.
+- Store the client ID and client secret only in Supabase
+  **Authentication > Providers > Google**.
 
-1. Configure and enable custom SMTP in **Authentication > Emails > SMTP Settings**.
-2. Verify the sending domain with SPF, DKIM, and DMARC.
-3. Keep provider link tracking disabled so token-hash confirmation links are
-   not rewritten.
-4. Set appropriate Supabase Auth email and per-recipient rate limits.
-5. Run controlled external-address tests for signup confirmation, resend,
-   recovery, and magic-link delivery, and inspect provider bounce/suppression
-   logs.
+GitHub configuration:
 
-The frontend handles Supabase's stable `over_email_send_rate_limit`,
-`over_request_rate_limit`, and `email_address_not_authorized` codes with safe,
-actionable messages. It does not expose raw provider responses or account
-existence.
+- Create a GitHub OAuth App.
+- Homepage URL: `https://nexusrag.vercel.app`.
+- Authorization callback URL: the Supabase callback above.
+- Store the client ID and client secret only in Supabase
+  **Authentication > Providers > GitHub**.
 
-Supabase Auth stores and verifies password hashes. Do not add passwords or
-password hashes to NexusRAG tables, Vercel variables, Render variables, logs, or
-FastAPI routes.
+OAuth-only authentication does not require Resend, custom SMTP, or a paid
+domain. Leave email authentication enabled only for a deliberate rollback
+window. The production NexusRAG UI must expose Google and GitHub only. Disable
+email authentication after both OAuth providers and existing-user access have
+passed production verification and the rollback window is closed.
+
+Existing users are preserved. Supabase may automatically link a trusted OAuth
+identity when it returns the same verified email as an existing user. Never
+merge accounts automatically when emails differ.
+
+### Verification
+
+For each provider, verify:
+
+1. A first-time user reaches onboarding and creates a workspace.
+2. A returning user reaches the requested protected route.
+3. Reload preserves the Supabase session.
+4. Current-session and all-session sign-out work.
+5. The resulting Supabase JWT reaches Render successfully.
+6. Invalid JWTs and cross-workspace access remain rejected.
+
+Do not report provider consent, CAPTCHA, 2FA, or existing-user linking as passed
+unless those scenarios were actually executed.
 
 ## Production Controls
 

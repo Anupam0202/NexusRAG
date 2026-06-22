@@ -26,12 +26,20 @@ Vercel Marketplace Supabase variables are frontend-only. Mirror the matching Sup
 In that Supabase project, set **Authentication > URL Configuration > Site URL**
 to `https://nexusrag.vercel.app` and allow
 `https://nexusrag.vercel.app/auth/callback`. Keep localhost callbacks only as
-additional development redirects. Copy
-`supabase/templates/confirm-sign-up.html` and
-`supabase/templates/magic-link.html` into the matching hosted Supabase email
-templates. The committed token-hash templates support cross-browser/device
-sign-in and avoid PKCE verifier failures; do not replace them with
-`{{ .ConfirmationURL }}` while using `@supabase/ssr`.
+additional development redirects.
+
+Create free Google and GitHub OAuth applications. Configure both applications
+with the Supabase callback:
+
+```txt
+https://<supabase-project-ref>.supabase.co/auth/v1/callback
+```
+
+Use `https://nexusrag.vercel.app` as the GitHub homepage and Google application
+origin where requested. Store provider credentials only in Supabase
+**Authentication > Providers**. Google uses the standard `openid email profile`
+scopes. This OAuth-only path requires no SMTP provider, auth sender, or custom
+domain.
 
 ## Render Backend
 
@@ -87,7 +95,7 @@ python scripts/process_retention.py
 
 1. Open the frontend public URL.
 2. Confirm the backend badge becomes live.
-3. Sign up or sign in.
+3. Sign in with Google, then repeat the smoke test with GitHub.
 4. Upload a small PDF or TXT file.
 5. Wait for ingestion to reach ready.
 6. Ask a question that should cite the uploaded document.

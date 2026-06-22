@@ -5,10 +5,10 @@ NexusRAG is designed around tenant isolation, durable auth context, and defensiv
 ## Implemented Controls
 
 - Supabase JWT validation and workspace-scoped API context.
-- Supabase Auth is the sole password authority; NexusRAG tables, logs, and FastAPI routes never receive plaintext passwords or password hashes.
-- Password sign-in is primary, email verification is mandatory, and magic-link sign-in remains an optional secondary method.
-- Password recovery uses a cross-device token-hash confirmation flow with an explicit same-origin POST before the one-time token is consumed.
-- Public sign-in and recovery responses avoid account enumeration and provider-detail leakage.
+- Supabase Auth is the sole identity and session authority; NexusRAG never receives Google or GitHub credentials.
+- Google is the primary public OAuth provider and GitHub is the secondary provider.
+- OAuth callback destinations are restricted to sanitized same-origin application paths.
+- Public sign-in and callback responses avoid provider-detail and token leakage.
 - Account-security controls use explicit Supabase sign-out scopes instead of relying on the SDK's global default.
 - Workspace membership checks for protected document, chat, settings, analytics, and key routes.
 - Supabase storage and metadata tables used instead of Render local disk for production user data.
@@ -28,13 +28,14 @@ NexusRAG is designed around tenant isolation, durable auth context, and defensiv
 ## Environment Rules
 
 - Never expose `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_SECRET_KEY`, `GOOGLE_API_KEY`, or `QDRANT_API_KEY` to the frontend.
-- Never log passwords, auth form bodies, token hashes, access tokens, or refresh tokens.
+- Never log OAuth authorization codes, provider tokens, provider client secrets, access tokens, refresh tokens, or raw authentication payloads.
 - Vercel should only receive `NEXT_PUBLIC_*` variables and the public backend URL.
 - Render should receive server secrets and mirrored Supabase/Qdrant variables.
 - Do not enable anonymous demo mode in production.
-- Keep Supabase email verification, authentication rate limits, and a compatible server-side password policy enabled.
-- Require custom SMTP before public registration; the Supabase built-in mailer is development-only and restricted.
-- Keep auth-email provider logs, bounce handling, suppression handling, SPF, DKIM, and DMARC under operational review.
+- Store Google and GitHub client credentials only in Supabase Auth provider settings, never in Vercel, Render, browser variables, or the repository.
+- Allowlist only the production and deliberate local `/auth/callback` URLs in Supabase.
+- Keep Supabase authentication abuse protections enabled.
+- Leave email authentication enabled only during the agreed rollback window; the NexusRAG production UI must expose OAuth providers only.
 
 ## Remaining Security Work
 
