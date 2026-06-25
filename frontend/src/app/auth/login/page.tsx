@@ -12,6 +12,34 @@ import { createSupabaseBrowserClient, hasPublicSupabaseConfig } from "@/lib/supa
 type OAuthProvider = "google" | "github";
 
 const OAUTH_START_ERROR = "We could not start secure sign-in. Please try again.";
+const DEFAULT_OAUTH_PROVIDERS: OAuthProvider[] = ["github"];
+const PROVIDER_ORDER: OAuthProvider[] = ["google", "github"];
+
+function getEnabledOAuthProviders(): OAuthProvider[] {
+  const configured = process.env.NEXT_PUBLIC_OAUTH_PROVIDERS;
+  if (!configured) return DEFAULT_OAUTH_PROVIDERS;
+
+  const requested = new Set(
+    configured
+      .split(",")
+      .map((provider) => provider.trim().toLowerCase())
+      .filter((provider): provider is OAuthProvider =>
+        provider === "google" || provider === "github"
+      )
+  );
+  const providers = PROVIDER_ORDER.filter((provider) => requested.has(provider));
+  return providers.length > 0 ? providers : DEFAULT_OAUTH_PROVIDERS;
+}
+
+function providerLabel(provider: OAuthProvider) {
+  return provider === "google" ? "Google" : "GitHub";
+}
+
+function ProviderIcon({ provider, pending }: { provider: OAuthProvider; pending: boolean }) {
+  if (pending) return <Loader2 size={18} className="animate-spin" />;
+  if (provider === "google") return <GoogleMark />;
+  return <Github size={19} aria-hidden="true" />;
+}
 
 export default function LoginPage() {
   const router = useRouter();
@@ -22,6 +50,7 @@ export default function LoginPage() {
   const [signupIntent, setSignupIntent] = useState(false);
   const [routeReady, setRouteReady] = useState(false);
   const supabaseReady = hasPublicSupabaseConfig();
+  const enabledProviders = getEnabledOAuthProviders();
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -91,37 +120,22 @@ export default function LoginPage() {
           className="space-y-4 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] p-5"
         >
             <div className="space-y-2">
-              <button
-                type="button"
-                onClick={() => void startOAuth("google")}
-                disabled={disabled}
-                className="flex h-11 w-full items-center justify-center gap-3 rounded-xl border border-[var(--border)] bg-[var(--bg-secondary)] px-4 text-sm font-semibold transition hover:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {pendingProvider === "google" ? (
-                  <Loader2 size={18} className="animate-spin" />
-                ) : (
-                  <GoogleMark />
-                )}
-                {pendingProvider === "google"
-                  ? "Connecting with Google"
-                  : "Continue with Google"}
-              </button>
-
-              <button
-                type="button"
-                onClick={() => void startOAuth("github")}
-                disabled={disabled}
-                className="flex h-11 w-full items-center justify-center gap-3 rounded-xl border border-[var(--border)] bg-[var(--bg-secondary)] px-4 text-sm font-semibold transition hover:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {pendingProvider === "github" ? (
-                  <Loader2 size={18} className="animate-spin" />
-                ) : (
-                  <Github size={19} aria-hidden="true" />
-                )}
-                {pendingProvider === "github"
-                  ? "Connecting with GitHub"
-                  : "Continue with GitHub"}
-              </button>
+              {enabledProviders.map((provider) => {
+                const label = providerLabel(provider);
+                const pending = pendingProvider === provider;
+                return (
+                  <button
+                    key={provider}
+                    type="button"
+                    onClick={() => void startOAuth(provider)}
+                    disabled={disabled}
+                    className="flex h-11 w-full items-center justify-center gap-3 rounded-xl border border-[var(--border)] bg-[var(--bg-secondary)] px-4 text-sm font-semibold transition hover:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <ProviderIcon provider={provider} pending={pending} />
+                    {pending ? `Connecting with ${label}` : `Continue with ${label}`}
+                  </button>
+                );
+              })}
             </div>
 
             {formError ? (

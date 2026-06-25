@@ -246,6 +246,7 @@ docker-compose up --build
    - `NEXT_PUBLIC_SUPABASE_URL`
    - `NEXT_PUBLIC_SUPABASE_ANON_KEY` or `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
    - `NEXT_PUBLIC_SITE_URL` — the canonical HTTPS frontend URL used by auth callbacks
+   - `NEXT_PUBLIC_OAUTH_PROVIDERS` — comma-separated enabled providers, for example `github` or `google,github`
 4. Vercel auto-detects Next.js and deploys
 
 Set the matching Supabase project's **Authentication > URL Configuration >
@@ -409,6 +410,7 @@ NexusRAG/
 | `NEXT_PUBLIC_SUPABASE_URL` | empty | Supabase project URL injected by the Vercel Supabase integration |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` / `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | empty | Supabase browser key injected by Vercel or set manually |
 | `NEXT_PUBLIC_SITE_URL` | current browser origin | Canonical production frontend origin for email auth callbacks |
+| `NEXT_PUBLIC_OAUTH_PROVIDERS` | `github` | Comma-separated OAuth providers shown on the login screen; set `google,github` only after both providers are enabled in Supabase |
 
 ---
 
