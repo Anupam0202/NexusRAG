@@ -19,9 +19,12 @@ NEXT_PUBLIC_API_URL=https://nexusrag-backend-wv2f.onrender.com
 NEXT_PUBLIC_SUPABASE_URL=<supabase-project-url>
 NEXT_PUBLIC_SUPABASE_ANON_KEY=<supabase-anon-key>
 NEXT_PUBLIC_SITE_URL=https://nexusrag.vercel.app
+NEXT_PUBLIC_OAUTH_PROVIDERS=github
 ```
 
 Vercel Marketplace Supabase variables are frontend-only. Mirror the matching Supabase server variables into Render manually.
+Switch `NEXT_PUBLIC_OAUTH_PROVIDERS` to `google,github` only after both
+OAuth providers are configured and verified in Supabase.
 
 In that Supabase project, set **Authentication > URL Configuration > Site URL**
 to `https://nexusrag.vercel.app` and allow

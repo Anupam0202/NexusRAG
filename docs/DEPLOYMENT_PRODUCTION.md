@@ -51,9 +51,12 @@ Set the canonical frontend and matching public Supabase project:
 NEXT_PUBLIC_SITE_URL=https://nexusrag.vercel.app
 NEXT_PUBLIC_SUPABASE_URL=https://fcjaomiceajcdownarel.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=<production-anon-or-publishable-key>
+NEXT_PUBLIC_OAUTH_PROVIDERS=github
 ```
 
 Do not place Google or GitHub client secrets in Vercel variables.
+Use `NEXT_PUBLIC_OAUTH_PROVIDERS=google,github` only after Google and GitHub
+are both enabled in Supabase Auth.
 
 ### Supabase URL Configuration
 

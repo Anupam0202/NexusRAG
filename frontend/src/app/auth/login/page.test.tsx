@@ -35,10 +35,21 @@ describe("LoginPage", () => {
     toastError.mockReset();
     signInWithOAuth.mockResolvedValue({ error: null });
     process.env.NEXT_PUBLIC_SITE_URL = "https://nexusrag.vercel.app";
+    delete process.env.NEXT_PUBLIC_OAUTH_PROVIDERS;
     window.history.replaceState({}, "", "/auth/login");
   });
 
-  it("renders Google before GitHub", () => {
+  it("defaults to the verified GitHub provider", () => {
+    render(<LoginPage />);
+
+    expect(
+      screen.getAllByRole("button").map((button) => button.textContent?.trim())
+    ).toEqual(["Continue with GitHub"]);
+  });
+
+  it("renders Google before GitHub when both providers are enabled", () => {
+    process.env.NEXT_PUBLIC_OAUTH_PROVIDERS = "google,github";
+
     render(<LoginPage />);
 
     expect(
@@ -48,6 +59,7 @@ describe("LoginPage", () => {
 
   it("keeps provider choices visible but disabled when Supabase is not configured", () => {
     configState.ready = false;
+    process.env.NEXT_PUBLIC_OAUTH_PROVIDERS = "google,github";
 
     render(<LoginPage />);
 
@@ -61,6 +73,7 @@ describe("LoginPage", () => {
   });
 
   it.each(["google", "github"] as const)("starts the %s OAuth flow", async (provider) => {
+    process.env.NEXT_PUBLIC_OAUTH_PROVIDERS = "google,github";
     render(<LoginPage />);
 
     const button = screen.getByRole("button", {
@@ -80,6 +93,7 @@ describe("LoginPage", () => {
   });
 
   it("uses onboarding for signup intent and blocks duplicate starts", async () => {
+    process.env.NEXT_PUBLIC_OAUTH_PROVIDERS = "google,github";
     window.history.replaceState({}, "", "/auth/login?intent=signup");
     let resolveRequest: (value: { error: null }) => void = () => undefined;
     signInWithOAuth.mockReturnValue(
