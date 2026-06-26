@@ -13,6 +13,27 @@ import {
 import { createSupabaseBrowserClient, hasPublicSupabaseConfig } from "@/lib/supabase/client";
 import { useStore } from "@/hooks/useStore";
 
+type SupabaseBrowserClient = ReturnType<typeof createSupabaseBrowserClient>;
+
+const SESSION_RETRY_DELAYS_MS = [0, 200, 600, 1200];
+
+function wait(ms: number) {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
+async function getSessionWithRetry(supabase: SupabaseBrowserClient) {
+  let lastResult = await supabase.auth.getSession();
+  if (lastResult.data.session || lastResult.error) return lastResult;
+
+  for (const delay of SESSION_RETRY_DELAYS_MS.slice(1)) {
+    await wait(delay);
+    lastResult = await supabase.auth.getSession();
+    if (lastResult.data.session || lastResult.error) return lastResult;
+  }
+
+  return lastResult;
+}
+
 export default function AuthCallbackPage() {
   const router = useRouter();
   const setAuthState = useStore((state) => state.setAuthState);
@@ -45,7 +66,7 @@ export default function AuthCallbackPage() {
           if (exchangeError) throw exchangeError;
         }
 
-        const { data, error: sessionError } = await supabase.auth.getSession();
+        const { data, error: sessionError } = await getSessionWithRetry(supabase);
         if (sessionError) throw sessionError;
         const user = data.session?.user;
 
