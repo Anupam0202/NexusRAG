@@ -81,3 +81,38 @@ def test_supabase_jwt_secret_keeps_implicit_jwks_for_asymmetric_tokens(monkeypat
         "https://project.supabase.co/auth/v1/.well-known/jwks.json"
     )
     assert settings.auth_required is True
+
+
+def test_public_supabase_key_is_not_treated_as_service_role(monkeypatch) -> None:
+    for key in SUPABASE_ENV_KEYS:
+        monkeypatch.delenv(key, raising=False)
+
+    monkeypatch.setenv("SUPABASE_URL", "https://project.supabase.co")
+    monkeypatch.setenv("SUPABASE_ANON_KEY", "sb_publishable_public")
+    monkeypatch.setenv("SUPABASE_SERVICE_ROLE_KEY", "sb_publishable_public")
+    monkeypatch.setenv("ENABLE_ANONYMOUS_DEMO", "false")
+    get_settings.cache_clear()
+
+    settings = get_settings()
+
+    assert settings.supabase_service_role_key_kind == "matches_anon_key"
+    assert settings.supabase_service_role_configured is False
+    assert settings.supabase_configured is False
+    assert settings.supabase_auth_configured is True
+    assert settings.auth_required is True
+
+
+def test_publishable_key_in_service_role_slot_is_rejected(monkeypatch) -> None:
+    for key in SUPABASE_ENV_KEYS:
+        monkeypatch.delenv(key, raising=False)
+
+    monkeypatch.setenv("SUPABASE_URL", "https://project.supabase.co")
+    monkeypatch.setenv("SUPABASE_ANON_KEY", "legacy-anon")
+    monkeypatch.setenv("SUPABASE_SERVICE_ROLE_KEY", "sb_publishable_public")
+    get_settings.cache_clear()
+
+    settings = get_settings()
+
+    assert settings.supabase_service_role_key_kind == "publishable_key"
+    assert settings.supabase_service_role_configured is False
+    assert settings.supabase_configured is False

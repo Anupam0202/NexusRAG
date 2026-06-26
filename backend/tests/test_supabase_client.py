@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 
 from config.settings import Settings
-from src.infrastructure.supabase_client import SupabaseClient
+from src.infrastructure.supabase_client import SupabaseClient, SupabaseNotConfiguredError
 
 
 def test_modern_secret_key_is_not_sent_as_bearer_token() -> None:
@@ -35,6 +35,20 @@ def test_legacy_service_role_key_remains_a_bearer_token() -> None:
     headers = client.auth_headers()
 
     assert headers["Authorization"] == "Bearer legacy-service-role"
+
+
+def test_public_key_in_service_role_slot_is_rejected() -> None:
+    client = SupabaseClient(
+        Settings(
+            supabase_url="https://project.supabase.co",
+            supabase_anon_key="sb_publishable_public",
+            supabase_service_role_key="sb_publishable_public",
+        )
+    )
+
+    assert client.is_configured is False
+    with pytest.raises(SupabaseNotConfiguredError):
+        client.auth_headers()
 
 
 @pytest.mark.asyncio
