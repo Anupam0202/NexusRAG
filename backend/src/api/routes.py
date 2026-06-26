@@ -2742,6 +2742,10 @@ async def system_status(
             "max_docx_embedded_images": settings.max_docx_embedded_images,
             "max_image_megapixels": settings.max_image_megapixels,
             "supabase_configured": settings.supabase_configured,
+            "supabase_service_role_configured": (
+                settings.supabase_service_role_configured
+            ),
+            "supabase_service_role_key_kind": settings.supabase_service_role_key_kind,
             "supabase_auth_configured": settings.supabase_auth_configured,
             "auth_required": settings.auth_required,
             "anonymous_demo_enabled": settings.enable_anonymous_demo,

@@ -30,6 +30,30 @@ def _supabase_jwks_url(project_url: str) -> str:
     return f"{clean}/auth/v1/.well-known/jwks.json" if clean else ""
 
 
+def supabase_service_role_key_kind(service_role_key: str, anon_key: str = "") -> str:
+    """Return a non-secret category for the configured server-side Supabase key."""
+    key = service_role_key.strip()
+    if not key:
+        return "missing"
+    if anon_key and key == anon_key.strip():
+        return "matches_anon_key"
+    if key.startswith("sb_publishable_"):
+        return "publishable_key"
+    if key.startswith("sb_secret_"):
+        return "secret_key"
+    if key.startswith("sb_"):
+        return "unsupported_key"
+    return "legacy_service_role_key"
+
+
+def valid_supabase_service_role_key(service_role_key: str, anon_key: str = "") -> bool:
+    """True only for keys that can safely be used by trusted backend code."""
+    return supabase_service_role_key_kind(service_role_key, anon_key) in {
+        "secret_key",
+        "legacy_service_role_key",
+    }
+
+
 class Settings(BaseSettings):
     """Application settings — loaded from environment variables / .env file.
 
@@ -283,7 +307,25 @@ class Settings(BaseSettings):
 
     @property
     def supabase_configured(self) -> bool:
-        return bool(self.supabase_url and self.supabase_anon_key and self.supabase_service_role_key)
+        return bool(
+            self.supabase_url
+            and self.supabase_anon_key
+            and self.supabase_service_role_configured
+        )
+
+    @property
+    def supabase_service_role_key_kind(self) -> str:
+        return supabase_service_role_key_kind(
+            self.supabase_service_role_key,
+            self.supabase_anon_key,
+        )
+
+    @property
+    def supabase_service_role_configured(self) -> bool:
+        return valid_supabase_service_role_key(
+            self.supabase_service_role_key,
+            self.supabase_anon_key,
+        )
 
     @property
     def supabase_auth_configured(self) -> bool:
@@ -292,7 +334,7 @@ class Settings(BaseSettings):
     @property
     def auth_required(self) -> bool:
         return (
-            self.supabase_configured
+            bool(self.supabase_url)
             and self.supabase_auth_configured
             and not self.enable_anonymous_demo
         )

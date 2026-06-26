@@ -14,7 +14,7 @@ from typing import Any
 
 import httpx
 
-from config.settings import Settings, get_settings
+from config.settings import Settings, get_settings, valid_supabase_service_role_key
 
 
 class SupabaseNotConfiguredError(RuntimeError):
@@ -30,7 +30,11 @@ class SupabaseConfig:
 
     @property
     def is_configured(self) -> bool:
-        return bool(self.url and self.anon_key and self.service_role_key)
+        return bool(
+            self.url
+            and self.anon_key
+            and valid_supabase_service_role_key(self.service_role_key, self.anon_key)
+        )
 
 
 class SupabaseClient:
@@ -54,7 +58,8 @@ class SupabaseClient:
             raise SupabaseNotConfiguredError(
                 "Supabase is not configured. Set SUPABASE_URL, "
                 "SUPABASE_ANON_KEY or SUPABASE_PUBLISHABLE_KEY, and "
-                "SUPABASE_SERVICE_ROLE_KEY or SUPABASE_SECRET_KEY."
+                "a private SUPABASE_SERVICE_ROLE_KEY or SUPABASE_SECRET_KEY. "
+                "Do not reuse the public anon/publishable key for backend writes."
             )
 
     def auth_headers(self, *, service_role: bool = True) -> dict[str, str]:
