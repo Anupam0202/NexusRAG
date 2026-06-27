@@ -34,6 +34,16 @@ async function getSessionWithRetry(supabase: SupabaseBrowserClient) {
   return lastResult;
 }
 
+async function completeOAuthSession(supabase: SupabaseBrowserClient, code: string | null) {
+  if (!code) return getSessionWithRetry(supabase);
+
+  const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
+  const sessionResult = await getSessionWithRetry(supabase);
+  if (exchangeError && !sessionResult.data.session) throw exchangeError;
+
+  return sessionResult;
+}
+
 export default function AuthCallbackPage() {
   const router = useRouter();
   const setAuthState = useStore((state) => state.setAuthState);
@@ -61,12 +71,7 @@ export default function AuthCallbackPage() {
 
       try {
         const supabase = createSupabaseBrowserClient();
-        if (code) {
-          const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
-          if (exchangeError) throw exchangeError;
-        }
-
-        const { data, error: sessionError } = await getSessionWithRetry(supabase);
+        const { data, error: sessionError } = await completeOAuthSession(supabase, code);
         if (sessionError) throw sessionError;
         const user = data.session?.user;
 
