@@ -105,6 +105,17 @@ describe("AuthCallbackPage", () => {
     expect(setWorkspaceId).toHaveBeenCalledWith("workspace-1");
   });
 
+  it("continues when a stale code exchange fails but the session is already hydrated", async () => {
+    window.history.replaceState({}, "", "/auth/callback?code=stale-oauth-code&next=/documents");
+    exchangeCodeForSession.mockResolvedValueOnce({ error: new Error("code already used") });
+
+    render(<AuthCallbackPage />);
+
+    await waitFor(() => expect(replace).toHaveBeenCalledWith("/documents"));
+    expect(exchangeCodeForSession).toHaveBeenCalledWith("stale-oauth-code");
+    expect(screen.queryByText("Sign-in could not be completed")).not.toBeInTheDocument();
+  });
+
   it("sends authenticated users without a workspace to onboarding", async () => {
     window.history.replaceState({}, "", "/auth/callback?code=oauth-code&next=/documents");
     vi.mocked(getCurrentWorkspace).mockRejectedValueOnce(new Error("no workspace"));
