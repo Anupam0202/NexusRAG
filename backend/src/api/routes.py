@@ -29,6 +29,7 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any, cast
 
+import httpx
 from fastapi import (
     APIRouter,
     BackgroundTasks,
@@ -81,6 +82,11 @@ from src.generation.provider_keys import (
     GEMINI_PROVIDER,
     get_provider_key_manager,
     normalize_provider,
+)
+from src.infrastructure.supabase_client import (
+    SupabaseClient,
+    SupabaseNotConfiguredError,
+    get_supabase_client,
 )
 from src.ingestion.embedder import get_embedder
 from src.ingestion.job_manager import get_ingestion_job_store
@@ -156,6 +162,33 @@ async def _record_audit_event(
         metadata=metadata,
         persist=_should_persist_workspace_event(workspace, settings),
     )
+
+
+async def _probe_supabase_data_api(
+    *,
+    settings: Settings,
+    supabase: SupabaseClient,
+) -> tuple[bool, str]:
+    if not settings.auth_required and settings.enable_anonymous_demo:
+        return True, "not_required"
+    if not settings.supabase_configured:
+        return False, "unconfigured"
+    try:
+        await asyncio.wait_for(
+            supabase.table_select("profiles", query="select=id&limit=1"),
+            timeout=5,
+        )
+    except SupabaseNotConfiguredError:
+        return False, "unconfigured"
+    except httpx.HTTPStatusError as exc:
+        if exc.response.status_code in {401, 403}:
+            return False, "unauthorized"
+        return False, "error"
+    except TimeoutError:
+        return False, "timeout"
+    except Exception:
+        return False, "error"
+    return True, "ok"
 
 
 def _settings_payload(settings: Settings) -> dict:
@@ -2697,6 +2730,7 @@ async def list_audit_events(
 async def system_status(
     settings: Settings = Depends(get_settings),
     vs: VectorStoreManager = Depends(get_vector_store),
+    supabase: SupabaseClient = Depends(get_supabase_client),
 ) -> SystemStatusResponse:
     """Operational status payload for dashboards and deployment smoke tests."""
     workspace_id = normalize_workspace_id(None)
@@ -2714,7 +2748,14 @@ async def system_status(
     except Exception:
         provider_health_snapshot = []
 
+    data_api_reachable, data_api_status = await _probe_supabase_data_api(
+        settings=settings,
+        supabase=supabase,
+    )
+    service_status = "healthy" if data_api_reachable else "degraded"
+
     return SystemStatusResponse(
+        status=service_status,
         total_documents=len(docs),
         total_chunks=vs.count_chunks(workspace_id=workspace_id),
         api_key_configured=bool(settings.google_api_key),
@@ -2747,6 +2788,8 @@ async def system_status(
             ),
             "supabase_service_role_key_kind": settings.supabase_service_role_key_kind,
             "supabase_auth_configured": settings.supabase_auth_configured,
+            "supabase_data_api_reachable": data_api_reachable,
+            "supabase_data_api_status": data_api_status,
             "auth_required": settings.auth_required,
             "anonymous_demo_enabled": settings.enable_anonymous_demo,
             "qdrant_configured": settings.qdrant_configured,

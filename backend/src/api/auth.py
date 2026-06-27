@@ -250,6 +250,30 @@ def _enterprise_auth_not_configured_error() -> HTTPException:
     )
 
 
+def _supabase_backend_credentials_error() -> HTTPException:
+    return HTTPException(
+        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+        detail="Supabase backend persistence credentials are not authorized for this project.",
+    )
+
+
+def _supabase_http_status_code(exc: httpx.HTTPStatusError) -> int:
+    return exc.response.status_code if exc.response is not None else 0
+
+
+def _is_supabase_backend_credentials_rejected(exc: httpx.HTTPStatusError) -> bool:
+    return _supabase_http_status_code(exc) in {
+        status.HTTP_401_UNAUTHORIZED,
+        status.HTTP_403_FORBIDDEN,
+    }
+
+
+def _raise_supabase_route_error(exc: httpx.HTTPStatusError, *, detail: str) -> None:
+    if _is_supabase_backend_credentials_rejected(exc):
+        raise _supabase_backend_credentials_error() from exc
+    raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=detail) from exc
+
+
 def select_workspace_id(
     x_nexus_workspace_id: str | None = None,
     x_workspace_id: str | None = None,
@@ -394,6 +418,11 @@ async def resolve_workspace_context(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Supabase is required for authenticated workspace access.",
         ) from exc
+    except httpx.HTTPStatusError as exc:
+        _raise_supabase_route_error(
+            exc,
+            detail="Unable to resolve workspace membership from Supabase.",
+        )
 
     if not rows:
         raise HTTPException(
@@ -506,10 +535,10 @@ async def list_workspaces(
     except SupabaseNotConfiguredError as exc:
         raise _enterprise_auth_not_configured_error() from exc
     except httpx.HTTPStatusError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
+        _raise_supabase_route_error(
+            exc,
             detail="Unable to load workspaces from Supabase.",
-        ) from exc
+        )
 
     workspaces: list[WorkspaceSummaryResponse] = []
     for row in rows:
@@ -560,10 +589,10 @@ async def create_workspace(
                 status_code=status.HTTP_409_CONFLICT,
                 detail="Workspace slug is already in use.",
             ) from exc
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
+        _raise_supabase_route_error(
+            exc,
             detail="Unable to create workspace in Supabase.",
-        ) from exc
+        )
 
     return _workspace_summary(workspace, role=WorkspaceRole.OWNER)
 
@@ -611,10 +640,10 @@ async def list_current_workspace_members(
     except SupabaseNotConfiguredError as exc:
         raise _enterprise_auth_not_configured_error() from exc
     except httpx.HTTPStatusError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
+        _raise_supabase_route_error(
+            exc,
             detail="Unable to load workspace members from Supabase.",
-        ) from exc
+        )
 
     members: list[WorkspaceMemberResponse] = []
     for row in rows:
@@ -712,10 +741,10 @@ async def add_current_workspace_member(
     except SupabaseNotConfiguredError as exc:
         raise _enterprise_auth_not_configured_error() from exc
     except httpx.HTTPStatusError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
+        _raise_supabase_route_error(
+            exc,
             detail="Unable to add the workspace member.",
-        ) from exc
+        )
 
     return _member_response(
         user_id=str(profile["id"]),
@@ -781,10 +810,10 @@ async def update_current_workspace_member(
             detail="Workspace membership has an invalid role.",
         ) from exc
     except httpx.HTTPStatusError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
+        _raise_supabase_route_error(
+            exc,
             detail="Unable to update the workspace member.",
-        ) from exc
+        )
 
     return _member_response(
         user_id=user_id,
@@ -840,9 +869,9 @@ async def remove_current_workspace_member(
             detail="Workspace membership has an invalid role.",
         ) from exc
     except httpx.HTTPStatusError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
+        _raise_supabase_route_error(
+            exc,
             detail="Unable to remove the workspace member.",
-        ) from exc
+        )
 
     return {"success": True, "removed": removed, "user_id": user_id}

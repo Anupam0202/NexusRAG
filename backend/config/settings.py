@@ -178,6 +178,13 @@ class Settings(BaseSettings):
         default="",
         description="Supabase service role key for trusted backend operations",
     )
+    supabase_legacy_service_role_key: str = Field(
+        default="",
+        description=(
+            "Optional legacy Supabase service_role JWT used as a server-side "
+            "fallback when a modern secret key is rejected."
+        ),
+    )
     supabase_jwt_secret: str = Field(
         default="",
         description="Legacy Supabase JWT secret. Prefer JWKS for hosted projects.",
@@ -424,14 +431,17 @@ class Settings(BaseSettings):
                 "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
             )
         # Supabase secret keys are the current server-side credential format.
-        # Prefer them over a legacy service_role JWT when both were mirrored
-        # into a deployment, so stale legacy credentials cannot silently route
-        # persistence to a different project.
+        # Prefer them when both formats are mirrored into a deployment, but
+        # keep the legacy service_role JWT as a server-side fallback for
+        # production rotations where the preferred key is rejected.
         modern_secret_key = _first_env("SUPABASE_SECRET_KEY")
+        legacy_service_role_key = _first_env("SUPABASE_SERVICE_ROLE_KEY")
+        if legacy_service_role_key:
+            self.supabase_legacy_service_role_key = legacy_service_role_key
         if modern_secret_key:
             self.supabase_service_role_key = modern_secret_key
         elif not self.supabase_service_role_key:
-            self.supabase_service_role_key = _first_env("SUPABASE_SERVICE_ROLE_KEY")
+            self.supabase_service_role_key = legacy_service_role_key
         if not self.supabase_jwks_url:
             self.supabase_jwks_url = _supabase_jwks_url(self.supabase_url)
         return self

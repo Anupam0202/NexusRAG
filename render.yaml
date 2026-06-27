@@ -41,6 +41,10 @@ services:
         value: "https://fcjaomiceajcdownarel.supabase.co"
       - key: SUPABASE_ANON_KEY
         sync: false
+      # Preferred modern server-side Supabase secret key. If present, the app
+      # uses this before the legacy service-role JWT below.
+      - key: SUPABASE_SECRET_KEY
+        sync: false
       - key: SUPABASE_SERVICE_ROLE_KEY
         sync: false
       - key: SUPABASE_JWT_SECRET
