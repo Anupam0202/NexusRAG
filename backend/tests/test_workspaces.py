@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from uuid import uuid4
 
+import httpx
 import jwt
 import pytest
 from fastapi.testclient import TestClient
@@ -161,6 +162,30 @@ class FakeWorkspaceSupabase:
         return [{"workspace_id": self.workspace_id, "user_id": self.target_user_id}]
 
 
+def _supabase_http_error(status_code: int) -> httpx.HTTPStatusError:
+    request = httpx.Request("GET", "https://example.supabase.co/rest/v1/workspace_members")
+    response = httpx.Response(status_code, request=request)
+    return httpx.HTTPStatusError(
+        f"Supabase returned HTTP {status_code}",
+        request=request,
+        response=response,
+    )
+
+
+class RejectingSupabase:
+    async def table_select(
+        self,
+        table: str,
+        *,
+        query: str = "select=*",
+        service_role: bool = True,
+    ) -> list[dict]:
+        raise _supabase_http_error(401)
+
+    async def table_upsert(self, *args, **kwargs) -> list[dict]:
+        raise _supabase_http_error(401)
+
+
 @pytest.fixture
 def enterprise_auth_env(monkeypatch):
     jwt_secret = "test-secret-with-at-least-thirty-two-bytes"
@@ -208,6 +233,55 @@ def test_list_workspaces_returns_user_memberships(
     assert body["total"] == 1
     assert body["workspaces"][0]["id"] == workspace_id
     assert body["workspaces"][0]["role"] == "admin"
+
+
+@pytest.mark.parametrize(
+    ("method", "path", "kwargs"),
+    [
+        ("get", "/api/v1/workspaces", {}),
+        ("get", "/api/v1/workspaces/current", {}),
+        ("post", "/api/v1/workspaces", {"json": {"name": "Acme Research"}}),
+    ],
+)
+def test_workspace_routes_report_rejected_supabase_backend_credentials(
+    test_client: TestClient,
+    enterprise_auth_env: str,
+    method: str,
+    path: str,
+    kwargs: dict,
+) -> None:
+    from main import app
+
+    user_id = str(uuid4())
+    app.dependency_overrides[get_supabase_client] = lambda: RejectingSupabase()
+
+    response = getattr(test_client, method)(
+        path,
+        headers={"Authorization": f"Bearer {_token(user_id, enterprise_auth_env)}"},
+        **kwargs,
+    )
+
+    assert response.status_code == 503
+    assert response.json()["detail"] == (
+        "Supabase backend persistence credentials are not authorized for this project."
+    )
+
+
+def test_system_status_marks_supabase_data_api_unauthorized(
+    test_client: TestClient,
+    enterprise_auth_env: str,
+) -> None:
+    from main import app
+
+    app.dependency_overrides[get_supabase_client] = lambda: RejectingSupabase()
+
+    response = test_client.get("/api/v1/status")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "degraded"
+    assert body["settings"]["supabase_data_api_reachable"] is False
+    assert body["settings"]["supabase_data_api_status"] == "unauthorized"
 
 
 def test_create_workspace_ensures_profile_and_owner_membership(

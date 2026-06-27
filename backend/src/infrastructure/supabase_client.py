@@ -26,15 +26,25 @@ class SupabaseConfig:
     url: str
     anon_key: str
     service_role_key: str
+    fallback_service_role_key: str
     storage_bucket: str
 
     @property
+    def service_role_keys(self) -> tuple[str, ...]:
+        keys: list[str] = []
+        for key in (self.service_role_key, self.fallback_service_role_key):
+            clean = key.strip()
+            if (
+                clean
+                and clean not in keys
+                and valid_supabase_service_role_key(clean, self.anon_key)
+            ):
+                keys.append(clean)
+        return tuple(keys)
+
+    @property
     def is_configured(self) -> bool:
-        return bool(
-            self.url
-            and self.anon_key
-            and valid_supabase_service_role_key(self.service_role_key, self.anon_key)
-        )
+        return bool(self.url and self.anon_key and self.service_role_keys)
 
 
 class SupabaseClient:
@@ -46,6 +56,7 @@ class SupabaseClient:
             url=self._settings.supabase_url.rstrip("/"),
             anon_key=self._settings.supabase_anon_key,
             service_role_key=self._settings.supabase_service_role_key,
+            fallback_service_role_key=self._settings.supabase_legacy_service_role_key,
             storage_bucket=self._settings.supabase_storage_bucket,
         )
 
@@ -62,13 +73,41 @@ class SupabaseClient:
                 "Do not reuse the public anon/publishable key for backend writes."
             )
 
-    def auth_headers(self, *, service_role: bool = True) -> dict[str, str]:
-        self.require_configured()
-        key = self.config.service_role_key if service_role else self.config.anon_key
+    def _auth_headers_for_key(self, key: str) -> dict[str, str]:
         headers = {"apikey": key, "Content-Type": "application/json"}
         if not key.startswith(("sb_secret_", "sb_publishable_")):
             headers["Authorization"] = f"Bearer {key}"
         return headers
+
+    def auth_headers(self, *, service_role: bool = True) -> dict[str, str]:
+        self.require_configured()
+        key = self.config.service_role_keys[0] if service_role else self.config.anon_key
+        return self._auth_headers_for_key(key)
+
+    async def _request_with_auth(
+        self,
+        client: httpx.AsyncClient,
+        method: str,
+        url: str,
+        *,
+        service_role: bool = True,
+        headers: dict[str, str] | None = None,
+        **kwargs: Any,
+    ) -> httpx.Response:
+        self.require_configured()
+        keys = self.config.service_role_keys if service_role else (self.config.anon_key,)
+        last_response: httpx.Response | None = None
+        for index, key in enumerate(keys):
+            request_headers = {**self._auth_headers_for_key(key), **(headers or {})}
+            response = await getattr(client, method)(url, headers=request_headers, **kwargs)
+            last_response = response
+            has_fallback = index < len(keys) - 1
+            if service_role and has_fallback and response.status_code in {401, 403}:
+                continue
+            return response
+        if last_response is None:  # pragma: no cover - require_configured guards this path
+            raise SupabaseNotConfiguredError("Supabase backend credentials are not configured.")
+        return last_response
 
     async def table_select(
         self,
@@ -81,7 +120,12 @@ class SupabaseClient:
         self.require_configured()
         url = f"{self.config.url}/rest/v1/{table}?{query}"
         async with httpx.AsyncClient(timeout=30) as client:
-            response = await client.get(url, headers=self.auth_headers(service_role=service_role))
+            response = await self._request_with_auth(
+                client,
+                "get",
+                url,
+                service_role=service_role,
+            )
             response.raise_for_status()
             data = response.json()
             return data if isinstance(data, list) else [data]
@@ -96,10 +140,16 @@ class SupabaseClient:
     ) -> list[dict[str, Any]]:
         """Insert rows into a PostgREST table."""
         self.require_configured()
-        headers = {**self.auth_headers(service_role=service_role), "Prefer": prefer}
         url = f"{self.config.url}/rest/v1/{table}"
         async with httpx.AsyncClient(timeout=30) as client:
-            response = await client.post(url, json=payload, headers=headers)
+            response = await self._request_with_auth(
+                client,
+                "post",
+                url,
+                service_role=service_role,
+                headers={"Prefer": prefer},
+                json=payload,
+            )
             response.raise_for_status()
             data = response.json() if response.content else []
             return data if isinstance(data, list) else [data]
@@ -115,12 +165,18 @@ class SupabaseClient:
     ) -> list[dict[str, Any]]:
         """Upsert rows into a PostgREST table."""
         self.require_configured()
-        headers = {**self.auth_headers(service_role=service_role), "Prefer": prefer}
         url = f"{self.config.url}/rest/v1/{table}"
         if on_conflict:
             url = f"{url}?on_conflict={on_conflict}"
         async with httpx.AsyncClient(timeout=30) as client:
-            response = await client.post(url, json=payload, headers=headers)
+            response = await self._request_with_auth(
+                client,
+                "post",
+                url,
+                service_role=service_role,
+                headers={"Prefer": prefer},
+                json=payload,
+            )
             response.raise_for_status()
             data = response.json() if response.content else []
             return data if isinstance(data, list) else [data]
@@ -136,10 +192,16 @@ class SupabaseClient:
     ) -> list[dict[str, Any]]:
         """Update rows in a PostgREST table."""
         self.require_configured()
-        headers = {**self.auth_headers(service_role=service_role), "Prefer": prefer}
         url = f"{self.config.url}/rest/v1/{table}?{query}"
         async with httpx.AsyncClient(timeout=30) as client:
-            response = await client.patch(url, json=payload, headers=headers)
+            response = await self._request_with_auth(
+                client,
+                "patch",
+                url,
+                service_role=service_role,
+                headers={"Prefer": prefer},
+                json=payload,
+            )
             response.raise_for_status()
             data = response.json() if response.content else []
             return data if isinstance(data, list) else [data]
@@ -154,10 +216,15 @@ class SupabaseClient:
     ) -> list[dict[str, Any]]:
         """Delete rows from a PostgREST table."""
         self.require_configured()
-        headers = {**self.auth_headers(service_role=service_role), "Prefer": prefer}
         url = f"{self.config.url}/rest/v1/{table}?{query}"
         async with httpx.AsyncClient(timeout=30) as client:
-            response = await client.delete(url, headers=headers)
+            response = await self._request_with_auth(
+                client,
+                "delete",
+                url,
+                service_role=service_role,
+                headers={"Prefer": prefer},
+            )
             response.raise_for_status()
             data = response.json() if response.content else []
             return data if isinstance(data, list) else [data]
@@ -173,10 +240,12 @@ class SupabaseClient:
         self.require_configured()
         url = f"{self.config.url}/rest/v1/rpc/{function_name}"
         async with httpx.AsyncClient(timeout=60) as client:
-            response = await client.post(
+            response = await self._request_with_auth(
+                client,
+                "post",
                 url,
+                service_role=service_role,
                 json=payload,
-                headers=self.auth_headers(service_role=service_role),
             )
             response.raise_for_status()
             if not response.content:
@@ -193,45 +262,48 @@ class SupabaseClient:
     ) -> None:
         """Upload an original document to Supabase Storage."""
         self.require_configured()
-        headers = {
-            **self.auth_headers(),
-            "Content-Type": content_type,
-            "x-upsert": "true" if upsert else "false",
-        }
         url = (
             f"{self.config.url}/storage/v1/object/"
             f"{self.config.storage_bucket}/{path.lstrip('/')}"
         )
         async with httpx.AsyncClient(timeout=120) as client:
-            response = await client.post(url, content=content, headers=headers)
+            response = await self._request_with_auth(
+                client,
+                "post",
+                url,
+                headers={
+                    "Content-Type": content_type,
+                    "x-upsert": "true" if upsert else "false",
+                },
+                content=content,
+            )
             response.raise_for_status()
 
     async def download_object(self, path: str) -> bytes:
         """Download an object from Supabase Storage."""
         self.require_configured()
-        headers = self.auth_headers()
         url = (
             f"{self.config.url}/storage/v1/object/"
             f"{self.config.storage_bucket}/{path.lstrip('/')}"
         )
         async with httpx.AsyncClient(timeout=120) as client:
-            response = await client.get(url, headers=headers)
+            response = await self._request_with_auth(client, "get", url)
             response.raise_for_status()
             return response.content
 
     async def delete_object(self, path: str) -> None:
         """Delete an original document from the configured private bucket."""
         self.require_configured()
-        headers = self.auth_headers()
         url = (
             f"{self.config.url}/storage/v1/object/"
             f"{self.config.storage_bucket}"
         )
         async with httpx.AsyncClient(timeout=120) as client:
-            response = await client.delete(
+            response = await self._request_with_auth(
+                client,
+                "delete",
                 url,
                 json={"prefixes": [path.lstrip("/")]},
-                headers=headers,
             )
             response.raise_for_status()
 

@@ -37,6 +37,61 @@ def test_legacy_service_role_key_remains_a_bearer_token() -> None:
     assert headers["Authorization"] == "Bearer legacy-service-role"
 
 
+@pytest.mark.asyncio
+async def test_service_role_requests_fall_back_to_legacy_key_after_rejected_secret(
+    monkeypatch,
+) -> None:
+    calls: list[dict] = []
+
+    class FakeResponse:
+        def __init__(self, status_code: int, payload: list[dict] | None = None) -> None:
+            self.status_code = status_code
+            self._payload = payload or []
+            self.content = b"[]" if payload is not None else b""
+            self.request = None
+
+        def raise_for_status(self) -> None:
+            if self.status_code >= 400:
+                raise AssertionError("The client should retry before surfacing 401")
+
+        def json(self):
+            return self._payload
+
+    class FakeAsyncClient:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *_args):
+            return None
+
+        async def get(self, url: str, **kwargs):
+            calls.append({"url": url, **kwargs})
+            if len(calls) == 1:
+                return FakeResponse(401)
+            return FakeResponse(200, [{"id": "profile-1"}])
+
+    monkeypatch.setattr(
+        "src.infrastructure.supabase_client.httpx.AsyncClient",
+        lambda **_kwargs: FakeAsyncClient(),
+    )
+    client = SupabaseClient(
+        Settings(
+            supabase_url="https://project.supabase.co",
+            supabase_anon_key="anon",
+            supabase_service_role_key="stale-secret",
+            supabase_legacy_service_role_key="valid-legacy-service-role",
+        )
+    )
+
+    rows = await client.table_select("profiles", query="select=id&limit=1")
+
+    assert rows == [{"id": "profile-1"}]
+    assert len(calls) == 2
+    assert calls[0]["headers"]["apikey"] == "stale-secret"
+    assert calls[1]["headers"]["apikey"] == "valid-legacy-service-role"
+    assert calls[1]["headers"]["Authorization"] == "Bearer valid-legacy-service-role"
+
+
 def test_public_key_in_service_role_slot_is_rejected() -> None:
     client = SupabaseClient(
         Settings(

@@ -400,6 +400,8 @@ export interface SystemStatusSettings {
   max_image_megapixels?: number;
   supabase_configured?: boolean;
   supabase_auth_configured?: boolean;
+  supabase_data_api_reachable?: boolean;
+  supabase_data_api_status?: string;
   auth_required?: boolean;
   anonymous_demo_enabled?: boolean;
   qdrant_configured?: boolean;

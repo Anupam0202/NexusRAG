@@ -55,8 +55,19 @@ export function Header() {
         const authSetupRequired =
           status.settings.anonymous_demo_enabled === false &&
           (!status.settings.supabase_configured || !status.settings.supabase_auth_configured);
+        const dataSetupRequired =
+          status.settings.anonymous_demo_enabled === false &&
+          status.settings.supabase_configured === true &&
+          status.settings.supabase_auth_configured === true &&
+          status.settings.supabase_data_api_reachable === false;
         if (!cancelled) {
-          store.setConnectionStatus(authSetupRequired ? "auth_setup_required" : "online");
+          store.setConnectionStatus(
+            authSetupRequired
+              ? "auth_setup_required"
+              : dataSetupRequired
+                ? "data_setup_required"
+                : "online"
+          );
         }
       } catch {
         if (!cancelled) store.setConnectionStatus("offline");
@@ -77,13 +88,18 @@ export function Header() {
       ? "Backend live"
       : store.connectionStatus === "auth_setup_required"
         ? "Auth setup required"
-      : store.connectionStatus === "reconnecting"
-        ? "Reconnecting"
-        : store.connectionStatus === "offline"
-          ? "Backend offline"
-          : "Checking";
+        : store.connectionStatus === "data_setup_required"
+          ? "Data setup required"
+          : store.connectionStatus === "reconnecting"
+            ? "Reconnecting"
+            : store.connectionStatus === "offline"
+              ? "Backend offline"
+              : "Checking";
   const connectionOnline = browserOnline && store.connectionStatus === "online";
-  const connectionNeedsSetup = browserOnline && store.connectionStatus === "auth_setup_required";
+  const connectionNeedsSetup =
+    browserOnline &&
+    (store.connectionStatus === "auth_setup_required" ||
+      store.connectionStatus === "data_setup_required");
 
   return (
     <header className="flex w-full min-w-0 items-center justify-between border-b border-white/10 dark:border-white/5 bg-white/70 dark:bg-[#0a0e1a]/70 backdrop-blur-xl px-4 sm:px-6 h-14 shrink-0 sticky top-0 z-30 shadow-[0_1px_3px_rgba(0,0,0,0.05)]">
