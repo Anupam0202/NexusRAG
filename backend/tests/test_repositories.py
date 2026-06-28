@@ -262,7 +262,9 @@ async def test_chunk_repository_replaces_chunks_with_workspace_scope() -> None:
     assert fake.calls[0][0] == "delete"
     assert "workspace_id=eq.workspace-1" in fake.calls[0][2]
     assert "document_id=eq.doc-1" in fake.calls[0][2]
+    assert fake.calls[1][0] == "upsert"
     assert fake.calls[1][1] == "document_chunks"
+    assert fake.calls[1][3]["on_conflict"] == "document_id,chunk_index"
 
 
 @pytest.mark.asyncio
