@@ -65,6 +65,7 @@ export function DocumentChunksExplorer({
   const countLabel = query.trim()
     ? `${total} matching chunk${total === 1 ? "" : "s"}`
     : `${total || expectedChunkCount} indexed chunk${(total || expectedChunkCount) === 1 ? "" : "s"}`;
+  const chunksNeedRefresh = !query.trim() && expectedChunkCount > 0 && total === 0;
 
   return (
     <div className={cn("space-y-3", className)}>
@@ -105,8 +106,14 @@ export function DocumentChunksExplorer({
       ) : chunks.length === 0 ? (
         <div className="flex flex-col items-center rounded-xl border border-[var(--border)] bg-[var(--bg-card)] py-12 text-center text-[var(--text-muted)]">
           <Layers3 size={32} className="mb-3 opacity-40" />
-          <p className="text-sm font-medium">No chunks matched</p>
-          <p className="mt-1 text-xs">Try a different search term or refresh the document.</p>
+          <p className="text-sm font-medium">
+            {chunksNeedRefresh ? "Chunk previews need refresh" : "No chunks matched"}
+          </p>
+          <p className="mt-1 max-w-md px-4 text-xs">
+            {chunksNeedRefresh
+              ? "This document is ready, but searchable chunk previews are not available yet. Use Re-index on the document details page to rebuild them."
+              : "Try a different search term or refresh the document."}
+          </p>
         </div>
       ) : (
         <div className="space-y-3">
