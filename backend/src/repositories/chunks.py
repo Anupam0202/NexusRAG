@@ -44,7 +44,11 @@ class ChunkRepository(SupabaseRepository):
             }
             for chunk in chunks
         ]
-        return await self._supabase.table_insert("document_chunks", payload)
+        return await self._supabase.table_upsert(
+            "document_chunks",
+            payload,
+            on_conflict="document_id,chunk_index",
+        )
 
     async def delete_document_chunks(self, *, workspace_id: str, document_id: str) -> int:
         rows = await self._supabase.table_delete(

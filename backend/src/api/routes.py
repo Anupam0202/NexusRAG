@@ -753,9 +753,13 @@ def _chunk_rows_from_documents(chunks: list[Document]) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
     for index, chunk in enumerate(chunks):
         metadata = dict(chunk.metadata or {})
-        chunk_index = _safe_int(metadata.get("chunk_index"), default=index)
+        original_chunk_index = _safe_int(metadata.get("chunk_index"), default=index)
+        chunk_index = index
         content = chunk.page_content or ""
         page_number_value = metadata.get("page_number") or metadata.get("page")
+        if original_chunk_index != chunk_index:
+            metadata.setdefault("original_chunk_index", original_chunk_index)
+        metadata["chunk_index"] = chunk_index
         rows.append(
             {
                 "chunk_index": chunk_index,

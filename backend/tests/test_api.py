@@ -12,6 +12,7 @@ from types import SimpleNamespace
 
 import pytest
 from fastapi.testclient import TestClient
+from langchain_core.documents import Document
 from pydantic import ValidationError
 
 from config.settings import Settings, get_settings
@@ -463,6 +464,19 @@ class TestAnalytics:
         filters = test_client.mock_chain.query.call_args.kwargs["retrieval_filters"]  # type: ignore[attr-defined]
         assert filters["uploaded_after_epoch"] < filters["uploaded_before_epoch"]
         assert filters["metadata"] == {"department": "finance"}
+
+    def test_chunk_rows_from_documents_are_sequential_for_reindex(self):
+        rows = routes._chunk_rows_from_documents(
+            [
+                Document(page_content="first", metadata={"chunk_index": 0}),
+                Document(page_content="second", metadata={"chunk_index": 0}),
+            ]
+        )
+
+        assert [row["chunk_index"] for row in rows] == [0, 1]
+        assert rows[0]["metadata"]["chunk_index"] == 0
+        assert rows[1]["metadata"]["chunk_index"] == 1
+        assert rows[1]["metadata"]["original_chunk_index"] == 0
 
     @pytest.mark.asyncio
     async def test_document_chunks_returns_durable_document_without_false_404(
