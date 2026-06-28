@@ -414,10 +414,20 @@ class TestRAGChain:
         result = chain.query(
             "What does the policy require?",
             workspace_id="workspace-a",
-            retrieval_filters={"document_ids": ["doc-alpha"], "min_page": 2},
+            retrieval_filters={
+                "document_ids": ["doc-alpha"],
+                "min_page": 2,
+                "uploaded_after_epoch": 1767225600,
+                "metadata": {"department": "finance"},
+            },
         )
 
-        assert calls[0]["filters"] == {"document_ids": ["doc-alpha"], "min_page": 2}
+        assert calls[0]["filters"] == {
+            "document_ids": ["doc-alpha"],
+            "min_page": 2,
+            "uploaded_after_epoch": 1767225600,
+            "metadata": {"department": "finance"},
+        }
         assert result["metadata"]["retrieval_scope"] == "documents"
         assert result["metadata"]["selected_document_ids"] == ["doc-alpha"]
         assert result["metadata"]["answerability"] == "answerable"

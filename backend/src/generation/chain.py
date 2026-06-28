@@ -219,6 +219,112 @@ class RAGChain:
         )
         return result
 
+    def answer_from_documents(
+        self,
+        question: str,
+        documents: list[Document],
+        *,
+        workspace_id: str | None = None,
+        conversation_history: list[dict[str, str]] | None = None,
+        retrieval_filters: dict[str, Any] | None = None,
+        query_type: str | QueryType = QueryType.SPECIFIC,
+        transformed_queries: list[str] | None = None,
+        k_used: int | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Generate an answer from a trusted, caller-supplied document set."""
+        t0 = time.perf_counter()
+        safe_q = InputSanitizer.sanitize_for_prompt(question)
+        scoped_workspace_id = normalize_workspace_id(workspace_id)
+        safe_filters = self._normalize_retrieval_filters(retrieval_filters)
+        safe_docs = self._with_inventory_context(
+            safe_q,
+            documents,
+            workspace_id=scoped_workspace_id,
+            retrieval_filters=safe_filters,
+        )
+
+        history_lines: list[str] = []
+        for item in conversation_history or []:
+            role = str(item.get("role") or "").strip().lower()
+            content = InputSanitizer.sanitize_for_prompt(str(item.get("content") or ""))
+            if role in {"user", "assistant"} and content:
+                history_lines.append(f"{role}: {content[:2000]}")
+        history_str = "\n".join(history_lines[-20:]) or "No previous conversation."
+        user_prompt = self._prompts.render_rag(
+            context=self._format_context(safe_docs),
+            history=history_str,
+            question=safe_q,
+        )
+        messages = [
+            SystemMessage(content=self._prompts.render_system()),
+            HumanMessage(content=user_prompt),
+        ]
+
+        generation_fallback = False
+        generation_error = ""
+        try:
+            answer = self._invoke_llm_messages(messages, workspace_id=scoped_workspace_id)
+        except Exception as exc:
+            generation_fallback = True
+            generation_error = getattr(exc, "message", str(exc))
+            logger.warning(
+                "durable_document_generation_fallback_used",
+                error=generation_error,
+            )
+            answer = self._build_extractive_fallback_answer(safe_docs, generation_error)
+
+        sources = self._build_sources(safe_docs)
+        confidence = self._estimate_confidence(safe_docs, answer)
+        quality = self._answer_quality_metadata(
+            docs=safe_docs,
+            sources=sources,
+            answer=answer,
+            confidence=confidence,
+            retrieval_filters=safe_filters,
+            workspace_id=scoped_workspace_id,
+        )
+        try:
+            query_type_value = (
+                query_type.value
+                if isinstance(query_type, QueryType)
+                else QueryType(str(query_type)).value
+            )
+        except ValueError:
+            query_type_value = QueryType.SPECIFIC.value
+
+        result: dict[str, Any] = {
+            "answer": answer,
+            "sources": sources,
+            "query_type": query_type_value,
+            "confidence": confidence,
+            "response_time_seconds": round(time.perf_counter() - t0, 3),
+            "metadata": {
+                **dict(metadata or {}),
+                "k_used": k_used or len(safe_docs),
+                "transformed_queries": transformed_queries or [safe_q],
+                "num_sources": len(safe_docs),
+                "model": self._model_name_safe(scoped_workspace_id),
+                "generation_fallback": generation_fallback,
+                "generation_error": generation_error,
+                "workspace_id": scoped_workspace_id,
+                "retrieval_filters": safe_filters,
+                **quality,
+            },
+        }
+        self._record_metric(
+            float(result["response_time_seconds"]),
+            float(result["confidence"]),
+        )
+        logger.info(
+            "durable_document_answer_complete",
+            query_type=query_type_value,
+            sources=len(safe_docs),
+            time_s=result["response_time_seconds"],
+            workspace_id=scoped_workspace_id,
+        )
+        return result
+
     # ══════════════════════════════════════════════════════════════════
     #  STREAMING QUERY (for WebSocket)
     # ══════════════════════════════════════════════════════════════════
@@ -527,6 +633,21 @@ class RAGChain:
         uploaded_by = str(filters.get("uploaded_by") or "").strip()
         if uploaded_by:
             normalized["uploaded_by"] = uploaded_by
+        for key in ("uploaded_after_epoch", "uploaded_before_epoch"):
+            try:
+                if filters.get(key) is not None:
+                    normalized[key] = int(filters[key])
+            except (TypeError, ValueError):
+                continue
+        raw_metadata = filters.get("metadata")
+        if isinstance(raw_metadata, dict):
+            metadata_filters = {
+                str(key): value
+                for key, value in raw_metadata.items()
+                if re.fullmatch(r"[A-Za-z0-9_.-]{1,64}", str(key))
+            }
+            if metadata_filters:
+                normalized["metadata"] = metadata_filters
         for key in ("min_page", "max_page"):
             try:
                 if filters.get(key) is not None:

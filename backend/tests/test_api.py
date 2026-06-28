@@ -8,14 +8,44 @@ from __future__ import annotations
 
 import os
 from datetime import UTC, datetime
+from types import SimpleNamespace
 
+import pytest
 from fastapi.testclient import TestClient
 from pydantic import ValidationError
 
-from config.settings import get_settings
+from config.settings import Settings, get_settings
+from src.api import routes
+from src.api.auth import CurrentUser, WorkspaceContext, WorkspaceRole
 from src.api.models import QueryRequest
 from src.api.websocket import _stream_retrieval_filters
 from src.generation.provider_keys import get_provider_key_manager
+
+
+def _enterprise_settings(**overrides) -> Settings:
+    base = {
+        "_env_file": None,
+        "enable_anonymous_demo": False,
+        "enforce_tenant_quotas": False,
+        "supabase_url": "https://example.supabase.co",
+        "supabase_anon_key": "anon-key",
+        "supabase_service_role_key": "sb_secret_test",
+    }
+    base.update(overrides)
+    return Settings(**base)
+
+
+def _workspace_context(workspace_id: str = "workspace-1") -> WorkspaceContext:
+    return WorkspaceContext(
+        workspace_id=workspace_id,
+        user=CurrentUser(
+            id="user-1",
+            email="user@example.com",
+            role="authenticated",
+            claims={},
+        ),
+        role=WorkspaceRole.OWNER,
+    )
 
 
 def _pdf_bytes(pages: int, *, with_text: bool) -> bytes:
@@ -433,6 +463,138 @@ class TestAnalytics:
         filters = test_client.mock_chain.query.call_args.kwargs["retrieval_filters"]  # type: ignore[attr-defined]
         assert filters["uploaded_after_epoch"] < filters["uploaded_before_epoch"]
         assert filters["metadata"] == {"department": "finance"}
+
+    @pytest.mark.asyncio
+    async def test_document_chunks_returns_durable_document_without_false_404(
+        self,
+        monkeypatch,
+    ):
+        class EmptyVectorStore:
+            def list_document_chunks(self, document_id: str, **_kwargs):
+                return {
+                    "document_id": document_id,
+                    "filename": document_id,
+                    "chunks": [],
+                    "total": 0,
+                }
+
+            def list_documents(self, **_kwargs):
+                return []
+
+        class EmptyChunkRepository:
+            async def list_for_document(self, **_kwargs):
+                return []
+
+        class ExistingDocumentRepository:
+            async def get_document(self, **_kwargs):
+                return {
+                    "id": "doc-1",
+                    "workspace_id": "workspace-1",
+                    "filename": "resume.pdf",
+                    "status": "ready",
+                    "chunk_count": 8,
+                }
+
+        monkeypatch.setattr(routes, "ChunkRepository", EmptyChunkRepository)
+        monkeypatch.setattr(routes, "DocumentRepository", ExistingDocumentRepository)
+
+        response = await routes.list_document_chunks(
+            "doc-1",
+            search=None,
+            limit=25,
+            workspace=_workspace_context(),
+            settings=_enterprise_settings(),
+            vs=EmptyVectorStore(),
+        )
+
+        assert response.document_id == "doc-1"
+        assert response.filename == "resume.pdf"
+        assert response.total == 0
+        assert response.chunks == []
+
+    @pytest.mark.asyncio
+    async def test_selected_document_chat_recovers_from_durable_chunks_when_vector_sources_empty(
+        self,
+        monkeypatch,
+    ):
+        class DurableChunkRepository:
+            async def list_for_document(self, **_kwargs):
+                return [
+                    {
+                        "chunk_index": 0,
+                        "content": "Anupam Roy is a data and AI engineer with RAG experience.",
+                        "page_number": 1,
+                        "token_count": 14,
+                        "metadata": {"section_title": "Profile"},
+                    }
+                ]
+
+        class ExistingDocumentRepository:
+            async def get_document(self, **_kwargs):
+                return {
+                    "id": "doc-1",
+                    "workspace_id": "workspace-1",
+                    "filename": "resume.pdf",
+                    "status": "ready",
+                    "chunk_count": 1,
+                }
+
+        class ChainWithoutVectorSources:
+            llm = SimpleNamespace(_router=None)
+
+            def query(self, *_args, **_kwargs):
+                return {
+                    "answer": "Based on the available documents, I don't have enough information.",
+                    "sources": [],
+                    "query_type": "summary",
+                    "confidence": 0.1,
+                    "response_time_seconds": 0.01,
+                    "metadata": {"model": "fake-model", "num_sources": 0},
+                }
+
+            def answer_from_documents(self, question, documents, **kwargs):
+                return {
+                    "answer": f"Recovered answer for {question}: {documents[0].page_content}",
+                    "sources": [
+                        {
+                            "content": documents[0].page_content,
+                            "filename": documents[0].metadata["filename"],
+                            "page_number": documents[0].metadata["page_number"],
+                            "chunk_index": documents[0].metadata["chunk_index"],
+                            "document_type": documents[0].metadata["document_type"],
+                            "relevance_score": documents[0].metadata["score"],
+                            "metadata": documents[0].metadata,
+                        }
+                    ],
+                    "query_type": "summary",
+                    "confidence": 0.55,
+                    "response_time_seconds": 0.02,
+                    "metadata": {
+                        "model": "fake-model",
+                        "num_sources": len(documents),
+                        "durable_chunk_fallback": True,
+                        "retrieval_filters": kwargs["retrieval_filters"],
+                    },
+                }
+
+        monkeypatch.setattr(routes, "ChunkRepository", DurableChunkRepository)
+        monkeypatch.setattr(routes, "DocumentRepository", ExistingDocumentRepository)
+
+        response = await routes.chat(
+            QueryRequest(
+                question="Summarize this document",
+                chat_scope="documents",
+                document_ids=["doc-1"],
+            ),
+            workspace=_workspace_context(),
+            settings=_enterprise_settings(),
+            chain=ChainWithoutVectorSources(),
+        )
+
+        assert "Recovered answer" in response.answer
+        assert response.sources
+        assert response.sources[0].filename == "resume.pdf"
+        assert response.metadata["durable_chunk_fallback"] is True
 
     def test_chat_rejects_when_daily_query_quota_exhausted(
         self, test_client: TestClient, monkeypatch

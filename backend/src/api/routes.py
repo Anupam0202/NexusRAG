@@ -549,6 +549,168 @@ def _row_to_document_metadata(row: dict[str, Any]) -> DocumentMetadata:
     )
 
 
+def _document_filename(row: dict[str, Any] | None, fallback: str) -> str:
+    if not row:
+        return fallback
+    return str(row.get("filename") or row.get("original_filename") or fallback)
+
+
+def _document_is_active(row: dict[str, Any] | None) -> bool:
+    return bool(row) and str(row.get("status") or "").lower() != "deleted"
+
+
+def _chunk_preview_from_row(row: dict[str, Any], *, default_index: int = 0) -> DocumentChunkPreview:
+    return DocumentChunkPreview(
+        chunk_index=_safe_int(row.get("chunk_index"), default=default_index),
+        content=str(row.get("content") or "")[:2000],
+        page_number=_safe_int(row.get("page_number"), default=0),
+        section_title=row.get("section_title") or (row.get("metadata") or {}).get("section_title"),
+        token_count=_safe_int(row.get("token_count"), default=0),
+        metadata=row.get("metadata") or {},
+    )
+
+
+def _row_uploaded_epoch(row: dict[str, Any]) -> int | None:
+    raw = row.get("created_at") or row.get("uploaded_at")
+    if isinstance(raw, datetime):
+        return int(raw.timestamp())
+    if isinstance(raw, str) and raw:
+        try:
+            return int(datetime.fromisoformat(raw.replace("Z", "+00:00")).timestamp())
+        except ValueError:
+            return None
+    return None
+
+
+def _chunk_row_matches_retrieval_filters(
+    row: dict[str, Any],
+    *,
+    document_row: dict[str, Any],
+    filters: dict[str, Any],
+) -> bool:
+    metadata = row.get("metadata") if isinstance(row.get("metadata"), dict) else {}
+    filename = _document_filename(document_row, fallback=str(row.get("document_id") or "document"))
+    file_type = Path(filename).suffix.lower().lstrip(".")
+    if filters.get("filename") and str(filters["filename"]) != filename:
+        return False
+    file_types = set(filters.get("file_types") or [])
+    if file_types and file_type not in file_types:
+        return False
+    uploaded_by = filters.get("uploaded_by")
+    if uploaded_by and str(metadata.get("uploaded_by") or "") != str(uploaded_by):
+        return False
+    uploaded_epoch = metadata.get("uploaded_at_epoch")
+    if uploaded_epoch is None:
+        uploaded_epoch = _row_uploaded_epoch(document_row)
+    uploaded_epoch_int = _safe_int(uploaded_epoch, default=0)
+    if filters.get("uploaded_after_epoch") is not None and uploaded_epoch_int:
+        if uploaded_epoch_int < int(filters["uploaded_after_epoch"]):
+            return False
+    if filters.get("uploaded_before_epoch") is not None and uploaded_epoch_int:
+        if uploaded_epoch_int > int(filters["uploaded_before_epoch"]):
+            return False
+    page_number = _safe_int(row.get("page_number"), default=0)
+    if filters.get("min_page") is not None and page_number < int(filters["min_page"]):
+        return False
+    if filters.get("max_page") is not None and page_number > int(filters["max_page"]):
+        return False
+    for key, value in (filters.get("metadata") or {}).items():
+        if metadata.get(key) != value:
+            return False
+    return True
+
+
+def _chunk_document_from_row(
+    row: dict[str, Any],
+    *,
+    document_row: dict[str, Any],
+    workspace_id: str,
+    default_index: int,
+) -> Document:
+    document_id = str(
+        document_row.get("id")
+        or document_row.get("document_id")
+        or row.get("document_id")
+    )
+    filename = _document_filename(document_row, fallback=document_id)
+    metadata = row.get("metadata") if isinstance(row.get("metadata"), dict) else {}
+    page_number = _safe_int(row.get("page_number"), default=0)
+    chunk_index = _safe_int(row.get("chunk_index"), default=default_index)
+    return Document(
+        page_content=str(row.get("content") or ""),
+        metadata={
+            **metadata,
+            "workspace_id": workspace_id,
+            "document_id": document_id,
+            "filename": filename,
+            "file_type": Path(filename).suffix.lower().lstrip("."),
+            "page_number": page_number,
+            "chunk_index": chunk_index,
+            "document_type": "durable_chunk",
+            "score": 0.55,
+        },
+    )
+
+
+async def _durable_chunk_documents_for_filters(
+    *,
+    workspace_id: str,
+    filters: dict[str, Any],
+    limit: int,
+) -> list[Document]:
+    document_ids = [
+        str(item).strip()
+        for item in (filters.get("document_ids") or [])
+        if str(item).strip()
+    ]
+    doc_repo = DocumentRepository()
+    if not document_ids and filters.get("filename"):
+        document_row = await doc_repo.find_by_filename(
+            workspace_id=workspace_id,
+            filename=str(filters["filename"]),
+        )
+        if document_row and _document_is_active(document_row):
+            document_ids = [str(document_row.get("id") or "")]
+
+    if not document_ids:
+        return []
+
+    safe_limit = max(1, min(limit, 50))
+    chunk_repo = ChunkRepository()
+    documents: list[Document] = []
+    for document_id in document_ids[:25]:
+        document_row = await doc_repo.get_document(
+            workspace_id=workspace_id,
+            document_id=document_id,
+        )
+        if not _document_is_active(document_row):
+            continue
+        rows = await chunk_repo.list_for_document(
+            workspace_id=workspace_id,
+            document_id=document_id,
+        )
+        for index, row in enumerate(rows):
+            if not str(row.get("content") or "").strip():
+                continue
+            if not _chunk_row_matches_retrieval_filters(
+                row,
+                document_row=document_row or {},
+                filters=filters,
+            ):
+                continue
+            documents.append(
+                _chunk_document_from_row(
+                    row,
+                    document_row=document_row or {},
+                    workspace_id=workspace_id,
+                    default_index=index,
+                )
+            )
+            if len(documents) >= safe_limit:
+                return documents
+    return documents
+
+
 def _row_to_job_response(
     row: dict[str, Any],
     *,
@@ -1590,29 +1752,17 @@ async def list_document_chunks(
             row for row in rows if not needle or needle in str(row.get("content") or "").lower()
         ]
         previews = [
-            DocumentChunkPreview(
-                chunk_index=_safe_int(row.get("chunk_index"), default=index),
-                content=str(row.get("content") or "")[:2000],
-                page_number=_safe_int(row.get("page_number"), default=0),
-                section_title=row.get("section_title"),
-                token_count=_safe_int(row.get("token_count"), default=0),
-                metadata=row.get("metadata") or {},
-            )
+            _chunk_preview_from_row(row, default_index=index)
             for index, row in enumerate(filtered_rows[:limit])
         ]
-        if previews or rows:
-            document_row = await DocumentRepository().get_document(
-                workspace_id=workspace_id,
-                document_id=document_id,
-            )
-            filename = (
-                str(document_row.get("filename"))
-                if document_row and document_row.get("filename")
-                else document_id
-            )
+        document_row = await DocumentRepository().get_document(
+            workspace_id=workspace_id,
+            document_id=document_id,
+        )
+        if previews or rows or _document_is_active(document_row):
             return DocumentChunkListResponse(
                 document_id=document_id,
-                filename=filename,
+                filename=_document_filename(document_row, fallback=document_id),
                 chunks=previews,
                 total=len(filtered_rows),
                 query=search,
@@ -1815,6 +1965,37 @@ async def chat(
             },
         )
         raise
+
+    if (
+        persist_event
+        and not result.get("sources")
+        and retrieval_filters
+        and any(key in retrieval_filters for key in ("document_ids", "filename"))
+    ):
+        durable_docs = await _durable_chunk_documents_for_filters(
+            workspace_id=workspace_id,
+            filters=retrieval_filters,
+            limit=max(5, min(body.top_k or settings.retrieval_top_k, 25)),
+        )
+        if durable_docs:
+            result = chain.answer_from_documents(
+                body.question,
+                durable_docs,
+                workspace_id=workspace_id,
+                conversation_history=history if history else None,
+                retrieval_filters=retrieval_filters,
+                query_type=result.get("query_type", "specific"),
+                transformed_queries=(
+                    (result.get("metadata") or {}).get("transformed_queries")
+                    or [body.question]
+                ),
+                k_used=len(durable_docs),
+                metadata={
+                    **dict(result.get("metadata", {}) or {}),
+                    "durable_chunk_fallback": True,
+                    "fallback_reason": "primary_vector_retrieval_empty",
+                },
+            )
 
     sources = [SourceChunk(**s) for s in result.get("sources", [])]
     metadata = dict(result.get("metadata", {}) or {})
