@@ -127,6 +127,7 @@ export default function AnalyticsPage() {
   const llmCalls = data?.llm_usage_events ?? data?.total_queries ?? 0;
   const auditEventCount = data?.audit_events ?? 0;
   const usageLatency = data?.usage_avg_latency_ms ?? 0;
+  const indexedChunkCount = data?.total_chunks ?? health?.total_chunks;
   const lastActivity = data?.last_activity_at
     ? new Intl.DateTimeFormat(undefined, {
         month: "short",
@@ -198,8 +199,8 @@ export default function AnalyticsPage() {
               <Activity size={18} />
               <h3 className="font-semibold">System Status</h3>
             </div>
-            {health && (
-              <span className="text-xs opacity-70 font-mono">{health.total_chunks} chunks indexed</span>
+            {indexedChunkCount !== undefined && (
+              <span className="text-xs opacity-70 font-mono">{indexedChunkCount} chunks indexed</span>
             )}
           </div>
           <div className="flex items-center gap-2 text-sm">
