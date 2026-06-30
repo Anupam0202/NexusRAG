@@ -89,7 +89,11 @@ export function MessageBubble({ message, onShowSources }: Props) {
             {!message.isStreaming && lowConfidence && (
               <div className="mt-3 flex gap-2 rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-800 dark:border-amber-800/70 dark:bg-amber-950/30 dark:text-amber-200">
                 <AlertTriangle size={14} className="mt-0.5 shrink-0" />
-                <span>Low confidence answer. Check the attached sources before using it.</span>
+                <span>
+                  {hasSources
+                    ? "Low confidence answer. Review the attached sources before using it."
+                    : "Low confidence answer. No matching source chunks were found."}
+                </span>
               </div>
             )}
 

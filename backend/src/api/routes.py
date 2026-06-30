@@ -586,6 +586,42 @@ def _document_is_active(row: dict[str, Any] | None) -> bool:
     return bool(row) and str(row.get("status") or "").lower() != "deleted"
 
 
+def _document_is_retrievable(row: dict[str, Any] | None) -> bool:
+    if not _document_is_active(row):
+        return False
+    status = str((row or {}).get("status") or DocumentStatus.READY.value).lower()
+    return status in {DocumentStatus.READY.value, "indexed"}
+
+
+def _document_row_matches_retrieval_filters(
+    row: dict[str, Any],
+    *,
+    filters: dict[str, Any],
+) -> bool:
+    filename = _document_filename(row, fallback=str(row.get("id") or "document"))
+    file_type = Path(filename).suffix.lower().lstrip(".")
+    if filters.get("filename") and str(filters["filename"]) != filename:
+        return False
+    file_types = set(filters.get("file_types") or [])
+    if file_types and file_type not in file_types:
+        return False
+    uploaded_by = filters.get("uploaded_by")
+    if uploaded_by and str(row.get("uploaded_by") or "") != str(uploaded_by):
+        return False
+    uploaded_epoch = _row_uploaded_epoch(row)
+    if filters.get("uploaded_after_epoch") is not None and uploaded_epoch:
+        if uploaded_epoch < int(filters["uploaded_after_epoch"]):
+            return False
+    if filters.get("uploaded_before_epoch") is not None and uploaded_epoch:
+        if uploaded_epoch > int(filters["uploaded_before_epoch"]):
+            return False
+    metadata = row.get("metadata") if isinstance(row.get("metadata"), dict) else {}
+    for key, value in (filters.get("metadata") or {}).items():
+        if metadata.get(key) != value:
+            return False
+    return True
+
+
 def _chunk_preview_from_row(row: dict[str, Any], *, default_index: int = 0) -> DocumentChunkPreview:
     return DocumentChunkPreview(
         chunk_index=_safe_int(row.get("chunk_index"), default=default_index),
@@ -624,7 +660,8 @@ def _chunk_row_matches_retrieval_filters(
     if file_types and file_type not in file_types:
         return False
     uploaded_by = filters.get("uploaded_by")
-    if uploaded_by and str(metadata.get("uploaded_by") or "") != str(uploaded_by):
+    row_uploaded_by = metadata.get("uploaded_by") or document_row.get("uploaded_by")
+    if uploaded_by and str(row_uploaded_by or "") != str(uploaded_by):
         return False
     uploaded_epoch = metadata.get("uploaded_at_epoch")
     if uploaded_epoch is None:
@@ -684,6 +721,7 @@ async def _durable_chunk_documents_for_filters(
     workspace_id: str,
     filters: dict[str, Any],
     limit: int,
+    query: str | None = None,
 ) -> list[Document]:
     document_ids = [
         str(item).strip()
@@ -691,26 +729,45 @@ async def _durable_chunk_documents_for_filters(
         if str(item).strip()
     ]
     doc_repo = DocumentRepository()
+    document_rows: list[dict[str, Any]] = []
     if not document_ids and filters.get("filename"):
         document_row = await doc_repo.find_by_filename(
             workspace_id=workspace_id,
             filename=str(filters["filename"]),
         )
-        if document_row and _document_is_active(document_row):
-            document_ids = [str(document_row.get("id") or "")]
+        if (
+            document_row
+            and _document_is_retrievable(document_row)
+            and _document_row_matches_retrieval_filters(document_row, filters=filters)
+        ):
+            document_rows = [document_row]
 
-    if not document_ids:
-        return []
+    if document_ids:
+        for document_id in document_ids[:25]:
+            document_row = await doc_repo.get_document(
+                workspace_id=workspace_id,
+                document_id=document_id,
+            )
+            if (
+                _document_is_retrievable(document_row)
+                and _document_row_matches_retrieval_filters(document_row or {}, filters=filters)
+            ):
+                document_rows.append(document_row or {})
+    elif not document_rows:
+        rows = await doc_repo.list_documents(workspace_id=workspace_id)
+        document_rows = [
+            row
+            for row in rows
+            if _document_is_retrievable(row)
+            and _document_row_matches_retrieval_filters(row, filters=filters)
+        ]
 
     safe_limit = max(1, min(limit, 50))
     chunk_repo = ChunkRepository()
     documents: list[Document] = []
-    for document_id in document_ids[:25]:
-        document_row = await doc_repo.get_document(
-            workspace_id=workspace_id,
-            document_id=document_id,
-        )
-        if not _document_is_active(document_row):
+    for document_row in document_rows[:25]:
+        document_id = str(document_row.get("id") or document_row.get("document_id") or "")
+        if not document_id:
             continue
         rows = await chunk_repo.list_for_document(
             workspace_id=workspace_id,
@@ -734,8 +791,121 @@ async def _durable_chunk_documents_for_filters(
                 )
             )
             if len(documents) >= safe_limit:
-                return documents
-    return documents
+                return _rank_durable_chunk_documents(documents, query=query)
+    return _rank_durable_chunk_documents(documents, query=query)
+
+
+def _rank_durable_chunk_documents(
+    documents: list[Document],
+    *,
+    query: str | None,
+) -> list[Document]:
+    if not documents or not query:
+        return documents
+    query_terms = {
+        term
+        for term in re.findall(r"[a-z0-9]{3,}", query.lower())
+        if term
+        not in {
+            "about",
+            "after",
+            "also",
+            "and",
+            "are",
+            "can",
+            "does",
+            "for",
+            "from",
+            "have",
+            "how",
+            "into",
+            "show",
+            "summarize",
+            "summary",
+            "tell",
+            "the",
+            "this",
+            "what",
+            "when",
+            "where",
+            "which",
+            "with",
+            "your",
+        }
+    }
+    if not query_terms:
+        return documents
+
+    scored: list[tuple[int, int, Document]] = []
+    any_match = False
+    for index, document in enumerate(documents):
+        haystack = " ".join(
+            [
+                str(document.page_content or ""),
+                str(document.metadata.get("filename") or ""),
+                str(document.metadata.get("section_title") or ""),
+            ]
+        ).lower()
+        overlap = sum(1 for term in query_terms if term in haystack)
+        any_match = any_match or overlap > 0
+        if overlap:
+            document.metadata["score"] = min(0.9, 0.45 + overlap * 0.1)
+        scored.append((overlap, -index, document))
+
+    if not any_match:
+        return documents
+    return [document for _, _, document in sorted(scored, reverse=True)]
+
+
+async def query_chat_with_durable_fallback(
+    *,
+    chain: RAGChain,
+    question: str,
+    workspace_id: str,
+    session_id: str | None,
+    conversation_history: list[dict[str, str]] | None,
+    top_k: int | None,
+    use_reranking: bool | None,
+    retrieval_filters: dict[str, Any],
+    persist_event: bool,
+    settings: Settings,
+) -> dict[str, Any]:
+    result = chain.query(
+        question,
+        workspace_id=workspace_id,
+        session_id=session_id,
+        conversation_history=conversation_history,
+        top_k=top_k,
+        use_reranking=use_reranking,
+        retrieval_filters=retrieval_filters or None,
+    )
+    if persist_event and not result.get("sources"):
+        durable_docs = await _durable_chunk_documents_for_filters(
+            workspace_id=workspace_id,
+            filters=retrieval_filters,
+            limit=max(5, min(top_k or settings.retrieval_top_k, 25)),
+            query=question,
+        )
+        if durable_docs:
+            result = chain.answer_from_documents(
+                question,
+                durable_docs,
+                workspace_id=workspace_id,
+                conversation_history=conversation_history,
+                retrieval_filters=retrieval_filters,
+                query_type=result.get("query_type", "specific"),
+                transformed_queries=(
+                    (result.get("metadata") or {}).get("transformed_queries")
+                    or [question]
+                ),
+                k_used=len(durable_docs),
+                metadata={
+                    **dict(result.get("metadata", {}) or {}),
+                    "durable_chunk_fallback": True,
+                    "fallback_reason": "primary_vector_retrieval_empty",
+                },
+            )
+    return result
 
 
 def _row_to_job_response(
@@ -1952,14 +2122,17 @@ async def chat(
         raise HTTPException(status_code=429, detail=str(exc)) from exc
 
     try:
-        result = chain.query(
-            body.question,
+        result = await query_chat_with_durable_fallback(
+            chain=chain,
+            question=body.question,
             workspace_id=workspace_id,
             session_id=body.session_id,
             conversation_history=history if history else None,
             top_k=body.top_k,
             use_reranking=body.use_reranking,
-            retrieval_filters=retrieval_filters or None,
+            retrieval_filters=retrieval_filters,
+            persist_event=persist_event,
+            settings=settings,
         )
     except Exception as exc:
         await telemetry.record_llm_usage(
@@ -1996,37 +2169,6 @@ async def chat(
             },
         )
         raise
-
-    if (
-        persist_event
-        and not result.get("sources")
-        and retrieval_filters
-        and any(key in retrieval_filters for key in ("document_ids", "filename"))
-    ):
-        durable_docs = await _durable_chunk_documents_for_filters(
-            workspace_id=workspace_id,
-            filters=retrieval_filters,
-            limit=max(5, min(body.top_k or settings.retrieval_top_k, 25)),
-        )
-        if durable_docs:
-            result = chain.answer_from_documents(
-                body.question,
-                durable_docs,
-                workspace_id=workspace_id,
-                conversation_history=history if history else None,
-                retrieval_filters=retrieval_filters,
-                query_type=result.get("query_type", "specific"),
-                transformed_queries=(
-                    (result.get("metadata") or {}).get("transformed_queries")
-                    or [body.question]
-                ),
-                k_used=len(durable_docs),
-                metadata={
-                    **dict(result.get("metadata", {}) or {}),
-                    "durable_chunk_fallback": True,
-                    "fallback_reason": "primary_vector_retrieval_empty",
-                },
-            )
 
     sources = [SourceChunk(**s) for s in result.get("sources", [])]
     metadata = dict(result.get("metadata", {}) or {})
