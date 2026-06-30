@@ -434,6 +434,24 @@ class TestRAGChain:
         assert result["metadata"]["source_quote_coverage"] > 0
         assert result["metadata"]["citation_coverage"] == 1.0
 
+    def test_insufficient_context_answer_keeps_low_confidence_with_sources(self):
+        docs = [
+            Document(
+                page_content="Anupam Roy is a data engineer with Python and RAG experience.",
+                metadata={"filename": "resume.pdf", "score": 0.82},
+            )
+        ]
+
+        confidence = RAGChain._estimate_confidence(
+            docs,
+            (
+                "Based on the available documents, I don't have enough information "
+                "to summarize a cover letter."
+            ),
+        )
+
+        assert confidence <= 0.3
+
     def test_source_verification_cache_is_workspace_scoped_and_clearable(self):
         chain = RAGChain(
             vector_store=SimpleNamespace(),

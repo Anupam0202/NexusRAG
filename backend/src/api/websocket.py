@@ -36,6 +36,7 @@ from src.api.auth import (
 )
 from src.api.dependencies import get_rag_chain
 from src.api.models import QueryRequest
+from src.api.routes import query_chat_with_durable_fallback
 from src.infrastructure.supabase_client import get_supabase_client
 from src.repositories.messages import MessageRepository
 from src.repositories.provider_health import persist_provider_health_snapshot
@@ -337,23 +338,33 @@ async def chat_stream(ws: WebSocket) -> None:
                     quota_usage,
                     estimated_tokens=estimated_input_tokens,
                 )
-                async for frame in chain.stream(
-                    question,
+                result = await query_chat_with_durable_fallback(
+                    chain=chain,
+                    question=question,
                     workspace_id=workspace_id,
                     session_id=session_id,
                     conversation_history=history_dicts or None,
                     top_k=body.top_k,
                     use_reranking=body.use_reranking,
-                    retrieval_filters=retrieval_filters or None,
+                    retrieval_filters=retrieval_filters,
+                    persist_event=persist_event,
+                    settings=settings,
+                )
+                answer = str(result.get("answer") or "")
+                answer_parts.append(answer)
+                sources_payload = list(result.get("sources") or [])
+                sources_count = len(sources_payload)
+                done_metadata = {
+                    **dict(result.get("metadata", {}) or {}),
+                    "query_type": result.get("query_type", "general"),
+                    "confidence": result.get("confidence", 0.0),
+                    "response_time_seconds": result.get("response_time_seconds", 0.0),
+                }
+                for frame in (
+                    {"type": "token", "content": answer},
+                    {"type": "sources", "sources": sources_payload},
+                    {"type": "done", "metadata": done_metadata},
                 ):
-                    if frame.get("type") == "token":
-                        answer_parts.append(str(frame.get("content", "")))
-                    elif frame.get("type") == "sources":
-                        raw_sources = frame.get("sources", []) or []
-                        sources_payload = raw_sources if isinstance(raw_sources, list) else []
-                        sources_count = len(sources_payload)
-                    elif frame.get("type") == "done":
-                        done_metadata = dict(frame.get("metadata", {}) or {})
                     if not await _safe_send(ws, frame):
                         # Client disconnected mid-stream — stop generating
                         logger.info("client_disconnected_mid_stream")

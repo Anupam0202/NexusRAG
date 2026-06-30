@@ -792,6 +792,27 @@ class RAGChain:
             parts.append("")
         return "\n".join(parts).strip()
 
+    @staticmethod
+    def _answer_indicates_insufficient_context(answer: str) -> bool:
+        text = answer.lower()
+        return any(
+            phrase in text
+            for phrase in (
+                "don't have enough information",
+                "do not have enough information",
+                "not enough information",
+                "insufficient information",
+                "insufficient context",
+                "no relevant context",
+                "no context",
+                "not provided in the context",
+                "not found in the provided",
+                "cannot determine",
+                "can't determine",
+                "unable to determine",
+            )
+        )
+
     def _invoke_llm_messages(self, messages: list, *, workspace_id: str) -> str:
         try:
             return self._llm.invoke_messages(messages, workspace_id=workspace_id)
@@ -832,6 +853,9 @@ class RAGChain:
             score_component = 0.6 * top_score + 0.4 * avg_score
         else:
             score_component = min(0.3 + len(docs) * 0.05, 0.6)
+
+        if RAGChain._answer_indicates_insufficient_context(answer):
+            return round(min(score_component, 0.3), 3)
 
         # Answer quality signals
         answer_bonus = 0.0

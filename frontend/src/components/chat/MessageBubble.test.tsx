@@ -26,6 +26,17 @@ describe("MessageBubble", () => {
       content: "The answer may need source verification.",
       timestamp: "2026-06-02T00:00:00.000Z",
       confidence: 0.24,
+      sources: [
+        {
+          content: "Source excerpt",
+          filename: "resume.pdf",
+          page_number: 1,
+          chunk_index: 0,
+          relevance_score: 0.5,
+          document_type: "durable_chunk",
+          metadata: {},
+        },
+      ],
       metadata: {
         answerability: "low_confidence",
         low_confidence: true,
@@ -35,8 +46,28 @@ describe("MessageBubble", () => {
 
     render(<MessageBubble message={message} />);
 
-    expect(screen.getByText(/low confidence answer/i)).toBeInTheDocument();
+    expect(screen.getByText(/review the attached sources/i)).toBeInTheDocument();
     expect(screen.getByText("low_confidence")).toBeInTheDocument();
     expect(screen.getByText("25% quotes")).toBeInTheDocument();
+  });
+
+  it("does not reference attached sources when none were returned", () => {
+    const message: UIMessage = {
+      id: "assistant-1",
+      role: "assistant",
+      content: "No matching answer was found.",
+      timestamp: "2026-06-02T00:00:00.000Z",
+      confidence: 0.1,
+      sources: [],
+      metadata: {
+        answerability: "no_sources",
+        low_confidence: true,
+      },
+    };
+
+    render(<MessageBubble message={message} />);
+
+    expect(screen.getByText(/no matching source chunks were found/i)).toBeInTheDocument();
+    expect(screen.queryByText(/attached sources/i)).not.toBeInTheDocument();
   });
 });
