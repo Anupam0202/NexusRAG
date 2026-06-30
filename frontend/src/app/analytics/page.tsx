@@ -16,7 +16,7 @@ import {
 const AUTO_REFRESH_SECONDS = 30;
 
 export default function AnalyticsPage() {
-  const { authMode, canAccessWorkspaceApi } = useWorkspaceApiAccess();
+  const { authMode, canAccessWorkspaceApi, isWorkspaceLoading } = useWorkspaceApiAccess();
   const [data, setData] = useState<AnalyticsSummary | null>(null);
   const [auditEvents, setAuditEvents] = useState<AuditEvent[]>([]);
   const [auditStorage, setAuditStorage] = useState<"memory" | "supabase">("memory");
@@ -28,6 +28,10 @@ export default function AnalyticsPage() {
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const load = useCallback(async (signal?: AbortSignal) => {
+    if (isWorkspaceLoading) {
+      setLoading(true);
+      return;
+    }
     if (!canAccessWorkspaceApi) {
       setLoading(false);
       return;
@@ -57,10 +61,14 @@ export default function AnalyticsPage() {
         setLoading(false);
       }
     }
-  }, [canAccessWorkspaceApi]);
+  }, [canAccessWorkspaceApi, isWorkspaceLoading]);
 
   // Initial load
   useEffect(() => {
+    if (isWorkspaceLoading) {
+      setLoading(true);
+      return;
+    }
     if (!canAccessWorkspaceApi) {
       setLoading(false);
       return;
@@ -68,11 +76,11 @@ export default function AnalyticsPage() {
     const ctrl = new AbortController();
     load(ctrl.signal);
     return () => ctrl.abort();
-  }, [canAccessWorkspaceApi, load]);
+  }, [canAccessWorkspaceApi, isWorkspaceLoading, load]);
 
   // Auto-refresh every 30 s with visible countdown
   useEffect(() => {
-    if (!canAccessWorkspaceApi) return;
+    if (!canAccessWorkspaceApi || isWorkspaceLoading) return;
     countdownRef.current = setInterval(() => {
       setCountdown((c) => {
         if (c <= 1) {
@@ -85,7 +93,7 @@ export default function AnalyticsPage() {
     return () => {
       if (countdownRef.current) clearInterval(countdownRef.current);
     };
-  }, [canAccessWorkspaceApi, load]);
+  }, [canAccessWorkspaceApi, isWorkspaceLoading, load]);
 
   const handleRefresh = () => {
     setCountdown(AUTO_REFRESH_SECONDS);

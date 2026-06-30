@@ -13,7 +13,7 @@ dependencies = [
     "pydantic>=2.7.0",
     "pydantic-settings>=2.14.2",
     "python-dotenv>=1.0.1",
-    "python-multipart>=0.0.27",
+    "python-multipart>=0.0.31",
     "websockets>=12.0",
 
     # ── LangChain ──────────────────────────────────
@@ -23,6 +23,8 @@ dependencies = [
     "langchain-google-genai>=4.2.4",
     "langchain-huggingface>=1.2.2",
     "langchain-text-splitters>=1.1.2",
+    "langgraph-checkpoint>=4.1.1",
+    "langgraph-sdk>=0.3.15",
     "langsmith>=0.8.18",
 
     # ── Embeddings & Vector Store ──────────────────
