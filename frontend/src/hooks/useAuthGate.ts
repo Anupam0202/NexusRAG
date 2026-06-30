@@ -8,9 +8,13 @@ export function canUseWorkspaceApi(authMode: AuthMode) {
 
 export function useWorkspaceApiAccess() {
   const authMode = useStore((state) => state.authMode);
+  const workspaceId = useStore((state) => state.workspaceId);
+  const isWorkspaceLoading = authMode === "authenticated" && !workspaceId;
   return {
     authMode,
+    workspaceId,
     canAccessWorkspaceApi: canUseWorkspaceApi(authMode),
+    isWorkspaceLoading,
     isAuthLoading: authMode === "loading",
     isSignedOut: authMode === "signed_out",
   };

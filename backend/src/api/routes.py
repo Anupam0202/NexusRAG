@@ -327,6 +327,33 @@ async def _quota_payload(
     return enforcer.payload(usage)
 
 
+async def _workspace_chunk_count(
+    *,
+    workspace: WorkspaceContext | None,
+    settings: Settings,
+    workspace_id: str,
+    documents: list[dict[str, Any]],
+    vs: VectorStoreManager,
+) -> int:
+    """Return the best workspace chunk count across durable and vector stores."""
+    candidates = [
+        vs.count_chunks(workspace_id=workspace_id),
+        sum(_safe_int(doc.get("chunk_count")) for doc in documents),
+    ]
+    if _should_persist_workspace_event(workspace, settings):
+        try:
+            candidates.append(
+                await ChunkRepository().count_for_workspace(workspace_id=workspace_id)
+            )
+        except Exception as exc:
+            logger.warning(
+                "analytics_chunk_count_failed",
+                workspace_id=workspace_id,
+                error=str(exc)[:300],
+            )
+    return max(candidates)
+
+
 def _valid_chat_session_id(session_id: str | None) -> str | None:
     if not session_id:
         return str(uuid.uuid4())
@@ -2852,9 +2879,16 @@ async def analytics_summary(
     avg_response_time = metrics.get("avg_response_time", 0.0)
     if not avg_response_time and telemetry_summary.get("usage_avg_latency_ms", 0):
         avg_response_time = round(telemetry_summary["usage_avg_latency_ms"] / 1000, 3)
+    total_chunks = await _workspace_chunk_count(
+        workspace=workspace,
+        settings=settings_instance,
+        workspace_id=workspace_id,
+        documents=docs,
+        vs=vs,
+    )
     return AnalyticsSummary(
         total_documents=len(docs),
-        total_chunks=vs.count_chunks(workspace_id=workspace_id),
+        total_chunks=total_chunks,
         total_queries=total_queries,
         avg_response_time=avg_response_time,
         avg_confidence=metrics.get("avg_confidence", 0.0),

@@ -381,6 +381,59 @@ class TestAnalytics:
         assert "audit_events" in data
         assert "last_activity_at" in data
 
+    @pytest.mark.asyncio
+    async def test_analytics_summary_prefers_durable_chunk_count(
+        self,
+        monkeypatch,
+    ):
+        class StaleVectorStore:
+            def count_chunks(self, *, workspace_id: str):
+                assert workspace_id == "workspace-1"
+                return 0
+
+            def list_documents(self, **_kwargs):
+                return []
+
+        class DurableChunkRepository:
+            async def count_for_workspace(self, *, workspace_id: str):
+                assert workspace_id == "workspace-1"
+                return 8
+
+        class DurableDocumentRepository:
+            async def list_documents(self, *, workspace_id: str):
+                assert workspace_id == "workspace-1"
+                return [
+                    {
+                        "id": "doc-1",
+                        "filename": "resume.pdf",
+                        "file_size_bytes": 4900,
+                        "chunk_count": 8,
+                        "status": "ready",
+                    }
+                ]
+
+        class EmptyTelemetryRecorder:
+            async def analytics_summary(self, **_kwargs):
+                return {}
+
+        monkeypatch.setattr(routes, "ChunkRepository", DurableChunkRepository)
+        monkeypatch.setattr(routes, "DocumentRepository", DurableDocumentRepository)
+        monkeypatch.setattr(
+            routes,
+            "get_telemetry_recorder",
+            lambda: EmptyTelemetryRecorder(),
+        )
+        monkeypatch.setattr(routes, "get_settings", lambda: _enterprise_settings())
+
+        summary = await routes.analytics_summary(
+            workspace=_workspace_context(),
+            vs=StaleVectorStore(),
+        )
+
+        assert summary.total_documents == 1
+        assert summary.total_chunks == 8
+        assert summary.quota["usage"]["documents"] == 1
+
     def test_chat_records_workspace_usage_and_audit(self, test_client: TestClient):
         test_client.mock_chain.query.return_value = {  # type: ignore[attr-defined]
             "answer": "Telemetry is being recorded.",

@@ -17,7 +17,7 @@ import type {
 const FREE_WORKSPACE_TOKEN_BUDGET = 250_000;
 
 export default function BillingOrUsagePage() {
-  const { authMode, canAccessWorkspaceApi } = useWorkspaceApiAccess();
+  const { authMode, canAccessWorkspaceApi, isWorkspaceLoading } = useWorkspaceApiAccess();
   const [analytics, setAnalytics] = useState<AnalyticsSummary | null>(null);
   const [status, setStatus] = useState<SystemStatusResponse | null>(null);
   const [keyStatus, setKeyStatus] = useState<ApiKeyStatusResponse | null>(null);
@@ -26,6 +26,10 @@ export default function BillingOrUsagePage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (isWorkspaceLoading) {
+      setLoading(true);
+      return;
+    }
     if (!canAccessWorkspaceApi) {
       setLoading(false);
       return;
@@ -54,7 +58,7 @@ export default function BillingOrUsagePage() {
     return () => {
       cancelled = true;
     };
-  }, [canAccessWorkspaceApi]);
+  }, [canAccessWorkspaceApi, isWorkspaceLoading]);
 
   const totalTokens = analytics?.llm_total_tokens ?? 0;
   const tokensToday = analytics?.usage_tokens_today ?? totalTokens;

@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { getAnalytics, getAuditEvents, getSystemStatus, healthCheck } = vi.hoisted(() => ({
@@ -7,12 +7,16 @@ const { getAnalytics, getAuditEvents, getSystemStatus, healthCheck } = vi.hoiste
   getSystemStatus: vi.fn(),
   healthCheck: vi.fn(),
 }));
-
-vi.mock("@/hooks/useAuthGate", () => ({
-  useWorkspaceApiAccess: () => ({
+const workspaceAccess = vi.hoisted(() => ({
+  value: {
     authMode: "authenticated",
     canAccessWorkspaceApi: true,
-  }),
+    isWorkspaceLoading: false,
+  },
+}));
+
+vi.mock("@/hooks/useAuthGate", () => ({
+  useWorkspaceApiAccess: () => workspaceAccess.value,
 }));
 
 vi.mock("@/lib/api", () => ({
@@ -30,6 +34,11 @@ describe("AnalyticsPage", () => {
     getAuditEvents.mockReset();
     getSystemStatus.mockReset();
     healthCheck.mockReset();
+    workspaceAccess.value = {
+      authMode: "authenticated",
+      canAccessWorkspaceApi: true,
+      isWorkspaceLoading: false,
+    };
 
     getAnalytics.mockResolvedValue({
       total_documents: 1,
@@ -84,5 +93,21 @@ describe("AnalyticsPage", () => {
 
     expect(await screen.findByText("8 chunks indexed")).toBeInTheDocument();
     expect(screen.queryByText("0 chunks indexed")).not.toBeInTheDocument();
+  });
+
+  it("waits for workspace hydration before requesting workspace analytics", async () => {
+    workspaceAccess.value = {
+      authMode: "authenticated",
+      canAccessWorkspaceApi: true,
+      isWorkspaceLoading: true,
+    };
+
+    render(<AnalyticsPage />);
+
+    expect(screen.getByText(/Checking/)).toBeInTheDocument();
+    await waitFor(() => {
+      expect(getAnalytics).not.toHaveBeenCalled();
+      expect(getSystemStatus).not.toHaveBeenCalled();
+    });
   });
 });
