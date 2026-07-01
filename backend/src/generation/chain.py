@@ -138,10 +138,12 @@ class RAGChain:
         )
 
         # Build prompt
+        answer_question = self._answer_question_for_prompt(safe_q, retrieval)
         context_str = self._format_context(docs)
-        history_str = memory.get_formatted_history()
         user_prompt = self._prompts.render_rag(
-            context=context_str, history=history_str, question=safe_q
+            context=context_str,
+            history=self._answer_history_notice(),
+            question=answer_question,
         )
 
         messages = [
@@ -244,17 +246,14 @@ class RAGChain:
             retrieval_filters=safe_filters,
         )
 
-        history_lines: list[str] = []
-        for item in conversation_history or []:
-            role = str(item.get("role") or "").strip().lower()
-            content = InputSanitizer.sanitize_for_prompt(str(item.get("content") or ""))
-            if role in {"user", "assistant"} and content:
-                history_lines.append(f"{role}: {content[:2000]}")
-        history_str = "\n".join(history_lines[-20:]) or "No previous conversation."
+        answer_question = self._answer_question_for_prompt(
+            safe_q,
+            {"transformed_queries": transformed_queries or []},
+        )
         user_prompt = self._prompts.render_rag(
             context=self._format_context(safe_docs),
-            history=history_str,
-            question=safe_q,
+            history=self._answer_history_notice(),
+            question=answer_question,
         )
         messages = [
             SystemMessage(content=self._prompts.render_system()),
@@ -391,10 +390,12 @@ class RAGChain:
         )
 
         # Build prompt
+        answer_question = self._answer_question_for_prompt(safe_q, retrieval)
         context_str = self._format_context(docs)
-        history_str = memory.get_formatted_history()
         user_prompt = self._prompts.render_rag(
-            context=context_str, history=history_str, question=safe_q
+            context=context_str,
+            history=self._answer_history_notice(),
+            question=answer_question,
         )
         messages = [
             SystemMessage(content=self._prompts.render_system()),
@@ -662,6 +663,22 @@ class RAGChain:
         if not normalized:
             return "workspace"
         return "filtered:" + json.dumps(normalized, sort_keys=True, separators=(",", ":"))
+
+    @staticmethod
+    def _answer_history_notice() -> str:
+        return (
+            "Conversation history is intentionally excluded from answer generation. "
+            "It may be used only before retrieval to clarify the search query; the "
+            "context documents are the only evidence."
+        )
+
+    @staticmethod
+    def _answer_question_for_prompt(question: str, retrieval: dict[str, Any]) -> str:
+        for candidate in retrieval.get("transformed_queries") or []:
+            value = str(candidate).strip()
+            if value:
+                return value
+        return question
 
     def _answer_quality_metadata(
         self,
