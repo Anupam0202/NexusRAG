@@ -83,7 +83,7 @@ export default function BillingOrUsagePage() {
   const fallbackCount = analytics?.llm_fallbacks ?? 0;
   const failedCalls = analytics?.llm_error_events ?? 0;
   const byokActive = keyStatus?.workspace_key_configured === true;
-  const vectorBackend = status?.settings.vector_backend ?? "unknown";
+  const vectorBackend = deriveVectorBackendLabel(status);
   const providerHealth = status?.provider_health ?? [];
   const reconciledTokens = billing?.totals.total_tokens ?? 0;
   const estimatedCost = (billing?.totals.estimated_cost_microusd ?? 0) / 1_000_000;
@@ -240,6 +240,18 @@ function formatBytesShort(value: number) {
   if (value >= 1024 * 1024) return `${(value / (1024 * 1024)).toFixed(1)} MB`;
   if (value >= 1024) return `${(value / 1024).toFixed(1)} KB`;
   return `${value} B`;
+}
+
+function deriveVectorBackendLabel(status: SystemStatusResponse | null) {
+  const settings = status?.settings;
+  if (!settings) return "unknown";
+  if (settings.vector_backend) return settings.vector_backend;
+  if (settings.qdrant_configured || settings.enable_qdrant) {
+    return settings.enable_local_faiss ? "qdrant+local_faiss" : "qdrant";
+  }
+  if (settings.enable_pgvector_fallback) return "pgvector";
+  if (settings.enable_local_faiss) return "local_faiss";
+  return "unknown";
 }
 
 function QuotaMeter({
