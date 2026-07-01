@@ -131,4 +131,26 @@ describe("BillingOrUsagePage", () => {
     expect(screen.getByText("qdrant")).toBeInTheDocument();
     expect(screen.queryByText("unknown")).not.toBeInTheDocument();
   });
+
+  it("passes the hydrated workspace id to usage status requests", async () => {
+    workspaceAccess.value = {
+      authMode: "authenticated",
+      canAccessWorkspaceApi: true,
+      isWorkspaceLoading: false,
+      workspaceId: "workspace-live",
+    };
+    mockUsageResponses({
+      qdrant_configured: true,
+      enable_qdrant: true,
+    });
+
+    render(<BillingOrUsagePage />);
+
+    await waitFor(() => {
+      expect(getAnalytics).toHaveBeenCalledWith({ workspaceId: "workspace-live" });
+    });
+    expect(getSystemStatus).toHaveBeenCalledWith({ workspaceId: "workspace-live" });
+    expect(getApiKeyStatus).toHaveBeenCalledWith({ workspaceId: "workspace-live" });
+    expect(getBillingUsage).toHaveBeenCalledWith({ workspaceId: "workspace-live" });
+  });
 });
