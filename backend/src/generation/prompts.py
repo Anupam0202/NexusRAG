@@ -76,7 +76,7 @@ RAG_PROMPT = """\
 ## QUESTION
 {question}
 
-Provide a comprehensive, well-formatted Markdown answer using only the context above. \
+Provide a comprehensive, well-formatted Markdown answer using only the CONTEXT DOCUMENTS above. \
 If the context doesn't contain relevant information, state that clearly.\
 """
 

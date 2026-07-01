@@ -434,6 +434,73 @@ class TestRAGChain:
         assert result["metadata"]["source_quote_coverage"] > 0
         assert result["metadata"]["citation_coverage"] == 1.0
 
+    def test_selected_document_answer_does_not_use_history_as_source(self, monkeypatch):
+        prompts: list[str] = []
+
+        class FakeRetriever:
+            def retrieve(self, *args, **kwargs):
+                return {
+                    "documents": [
+                        Document(
+                            page_content=(
+                                "TrekManager is a route planning project with a demo video "
+                                "placeholder and deployment notes."
+                            ),
+                            metadata={
+                                "filename": "TrekManager_Project_Report_Final.pdf",
+                                "document_id": "doc-trek",
+                                "page_number": 4,
+                                "score": 0.9,
+                            },
+                        )
+                    ],
+                    "query_type": QueryType.SPECIFIC,
+                    "k_used": 1,
+                    "transformed_queries": ["What outcomes are in the cover letter?"],
+                }
+
+        class FakeLLM:
+            _model_name = "fake-model"
+
+            def invoke_messages(self, messages):
+                prompt = messages[-1].content
+                prompts.append(prompt)
+                if "50% drop in SME dependency" in prompt:
+                    return (
+                        "The cover letter mentions a 50% drop in SME dependency "
+                        "and a 20% reduction in mean resolution time."
+                    )
+                return (
+                    "Based on the available documents, I don't have enough information "
+                    "to answer this fully."
+                )
+
+        monkeypatch.setattr("src.generation.chain.get_llm_provider", lambda: FakeLLM())
+        chain = RAGChain(
+            vector_store=SimpleNamespace(),
+            settings=Settings(_env_file=None, enable_cache=False),
+        )
+        chain._retriever = FakeRetriever()
+
+        result = chain.query(
+            "From the cover letter, what two measurable outcomes are explicitly mentioned?",
+            workspace_id="workspace-a",
+            conversation_history=[
+                {
+                    "role": "assistant",
+                    "content": (
+                        "The cover letter mentions a 50% drop in SME dependency and "
+                        "a 20% reduction in mean resolution time."
+                    ),
+                }
+            ],
+            retrieval_filters={"document_ids": ["doc-trek"]},
+        )
+
+        assert "50% drop in SME dependency" not in prompts[0]
+        assert "don't have enough information" in result["answer"]
+        assert result["metadata"]["answerability"] == "low_confidence"
+
     def test_insufficient_context_answer_keeps_low_confidence_with_sources(self):
         docs = [
             Document(
