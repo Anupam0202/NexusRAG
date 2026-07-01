@@ -17,7 +17,7 @@ import type {
 const FREE_WORKSPACE_TOKEN_BUDGET = 250_000;
 
 export default function BillingOrUsagePage() {
-  const { authMode, canAccessWorkspaceApi, isWorkspaceLoading } = useWorkspaceApiAccess();
+  const { authMode, canAccessWorkspaceApi, isWorkspaceLoading, workspaceId } = useWorkspaceApiAccess();
   const [analytics, setAnalytics] = useState<AnalyticsSummary | null>(null);
   const [status, setStatus] = useState<SystemStatusResponse | null>(null);
   const [keyStatus, setKeyStatus] = useState<ApiKeyStatusResponse | null>(null);
@@ -35,11 +35,12 @@ export default function BillingOrUsagePage() {
       return;
     }
     let cancelled = false;
+    const context = { workspaceId };
     Promise.all([
-      getAnalytics(),
-      getSystemStatus(),
-      getApiKeyStatus().catch(() => null),
-      getBillingUsage(),
+      getAnalytics(context),
+      getSystemStatus(context),
+      getApiKeyStatus(context).catch(() => null),
+      getBillingUsage(context),
     ])
       .then(([analyticsData, systemStatus, apiKey, billingUsage]) => {
         if (cancelled) return;
@@ -58,7 +59,7 @@ export default function BillingOrUsagePage() {
     return () => {
       cancelled = true;
     };
-  }, [canAccessWorkspaceApi, isWorkspaceLoading]);
+  }, [canAccessWorkspaceApi, isWorkspaceLoading, workspaceId]);
 
   const totalTokens = analytics?.llm_total_tokens ?? 0;
   const tokensToday = analytics?.usage_tokens_today ?? totalTokens;

@@ -36,6 +36,10 @@ import type {
 import { getApiHeaders } from "@/lib/api-context";
 import { buildBackendUrl } from "@/lib/backend-url";
 
+export interface ApiRequestContext {
+  workspaceId?: string | null;
+}
+
 async function readErrorMessage(res: Response, fallback: string) {
   const body = await res.json().catch(() => ({}));
   const detail = body.detail ?? body.message;
@@ -50,11 +54,12 @@ async function readErrorMessage(res: Response, fallback: string) {
 
 async function request<T>(
   path: string,
-  init?: RequestInit
+  init?: RequestInit,
+  context: ApiRequestContext = {}
 ): Promise<T> {
   let res: Response;
   try {
-    const headers = await getApiHeaders();
+    const headers = await getApiHeaders({ workspaceId: context.workspaceId });
     res = await fetch(buildBackendUrl(path), {
       cache: init?.cache ?? "no-store",
       ...init,
@@ -190,12 +195,16 @@ export async function updateSettings(
 
 // Analytics
 
-export async function getAnalytics(): Promise<AnalyticsSummary> {
-  return request("/api/v1/analytics/summary");
+export async function getAnalytics(
+  context: ApiRequestContext = {}
+): Promise<AnalyticsSummary> {
+  return request("/api/v1/analytics/summary", undefined, context);
 }
 
-export async function getBillingUsage(): Promise<BillingUsageResponse> {
-  return request("/api/v1/billing/usage");
+export async function getBillingUsage(
+  context: ApiRequestContext = {}
+): Promise<BillingUsageResponse> {
+  return request("/api/v1/billing/usage", undefined, context);
 }
 
 export async function getPrivacySettings(): Promise<PrivacySettingsResponse> {
@@ -236,8 +245,10 @@ export async function runSampleEvaluation(
   });
 }
 
-export async function getSystemStatus(): Promise<SystemStatusResponse> {
-  return request("/api/v1/status");
+export async function getSystemStatus(
+  context: ApiRequestContext = {}
+): Promise<SystemStatusResponse> {
+  return request("/api/v1/status", undefined, context);
 }
 
 // Health
@@ -260,8 +271,10 @@ export async function setApiKey(
   });
 }
 
-export async function getApiKeyStatus(): Promise<ApiKeyStatusResponse> {
-  return request("/api/v1/apikey");
+export async function getApiKeyStatus(
+  context: ApiRequestContext = {}
+): Promise<ApiKeyStatusResponse> {
+  return request("/api/v1/apikey", undefined, context);
 }
 
 export async function deleteApiKey(): Promise<ApiKeyStatusResponse> {

@@ -19,14 +19,16 @@ export function setStoredWorkspaceId(workspaceId: string | null) {
   }
 }
 
-export async function getApiHeaders(options: { json?: boolean } = {}): Promise<HeadersInit> {
+export async function getApiHeaders(
+  options: { json?: boolean; workspaceId?: string | null } = {}
+): Promise<HeadersInit> {
   const headers: Record<string, string> = {};
 
   if (options.json !== false) {
     headers["Content-Type"] = "application/json";
   }
 
-  const workspaceId = getStoredWorkspaceId();
+  const workspaceId = options.workspaceId?.trim() || getStoredWorkspaceId();
   if (workspaceId) {
     headers["X-Nexus-Workspace-Id"] = workspaceId;
     headers["X-Workspace-ID"] = workspaceId;
