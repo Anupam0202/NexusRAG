@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { type FormEvent, type MouseEvent, useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, CalendarClock, Eraser, Loader2, Play, Save, ShieldCheck, Trash2 } from "lucide-react";
 import { toast } from "sonner";
@@ -118,6 +118,13 @@ export default function PrivacyPage() {
     }
   };
 
+  const submitDeleteAllDocuments = (
+    event?: FormEvent<HTMLFormElement> | MouseEvent<HTMLButtonElement>
+  ) => {
+    event?.preventDefault();
+    void deleteAllDocuments();
+  };
+
   const canDeleteDocuments = role === "owner" || role === "admin";
   const canManageRetention = authMode === "authenticated" && canDeleteDocuments;
   const canDeleteWorkspace = authMode === "authenticated" && role === "owner";
@@ -169,6 +176,13 @@ export default function PrivacyPage() {
       toast.error(error instanceof Error ? error.message : "Unable to delete workspace");
       setWorking(null);
     }
+  };
+
+  const submitDeleteWorkspace = (
+    event?: FormEvent<HTMLFormElement> | MouseEvent<HTMLButtonElement>
+  ) => {
+    event?.preventDefault();
+    void deleteWorkspace();
   };
 
   return (
@@ -286,10 +300,7 @@ export default function PrivacyPage() {
                 {canDeleteDocuments ? (
                   <form
                     className="mt-3 grid gap-2 sm:grid-cols-[1fr_auto]"
-                    onSubmit={(event) => {
-                      event.preventDefault();
-                      void deleteAllDocuments();
-                    }}
+                    onSubmit={submitDeleteAllDocuments}
                   >
                     <label htmlFor="delete-documents-confirmation" className="sr-only">
                       Confirm deletion of all workspace documents
@@ -303,6 +314,7 @@ export default function PrivacyPage() {
                     />
                     <button
                       type="submit"
+                      onClick={submitDeleteAllDocuments}
                       disabled={
                         confirmation !== DELETE_CONFIRMATION ||
                         documentCount === 0 ||
@@ -339,10 +351,7 @@ export default function PrivacyPage() {
                 {canDeleteWorkspace ? (
                   <form
                     className="mt-3 grid gap-2 sm:grid-cols-[1fr_auto]"
-                    onSubmit={(event) => {
-                      event.preventDefault();
-                      void deleteWorkspace();
-                    }}
+                    onSubmit={submitDeleteWorkspace}
                   >
                     <input
                       aria-label="Confirm workspace deletion"
@@ -353,6 +362,7 @@ export default function PrivacyPage() {
                     />
                     <button
                       type="submit"
+                      onClick={submitDeleteWorkspace}
                       disabled={workspaceConfirmation !== DELETE_WORKSPACE_CONFIRMATION || working !== null}
                       className="inline-flex items-center justify-center gap-2 rounded-lg bg-red-700 px-4 py-2 text-sm font-semibold text-white hover:bg-red-600 disabled:opacity-50"
                     >
