@@ -57,10 +57,47 @@ class FakeWorkspaces:
 class FakeMessages:
     def __init__(self) -> None:
         self.cutoffs: list[str] = []
+        self.deleted_workspaces: list[str] = []
 
     async def delete_sessions_before(self, *, workspace_id: str, created_before: str):
         self.cutoffs.append(created_before)
         return 2
+
+    async def delete_workspace_history(self, *, workspace_id: str):
+        self.deleted_workspaces.append(workspace_id)
+        return 3
+
+
+class FakeWorkspaceScopedCleanup:
+    def __init__(self, *, fail: bool = False) -> None:
+        self.fail = fail
+        self.deleted_workspaces: list[str] = []
+
+    async def delete_settings(self, *, workspace_id: str):
+        self.deleted_workspaces.append(workspace_id)
+        if self.fail:
+            raise RuntimeError("settings unavailable")
+        return 1
+
+    async def delete_workspace_keys(self, *, workspace_id: str):
+        self.deleted_workspaces.append(workspace_id)
+        return 1
+
+    async def delete_workspace_events(self, *, workspace_id: str):
+        self.deleted_workspaces.append(workspace_id)
+        return 1
+
+    async def delete_workspace_daily_usage(self, *, workspace_id: str):
+        self.deleted_workspaces.append(workspace_id)
+        return 1
+
+    async def delete_workspace_state(self, *, workspace_id: str):
+        self.deleted_workspaces.append(workspace_id)
+        return 1
+
+    async def detach_workspace_events(self, *, workspace_id: str):
+        self.deleted_workspaces.append(workspace_id)
+        return 1
 
 
 class FakeVectorStore:
@@ -147,6 +184,71 @@ async def test_workspace_deletion_fails_closed_when_storage_cleanup_fails() -> N
 
     assert result.workspace_deleted is False
     assert result.failures
+    assert workspaces.deleted == 0
+
+
+@pytest.mark.asyncio
+async def test_workspace_deletion_cleans_workspace_scoped_rows_before_workspace_row() -> None:
+    documents = FakeDocuments()
+    documents.documents = []
+    workspaces = FakeWorkspaces()
+    messages = FakeMessages()
+    settings = FakeWorkspaceScopedCleanup()
+    api_keys = FakeWorkspaceScopedCleanup()
+    usage = FakeWorkspaceScopedCleanup()
+    billing = FakeWorkspaceScopedCleanup()
+    provider_health = FakeWorkspaceScopedCleanup()
+    audit = FakeWorkspaceScopedCleanup()
+    service = WorkspaceLifecycleService(
+        documents=documents,  # type: ignore[arg-type]
+        workspaces=workspaces,  # type: ignore[arg-type]
+        messages=messages,  # type: ignore[arg-type]
+        settings=settings,  # type: ignore[arg-type]
+        api_keys=api_keys,  # type: ignore[arg-type]
+        usage=usage,  # type: ignore[arg-type]
+        billing=billing,  # type: ignore[arg-type]
+        provider_health=provider_health,  # type: ignore[arg-type]
+        audit=audit,  # type: ignore[arg-type]
+    )
+
+    result = await service.delete_workspace(workspace_id="workspace-1")
+
+    assert result.workspace_deleted is True
+    assert result.failures == []
+    assert messages.deleted_workspaces == ["workspace-1"]
+    assert settings.deleted_workspaces == ["workspace-1"]
+    assert api_keys.deleted_workspaces == ["workspace-1"]
+    assert usage.deleted_workspaces == ["workspace-1"]
+    assert billing.deleted_workspaces == ["workspace-1"]
+    assert provider_health.deleted_workspaces == ["workspace-1"]
+    assert audit.deleted_workspaces == ["workspace-1"]
+    assert workspaces.deleted == 1
+
+
+@pytest.mark.asyncio
+async def test_workspace_deletion_fails_closed_when_scoped_cleanup_fails() -> None:
+    documents = FakeDocuments()
+    documents.documents = []
+    workspaces = FakeWorkspaces()
+    settings = FakeWorkspaceScopedCleanup(fail=True)
+    service = WorkspaceLifecycleService(
+        documents=documents,  # type: ignore[arg-type]
+        workspaces=workspaces,  # type: ignore[arg-type]
+        messages=FakeMessages(),  # type: ignore[arg-type]
+        settings=settings,  # type: ignore[arg-type]
+        api_keys=FakeWorkspaceScopedCleanup(),  # type: ignore[arg-type]
+        usage=FakeWorkspaceScopedCleanup(),  # type: ignore[arg-type]
+        billing=FakeWorkspaceScopedCleanup(),  # type: ignore[arg-type]
+        provider_health=FakeWorkspaceScopedCleanup(),  # type: ignore[arg-type]
+        audit=FakeWorkspaceScopedCleanup(),  # type: ignore[arg-type]
+    )
+
+    result = await service.delete_workspace(workspace_id="workspace-1")
+
+    assert result.workspace_deleted is False
+    assert result.failures == [
+        {"resource": "workspace_settings", "message": "settings unavailable"}
+    ]
     assert workspaces.deleted == 0
 
 

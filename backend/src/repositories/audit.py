@@ -50,3 +50,11 @@ class AuditRepository(SupabaseRepository):
                 f"limit={limit}",
             ),
         )
+
+    async def detach_workspace_events(self, *, workspace_id: str) -> int:
+        rows = await self._supabase.table_update(
+            "audit_events",
+            {"workspace_id": None},
+            query=eq_filter("workspace_id", workspace_id),
+        )
+        return len(rows)

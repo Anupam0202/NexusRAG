@@ -99,3 +99,10 @@ class ApiKeyRepository(SupabaseRepository):
             query=and_query(eq_filter("workspace_id", workspace_id), eq_filter("id", key_id)),
         )
         return first_row(rows)
+
+    async def delete_workspace_keys(self, *, workspace_id: str) -> int:
+        rows = await self._supabase.table_delete(
+            "api_keys",
+            query=eq_filter("workspace_id", workspace_id),
+        )
+        return len(rows)

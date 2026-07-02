@@ -45,3 +45,10 @@ class WorkspaceSettingsRepository(SupabaseRepository):
             on_conflict="workspace_id",
         )
         return rows[0]
+
+    async def delete_settings(self, *, workspace_id: str) -> int:
+        rows = await self._supabase.table_delete(
+            "workspace_settings",
+            query=eq_filter("workspace_id", workspace_id),
+        )
+        return len(rows)

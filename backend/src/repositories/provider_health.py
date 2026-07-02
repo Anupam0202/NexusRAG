@@ -50,6 +50,13 @@ class ProviderHealthRepository(SupabaseRepository):
             ),
         )
 
+    async def delete_workspace_state(self, *, workspace_id: str) -> int:
+        rows = await self._supabase.table_delete(
+            "provider_health_state",
+            query=eq_filter("workspace_id", workspace_id),
+        )
+        return len(rows)
+
 
 async def persist_provider_health_snapshot(
     chain: Any,

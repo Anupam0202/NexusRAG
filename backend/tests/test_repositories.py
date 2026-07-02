@@ -9,6 +9,7 @@ import pytest
 from src.api.auth import WorkspaceRole
 from src.repositories import (
     ApiKeyRepository,
+    AuditRepository,
     BillingRepository,
     ChunkRepository,
     DocumentRepository,
@@ -457,6 +458,33 @@ async def test_workspace_repository_deletes_only_the_scoped_workspace() -> None:
     assert fake.calls[0][0] == "delete"
     assert fake.calls[0][1] == "workspaces"
     assert fake.calls[0][2] == "id=eq.workspace-1"
+
+
+@pytest.mark.asyncio
+async def test_workspace_scoped_repositories_delete_rows_by_workspace() -> None:
+    fake = FakeSupabase()
+
+    await MessageRepository(fake).delete_workspace_history(workspace_id="workspace-1")  # type: ignore[attr-defined]
+    await WorkspaceSettingsRepository(fake).delete_settings(workspace_id="workspace-1")  # type: ignore[attr-defined]
+    await ApiKeyRepository(fake).delete_workspace_keys(workspace_id="workspace-1")  # type: ignore[attr-defined]
+    await UsageRepository(fake).delete_workspace_events(workspace_id="workspace-1")  # type: ignore[attr-defined]
+    await BillingRepository(fake).delete_workspace_daily_usage(workspace_id="workspace-1")  # type: ignore[attr-defined]
+    await ProviderHealthRepository(fake).delete_workspace_state(workspace_id="workspace-1")  # type: ignore[attr-defined]
+    await AuditRepository(fake).detach_workspace_events(workspace_id="workspace-1")  # type: ignore[attr-defined]
+
+    calls = [(method, table, payload) for method, table, payload, _meta in fake.calls]
+    assert calls == [
+        ("delete", "chat_messages", "workspace_id=eq.workspace-1"),
+        ("delete", "chat_sessions", "workspace_id=eq.workspace-1"),
+        ("delete", "workspace_settings", "workspace_id=eq.workspace-1"),
+        ("delete", "api_keys", "workspace_id=eq.workspace-1"),
+        ("delete", "llm_usage_events", "workspace_id=eq.workspace-1"),
+        ("delete", "workspace_usage_daily", "workspace_id=eq.workspace-1"),
+        ("delete", "provider_health_state", "workspace_id=eq.workspace-1"),
+        ("update", "audit_events", {"workspace_id": None}),
+    ]
+    audit_call = fake.calls[-1]
+    assert audit_call[3]["query"] == "workspace_id=eq.workspace-1"
 
 
 @pytest.mark.asyncio

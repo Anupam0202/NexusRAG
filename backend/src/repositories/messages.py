@@ -119,3 +119,14 @@ class MessageRepository(SupabaseRepository):
             ),
         )
         return len(rows)
+
+    async def delete_workspace_history(self, *, workspace_id: str) -> int:
+        message_rows = await self._supabase.table_delete(
+            "chat_messages",
+            query=eq_filter("workspace_id", workspace_id),
+        )
+        session_rows = await self._supabase.table_delete(
+            "chat_sessions",
+            query=eq_filter("workspace_id", workspace_id),
+        )
+        return len(message_rows) + len(session_rows)

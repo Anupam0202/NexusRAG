@@ -6,8 +6,14 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
+from src.repositories.api_keys import ApiKeyRepository
+from src.repositories.audit import AuditRepository
+from src.repositories.billing import BillingRepository
 from src.repositories.documents import DocumentRepository
 from src.repositories.messages import MessageRepository
+from src.repositories.provider_health import ProviderHealthRepository
+from src.repositories.settings import WorkspaceSettingsRepository
+from src.repositories.usage import UsageRepository
 from src.repositories.workspaces import WorkspaceRepository
 from src.utils.layered_cache import get_layered_cache
 from src.utils.logger import get_logger
@@ -32,12 +38,24 @@ class WorkspaceLifecycleService:
         documents: DocumentRepository | None = None,
         workspaces: WorkspaceRepository | None = None,
         messages: MessageRepository | None = None,
+        settings: WorkspaceSettingsRepository | None = None,
+        api_keys: ApiKeyRepository | None = None,
+        usage: UsageRepository | None = None,
+        billing: BillingRepository | None = None,
+        provider_health: ProviderHealthRepository | None = None,
+        audit: AuditRepository | None = None,
         vector_store: Any | None = None,
         qdrant_store: Any | None = None,
     ) -> None:
         self._documents = documents or DocumentRepository()
         self._workspaces = workspaces or WorkspaceRepository()
         self._messages = messages or MessageRepository()
+        self._settings = settings or WorkspaceSettingsRepository()
+        self._api_keys = api_keys or ApiKeyRepository()
+        self._usage = usage or UsageRepository()
+        self._billing = billing or BillingRepository()
+        self._provider_health = provider_health or ProviderHealthRepository()
+        self._audit = audit or AuditRepository()
         self._vector_store = vector_store
         self._qdrant_store = qdrant_store
 
@@ -75,11 +93,43 @@ class WorkspaceLifecycleService:
             await self._delete_document(workspace_id, document, result)
         if result.failures:
             return result
+        await self._delete_workspace_rows(workspace_id, result)
+        if result.failures:
+            return result
         result.workspace_deleted = (
             await self._workspaces.delete_workspace(workspace_id=workspace_id)
         ) > 0
         get_layered_cache().invalidate(workspace_id=workspace_id)
         return result
+
+    async def _delete_workspace_rows(
+        self,
+        workspace_id: str,
+        result: WorkspaceLifecycleResult,
+    ) -> None:
+        cleanup_steps = [
+            ("chat_history", self._messages.delete_workspace_history),
+            ("workspace_settings", self._settings.delete_settings),
+            ("api_keys", self._api_keys.delete_workspace_keys),
+            ("llm_usage_events", self._usage.delete_workspace_events),
+            ("workspace_usage_daily", self._billing.delete_workspace_daily_usage),
+            ("provider_health_state", self._provider_health.delete_workspace_state),
+            ("audit_events", self._audit.detach_workspace_events),
+        ]
+        for resource, cleanup in cleanup_steps:
+            try:
+                deleted = int(await cleanup(workspace_id=workspace_id))
+                if resource == "chat_history":
+                    result.chat_sessions_deleted += deleted
+            except Exception as exc:
+                message = str(exc)[:300]
+                logger.warning(
+                    "workspace_lifecycle_workspace_cleanup_failed",
+                    workspace_id=workspace_id,
+                    resource=resource,
+                    error=message,
+                )
+                result.failures.append({"resource": resource, "message": message})
 
     async def _delete_document(
         self,
