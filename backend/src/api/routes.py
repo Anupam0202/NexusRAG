@@ -1985,6 +1985,7 @@ async def list_document_chunks(
 
 
 @router.delete("/documents/{document_identifier}", response_model=DocumentDeleteResponse)
+@router.post("/documents/{document_identifier}/delete", response_model=DocumentDeleteResponse)
 async def delete_document(
     document_identifier: str,
     workspace: WorkspaceContext | None = Depends(
@@ -2821,6 +2822,7 @@ async def run_retention(
 
 
 @router.delete("/workspaces/current", response_model=WorkspaceLifecycleResponse)
+@router.post("/workspaces/current/delete", response_model=WorkspaceLifecycleResponse)
 async def delete_current_workspace(
     _body: WorkspaceDeleteRequest,
     workspace: WorkspaceContext | None = Depends(
