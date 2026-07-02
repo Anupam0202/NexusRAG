@@ -56,3 +56,10 @@ class UsageRepository(SupabaseRepository):
                 f"limit={limit}",
             ),
         )
+
+    async def delete_workspace_events(self, *, workspace_id: str) -> int:
+        rows = await self._supabase.table_delete(
+            "llm_usage_events",
+            query=eq_filter("workspace_id", workspace_id),
+        )
+        return len(rows)

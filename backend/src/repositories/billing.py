@@ -38,3 +38,10 @@ class BillingRepository(SupabaseRepository):
                 f"limit={max(1, min(limit, 366))}",
             ),
         )
+
+    async def delete_workspace_daily_usage(self, *, workspace_id: str) -> int:
+        rows = await self._supabase.table_delete(
+            "workspace_usage_daily",
+            query=eq_filter("workspace_id", workspace_id),
+        )
+        return len(rows)
