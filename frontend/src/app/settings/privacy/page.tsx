@@ -284,7 +284,13 @@ export default function PrivacyPage() {
                   This removes document metadata, chunks, and vectors through the protected document API.
                 </p>
                 {canDeleteDocuments ? (
-                  <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_auto]">
+                  <form
+                    className="mt-3 grid gap-2 sm:grid-cols-[1fr_auto]"
+                    onSubmit={(event) => {
+                      event.preventDefault();
+                      void deleteAllDocuments();
+                    }}
+                  >
                     <label htmlFor="delete-documents-confirmation" className="sr-only">
                       Confirm deletion of all workspace documents
                     </label>
@@ -296,8 +302,7 @@ export default function PrivacyPage() {
                       className="min-w-0 rounded-lg border border-red-300 bg-white px-3 py-2 text-sm outline-none focus:border-red-500 dark:border-red-900 dark:bg-red-950/30"
                     />
                     <button
-                      type="button"
-                      onClick={() => void deleteAllDocuments()}
+                      type="submit"
                       disabled={
                         confirmation !== DELETE_CONFIRMATION ||
                         documentCount === 0 ||
@@ -312,7 +317,7 @@ export default function PrivacyPage() {
                       )}
                       Delete all
                     </button>
-                  </div>
+                  </form>
                 ) : (
                   <p className="mt-3 text-xs font-semibold text-red-700 dark:text-red-300">
                     Only workspace owners and administrators can perform this action.
@@ -332,7 +337,13 @@ export default function PrivacyPage() {
                   Cleanup must finish before the workspace database row is removed.
                 </p>
                 {canDeleteWorkspace ? (
-                  <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_auto]">
+                  <form
+                    className="mt-3 grid gap-2 sm:grid-cols-[1fr_auto]"
+                    onSubmit={(event) => {
+                      event.preventDefault();
+                      void deleteWorkspace();
+                    }}
+                  >
                     <input
                       aria-label="Confirm workspace deletion"
                       value={workspaceConfirmation}
@@ -341,15 +352,14 @@ export default function PrivacyPage() {
                       className="min-w-0 rounded-lg border border-red-400 bg-white px-3 py-2 text-sm outline-none focus:border-red-600 dark:bg-red-950/40"
                     />
                     <button
-                      type="button"
-                      onClick={() => void deleteWorkspace()}
+                      type="submit"
                       disabled={workspaceConfirmation !== DELETE_WORKSPACE_CONFIRMATION || working !== null}
                       className="inline-flex items-center justify-center gap-2 rounded-lg bg-red-700 px-4 py-2 text-sm font-semibold text-white hover:bg-red-600 disabled:opacity-50"
                     >
                       {working === "workspace" ? <Loader2 size={15} className="animate-spin" /> : <Trash2 size={15} />}
                       Delete workspace
                     </button>
-                  </div>
+                  </form>
                 ) : (
                   <p className="mt-3 text-xs font-semibold text-red-800 dark:text-red-200">
                     Only an authenticated workspace owner can delete the workspace.
