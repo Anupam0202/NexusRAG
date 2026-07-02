@@ -243,6 +243,17 @@ class TestDocumentEndpoints:
             workspace_id="00000000-0000-0000-0000-000000000000"
         )
 
+    def test_delete_document_post_alias(self, test_client: TestClient):
+        test_client.post(
+            "/api/v1/documents/upload",
+            files={"file": ("to_delete_alias.txt", b"Delete me too.", "text/plain")},
+        )
+
+        resp = test_client.post("/api/v1/documents/to_delete_alias.txt/delete")
+
+        assert resp.status_code == 200
+        assert resp.json()["success"] is True
+
     def test_reindex_endpoint_reports_missing_durable_original_in_demo_mode(
         self,
         test_client: TestClient,
@@ -839,6 +850,17 @@ class TestBillingAndPrivacy:
         resp = test_client.request(
             "DELETE",
             "/api/v1/workspaces/current",
+            json={"confirmation": "DELETE WORKSPACE"},
+        )
+
+        assert resp.status_code == 403
+        assert "demo mode" in resp.json()["detail"].lower()
+
+    def test_demo_mode_cannot_delete_a_durable_workspace_post_alias(
+        self, test_client: TestClient
+    ):
+        resp = test_client.post(
+            "/api/v1/workspaces/current/delete",
             json={"confirmation": "DELETE WORKSPACE"},
         )
 

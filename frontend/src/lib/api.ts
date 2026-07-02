@@ -111,8 +111,8 @@ export async function listDocuments(): Promise<DocumentListResponse> {
 export async function deleteDocument(
   documentIdentifier: string
 ): Promise<{ success: boolean; message: string }> {
-  return request(`/api/v1/documents/${encodeURIComponent(documentIdentifier)}`, {
-    method: "DELETE",
+  return request(`/api/v1/documents/${encodeURIComponent(documentIdentifier)}/delete`, {
+    method: "POST",
   });
 }
 
@@ -226,8 +226,8 @@ export async function runRetention(): Promise<WorkspaceLifecycleResponse> {
 }
 
 export async function deleteCurrentWorkspace(): Promise<WorkspaceLifecycleResponse> {
-  return request("/api/v1/workspaces/current", {
-    method: "DELETE",
+  return request("/api/v1/workspaces/current/delete", {
+    method: "POST",
     body: JSON.stringify({ confirmation: "DELETE WORKSPACE" }),
   });
 }
