@@ -102,4 +102,18 @@ describe("PrivacyPage", () => {
       expect(deleteCurrentWorkspace).toHaveBeenCalledTimes(1);
     });
   });
+
+  it("submits workspace deletion from the destructive button click path", async () => {
+    deleteCurrentWorkspace.mockImplementation(() => new Promise(() => {}));
+
+    render(<PrivacyPage />);
+
+    const confirmation = await screen.findByLabelText("Confirm workspace deletion");
+    fireEvent.change(confirmation, { target: { value: "DELETE WORKSPACE" } });
+    fireEvent.click(screen.getByRole("button", { name: "Delete workspace" }));
+
+    await waitFor(() => {
+      expect(deleteCurrentWorkspace).toHaveBeenCalledTimes(1);
+    });
+  });
 });
