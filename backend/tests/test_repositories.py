@@ -471,6 +471,7 @@ async def test_workspace_scoped_repositories_delete_rows_by_workspace() -> None:
     await BillingRepository(fake).delete_workspace_daily_usage(workspace_id="workspace-1")  # type: ignore[attr-defined]
     await ProviderHealthRepository(fake).delete_workspace_state(workspace_id="workspace-1")  # type: ignore[attr-defined]
     await AuditRepository(fake).detach_workspace_events(workspace_id="workspace-1")  # type: ignore[attr-defined]
+    await WorkspaceRepository(fake).delete_workspace_members(workspace_id="workspace-1")  # type: ignore[attr-defined]
 
     calls = [(method, table, payload) for method, table, payload, _meta in fake.calls]
     assert calls == [
@@ -482,8 +483,9 @@ async def test_workspace_scoped_repositories_delete_rows_by_workspace() -> None:
         ("delete", "workspace_usage_daily", "workspace_id=eq.workspace-1"),
         ("delete", "provider_health_state", "workspace_id=eq.workspace-1"),
         ("update", "audit_events", {"workspace_id": None}),
+        ("delete", "workspace_members", "workspace_id=eq.workspace-1"),
     ]
-    audit_call = fake.calls[-1]
+    audit_call = fake.calls[-2]
     assert audit_call[3]["query"] == "workspace_id=eq.workspace-1"
 
 
