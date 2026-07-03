@@ -140,6 +140,13 @@ class WorkspaceRepository(SupabaseRepository):
         )
         return len(rows)
 
+    async def delete_workspace_members(self, *, workspace_id: str) -> int:
+        rows = await self._supabase.table_delete(
+            "workspace_members",
+            query=eq_filter("workspace_id", workspace_id),
+        )
+        return len(rows)
+
     async def update_member_role(
         self,
         *,

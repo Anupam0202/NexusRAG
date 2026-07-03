@@ -46,10 +46,18 @@ class FakeDocuments:
 
 
 class FakeWorkspaces:
-    def __init__(self) -> None:
+    def __init__(self, *, fail_delete: bool = False) -> None:
         self.deleted = 0
+        self.deleted_members: list[str] = []
+        self.fail_delete = fail_delete
+
+    async def delete_workspace_members(self, *, workspace_id: str):
+        self.deleted_members.append(workspace_id)
+        return 1
 
     async def delete_workspace(self, *, workspace_id: str):
+        if self.fail_delete:
+            raise RuntimeError("workspace foreign key blocked")
         self.deleted += 1
         return 1
 
@@ -222,6 +230,7 @@ async def test_workspace_deletion_cleans_workspace_scoped_rows_before_workspace_
     assert billing.deleted_workspaces == ["workspace-1"]
     assert provider_health.deleted_workspaces == ["workspace-1"]
     assert audit.deleted_workspaces == ["workspace-1"]
+    assert workspaces.deleted_members == ["workspace-1"]
     assert workspaces.deleted == 1
 
 
@@ -249,6 +258,33 @@ async def test_workspace_deletion_fails_closed_when_scoped_cleanup_fails() -> No
     assert result.failures == [
         {"resource": "workspace_settings", "message": "settings unavailable"}
     ]
+    assert workspaces.deleted == 0
+
+
+@pytest.mark.asyncio
+async def test_workspace_deletion_reports_workspace_row_delete_failure() -> None:
+    documents = FakeDocuments()
+    documents.documents = []
+    workspaces = FakeWorkspaces(fail_delete=True)
+    service = WorkspaceLifecycleService(
+        documents=documents,  # type: ignore[arg-type]
+        workspaces=workspaces,  # type: ignore[arg-type]
+        messages=FakeMessages(),  # type: ignore[arg-type]
+        settings=FakeWorkspaceScopedCleanup(),  # type: ignore[arg-type]
+        api_keys=FakeWorkspaceScopedCleanup(),  # type: ignore[arg-type]
+        usage=FakeWorkspaceScopedCleanup(),  # type: ignore[arg-type]
+        billing=FakeWorkspaceScopedCleanup(),  # type: ignore[arg-type]
+        provider_health=FakeWorkspaceScopedCleanup(),  # type: ignore[arg-type]
+        audit=FakeWorkspaceScopedCleanup(),  # type: ignore[arg-type]
+    )
+
+    result = await service.delete_workspace(workspace_id="workspace-1")
+
+    assert result.workspace_deleted is False
+    assert result.failures == [
+        {"resource": "workspaces", "message": "workspace foreign key blocked"}
+    ]
+    assert workspaces.deleted_members == ["workspace-1"]
     assert workspaces.deleted == 0
 
 

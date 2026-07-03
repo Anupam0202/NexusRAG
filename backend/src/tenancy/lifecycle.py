@@ -96,9 +96,19 @@ class WorkspaceLifecycleService:
         await self._delete_workspace_rows(workspace_id, result)
         if result.failures:
             return result
-        result.workspace_deleted = (
-            await self._workspaces.delete_workspace(workspace_id=workspace_id)
-        ) > 0
+        try:
+            result.workspace_deleted = (
+                await self._workspaces.delete_workspace(workspace_id=workspace_id)
+            ) > 0
+        except Exception as exc:
+            message = str(exc)[:300]
+            logger.warning(
+                "workspace_lifecycle_workspace_delete_failed",
+                workspace_id=workspace_id,
+                error=message,
+            )
+            result.failures.append({"resource": "workspaces", "message": message})
+            return result
         get_layered_cache().invalidate(workspace_id=workspace_id)
         return result
 
@@ -115,6 +125,7 @@ class WorkspaceLifecycleService:
             ("workspace_usage_daily", self._billing.delete_workspace_daily_usage),
             ("provider_health_state", self._provider_health.delete_workspace_state),
             ("audit_events", self._audit.detach_workspace_events),
+            ("workspace_members", self._workspaces.delete_workspace_members),
         ]
         for resource, cleanup in cleanup_steps:
             try:
