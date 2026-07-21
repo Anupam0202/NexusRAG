@@ -40,16 +40,42 @@ export interface ApiRequestContext {
   workspaceId?: string | null;
 }
 
-async function readErrorMessage(res: Response, fallback: string) {
-  const body = await res.json().catch(() => ({}));
-  const detail = body.detail ?? body.message;
+export function formatApiErrorDetail(detail: unknown, fallback: string): string {
   if (typeof detail === "string") return detail;
   if (Array.isArray(detail) && detail.length > 0) {
     return detail
       .map((item) => item?.msg ?? item?.message ?? String(item))
       .join("; ");
   }
+  if (detail && typeof detail === "object") {
+    const record = detail as Record<string, unknown>;
+    const message = typeof record.message === "string" ? record.message : null;
+    const failures = Array.isArray(record.failures)
+      ? record.failures
+          .map((failure) => {
+            if (!failure || typeof failure !== "object") return null;
+            const item = failure as Record<string, unknown>;
+            const resource = item.resource ?? item.document_id;
+            const failureMessage = item.message;
+            if (typeof resource !== "string" || typeof failureMessage !== "string") {
+              return null;
+            }
+            return `${resource}: ${failureMessage}`;
+          })
+          .filter((failure): failure is string => Boolean(failure))
+      : [];
+
+    if (message && failures.length > 0) return `${message} ${failures.join("; ")}`;
+    if (message) return message;
+    if (failures.length > 0) return failures.join("; ");
+  }
   return fallback;
+}
+
+async function readErrorMessage(res: Response, fallback: string) {
+  const body = await res.json().catch(() => ({}));
+  const detail = body && typeof body === "object" ? body.detail ?? body.message : body;
+  return formatApiErrorDetail(detail, fallback);
 }
 
 async function request<T>(

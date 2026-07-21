@@ -125,7 +125,6 @@ class WorkspaceLifecycleService:
             ("workspace_usage_daily", self._billing.delete_workspace_daily_usage),
             ("provider_health_state", self._provider_health.delete_workspace_state),
             ("audit_events", self._audit.detach_workspace_events),
-            ("workspace_members", self._workspaces.delete_workspace_members),
         ]
         for resource, cleanup in cleanup_steps:
             try:

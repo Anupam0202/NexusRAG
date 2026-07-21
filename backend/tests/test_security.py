@@ -81,6 +81,20 @@ def test_supabase_hardening_migration_enforces_tenant_invariants() -> None:
     assert "set search_path = public, pg_temp" in migration
 
 
+def test_workspace_member_invariant_allows_only_workspace_delete_cascades() -> None:
+    migration = (
+        Path(__file__).resolve().parents[2]
+        / "supabase"
+        / "migrations"
+        / "013_allow_workspace_member_cascade_delete.sql"
+    ).read_text(encoding="utf-8")
+
+    assert "if tg_op = 'DELETE' and workspace_owner is null then" in migration
+    assert "The workspace owner membership cannot be changed or removed." in migration
+    assert "Administrators cannot manage owners or administrators." in migration
+    assert "set search_path = public, pg_temp" in migration
+
+
 def test_pgvector_filter_migration_parenthesizes_json_containment_operand() -> None:
     migration = (
         Path(__file__).resolve().parents[2]
