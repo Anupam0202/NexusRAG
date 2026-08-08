@@ -64,8 +64,8 @@ async def test_service_role_requests_fall_back_to_legacy_key_after_rejected_secr
         async def __aexit__(self, *_args):
             return None
 
-        async def get(self, url: str, **kwargs):
-            calls.append({"url": url, **kwargs})
+        async def request(self, method: str, url: str, **kwargs):
+            calls.append({"method": method, "url": url, **kwargs})
             if len(calls) == 1:
                 return FakeResponse(401)
             return FakeResponse(200, [{"id": "profile-1"}])
@@ -87,7 +87,9 @@ async def test_service_role_requests_fall_back_to_legacy_key_after_rejected_secr
 
     assert rows == [{"id": "profile-1"}]
     assert len(calls) == 2
+    assert calls[0]["method"] == "GET"
     assert calls[0]["headers"]["apikey"] == "stale-secret"
+    assert calls[1]["method"] == "GET"
     assert calls[1]["headers"]["apikey"] == "valid-legacy-service-role"
     assert calls[1]["headers"]["Authorization"] == "Bearer valid-legacy-service-role"
 
@@ -121,8 +123,8 @@ async def test_delete_object_uses_storage_remove_contract(monkeypatch) -> None:
         async def __aexit__(self, *_args):
             return None
 
-        async def delete(self, url: str, **kwargs):
-            calls.append({"url": url, **kwargs})
+        async def request(self, method: str, url: str, **kwargs):
+            calls.append({"method": method, "url": url, **kwargs})
             return FakeResponse()
 
     monkeypatch.setattr(
@@ -139,6 +141,7 @@ async def test_delete_object_uses_storage_remove_contract(monkeypatch) -> None:
 
     await client.delete_object("workspace/document/report.pdf")
 
+    assert calls[0]["method"] == "DELETE"
     assert calls[0]["url"] == "https://project.supabase.co/storage/v1/object/documents"
     assert calls[0]["json"] == {"prefixes": ["workspace/document/report.pdf"]}
     assert calls[0]["headers"]["apikey"] == "sb_secret_private"

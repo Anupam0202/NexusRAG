@@ -99,7 +99,12 @@ class SupabaseClient:
         last_response: httpx.Response | None = None
         for index, key in enumerate(keys):
             request_headers = {**self._auth_headers_for_key(key), **(headers or {})}
-            response = await getattr(client, method)(url, headers=request_headers, **kwargs)
+            response = await client.request(
+                method.upper(),
+                url,
+                headers=request_headers,
+                **kwargs,
+            )
             last_response = response
             has_fallback = index < len(keys) - 1
             if service_role and has_fallback and response.status_code in {401, 403}:
