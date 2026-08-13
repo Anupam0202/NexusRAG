@@ -36,23 +36,35 @@ export default function PrivacyPage() {
   const [retentionEnabled, setRetentionEnabled] = useState(false);
   const [retentionDays, setRetentionDays] = useState(30);
   const [lastRetentionAt, setLastRetentionAt] = useState<string | null>(null);
+  const [workspaceDataState, setWorkspaceDataState] = useState<"loading" | "ready" | "error">(
+    "loading"
+  );
   const [working, setWorking] = useState<
     "chat" | "documents" | "retention" | "retention-run" | "workspace" | null
   >(null);
 
   useEffect(() => {
     if (!canAccessWorkspaceApi) return;
+    let active = true;
+    setWorkspaceDataState("loading");
     Promise.all([getCurrentWorkspace(), listDocuments(), getPrivacySettings()])
       .then(([workspace, documents, privacy]) => {
+        if (!active) return;
         setRole(workspace.role);
         setDocumentCount(documents.total);
         setRetentionEnabled(privacy.retention_enabled);
         setRetentionDays(privacy.retention_days || 30);
         setLastRetentionAt(privacy.last_retention_at ?? null);
+        setWorkspaceDataState("ready");
       })
       .catch((error) => {
+        if (!active) return;
+        setWorkspaceDataState("error");
         toast.error(error instanceof Error ? error.message : "Unable to load privacy controls");
       });
+    return () => {
+      active = false;
+    };
   }, [canAccessWorkspaceApi]);
 
   if (!canAccessWorkspaceApi) {
@@ -125,9 +137,14 @@ export default function PrivacyPage() {
     void deleteAllDocuments();
   };
 
-  const canDeleteDocuments = role === "owner" || role === "admin";
+  const workspaceDataReady = workspaceDataState === "ready";
+  const canDeleteDocuments = workspaceDataReady && (role === "owner" || role === "admin");
   const canManageRetention = authMode === "authenticated" && canDeleteDocuments;
-  const canDeleteWorkspace = authMode === "authenticated" && role === "owner";
+  const canDeleteWorkspace = authMode === "authenticated" && workspaceDataReady && role === "owner";
+  const workspaceDataMessage =
+    workspaceDataState === "loading"
+      ? "Loading secure workspace data..."
+      : "Workspace data could not be loaded. Refresh and try again.";
 
   const saveRetention = async () => {
     setWorking("retention");
@@ -207,6 +224,14 @@ export default function PrivacyPage() {
             </p>
           </div>
         </div>
+        {!workspaceDataReady ? (
+          <p
+            role={workspaceDataState === "error" ? "alert" : "status"}
+            className="mb-5 text-sm font-medium text-[var(--text-muted)]"
+          >
+            {workspaceDataMessage}
+          </p>
+        ) : null}
 
         <div className="space-y-4">
           <section className="rounded-xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
@@ -220,7 +245,7 @@ export default function PrivacyPage() {
               <button
                 type="button"
                 onClick={() => void clearCurrentChat()}
-                disabled={working !== null}
+                disabled={!workspaceDataReady || working !== null}
                 className="inline-flex items-center justify-center gap-2 rounded-lg border border-[var(--border)] px-3 py-2 text-sm font-semibold hover:bg-[var(--bg-hover)] disabled:opacity-50"
               >
                 {working === "chat" ? <Loader2 size={15} className="animate-spin" /> : <Eraser size={15} />}
@@ -279,11 +304,11 @@ export default function PrivacyPage() {
                       Run now
                     </button>
                   </div>
-                ) : (
+                ) : workspaceDataReady ? (
                   <p className="mt-3 text-xs font-semibold text-[var(--text-muted)]">
                     Durable retention is available to authenticated workspace owners and administrators.
                   </p>
-                )}
+                ) : null}
               </div>
             </div>
           </section>
@@ -294,10 +319,11 @@ export default function PrivacyPage() {
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-semibold text-red-800 dark:text-red-200">Danger zone</p>
                 <p className="mt-1 text-xs leading-5 text-red-700 dark:text-red-300">
-                  Delete all {documentCount} indexed workspace document{documentCount === 1 ? "" : "s"}.
-                  This removes document metadata, chunks, and vectors through the protected document API.
+                  {workspaceDataReady
+                    ? `Delete all ${documentCount} indexed workspace document${documentCount === 1 ? "" : "s"}. This removes document metadata, chunks, and vectors through the protected document API.`
+                    : "Workspace document inventory is loading."}
                 </p>
-                {canDeleteDocuments ? (
+                {workspaceDataReady && canDeleteDocuments ? (
                   <form
                     className="mt-3 grid gap-2 sm:grid-cols-[1fr_auto]"
                     onSubmit={submitDeleteAllDocuments}
@@ -330,11 +356,11 @@ export default function PrivacyPage() {
                       Delete all
                     </button>
                   </form>
-                ) : (
+                ) : workspaceDataReady ? (
                   <p className="mt-3 text-xs font-semibold text-red-700 dark:text-red-300">
                     Only workspace owners and administrators can perform this action.
                   </p>
-                )}
+                ) : null}
               </div>
             </div>
           </section>
@@ -348,7 +374,7 @@ export default function PrivacyPage() {
                   Permanently removes private originals, vectors, chats, usage, settings, and memberships.
                   Cleanup must finish before the workspace database row is removed.
                 </p>
-                {canDeleteWorkspace ? (
+                {workspaceDataReady && canDeleteWorkspace ? (
                   <form
                     className="mt-3 grid gap-2 sm:grid-cols-[1fr_auto]"
                     onSubmit={submitDeleteWorkspace}
@@ -370,11 +396,11 @@ export default function PrivacyPage() {
                       Delete workspace
                     </button>
                   </form>
-                ) : (
+                ) : workspaceDataReady ? (
                   <p className="mt-3 text-xs font-semibold text-red-800 dark:text-red-200">
                     Only an authenticated workspace owner can delete the workspace.
                   </p>
-                )}
+                ) : null}
               </div>
             </div>
           </section>

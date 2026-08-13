@@ -103,6 +103,31 @@ describe("PrivacyPage", () => {
     });
   });
 
+  it("keeps destructive controls unavailable while secure workspace data is loading", async () => {
+    let resolveWorkspace: (value: {
+      workspace_id: string;
+      role: "owner";
+      user_id: string;
+    }) => void;
+    getCurrentWorkspace.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveWorkspace = resolve;
+        })
+    );
+
+    render(<PrivacyPage />);
+
+    expect(screen.getByRole("status")).toHaveTextContent("Loading secure workspace data...");
+    expect(screen.getByRole("button", { name: "Clear chat" })).toBeDisabled();
+    expect(screen.queryByLabelText("Confirm workspace deletion")).not.toBeInTheDocument();
+
+    resolveWorkspace!({ workspace_id: "workspace-1", role: "owner", user_id: "user-1" });
+
+    expect(await screen.findByLabelText("Confirm workspace deletion")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Clear chat" })).not.toBeDisabled();
+  });
+
   it("submits workspace deletion from the destructive button click path", async () => {
     deleteCurrentWorkspace.mockImplementation(() => new Promise(() => {}));
 
