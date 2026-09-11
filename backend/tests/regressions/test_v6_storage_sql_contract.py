@@ -32,6 +32,16 @@ class StorageSqlContractTests(unittest.TestCase):
         self.assertIn("u.write_token is not null", function)
         self.assertIn("u.expires_at>clock_timestamp()", function)
 
+    def test_reads_require_published_active_document_version(self):
+        read_function = self.sql.split(
+            "create or replace function nexusrag_private.can_read_document_object", 1
+        )[1].split(
+            "create or replace function nexusrag_private.can_write_document_object", 1
+        )[0]
+        self.assertIn("d.lifecycle_state='active'", read_function)
+        self.assertIn("v.publication_state='ready'", read_function)
+        self.assertNotIn("v.lifecycle_state", read_function)
+
     def test_client_delete_policy_is_absent_after_legacy_drop(self):
         self.assertIn(
             'drop policy if exists "storage_documents_delete_editors"', self.sql
