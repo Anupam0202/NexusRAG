@@ -26,13 +26,10 @@ SECRET_PATTERNS = {
     "google_api_key": re.compile(r"AIza[0-9A-Za-z_-]{30,}"),
     "supabase_secret": re.compile(r"sbp_[0-9A-Za-z]{20,}"),
     "jwt": re.compile(r"eyJ[a-zA-Z0-9_-]{10,}\.eyJ[a-zA-Z0-9_-]{10,}"),
+    "email_address": re.compile(r"(?i)\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b"),
+    "credentialed_url": re.compile(r"(?i)https?://[^\s/:]+:[^\s/@]+@"),
+    "secret_assignment": re.compile(r"(?i)(?:api[_-]?key|token|secret|password)\s*[:=]\s*['\"][^'\"]+['\"]"),
 }
-FORBIDDEN_IDENTIFIERS = (
-    "ashutosh09",
-    "lesahaer7714",
-    "fcjaomiceajcdownarel",
-    "84e80d9629e0a6e6e5b31dbe85146acf",
-)
 
 
 def fail(message: str) -> None:
@@ -57,10 +54,6 @@ def main() -> None:
             fail(f"empty migration: {path.name}")
         if "\x00" in text:
             fail(f"NUL byte in migration: {path.name}")
-        lowered = text.casefold()
-        for identifier in FORBIDDEN_IDENTIFIERS:
-            if identifier in lowered:
-                fail(f"private account/workspace identifier in {path.name}")
         for label, pattern in SECRET_PATTERNS.items():
             if pattern.search(text):
                 fail(f"suspected {label} in {path.name}")
