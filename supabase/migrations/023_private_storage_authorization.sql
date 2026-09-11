@@ -40,7 +40,7 @@ as $$
     and m.user_id=(select auth.uid())
     and w.lifecycle_state='active'
     and d.lifecycle_state='active'
-    and v.lifecycle_state<>'deleted'
+    and v.publication_state='ready'
   )
 $$;
 
