@@ -1,0 +1,14 @@
+export type JobState="queued"|"processing"|"retry_wait"|"completed"|"failed"|"cancelled";
+export interface JobFence { readonly state:JobState; readonly attemptCount:number; readonly maxAttempts:number; readonly leaseOwner?:string; readonly leaseGeneration:number; readonly leaseExpiresAt?:number; readonly lifecycleEpoch:number; readonly cancellationRequested:boolean }
+export function owns(job:JobFence,owner:string,generation:number,lifecycleEpoch:number,now:number):boolean {
+ return job.state==="processing"&&job.leaseOwner===owner&&job.leaseGeneration===generation&&job.lifecycleEpoch===lifecycleEpoch&&!job.cancellationRequested&&!!job.leaseExpiresAt&&job.leaseExpiresAt>now;
+}
+export function finalizeJob(job:JobFence,owner:string,generation:number,lifecycleEpoch:number,now:number):JobFence {
+ if(!owns(job,owner,generation,lifecycleEpoch,now)) throw new Error("LEASE_LOST");
+ return Object.freeze({...job,state:"completed",leaseOwner:undefined,leaseExpiresAt:undefined});
+}
+export function failAttempt(job:JobFence,owner:string,generation:number,lifecycleEpoch:number,now:number,retryable:boolean):JobFence {
+ if(!owns(job,owner,generation,lifecycleEpoch,now)) throw new Error("LEASE_LOST");
+ const attempts=job.attemptCount+1,state:JobState=retryable&&attempts<job.maxAttempts?"retry_wait":"failed";
+ return Object.freeze({...job,state,attemptCount:attempts,leaseOwner:undefined,leaseExpiresAt:undefined});
+}

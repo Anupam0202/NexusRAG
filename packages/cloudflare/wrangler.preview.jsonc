@@ -1,0 +1,19 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "nexusrag-gateway-preview",
+  "main": "../../apps/gateway/src/index.ts",
+  "compatibility_date": "2026-09-10",
+  "compatibility_flags": ["nodejs_compat"],
+  "preview_urls": true,
+  "vars": {
+    "ENVIRONMENT": "preview",
+    "DB_NAME": "nexusrag-preview-control",
+    "R2_NAME": "nexusrag-preview-originals",
+    "VECTORIZE_NAME": "nexusrag-preview-evidence"
+  },
+  "d1_databases": [{"binding":"CONTROL_DB","database_name":"nexusrag-preview-control","database_id":"REPLACE_IN_DISPOSABLE_ENV"}],
+  "r2_buckets": [{"binding":"ORIGINALS","bucket_name":"nexusrag-preview-originals"}],
+  "vectorize": [{"binding":"EVIDENCE_INDEX","index_name":"nexusrag-preview-evidence"}],
+  "queues": {"producers":[{"binding":"JOBS_QUEUE","queue":"nexusrag-preview-jobs"}]},
+  "observability": {"enabled": true, "head_sampling_rate": 0.1}
+}

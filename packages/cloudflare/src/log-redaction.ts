@@ -1,0 +1,10 @@
+const blocked=/authorization|cookie|token|secret|password|api[-_]?key|signed[-_]?url|source[-_]?body|prompt/i;
+export function safeLogFields(input:Readonly<Record<string,unknown>>):Readonly<Record<string,unknown>> {
+ const out:Record<string,unknown>={};
+ for(const [key,value] of Object.entries(input)){
+  if(blocked.test(key)){out[key]="[REDACTED]";continue;}
+  if(typeof value==="string") out[key]=value.length>256?`${value.slice(0,256)}…`:value;
+  else if(typeof value==="number"||typeof value==="boolean"||value===null) out[key]=value;
+ }
+ return Object.freeze(out);
+}
