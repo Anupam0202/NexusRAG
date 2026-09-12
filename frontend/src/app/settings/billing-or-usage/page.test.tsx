@@ -12,6 +12,7 @@ const workspaceAccess = vi.hoisted(() => ({
     authMode: "authenticated",
     canAccessWorkspaceApi: true,
     isWorkspaceLoading: false,
+    workspaceId: null as string | null,
   },
 }));
 
@@ -38,6 +39,7 @@ describe("BillingOrUsagePage", () => {
       authMode: "authenticated",
       canAccessWorkspaceApi: true,
       isWorkspaceLoading: false,
+      workspaceId: null,
     };
   });
 
@@ -105,6 +107,7 @@ describe("BillingOrUsagePage", () => {
       authMode: "authenticated",
       canAccessWorkspaceApi: true,
       isWorkspaceLoading: true,
+      workspaceId: null,
     };
 
     render(<BillingOrUsagePage />);
@@ -118,16 +121,9 @@ describe("BillingOrUsagePage", () => {
   });
 
   it("derives the vector backend label from qdrant status flags", async () => {
-    mockUsageResponses({
-      qdrant_configured: true,
-      enable_qdrant: true,
-    });
-
+    mockUsageResponses({ qdrant_configured: true, enable_qdrant: true });
     render(<BillingOrUsagePage />);
-
-    await waitFor(() => {
-      expect(screen.getByText("Vector backend")).toBeInTheDocument();
-    });
+    await waitFor(() => { expect(screen.getByText("Vector backend")).toBeInTheDocument(); });
     expect(screen.getByText("qdrant")).toBeInTheDocument();
     expect(screen.queryByText("unknown")).not.toBeInTheDocument();
   });
@@ -139,16 +135,9 @@ describe("BillingOrUsagePage", () => {
       isWorkspaceLoading: false,
       workspaceId: "workspace-live",
     };
-    mockUsageResponses({
-      qdrant_configured: true,
-      enable_qdrant: true,
-    });
-
+    mockUsageResponses({ qdrant_configured: true, enable_qdrant: true });
     render(<BillingOrUsagePage />);
-
-    await waitFor(() => {
-      expect(getAnalytics).toHaveBeenCalledWith({ workspaceId: "workspace-live" });
-    });
+    await waitFor(() => { expect(getAnalytics).toHaveBeenCalledWith({ workspaceId: "workspace-live" }); });
     expect(getSystemStatus).toHaveBeenCalledWith({ workspaceId: "workspace-live" });
     expect(getApiKeyStatus).toHaveBeenCalledWith({ workspaceId: "workspace-live" });
     expect(getBillingUsage).toHaveBeenCalledWith({ workspaceId: "workspace-live" });

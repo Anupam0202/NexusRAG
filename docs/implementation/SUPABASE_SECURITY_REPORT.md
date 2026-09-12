@@ -1,0 +1,78 @@
+# Supabase Security Verification
+
+Status: `PARTIAL_NOT_COMPLETE`
+
+Verified: 2026-09-12
+
+## Authority boundary
+
+Supabase remains authoritative for tenant identity, memberships, private-document metadata, evidence records, reviews, provider policy, usage accounting, audit history, and deletion state. Cloudflare coordination stores and Qdrant indexes must not become alternate authorities.
+
+## Exposed-table isolation
+
+Live verification found 51 public tables, with row-level security enabled on all 51. No public-table grants to `anon` or `authenticated` were present at verification time.
+
+Migration `024_explicit_service_table_denies` was applied after confirming that 35 RLS-enabled authority tables were intentionally service-mediated and had no browser-role grants.
+
+The migration:
+
+- Enables RLS on every listed service-mediated table.
+- Creates one restrictive `ALL` policy for `anon` and `authenticated` with `USING (false)` and `WITH CHECK (false)`.
+- Revokes all table privileges from `anon` and `authenticated`.
+- Fails with `MIGRATION_REQUIRED` when an expected table is absent.
+- Leaves server-side capability enforcement and service-role operations unchanged.
+
+Post-migration verification found:
+
+- 35 explicit restrictive client-deny policies.
+- Zero browser-role grants on those 35 tables.
+- Zero remaining `rls_enabled_no_policy` advisor findings.
+
+The source is preserved in `supabase/migrations/024_explicit_service_table_denies.sql`; its offline contract test is `backend/tests/regressions/test_v6_service_table_denies.py`.
+
+## Function execution hardening
+
+Live review found three public functions whose default `PUBLIC` execution privilege made them callable by the anonymous role. Migration `025_function_execution_hardening` removed that implicit access and preserved only the required authenticated or service-role contracts.
+
+Verified after migration:
+
+- Anonymous execution is denied for `match_document_chunks`, `set_updated_at`, and `uuid_or_null`.
+- Authenticated retrieval remains available for `match_document_chunks` and is still subject to table RLS.
+- Authenticated policy-helper execution remains available for `uuid_or_null`.
+- `set_updated_at` is service-role executable and remains usable as a trigger function.
+- All reviewed security-definer helpers are owned by the database owner and have fixed search paths.
+- The private helper schema does not grant usage to the anonymous role.
+
+The source is preserved in `supabase/migrations/025_function_execution_hardening.sql`; its offline contract test is `backend/tests/regressions/test_v6_function_execution_hardening.py`.
+
+## Storage boundary
+
+The `documents` bucket exists and is private. Its live configuration enforces a 25,000,000-byte object limit and a bounded MIME-type allowlist. Three authenticated Storage policies enforce exact allocated-object read/write authorization:
+
+- `nexusrag_documents_select`
+- `nexusrag_documents_insert`
+- `nexusrag_documents_update`
+
+Client deletion is intentionally unavailable; cleanup is service-mediated and bounded. Live cross-workspace fixtures and signed-URL expiry tests are still required before the Storage gate can pass.
+
+## Migration-source integrity
+
+The live migration history includes migrations 014 through 025. Exact repository sources for 014 and 015–022 are still unavailable. Searches of the current branch, the legacy branch tree, and legacy branch path history found no recoverable copies. Migration integrity therefore remains failed; reconstructed SQL must not be represented as the exact historical source.
+
+## Remaining security warning
+
+Supabase Auth leaked-password protection remains disabled. This gate is unresolved. The application must compensate with strong password requirements, MFA support, and reauthentication for consequential operations, but those controls do not replace the provider warning.
+
+Reference: https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection
+
+## Remaining validation
+
+- Authenticated cross-workspace denial fixtures.
+- Revoked-membership and stale-authorization fixtures.
+- Exact-path Storage success and arbitrary-path denial.
+- Viewer/editor/admin capability matrix.
+- Upload expiry, multipart cleanup, signed-URL expiry, and deletion receipts.
+- Recovery, restore, and read-only-mode rehearsal.
+- Exact historical migration-source recovery or an explicitly approved baseline replacement procedure.
+
+No production-security, compliance, or completion claim is made by this report.

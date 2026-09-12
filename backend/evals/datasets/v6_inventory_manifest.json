@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "status": "FIXTURE_INVENTORY_ONLY",
+  "generator": "backend/evals/build_v6_dataset.py",
+  "labeled_cases": 400,
+  "heldout_cases": 125,
+  "splits_are_disjoint": true,
+  "synthetic": true,
+  "quality_gates_passed": false,
+  "limitations": [
+    "The deterministic inventory establishes case counts and schema coverage only.",
+    "It does not establish retrieval, citation, model, accessibility, visual, security, or end-to-end quality.",
+    "Held-out outcomes must remain unpublished until execution to avoid tuning leakage."
+  ]
+}
