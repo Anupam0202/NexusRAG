@@ -7,12 +7,14 @@ from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]
 REQUIRED=[
  "apps/gateway/src/index.ts",
+ "apps/gateway/src/preview-worker.js",
  "apps/run-coordinator/src/reducer.ts",
  "packages/contracts/src/index.ts",
  "packages/data/migrations/0001_control_plane.sql",
  "packages/retrieval/src/point-identity.ts",
  "packages/cloudflare/wrangler.preview.jsonc",
  "tests/cloudflare/foundation.test.mjs",
+ "tests/cloudflare/preview-worker.test.mjs",
  "config/zero-cost/cloudflare.free.json",
  "docs/architecture/CLOUDFLARE_DECISION_MATRIX.json",
 ]
@@ -21,10 +23,13 @@ errors=[]
 if not missing:
  budgets=json.loads((ROOT/"config/zero-cost/cloudflare.free.json").read_text(encoding="utf-8"))
  matrix=json.loads((ROOT/"docs/architecture/CLOUDFLARE_DECISION_MATRIX.json").read_text(encoding="utf-8"))
+ preview=(ROOT/"apps/gateway/src/preview-worker.js").read_text(encoding="utf-8")
  if budgets.get("profile")!="ZERO_COST_LOW_TRAFFIC":errors.append("budget profile mismatch")
  if budgets.get("paid_fallback") is not False:errors.append("paid fallback must be false")
  if budgets.get("unknown_quotas_fail_closed") is not True:errors.append("unknown quotas must fail closed")
  if budgets.get("thresholds_percent")!=[50,70,85,95,100]:errors.append("admission thresholds mismatch")
+ for fragment in ("content-security-policy","strict-transport-security","cross-origin-resource-policy","MIGRATION_REQUIRED","production_verified: false","paid_fallback: false"):
+  if fragment not in preview:errors.append(f"preview contract missing: {fragment}")
  required_budgets={
   "workers_requests":100000,"workers_cpu":10,"kv_reads":100000,"kv_writes":1000,
   "d1_rows_read":5000000,"d1_rows_written":100000,"d1_storage":5,
