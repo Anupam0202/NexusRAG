@@ -1,0 +1,98 @@
+{
+  "schema_version": 1,
+  "product": "NexusRAG Evidence Intelligence OS",
+  "profile": "ZERO_COST_LOW_TRAFFIC",
+  "status": "PARTIAL_NOT_COMPLETE",
+  "observed_at": "2026-09-12T08:45:00Z",
+  "privacy": {
+    "account_identifiers_published": false,
+    "resource_identifiers_published": false,
+    "credentials_published": false
+  },
+  "authority": {
+    "business_records": "Supabase",
+    "private_originals": "Supabase Storage",
+    "retrieval_index": "Qdrant",
+    "cloudflare_role": "frontend, gateway, request controls, and bounded coordination",
+    "cloudflare_coordination_is_authoritative": false
+  },
+  "inventory": {
+    "workers": {
+      "count": 1,
+      "state": "PREVIEW_DEPLOYMENT_PRESENT",
+      "public_health_verified": false
+    },
+    "pages_projects": {
+      "count": 0,
+      "state": "NOT_CONFIGURED"
+    },
+    "d1_databases": {
+      "count": 0,
+      "state": "NOT_CONFIGURED"
+    },
+    "r2": {
+      "state": "ACCOUNT_FEATURE_NOT_ENABLED",
+      "used_by_selected_architecture": false
+    },
+    "kv_namespaces": {
+      "count": 0,
+      "state": "NOT_CONFIGURED"
+    },
+    "queues": {
+      "count": 0,
+      "state": "NOT_CONFIGURED"
+    },
+    "workflows": {
+      "count": 0,
+      "state": "NOT_CONFIGURED"
+    },
+    "vectorize_indexes": {
+      "count": 0,
+      "state": "NOT_CONFIGURED",
+      "used_by_selected_architecture": false
+    },
+    "hyperdrive_configs": {
+      "count": 0,
+      "state": "NOT_CONFIGURED"
+    },
+    "workers_dev_subdomain": {
+      "state": "NOT_CREATED",
+      "public_preview_url_available": false
+    }
+  },
+  "zero_cost_controls": {
+    "configuration": "config/zero-cost/cloudflare.free.json",
+    "decision_matrix": "docs/architecture/CLOUDFLARE_DECISION_MATRIX.json",
+    "unknown_quotas_fail_closed": true,
+    "paid_fallback": false,
+    "workers_ai_enabled": false,
+    "admission_thresholds_percent": [50, 70, 85, 95, 100]
+  },
+  "validated": [
+    "Cloudflare compatibility contract tests",
+    "fail-closed unknown quota behavior",
+    "no hidden paid fallback",
+    "non-authoritative coordination boundary",
+    "current recurring-free allowance configuration"
+  ],
+  "blocked": [
+    "No public workers.dev subdomain exists, so public health verification cannot run",
+    "No Cloudflare Pages project is configured",
+    "No queue or workflow resources are configured",
+    "Worker bindings and route parity are not production-verified",
+    "Vercel integration is still active and must not be removed before Cloudflare parity passes"
+  ],
+  "next_safe_actions": [
+    "Create a bounded preview surface without DNS cutover",
+    "Verify health, security headers, route metadata, compatibility date, and fail-closed behavior",
+    "Add only resources justified by recurring free allowances",
+    "Keep Supabase and Qdrant as the sole selected authorities",
+    "Remove Vercel and Render only after preview parity and rollback rehearsal"
+  ],
+  "claims": {
+    "production_verified": false,
+    "preview_verified": false,
+    "complete": false,
+    "sla_claimed": false
+  }
+}
