@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "profile": "ZERO_COST_LOW_TRAFFIC",
+  "status": "PARTIAL_NOT_COMPLETE",
+  "verified_at": "2026-09-12",
+  "decisions": [
+    {"service": "Workers", "decision": "ADOPT", "authority": "gateway and lightweight orchestration", "guardrail": "100000 requests/day and 10 ms CPU/invocation"},
+    {"service": "Pages", "decision": "ADOPT_FOR_STATIC_FRONTEND", "authority": "none", "guardrail": "Functions share Workers allowances"},
+    {"service": "D1", "decision": "OPTIONAL_DISPOSABLE_CONTROL_PLANE", "authority": "never business truth", "guardrail": "do not duplicate Supabase authority"},
+    {"service": "R2", "decision": "DO_NOT_ADOPT_FOR_CUSTOMER_ORIGINALS", "authority": "Supabase Storage remains authoritative", "guardrail": "use only after an approved non-duplicating ADR"},
+    {"service": "KV", "decision": "ADOPT_DISPOSABLE_ONLY", "authority": "none", "guardrail": "cache and non-authoritative flags only"},
+    {"service": "Queues", "decision": "ADOPT_BOUNDED", "authority": "none", "guardrail": "10000 operations/day; messages under 64 KB; 24-hour retention"},
+    {"service": "Workflows", "decision": "ADOPT_BOUNDED", "authority": "coordination only", "guardrail": "3000 steps/day; retain resumable truth in Supabase"},
+    {"service": "Durable Objects", "decision": "DEFER_PENDING_EXACT_FREE_BUDGET", "authority": "coordination only", "guardrail": "fail closed until current recurring allowance is documented"},
+    {"service": "Vectorize", "decision": "DO_NOT_DUPLICATE_QDRANT", "authority": "reconstructible index only", "guardrail": "Qdrant remains selected; Vectorize may be used only in isolated evaluation"},
+    {"service": "Hyperdrive", "decision": "DEFER", "authority": "none", "guardrail": "direct Supabase path remains simpler at current scale"},
+    {"service": "Browser Run", "decision": "ADOPT_LAST_RESORT", "authority": "none", "guardrail": "10 minutes/day, 3 concurrent browsers; prefer feeds and conditional HTTP"},
+    {"service": "AI Gateway", "decision": "ADOPT_CORE_FEATURES_ONLY", "authority": "none", "guardrail": "analytics, caching, rate limits; disable paid guardrails and unified billing"},
+    {"service": "Turnstile", "decision": "ADOPT_FOR_ABUSE_PRONE_PUBLIC_FORMS", "authority": "none", "guardrail": "20 widgets; 10 hostnames/widget; server-side token validation"},
+    {"service": "Workers AI", "decision": "DISABLED", "authority": "none", "guardrail": "selected generation provider is Gemini Free; no hidden paid inference"},
+    {"service": "Cloudflare Access", "decision": "DEFER_PENDING_PLAN_AND_IDENTITY_REVIEW", "authority": "none", "guardrail": "Supabase Auth remains selected identity authority"}
+  ],
+  "non_negotiable_boundaries": [
+    "Supabase is authoritative for tenant and business records.",
+    "Supabase Storage is authoritative for private customer originals.",
+    "Qdrant is the selected reconstructible retrieval index.",
+    "Cloudflare coordination stores do not own business truth.",
+    "Unknown or stale quotas fail closed.",
+    "No hidden paid fallback is permitted."
+  ]
+}
