@@ -3,7 +3,7 @@
   "product": "NexusRAG Evidence Intelligence OS",
   "profile": "ZERO_COST_LOW_TRAFFIC",
   "status": "PARTIAL_NOT_COMPLETE",
-  "observed_at": "2026-09-12T08:48:00Z",
+  "observed_at": "2026-09-12T09:00:00Z",
   "privacy": {
     "account_identifiers_published": false,
     "resource_identifiers_published": false,
@@ -28,7 +28,9 @@
       "paid_fallback": false,
       "business_authority": "Supabase",
       "vector_authority": "Qdrant",
-      "compatibility_date_explicit": false,
+      "compatibility_date_explicit": true,
+      "compatibility_date": "2026-09-12",
+      "compatibility_flags": [],
       "binding_count": 0
     },
     "pages_projects": {
@@ -82,6 +84,7 @@
   "validated": [
     "Cloudflare compatibility contract tests",
     "public gateway health response",
+    "explicit Worker compatibility date",
     "degraded-state honesty",
     "fail-closed unknown quota behavior",
     "no hidden paid fallback",
@@ -91,13 +94,12 @@
   "blocked": [
     "No Cloudflare Pages project is configured",
     "No queue or workflow resources are configured",
-    "Worker compatibility date is not explicit",
     "Worker has no resource bindings",
     "Frontend and gateway route parity are not verified",
+    "Response headers could not be independently inspected from the network-restricted Computer Worker",
     "Vercel integration is still active and must not be removed before Cloudflare parity passes"
   ],
   "next_safe_actions": [
-    "Set and verify an explicit Worker compatibility date",
     "Verify security headers, route metadata, error contracts, and fail-closed behavior on the public preview",
     "Add only resources justified by recurring free allowances",
     "Keep Supabase and Qdrant as the sole selected authorities",
@@ -105,6 +107,7 @@
   ],
   "claims": {
     "gateway_health_verified": true,
+    "compatibility_date_verified": true,
     "production_verified": false,
     "preview_verified": false,
     "complete": false,
