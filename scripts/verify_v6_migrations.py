@@ -21,6 +21,7 @@ REQUIRED = [
     "022_v6_rights_quota_interfaces.sql",
     "023_private_storage_authorization.sql",
     "024_explicit_service_table_denies.sql",
+    "025_function_execution_hardening.sql",
 ]
 SECRET_PATTERNS = {
     "private_key": re.compile(r"-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----"),
@@ -86,6 +87,16 @@ def main() -> None:
             "revoke all privileges on table public.%i from anon,authenticated",
             "to_regclass",
             "enable row level security",
+        ),
+    )
+    require_fragments(
+        "025_function_execution_hardening.sql",
+        (
+            "revoke execute on function public.match_document_chunks(extensions.vector, uuid, integer, jsonb)",
+            "revoke execute on function public.set_updated_at()",
+            "revoke execute on function public.uuid_or_null(text)",
+            "has_function_privilege('anon'",
+            "has_function_privilege('authenticated'",
         ),
     )
 
