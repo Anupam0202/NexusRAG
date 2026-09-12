@@ -81,7 +81,13 @@ jobs:
       - run: npm ci --ignore-scripts
         working-directory: frontend
       - name: Fail on high or critical npm advisories
-        run: npm audit --audit-level=high
+        run: |
+          set +e
+          npm audit --json --audit-level=high > npm-audit.json
+          audit_status=$?
+          set -e
+          node ../scripts/report_npm_audit.mjs npm-audit.json
+          exit "$audit_status"
         working-directory: frontend
   required-summary:
     name: Required foundation summary
