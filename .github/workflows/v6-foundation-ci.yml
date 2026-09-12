@@ -89,10 +89,33 @@ jobs:
           node ../scripts/report_npm_audit.mjs npm-audit.json
           exit "$audit_status"
         working-directory: frontend
+  supply-chain:
+    name: SBOM and licence inventory
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: "24"}
+      - run: node scripts/generate_supply_chain.mjs
+      - name: Validate generated evidence
+        run: |
+          set -euo pipefail
+          test -s artifacts/nexusrag.cdx.json
+          test -s artifacts/license-inventory.json
+          node -e 'const fs=require("fs"); const b=JSON.parse(fs.readFileSync("artifacts/nexusrag.cdx.json")); if(b.bomFormat!=="CycloneDX"||b.specVersion!=="1.6"||!b.components.length) process.exit(1)'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v6-supply-chain-evidence
+          path: |
+            artifacts/nexusrag.cdx.json
+            artifacts/license-inventory.json
+          if-no-files-found: error
+          retention-days: 14
   required-summary:
     name: Required foundation summary
     if: always()
-    needs: [migration-integrity,backend-isolated,cloudflare-foundation,frontend,dependency-review]
+    needs: [migration-integrity,backend-isolated,cloudflare-foundation,frontend,dependency-review,supply-chain]
     runs-on: ubuntu-latest
     steps:
       - name: Fail unless required jobs passed
@@ -102,11 +125,13 @@ jobs:
           CLOUDFLARE_RESULT: ${{ needs.cloudflare-foundation.result }}
           FRONTEND_RESULT: ${{ needs.frontend.result }}
           DEPENDENCY_RESULT: ${{ needs.dependency-review.result }}
+          SUPPLY_CHAIN_RESULT: ${{ needs.supply-chain.result }}
         run: |
           set -euo pipefail
-          printf 'migration=%s backend=%s cloudflare=%s frontend=%s dependency=%s\n' "$MIGRATION_RESULT" "$BACKEND_RESULT" "$CLOUDFLARE_RESULT" "$FRONTEND_RESULT" "$DEPENDENCY_RESULT"
+          printf 'migration=%s backend=%s cloudflare=%s frontend=%s dependency=%s supply_chain=%s\n' "$MIGRATION_RESULT" "$BACKEND_RESULT" "$CLOUDFLARE_RESULT" "$FRONTEND_RESULT" "$DEPENDENCY_RESULT" "$SUPPLY_CHAIN_RESULT"
           test "$MIGRATION_RESULT" = success
           test "$BACKEND_RESULT" = success
           test "$CLOUDFLARE_RESULT" = success
           test "$FRONTEND_RESULT" = success
           test "$DEPENDENCY_RESULT" = success
+          test "$SUPPLY_CHAIN_RESULT" = success
