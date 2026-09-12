@@ -1,0 +1,38 @@
+name: Refresh frontend lockfile
+on:
+  push:
+    branches: [v6-zero-cost-foundations-clean]
+permissions:
+  contents: write
+concurrency:
+  group: refresh-frontend-lockfile
+  cancel-in-progress: false
+jobs:
+  refresh:
+    if: ${{ !contains(github.event.head_commit.message, '[lockfile-refresh]') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: v6-zero-cost-foundations-clean
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Resolve reviewed dependency versions
+        run: npm install --package-lock-only --ignore-scripts
+        working-directory: frontend
+      - name: Publish refreshed lockfile when changed
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- frontend/package-lock.json; then
+            echo "Lockfile already current"
+            exit 0
+          fi
+          git config user.name "Anupam Roy"
+          git config user.email "42176802+Anupam0202@users.noreply.github.com"
+          git add frontend/package-lock.json
+          git commit -m "chore: refresh frontend lockfile [lockfile-refresh]"
+          git push origin HEAD:v6-zero-cost-foundations-clean
