@@ -68,15 +68,21 @@ jobs:
         working-directory: frontend
         env: {NEXT_TELEMETRY_DISABLED: "1"}
   dependency-review:
-    name: Dependency review
-    if: github.event_name == 'pull_request'
+    name: Dependency review (lockfiles)
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    permissions: {contents: read}
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/dependency-review-action@v4
-        with: {fail-on-severity: high}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci --ignore-scripts
+        working-directory: frontend
+      - name: Fail on high or critical npm advisories
+        run: npm audit --audit-level=high
+        working-directory: frontend
   required-summary:
     name: Required foundation summary
     if: always()
@@ -97,4 +103,4 @@ jobs:
           test "$BACKEND_RESULT" = success
           test "$CLOUDFLARE_RESULT" = success
           test "$FRONTEND_RESULT" = success
-          if [[ "${{ github.event_name }}" == pull_request ]]; then test "$DEPENDENCY_RESULT" = success; else test "$DEPENDENCY_RESULT" = skipped; fi
+          test "$DEPENDENCY_RESULT" = success
