@@ -1,0 +1,100 @@
+name: V6 Foundation CI
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+concurrency:
+  group: v6-foundation-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+defaults:
+  run:
+    shell: bash
+jobs:
+  migration-integrity:
+    name: Migration integrity
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.13"}
+      - run: python3 scripts/verify_v6_migrations.py
+  backend-isolated:
+    name: Backend isolated regressions
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.13"}
+      - run: python3 -m compileall -q src tests
+        working-directory: backend
+      - run: python3 scripts/run_isolated.py
+        working-directory: backend
+  cloudflare-foundation:
+    name: Cloudflare compatibility
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: "24"}
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.13"}
+      - run: npm run check:cloudflare
+      - run: npm run test:cloudflare
+  frontend:
+    name: Frontend lint, unit, typecheck, build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci --ignore-scripts
+        working-directory: frontend
+      - run: npm run lint
+        working-directory: frontend
+      - run: npm test -- --reporter=default
+        working-directory: frontend
+      - run: npm exec tsc -- --noEmit
+        working-directory: frontend
+      - run: npm run build
+        working-directory: frontend
+        env: {NEXT_TELEMETRY_DISABLED: "1"}
+  dependency-review:
+    name: Dependency review
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions: {contents: read}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/dependency-review-action@v4
+        with: {fail-on-severity: high}
+  required-summary:
+    name: Required foundation summary
+    if: always()
+    needs: [migration-integrity,backend-isolated,cloudflare-foundation,frontend,dependency-review]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fail unless required jobs passed
+        env:
+          MIGRATION_RESULT: ${{ needs.migration-integrity.result }}
+          BACKEND_RESULT: ${{ needs.backend-isolated.result }}
+          CLOUDFLARE_RESULT: ${{ needs.cloudflare-foundation.result }}
+          FRONTEND_RESULT: ${{ needs.frontend.result }}
+          DEPENDENCY_RESULT: ${{ needs.dependency-review.result }}
+        run: |
+          set -euo pipefail
+          printf 'migration=%s backend=%s cloudflare=%s frontend=%s dependency=%s\n' "$MIGRATION_RESULT" "$BACKEND_RESULT" "$CLOUDFLARE_RESULT" "$FRONTEND_RESULT" "$DEPENDENCY_RESULT"
+          test "$MIGRATION_RESULT" = success
+          test "$BACKEND_RESULT" = success
+          test "$CLOUDFLARE_RESULT" = success
+          test "$FRONTEND_RESULT" = success
+          if [[ "${{ github.event_name }}" == pull_request ]]; then test "$DEPENDENCY_RESULT" = success; else test "$DEPENDENCY_RESULT" = skipped; fi
