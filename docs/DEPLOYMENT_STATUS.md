@@ -1,36 +1,41 @@
 # Deployment Status
 
-This file tracks the current deployment-critical roadmap state.
+Status: `PARTIAL_NOT_COMPLETE`
 
-## Implemented
+This document records only verified deployment facts. It is not a production-readiness claim.
 
-- Vercel frontend and Render backend are configured as separate public services.
-- Render backend status exposes Supabase, Qdrant, upload limit, async ingestion, local FAISS, pgvector, cache, and provider health settings.
-- Vercel frontend points directly to the Render backend for REST and WebSocket traffic.
-- Supabase variables are supported in both frontend and backend, but server secrets must be mirrored into Render.
-- Qdrant variables are supported by Render through `ENABLE_QDRANT`, `QDRANT_URL`, `QDRANT_API_KEY`, and `QDRANT_COLLECTION`.
-- Pgvector fallback is implemented but optional and should only be enabled after the migration is applied.
-- Migration `011_durable_queue_billing_retention.sql` adds atomic leased job claims, durable usage reconciliation, retention scheduling, and full workspace lifecycle support.
-- The repository contains standalone leased ingestion and retention workers. A continuously running worker and scheduled retention command still require paid Render worker/cron capacity or an equivalent external scheduler.
+## Verified repository state
 
-## Known Production Blocker
+- The active implementation branch is `v6-zero-cost-foundations-clean`.
+- Committed deployment-account and Supabase project identifiers have been removed from the current branch tree.
+- The repository contains Cloudflare gateway foundations and offline compatibility tests.
+- The repository contains zero-cost admission, rights, lifecycle, Storage authorization, service-table denial, and function-execution hardening contracts.
+- The migration verifier still references intentionally retired historical migration files. A new self-contained migration-001 baseline has not yet been validated or published.
+- Evaluation fixtures contain at least 400 labeled and 125 held-out cases, but the quality gates have not been executed.
 
-Authenticated public E2E depends on the frontend Supabase project matching the Supabase admin/project available to the test environment. If the deployed frontend targets a different Supabase project than the one exposed to automation, signup/upload/chat cannot be verified end to end without user-side credentials or project alignment.
+## Connected-platform state
 
-Verified historical deployment identifiers have been removed from the repository.
+- The intended Supabase project has been confirmed separately through protected connected tooling. Project identifiers must not be committed to this repository.
+- The existing Supabase application has not yet been destructively rebuilt from a clean baseline.
+- The Cloudflare account currently has a hardened preview gateway, but Cloudflare frontend parity, canary, rollback, and restore verification remain incomplete.
+- Qdrant authenticated validation is blocked until a real API token is supplied through a protected secret surface.
+- Gemini bounded validation is blocked until credentials are supplied through a protected secret surface.
+- Vercel and Render remain active compatibility paths. They must not be removed until Cloudflare parity and rollback gates pass.
 
-Current Cloudflare, Supabase, Qdrant, Gemini, Vercel, and Render mappings must be discovered at deployment time and recorded only in protected environment configuration or sanitized evidence. Do not infer production parity from this document.
+## Required next gates
 
-## Next Deployment Checks
+1. Build and statically validate a self-contained migration-001 baseline with no dependency on retired migration files.
+2. Rehearse the baseline against a disposable PostgreSQL/Supabase-compatible environment.
+3. Rebuild the authorized Supabase project only after the rehearsal passes.
+4. Verify RLS, private Storage, grants, function execution, Auth emptiness, and deletion behavior after rebuild.
+5. Regenerate database client types from the rebuilt schema.
+6. Complete Cloudflare frontend and gateway parity, then test canary and rollback.
+7. Run bounded Qdrant and Gemini validations using protected credentials.
+8. Execute evaluation, security, accessibility, recovery, and end-to-end product gates.
+9. Remove Vercel and Render from active production paths only after replacement gates pass.
 
-1. Confirm Vercel production variables point to the intended Supabase project and Render backend URL.
-2. Confirm Render has the same Supabase project variables, service role key, JWT secret or JWKS URL, and Qdrant variables.
-3. Apply all Supabase migrations through `011_durable_queue_billing_retention.sql` to
-   the intended production project; enable pgvector only if fallback is needed.
-4. Provision `python scripts/process_jobs.py --poll` as a continuously running
-   worker and schedule `python scripts/process_retention.py` daily on production infrastructure.
-5. Configure current provider-rate estimates with
-   `LLM_INPUT_COST_USD_PER_MILLION` and `LLM_OUTPUT_COST_USD_PER_MILLION`.
-6. Deploy backend and frontend from the same Git commit.
-7. Run the smoke test from `docs/DEPLOYMENT_FREE.md` and the authenticated
-   isolation suite with dedicated accounts.
+## Safety boundaries
+
+- Do not commit service URLs, project identifiers, secrets, personal email addresses, user records, or Storage object names.
+- Do not claim `PREVIEW_VERIFIED` or `PRODUCTION_VERIFIED` while required gates are missing.
+- Do not merge, release, change DNS, enable paid usage, or remove rollback paths without separate authorization.
