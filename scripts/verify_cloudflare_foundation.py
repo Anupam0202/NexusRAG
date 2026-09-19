@@ -50,18 +50,19 @@ if not missing:
  for service in ("Workers","Pages","D1","R2","KV","Queues","Workflows","Vectorize","Browser Run","AI Gateway","Turnstile","Workers AI"):
   if service not in decisions:errors.append(f"missing decision: {service}")
  if decisions.get("Workers AI")!="DISABLED":errors.append("Workers AI must remain disabled in the selected architecture")
-historical=[]
-for path in sorted((ROOT/"supabase/migrations").glob("*.sql"))[:13]:
- historical.append({"file":str(path.relative_to(ROOT)),"sha256":hashlib.sha256(path.read_bytes()).hexdigest()})
+migration_sources=[]
+for path in sorted((ROOT/"supabase/migrations").glob("*.sql")):
+ migration_sources.append({"file":str(path.relative_to(ROOT)),"sha256":hashlib.sha256(path.read_bytes()).hexdigest()})
 passed=not missing and not errors
 print(json.dumps({
  "status":"PASS_SOURCE_FOUNDATION" if passed else "FAIL",
  "missing":missing,
  "errors":errors,
  "verified_source_files":len(REQUIRED),
- "historical_migrations":historical,
+ "reviewed_migration_sources":migration_sources,
  "limitations":[
   "This is an offline source-integrity check, not a live deployment verification.",
+  "The reviewed migration chain is not yet the rehearsed clean migration-001 baseline.",
   "CI does not receive production credentials or perform DNS cutover.",
   "Cloudflare budgets must be revalidated on or before review_after.",
   "Queue, Workflow, Browser, and other resources require live availability checks before enablement."
