@@ -613,7 +613,7 @@ Add this configuration table to production deployment documentation:
 | System | Value |
 |---|---|
 | Application origin | `https://nexusrag.vercel.app` |
-| Supabase callback | `https://fcjaomiceajcdownarel.supabase.co/auth/v1/callback` |
+| Supabase callback | `https://YOUR_SUPABASE_PROJECT_REF.supabase.co/auth/v1/callback` |
 | Google scopes | `openid email profile` |
 | GitHub homepage | `https://nexusrag.vercel.app` |
 | Provider secret location | Supabase Auth dashboard only |
@@ -727,7 +727,7 @@ In Google Cloud:
 ```text
 Application type: Web application
 Application name: NexusRAG
-Authorized redirect URI: https://fcjaomiceajcdownarel.supabase.co/auth/v1/callback
+Authorized redirect URI: https://YOUR_SUPABASE_PROJECT_REF.supabase.co/auth/v1/callback
 Scopes: openid, email, profile
 ```
 
@@ -740,7 +740,7 @@ In GitHub Developer Settings:
 ```text
 Application name: NexusRAG
 Homepage URL: https://nexusrag.vercel.app
-Authorization callback URL: https://fcjaomiceajcdownarel.supabase.co/auth/v1/callback
+Authorization callback URL: https://YOUR_SUPABASE_PROJECT_REF.supabase.co/auth/v1/callback
 ```
 
 - [ ] **Step 3: Enable providers in Supabase**

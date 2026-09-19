@@ -17,22 +17,9 @@ This file tracks the current deployment-critical roadmap state.
 
 Authenticated public E2E depends on the frontend Supabase project matching the Supabase admin/project available to the test environment. If the deployed frontend targets a different Supabase project than the one exposed to automation, signup/upload/chat cannot be verified end to end without user-side credentials or project alignment.
 
-Verified on June 7, 2026:
+Verified historical deployment identifiers have been removed from the repository.
 
-- Vercel production JavaScript targets Supabase project `fcjaomiceajcdownarel`.
-- The connected Supabase administration plugin exposes project `hvmmfwteawrzxzusnndf`.
-- Migrations `001` through `010` exist on the connected project, pgvector is in
-  the `extensions` schema, and migration `011` was applied and verified there.
-  Supabase security advisors report zero security findings.
-  These results still must not be treated as proof for the different Supabase
-  project targeted by Vercel production.
-- Vercel production targets `https://fcjaomiceajcdownarel.supabase.co` and
-  `https://nexusrag-backend-wv2f.onrender.com`.
-- The Render status endpoint reports Supabase auth required, Qdrant active,
-  async ingestion enabled, and tenant quotas enabled.
-- Public Playwright smoke verification passed on desktop and mobile. The
-  authenticated isolation suite is committed but skipped without aligned
-  production test credentials.
+Current Cloudflare, Supabase, Qdrant, Gemini, Vercel, and Render mappings must be discovered at deployment time and recorded only in protected environment configuration or sanitized evidence. Do not infer production parity from this document.
 
 ## Next Deployment Checks
 

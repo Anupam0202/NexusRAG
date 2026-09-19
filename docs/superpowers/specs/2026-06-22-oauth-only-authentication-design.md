@@ -120,7 +120,7 @@ The email provider may remain enabled in Supabase during initial rollout for rol
 Both provider applications use:
 
 ```text
-https://fcjaomiceajcdownarel.supabase.co/auth/v1/callback
+https://YOUR_SUPABASE_PROJECT_REF.supabase.co/auth/v1/callback
 ```
 
 ### Google

@@ -49,7 +49,7 @@ Set the canonical frontend and matching public Supabase project:
 
 ```txt
 NEXT_PUBLIC_SITE_URL=https://nexusrag.vercel.app
-NEXT_PUBLIC_SUPABASE_URL=https://fcjaomiceajcdownarel.supabase.co
+NEXT_PUBLIC_SUPABASE_URL=https://YOUR_SUPABASE_PROJECT_REF.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=<production-anon-or-publishable-key>
 NEXT_PUBLIC_OAUTH_PROVIDERS=github
 ```
@@ -76,7 +76,7 @@ origins and do not leave localhost as the production Site URL.
 Both provider applications use the Supabase callback:
 
 ```txt
-https://fcjaomiceajcdownarel.supabase.co/auth/v1/callback
+https://YOUR_SUPABASE_PROJECT_REF.supabase.co/auth/v1/callback
 ```
 
 Google configuration:

@@ -182,15 +182,12 @@ def test_pgvector_extension_is_kept_outside_public_schema() -> None:
     assert "alter extension vector set schema extensions" in relocation
 
 
-def test_render_blueprint_pins_production_supabase_project() -> None:
+def test_render_blueprint_requires_external_supabase_identity() -> None:
     blueprint = (
         Path(__file__).resolve().parents[2] / "render.yaml"
     ).read_text(encoding="utf-8")
 
-    assert "- key: SUPABASE_URL" in blueprint
-    assert "value: \"https://fcjaomiceajcdownarel.supabase.co\"" in blueprint
-    assert "- key: SUPABASE_JWKS_URL" in blueprint
-    assert (
-        "https://fcjaomiceajcdownarel.supabase.co/auth/v1/.well-known/jwks.json"
-        in blueprint
-    )
+    assert "- key: SUPABASE_URL\n        sync: false" in blueprint
+    assert "- key: SUPABASE_JWKS_URL\n        sync: false" in blueprint
+    assert "YOUR_SUPABASE_PROJECT_REF" not in blueprint
+    assert ".supabase.co" not in blueprint
