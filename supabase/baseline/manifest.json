@@ -1,0 +1,19 @@
+{
+  "baseline": "001_v6_zero_cost_baseline.sql",
+  "bytes": 230273,
+  "columns": 600,
+  "constraints": 267,
+  "disposable_rehearsal_passed": false,
+  "functions": 76,
+  "indexes": 172,
+  "lines": 2311,
+  "production_applied": false,
+  "profile": "ZERO_COST_LOW_TRAFFIC",
+  "public_policies": 83,
+  "public_tables": 51,
+  "sha256": "a024f96282cdd2cce91290082a5e88c5abb9cb23c5496c95cf2cec200d1813de",
+  "source": "privacy-safe reviewed live PostgreSQL catalog; no table data included",
+  "status": "CANDIDATE_NOT_APPLIED",
+  "storage_policies": 3,
+  "triggers": 14
+}
