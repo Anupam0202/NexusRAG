@@ -4,7 +4,7 @@
   <img src="https://img.shields.io/badge/FastAPI-0.111+-009688?logo=fastapi&logoColor=white" alt="FastAPI" />
   <img src="https://img.shields.io/badge/Gemini-Failover-4285F4?logo=google&logoColor=white" alt="Gemini" />
   <img src="https://img.shields.io/badge/Qdrant-Vector_Search-DC244C" alt="Qdrant" />
-  <img src="https://img.shields.io/badge/Deploy-Render_+_Vercel-000?logo=vercel&logoColor=white" alt="Deploy" />
+  <img src="https://img.shields.io/badge/Deploy-Cloudflare_+_Supabase-F38020?logo=cloudflare&logoColor=white" alt="Deploy" />
   <img src="https://img.shields.io/badge/License-MIT-green" alt="MIT" />
 </p>
 
@@ -85,44 +85,15 @@ A production-grade **Retrieval-Augmented Generation** platform that lets enterpr
 
 ## Architecture
 
+```text
+Browser → Cloudflare OpenNext frontend → Cloudflare gateway
+                                      ├→ Supabase Auth/Postgres/Storage
+                                      ├→ Qdrant tenant/version-fenced vectors
+                                      ├→ Gemini admitted model calls
+                                      └→ Computer Worker queued heavy processing
 ```
-┌───────────────────────────────────────────────────────┐
-│              Next.js 16 Frontend (Vercel)              │
-│  ┌─────────┐ ┌───────────┐ ┌───────────┐ ┌────────┐  │
-│  │   Chat   │ │ Documents │ │ Analytics │ │Settings│  │
-│  │(WebSocket)│ │  (REST)   │ │  (REST)   │ │ (REST) │  │
-│  └────┬─────┘ └─────┬─────┘ └─────┬─────┘ └───┬────┘  │
-└───────┼─────────────┼─────────────┼────────────┼──────┘
-        │             │             │            │
-   wss://│        POST │         GET │       PATCH│
-        ▼             ▼             ▼            ▼
-┌───────────────────────────────────────────────────────┐
-│              FastAPI Backend (Render)                   │
-│                                                       │
-│  ┌──────────────┐  ┌──────────────┐  ┌─────────────┐ │
-│  │  WebSocket    │  │  REST Routes │  │  Middleware  │ │
-│  │  /ws/chat     │  │  /api/v1/*   │  │  Rate Limit │ │
-│  └──────┬───────┘  └──────┬───────┘  │  CORS, Auth │ │
-│         │                 │          └─────────────┘ │
-│  ┌──────▼─────────────────▼───────────────────────┐  │
-│  │          NexusRAG Chain Orchestrator             │  │
-│  │   Query → Cache → Retrieve → Prompt → Stream    │  │
-│  └───┬──────────┬──────────┬──────────┬───────────┘  │
-│      │          │          │          │               │
-│  ┌───▼───┐ ┌───▼───┐ ┌───▼────┐ ┌───▼──────────┐   │
-│  │Gemini │ │Hybrid │ │Semantic│ │ Conversation  │   │
-│  │  LLM  │ │Search │ │ Cache  │ │   Memory      │   │
-│  │(2.5   │ │BM25+  │ └────────┘ └──────────────┘   │
-│  │Flash) │ │Qdrant │                                 │
-│  └───────┘ │+Rerank│                                 │
-│            └───────┘                                 │
-│                                                       │
-│  ┌────────────── Ingestion Pipeline ───────────────┐  │
-│  │ Loader → OCR → Chunker → Enricher → Embedder   │  │
-│  │ (PDF/DOCX/Excel/CSV/Image/TXT/JSON/Markdown)    │  │
-│  └─────────────────────────────────────────────────┘  │
-└───────────────────────────────────────────────────────┘
-```
+
+Customer evidence and business records remain authoritative in Supabase. Qdrant is reconstructible. Cloudflare is the public security and routing boundary. Vercel and Render are not active deployment paths.
 
 ---
 
@@ -138,7 +109,7 @@ A production-grade **Retrieval-Augmented Generation** platform that lets enterpr
 | **Frontend** | Next.js 16, React 19, TailwindCSS, Zustand, Framer Motion |
 | **Vector Store** | Qdrant primary + BM25Okapi; local FAISS fallback for development/demo |
 | **Streaming** | WebSocket (native JSON frames) |
-| **Deploy** | Render (backend) + Vercel (frontend) |
+| **Deploy** | Cloudflare Workers/OpenNext + Supabase + Qdrant |
 | **Styling** | TailwindCSS 3, Inter font, Lucide icons |
 
 ---
@@ -214,71 +185,18 @@ docker-compose up --build
 
 ## Deployment
 
-### Backend → Render
+The preview deployment is automated by `.github/workflows/cloudflare-preview-deploy.yml` using the protected GitHub `Preview` environment.
 
-1. Connect your GitHub repo to [Render](https://render.com)
-2. Create a **New Web Service** and select your repository
-3. Render auto-detects `render.yaml` — click **Apply** to provision the service
-4. Set `GOOGLE_API_KEY` in the Render dashboard (**Environment** tab)
-5. Mirror the Supabase variables into Render when enterprise auth/storage is enabled:
-   - `SUPABASE_URL`
-   - `SUPABASE_ANON_KEY` or `SUPABASE_PUBLISHABLE_KEY`
-   - `SUPABASE_SERVICE_ROLE_KEY` or `SUPABASE_SECRET_KEY`
-   - `SUPABASE_JWT_SECRET` or `SUPABASE_JWKS_URL`
-   - `SUPABASE_STORAGE_BUCKET=documents`
-6. Keep `ENABLE_ANONYMOUS_DEMO=false` for public deployments.
-7. Click **Deploy** — Render builds the Docker image and starts the service
-
-> Vercel's native Supabase integration only injects variables into Vercel deployments. Render must receive the same Supabase backend variables separately; with `ENABLE_ANONYMOUS_DEMO=false`, protected routes fail closed until those variables are configured.
-
-`API_CORS_ORIGINS` is preconfigured in `render.yaml` for the Vercel production domains. Update it if you add a custom frontend domain.
-
-> `render.yaml` uses lightweight hash embeddings and disables scientific PDF parsing, semantic chunking, contextual enrichment, reranking, and embedded PDF/DOCX image OCR on the free tier, while keeping normal text PDFs, DOCX text, and bounded scanned-PDF OCR available.
-
-> **Free-tier note:** Render free web services spin down after 15 minutes of inactivity and take ~30–60s to cold-start. Set `DISABLE_CROSS_ENCODER=true` (already in `render.yaml`) to stay within the 512 MB RAM limit.
-
-### Frontend → Vercel
-
-1. Import the repo on [Vercel](https://vercel.com)
-2. Set the root directory to `frontend`
-3. Add environment variables:
-   - `NEXT_PUBLIC_API_URL` — your actual Render backend URL (e.g., `https://your-render-service.onrender.com`)
-   - `NEXT_PUBLIC_SUPABASE_URL`
-   - `NEXT_PUBLIC_SUPABASE_ANON_KEY` or `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
-   - `NEXT_PUBLIC_SITE_URL` — the canonical HTTPS frontend URL used by auth callbacks
-   - `NEXT_PUBLIC_OAUTH_PROVIDERS` — comma-separated enabled providers, for example `github` or `google,github`
-4. Vercel auto-detects Next.js and deploys
-
-Set the matching Supabase project's **Authentication > URL Configuration >
-Site URL** to the canonical frontend URL and allow
-`https://<frontend-domain>/auth/callback`. If the callback is not allowlisted,
-Supabase falls back to the Site URL; leaving that value on localhost breaks
-production OAuth return routing.
-
-Create Google and GitHub OAuth applications and use the Supabase callback URL
-shown by the provider settings:
-
-```txt
-https://<supabase-project-ref>.supabase.co/auth/v1/callback
+```bash
+cd frontend
+npm ci --ignore-scripts
+npm run cf:build
+npm run cf:deploy
 ```
 
-Store both provider client IDs and secrets only in Supabase
-**Authentication > Providers**. NexusRAG requests the standard Google
-`openid email profile` scopes, shows Google first, and uses GitHub as the
-secondary provider. OAuth-only public authentication does not require Resend,
-custom SMTP, or a paid domain.
+Required public configuration points the frontend at the Cloudflare gateway and the connected Supabase project. Provider credentials remain protected secrets. See `docs/DEPLOYMENT_FREE.md` and `docs/DEPLOYMENT_PRODUCTION.md` for the exact environment contract and promotion gates.
 
-### Connecting Frontend and Backend
-
-The frontend calls the Render backend directly for REST requests, uploads, and WebSocket chat streaming. This keeps every backend workflow on the same service and avoids Vercel's serverless timeout/proxy limitations.
-
-| Connection | Path | Notes |
-|---|---|---|
-| REST API | Browser → Render directly | Requires `NEXT_PUBLIC_API_URL` |
-| File upload | Browser → Render directly | Bypasses Vercel timeout |
-| WebSocket | Browser → Render directly | Vercel doesn't proxy WS |
-
-Make sure `API_CORS_ORIGINS` on Render includes your Vercel domain.
+Vercel and Render configuration files have been removed. There is no automatic fallback to those platforms.
 
 ---
 
@@ -345,10 +263,11 @@ NexusRAG/
 │   │   ├── lib/                   # api.ts, websocket.ts, utils.ts
 │   │   └── types/                 # TypeScript definitions
 │   ├── package.json
-│   ├── vercel.json
+│   ├── wrangler.jsonc
+│   ├── open-next.config.ts
 │   └── Dockerfile
 ├── docker-compose.yml
-├── render.yaml
+├── .github/workflows/cloudflare-preview-deploy.yml
 ├── Makefile
 └── .gitignore
 ```
@@ -400,15 +319,15 @@ NexusRAG/
 | `MAX_PDF_EMBEDDED_IMAGES` | `8` | Max embedded PDF images OCRed per upload |
 | `MAX_DOCX_EMBEDDED_IMAGES` | `8` | Max embedded DOCX images OCRed per upload |
 | `MAX_IMAGE_MEGAPIXELS` | `25` | Max standalone image size accepted for OCR |
-| `ENABLE_SCIENTIFIC_MODE` | `true` | Advanced PDF parser; disabled in `render.yaml` for Render free tier stability |
+| `ENABLE_SCIENTIFIC_MODE` | `true` | Advanced PDF parser; enable only in a suitably provisioned Computer Worker |
 
 ### Frontend Environment (`frontend/.env.local`)
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `NEXT_PUBLIC_API_URL` | `http://localhost:8000` locally | Render backend URL in Vercel |
-| `NEXT_PUBLIC_SUPABASE_URL` | empty | Supabase project URL injected by the Vercel Supabase integration |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` / `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | empty | Supabase browser key injected by Vercel or set manually |
+| `NEXT_PUBLIC_API_URL` | `http://localhost:8000` locally | Cloudflare gateway URL |
+| `NEXT_PUBLIC_SUPABASE_URL` | empty | Supabase project URL supplied by the GitHub Preview environment |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` / `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | empty | Supabase publishable key supplied by the GitHub Preview environment |
 | `NEXT_PUBLIC_SITE_URL` | current browser origin | Canonical production frontend origin for email auth callbacks |
 | `NEXT_PUBLIC_OAUTH_PROVIDERS` | `github` | Comma-separated OAuth providers shown on the login screen; set `google,github` only after both providers are enabled in Supabase |
 

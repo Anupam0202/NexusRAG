@@ -159,8 +159,9 @@ def validate_gemini() -> dict:
                 ],
                 "generationConfig": {
                     "temperature": 0,
-                    "maxOutputTokens": 32,
+                    "maxOutputTokens": 128,
                     "candidateCount": 1,
+                    "thinkingConfig": {"thinkingBudget": 0},
                 },
             },
         )

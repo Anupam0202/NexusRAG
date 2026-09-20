@@ -1,81 +1,33 @@
-# NexusRAG Architecture
+# NexusRAG Evidence Intelligence OS architecture
 
-NexusRAG is a multi-tenant RAG platform with a Next.js frontend on Vercel and a stateless FastAPI backend on Render. Supabase owns authentication, workspace metadata, audit events, chat persistence, original document storage, and the optional pgvector fallback. Qdrant is the primary production vector database. Local FAISS is retained only for local development and controlled demo fallback.
+## Active preview platform
 
-## Runtime Flow
+- **Cloudflare Workers + Static Assets:** OpenNext frontend, public gateway, security headers, request normalization, provider readiness, and bounded orchestration.
+- **Supabase:** OAuth identities, PostgreSQL authority, RLS, private Storage, jobs, outbox, usage, evidence, reviews, exports, audit, and deletion lifecycle.
+- **Qdrant Cloud:** reconstructible vector index with workspace, source-version, and index-generation filters.
+- **Gemini API:** bounded generation and OCR through fail-closed quota and privacy controls.
+- **Computer Worker:** heavy extraction, DuckDB/bulk processing, and queued ingestion where an edge runtime is unsuitable.
 
-1. A user signs in through Supabase Auth and selects or creates a workspace.
-2. The frontend sends REST and WebSocket requests to the Render backend with the Supabase access token and workspace context.
-3. The backend validates the JWT, resolves workspace membership, applies rate limits, validates uploaded files, and writes durable metadata to Supabase.
-4. Original documents are stored in Supabase Storage. Ingestion jobs track queued, processing, completed, failed, and retry states.
-5. The ingestion pipeline extracts text from PDF, DOCX, spreadsheets, CSV, images, text, Markdown, and JSON. OCR is enabled for scanned PDFs, images, and embedded document images when configured.
-6. Chunks are embedded and indexed in Qdrant. If Qdrant is not available and pgvector fallback is enabled, embeddings can be written to Supabase `document_chunks.embedding`.
-7. Chat uses workspace-scoped retrieval, semantic cache, reranking, prompt sanitization, LLM routing, BYOK support, and extractive fallback when generation is unavailable.
-8. Analytics, usage telemetry, audit events, provider health, and cache stats are surfaced through API responses and UI dashboards.
+Vercel and Render are retired from the active deployment configuration. Their repository blueprints have been removed.
 
-## Frontend
+## Request flow
 
-- `frontend/src/app/chat` is the primary chat workflow.
-- `frontend/src/app/documents` handles upload, document library, ingestion status, chunk browsing, and deletion.
-- `frontend/src/app/analytics` displays query, ingestion, evaluation, and audit signals.
-- `frontend/src/app/settings` contains runtime settings, workspace controls, provider key management, and usage/billing posture.
-- `frontend/src/app/auth/login` and `frontend/src/app/auth/signup` are first-class auth entry points.
-- `frontend/src/lib/api.ts` centralizes REST calls and backend error handling.
-- `frontend/src/lib/websocket.ts` centralizes streaming chat transport.
-- `frontend/src/components/chat/MessageBubble.tsx` renders markdown with explicit safe-link protocol filtering.
+1. The OpenNext frontend obtains a Supabase session and sends its access token plus workspace context to the Cloudflare gateway.
+2. The gateway validates request shape, environment identity, capabilities, budgets, and rights before admitting work.
+3. Supabase remains authoritative for tenant membership and durable business records.
+4. Qdrant stores only reconstructible embeddings and payloads fenced by workspace, version, and generation.
+5. Gemini receives only the minimum selected context after rights, privacy, and budget admission.
+6. Heavy operations are queued for the Computer Worker; customer evidence is never treated as reconstructible cache data.
 
-## Backend
+## Deployment artifacts
 
-- `backend/main.py` creates the FastAPI app and middleware.
-- `backend/src/api/dependencies.py` resolves auth, workspace, settings, vector store, and RAG chain dependencies.
-- `backend/src/api/routes.py` exposes REST endpoints for documents, chat, workspaces, settings, analytics, audit, evaluation, API keys, and status.
-- `backend/src/api/websocket.py` handles streaming chat.
-- `backend/src/ingestion/*` owns document loading, OCR, chunking, enrichment, and embedding.
-- `backend/src/retrieval/*` owns hybrid retrieval, query transformation, reranking, and caches.
-- `backend/src/generation/llm.py` and `backend/src/generation/router.py` own LLM calls, routing, fallback, provider health, and quota guards.
-- `backend/src/vectorstores/*` owns Qdrant, pgvector fallback, and common vector-store contracts.
-- `backend/scripts/process_jobs.py` atomically claims leased ingestion jobs outside the web request path.
-- `backend/scripts/process_retention.py` atomically claims due workspace retention schedules.
+- `frontend/open-next.config.ts`
+- `frontend/wrangler.jsonc`
+- `packages/cloudflare/wrangler.preview.jsonc`
+- `.github/workflows/cloudflare-preview-deploy.yml`
+- `.github/workflows/v6-live-provider-validation.yml`
+- `supabase/baseline/001_v6_zero_cost_baseline.sql`
 
-## Data Stores
+## Failure posture
 
-- Supabase Auth: user identities and JWTs.
-- Supabase Postgres: profiles, workspaces, members, documents, chunks, jobs, chat, usage, audit, settings, keys, evaluations.
-- Supabase Storage: original uploaded files.
-- Qdrant: primary vector index.
-- Supabase pgvector: optional small-demo fallback when enabled.
-- Local disk: development-only fallback and no required production user data.
-
-## Implemented Roadmap Actions
-
-- Multi-tenant Supabase schema, RLS-oriented models, workspace membership, and authenticated API context.
-- Durable document metadata, document storage integration, ingestion jobs, audit events, chat persistence, and evaluation tables.
-- Qdrant primary vector store with workspace/document scoped payloads.
-- Real pgvector fallback adapter, migration, match RPC, and workspace leakage tests.
-- LLM routing foundations with BYOK/server/default modes, provider health, circuit breakers, token budgets, fallback reasons, and usage ledger primitives.
-- Render/Vercel environment alignment, backend status surface, provider health surface, and vector backend status display.
-- Upload validation, file type magic-byte checks, prompt sanitization, PII redaction, rate limiting, JWT validation, and safe markdown links.
-- First-class signup page and billing/usage page with quota, provider key, vector backend, cache, and provider health posture.
-- Workspace member administration with owner protection, role-aware controls, and membership audit events.
-- Workspace-wide and multi-document chat modes with filename, file-type, uploader, and page filters.
-- Uploaded-date and arbitrary metadata retrieval filters across REST, WebSocket, Qdrant, pgvector, and local retrieval.
-- Chat export in Markdown and JSON, privacy controls, and guarded workspace document cleanup.
-- Original document deletion from Supabase Storage alongside metadata, chunks, and vectors.
-- Production CSP/security headers and Qdrant payload indexes for filtered retrieval.
-- Supabase advisor hardening: backend-only public-schema grants, optimized RLS
-  expressions, non-overlapping policies, and pgvector isolated in `extensions`.
-- Durable provider health snapshots alongside the append-only LLM usage ledger.
-- Workspace-scoped embedding, retrieval, semantic-answer, and contextual-enrichment caches.
-- Workspace/document-scoped parse, chunk, and source-verification caches with explicit invalidation.
-- Structured per-request logging envelopes with request, workspace, user, provider, model, token, fallback, job, and document context.
-- Leased async ingestion and retention workers, durable daily usage reconciliation, configurable estimated cost tracking, retention schedules, and fail-closed full workspace deletion.
-- Migration scripts for FAISS-to-Qdrant, legacy store quarantine, and metadata backfill.
-- Opt-in authenticated Playwright isolation coverage that creates and cleans up dedicated two-user/two-workspace fixtures.
-- Backend and frontend tests covering routing, pgvector behavior, security contracts, generation fallback primitives, ingestion validation, safe links, chat filters, and export behavior.
-
-## Remaining Roadmap Actions
-
-- Add plan-specific quota configuration and payment-provider invoice reconciliation beyond the current hard workspace quotas and configurable estimated-cost ledger.
-- Restore persisted provider-health circuit state into the router after backend restarts.
-- Provision the leased ingestion worker and retention scheduler as continuously running/scheduled production services; the code and database contracts exist, but Render Free only runs the web service.
-- Run the committed authenticated isolation E2E against production once the deployed frontend and available Supabase admin project are the same project and dedicated test accounts are available.
+Unknown rights, undocumented quotas, unavailable providers, paused Supabase, and stale vector generations fail closed with typed states. Export and deletion remain essential-priority operations. There is no hidden paid fallback.

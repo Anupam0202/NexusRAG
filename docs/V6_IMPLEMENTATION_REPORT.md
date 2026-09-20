@@ -1,8 +1,8 @@
 # NexusRAG V6 implementation report
 
-Status: `PARTIAL_NOT_COMPLETE`
+Status: `PREVIEW_VERIFIED`
 
-This report deliberately does not use “complete.” Live Qdrant, Gemini, Cloudflare frontend parity, provider-rights approval, cross-tenant integration tests, accessibility E2E, recovery rehearsal, and all requirement-register gates remain open.
+Preview foundations, live providers, the Cloudflare frontend build, and the Supabase rehearsal are verified. Production promotion, a custom-domain cutover, exhaustive public-provider rights review, and every requirement-register gate remain separate work.
 
 ## Delivered in this increment
 
@@ -15,6 +15,8 @@ This report deliberately does not use “complete.” Live Qdrant, Gemini, Cloud
 - Offline regression coverage for claim status, contradictions, calculations, obligations, and passport exports.
 - Authenticated Evidence OS APIs for capability discovery, claim assessment, calculations, obligation review, and Product Passport export.
 - Bounded live-provider validation that uses one synthetic Gemini request and a disposable, automatically deleted Qdrant collection.
+- OpenNext Cloudflare frontend packaging and protected Preview deployment workflow.
+- Removal of active Vercel and Render deployment blueprints.
 
 ## Verified connected state
 
@@ -26,7 +28,8 @@ This report deliberately does not use “complete.” Live Qdrant, Gemini, Cloud
 - Supabase security advisor reports leaked-password protection disabled; this remains an operator action.
 - Cloudflare has one V6 preview gateway Worker and no Pages project, KV namespace, Queue, Workflow, AI Gateway, or zone. R2 is not enabled. One empty permission-check D1 database exists.
 - Cloudflare’s Qdrant secret bindings passed a disposable live create/index/upsert/query/delete probe. The probe exposed and fixed use of Qdrant’s retired search endpoint and added explicit workspace, version, and index-generation payload indexes.
-- Cloudflare recognizes the Gemini binding, but the bounded synthetic Gemini request returned HTTP 403. No customer data was sent and no paid fallback was attempted.
+- Cloudflare and GitHub Preview Gemini bindings pass bounded synthetic validation with thinking disabled, no customer data, and no paid fallback.
+- The Next.js application passes lint, unit tests, typecheck, production build, and OpenNext Cloudflare bundle generation.
 
 ## Safety properties
 
@@ -40,13 +43,12 @@ This report deliberately does not use “complete.” Live Qdrant, Gemini, Cloud
 
 ## Exact blockers
 
-1. The Cloudflare `GOOGLE_API_KEY` binding returns HTTP 403 from the Gemini Generative Language API and must be replaced or have the API/model permission enabled.
-2. Public-provider terms and quota evidence requires current source review before enabling recurring acquisition.
-3. Cloudflare frontend upload, canary, rollback, DNS, and parity gates are not yet all verified.
-4. Full RLS and Storage multi-user integration tests require disposable authenticated users and a controlled cleanup rehearsal.
-5. Supabase leaked-password protection remains disabled by explicit operator decision.
-6. All `R`, `CF`, `A`, `S`, `G`, `P`, and `Z` register items have not yet passed.
+1. Public-provider terms and quota evidence requires current source review before enabling recurring acquisition.
+2. No custom-domain DNS cutover is possible until a Cloudflare zone is connected.
+3. Full RLS and Storage multi-user integration tests require controlled test identities and cleanup.
+4. Supabase leaked-password protection remains disabled by explicit operator decision.
+5. All `R`, `CF`, `A`, `S`, `G`, `P`, and `Z` register items have not yet passed.
 
 ## Rollback
 
-The implementation is isolated to the feature branch. Rollback is a branch reset/revert. No destructive Supabase migration, DNS cutover, paid usage, Qdrant mutation, or Gemini production call is part of this increment.
+The implementation is isolated to the feature branch and Cloudflare Preview workers. Rollback is a branch revert and Worker deployment rollback. No destructive Supabase migration, DNS cutover, paid usage, or retained probe collection is part of this increment.

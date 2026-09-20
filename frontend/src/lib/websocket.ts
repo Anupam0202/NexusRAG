@@ -4,8 +4,7 @@ import { getBackendWsBaseUrl } from "@/lib/backend-url";
 import { createSupabaseBrowserClient, hasPublicSupabaseConfig } from "@/lib/supabase/client";
 
 /**
- * WebSocket connections go directly to the backend because Vercel rewrites
- * cannot proxy WebSockets.
+ * WebSocket connections use the configured Cloudflare gateway origin.
  */
 export function createChatSocket(
   onFrame: (frame: WSFrame) => void,
