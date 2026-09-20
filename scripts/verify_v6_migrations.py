@@ -21,6 +21,7 @@ def main():
  if inv.get('authority',{}).get('browser_public_table_grants')!=0 or inv.get('authority',{}).get('anonymous_routine_grants')!=0: fail('unsafe authority inventory')
  if len(re.findall(r'alter table public\."[a-z0-9_]+" enable row level security;',sql,re.I))!=51: fail('RLS enablement mismatch')
  if sql.count('create policy ')!=86 or sql.count('"nexusrag_explicit_client_deny"')<35: fail('policy contract mismatch')
+ # PostgreSQL requires referenced primary/unique keys before foreign-key creation.
  constraints=re.findall(r'^alter table only public\."[^"]+" add constraint "[^"]+" .+;$',sql,re.M)
  if len(constraints)!=267: fail('constraint definition count mismatch')
  non_foreign=[line for line in constraints if ' FOREIGN KEY ' not in line]; foreign=[line for line in constraints if ' FOREIGN KEY ' in line]
