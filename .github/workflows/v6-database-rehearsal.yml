@@ -43,9 +43,25 @@ jobs:
           cp "$GITHUB_WORKSPACE/supabase/baseline/001_v6_zero_cost_baseline.sql" supabase/migrations/202609200001_v6_zero_cost_baseline.sql
       - name: Start local Supabase database and apply migration-001
         run: |
-          set -euo pipefail
+          set -uo pipefail
           cd "$RUNNER_TEMP/nexusrag-clean-rehearsal"
-          supabase db start
+          set +e
+          supabase db start > "$RUNNER_TEMP/db-start.log" 2>&1
+          status=$?
+          set -e
+          if [ "$status" -ne 0 ]; then
+            grep -Ei 'error|failed|fatal|syntax|does not exist|permission denied|cannot|invalid|duplicate|conflict' "$RUNNER_TEMP/db-start.log" \
+              | grep -Eiv 'password|secret|token|api.?key|jwt' \
+              | tail -n 8 \
+              | sed -E 's#(postgres(ql)?://)[^ ]+#\1[redacted]#g; s#eyJ[A-Za-z0-9._-]{20,}#[redacted]#g; s#sb_[A-Za-z0-9_-]{10,}#[redacted]#g' \
+              | while IFS= read -r line; do
+                  line=${line//'%'/'%25'}
+                  line=${line//$'\r'/'%0D'}
+                  line=${line//$'\n'/'%0A'}
+                  echo "::error title=Sanitized Supabase rehearsal failure::$line"
+                done
+            exit "$status"
+          fi
       - name: Replay migration-001 from a clean database
         run: |
           set -euo pipefail
