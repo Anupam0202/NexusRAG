@@ -24,9 +24,11 @@ jobs:
     environment: production
     env:
       LIVE_EXTERNAL_VALIDATION: "true"
-      QDRANT_URL: ${{ secrets.QDRANT_URL }}
+      # Non-secret endpoints may be stored as Environment variables, while
+      # credentials remain Environment secrets.
+      QDRANT_URL: ${{ secrets.QDRANT_URL || vars.QDRANT_URL }}
       QDRANT_API_KEY: ${{ secrets.QDRANT_API_KEY }}
-      QDRANT_COLLECTION_PREFIX: nexusrag-ci
+      QDRANT_COLLECTION_PREFIX: ${{ vars.QDRANT_COLLECTION_PREFIX || 'nexusrag-ci' }}
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
       GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
       GEMINI_MODEL: gemini-2.5-flash
