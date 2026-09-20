@@ -1,4 +1,5 @@
 name: Cloudflare Preview Deploy
+# Keep this workflow in the exact-head verification set with live provider probes.
 
 on:
   workflow_dispatch:
