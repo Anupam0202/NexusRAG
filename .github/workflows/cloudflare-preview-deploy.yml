@@ -22,7 +22,9 @@ jobs:
     name: Build and deploy OpenNext frontend
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    environment: Preview
+    environment:
+      name: Preview
+      url: ${{ vars.CLOUDFLARE_FRONTEND_URL }}
     env:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID || vars.CLOUDFLARE_ACCOUNT_ID }}
@@ -52,3 +54,41 @@ jobs:
       - run: npm test
       - run: npm run cf:build
       - run: npm run cf:deploy
+      - name: Verify deployed frontend and gateway
+        working-directory: .
+        env:
+          FRONTEND_URL: ${{ vars.CLOUDFLARE_FRONTEND_URL }}
+          GATEWAY_URL: ${{ vars.CLOUDFLARE_GATEWAY_URL }}
+        run: |
+          set -euo pipefail
+          probe() {
+            local url="$1"
+            local expected="$2"
+            local output
+            for attempt in 1 2 3 4 5; do
+              output="$(curl --fail --silent --show-error --location \
+                --connect-timeout 10 --max-time 30 "$url")" && {
+                  printf '%s' "$output" | grep -q "$expected"
+                  return 0
+                }
+              sleep $((attempt * 2))
+            done
+            return 1
+          }
+          probe "$FRONTEND_URL/" "NexusRAG"
+          probe "$FRONTEND_URL/evidence-os" "Evidence"
+          probe "$GATEWAY_URL/health" "ZERO_COST_LOW_TRAFFIC"
+      - name: Publish deployment summary
+        working-directory: .
+        env:
+          FRONTEND_URL: ${{ vars.CLOUDFLARE_FRONTEND_URL }}
+          GATEWAY_URL: ${{ vars.CLOUDFLARE_GATEWAY_URL }}
+        run: |
+          {
+            echo "## Cloudflare preview"
+            echo
+            echo "- Frontend: $FRONTEND_URL"
+            echo "- Gateway health: $GATEWAY_URL/health"
+            echo "- Commit: \`$GITHUB_SHA\`"
+            echo "- Environment: \`Preview\`"
+          } >> "$GITHUB_STEP_SUMMARY"

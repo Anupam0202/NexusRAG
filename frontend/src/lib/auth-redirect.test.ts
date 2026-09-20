@@ -29,11 +29,11 @@ describe("buildAuthCallbackUrl", () => {
   it("uses the canonical production site outside local development", () => {
     expect(
       buildAuthCallbackUrl(
-        "https://nexusrag-git-preview.vercel.app",
+        "https://preview.nexusrag.example",
         "/documents",
-        "https://nexusrag.vercel.app"
+        "https://nexusrag.example"
       )
-    ).toBe("https://nexusrag.vercel.app/auth/callback?next=%2Fdocuments");
+    ).toBe("https://nexusrag.example/auth/callback?next=%2Fdocuments");
   });
 
   it("keeps localhost callbacks local for deliberate development", () => {
@@ -41,7 +41,7 @@ describe("buildAuthCallbackUrl", () => {
       buildAuthCallbackUrl(
         "http://localhost:3000",
         "/onboarding",
-        "https://nexusrag.vercel.app"
+        "https://nexusrag.example"
       )
     ).toBe("http://localhost:3000/auth/callback?next=%2Fonboarding");
   });
@@ -49,7 +49,7 @@ describe("buildAuthCallbackUrl", () => {
   it("rejects an insecure configured production site", () => {
     expect(() =>
       buildAuthCallbackUrl(
-        "https://preview.vercel.app",
+        "https://other-preview.example",
         "/documents",
         "http://nexusrag.example.com"
       )
@@ -61,7 +61,7 @@ describe("getAuthCallbackError", () => {
   it("reads callback failures from query parameters", () => {
     expect(
       getAuthCallbackError(
-        new URL("https://nexusrag.vercel.app/auth/callback?error_description=Link+expired")
+        new URL("https://nexusrag.example/auth/callback?error_description=Link+expired")
       )
     ).toBe(AUTH_LINK_ERROR_MESSAGE);
   });
@@ -69,7 +69,7 @@ describe("getAuthCallbackError", () => {
   it("reads callback failures from URL fragments", () => {
     expect(
       getAuthCallbackError(
-        new URL("https://nexusrag.vercel.app/auth/callback#error=access_denied&error_description=Try+again")
+        new URL("https://nexusrag.example/auth/callback#error=access_denied&error_description=Try+again")
       )
     ).toBe(AUTH_LINK_ERROR_MESSAGE);
   });
@@ -77,7 +77,7 @@ describe("getAuthCallbackError", () => {
   it("returns null for a successful callback", () => {
     expect(
       getAuthCallbackError(
-        new URL("https://nexusrag.vercel.app/auth/callback?code=valid-code")
+        new URL("https://nexusrag.example/auth/callback?code=valid-code")
       )
     ).toBeNull();
   });

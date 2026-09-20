@@ -26,9 +26,10 @@ Status: `PARTIAL_NOT_COMPLETE`
 - No custom-domain DNS cutover is claimed because the connected Cloudflare account has no zone.
 - Production verification and release remain separate from preview verification.
 
-## Exact deployment blocker
+## Current verification boundary
 
-The GitHub `Preview` environment does not currently expose
-`CLOUDFLARE_API_TOKEN` to Actions. The deployment workflow therefore fails
-closed before upload. Add a scoped Workers Scripts/Edit token to that exact
-secret name, then rerun `Cloudflare Preview Deploy`.
+The operator has configured the Cloudflare account identifier and API token in
+the GitHub `Preview` environment. The deployment workflow now performs
+post-upload smoke checks for the homepage, Evidence OS route, and gateway
+health contract. Preview verification remains pending until that protected
+workflow succeeds for the current commit.

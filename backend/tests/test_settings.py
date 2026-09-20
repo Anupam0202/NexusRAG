@@ -27,7 +27,7 @@ def _clear_settings_cache():
     get_settings.cache_clear()
 
 
-def test_supabase_vercel_aliases_activate_enterprise_auth(monkeypatch) -> None:
+def test_supabase_public_aliases_activate_enterprise_auth(monkeypatch) -> None:
     for key in SUPABASE_ENV_KEYS:
         monkeypatch.delenv(key, raising=False)
 
