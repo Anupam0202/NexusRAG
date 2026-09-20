@@ -1,0 +1,77 @@
+name: V6 Database Rehearsal
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - supabase/baseline/**
+      - scripts/build_clean_baseline.py
+      - scripts/verify_v6_migrations.py
+      - .github/workflows/v6-database-rehearsal.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: v6-database-rehearsal-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  clean-baseline-rehearsal:
+    name: Clean Supabase baseline rehearsal
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - name: Verify immutable candidate identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/build_clean_baseline.py --check
+          python3 scripts/verify_v6_migrations.py
+      - name: Build isolated local Supabase project
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="$RUNNER_TEMP/nexusrag-clean-rehearsal"
+          rm -rf "$root"
+          mkdir -p "$root"
+          cd "$root"
+          supabase init
+          mkdir -p supabase/migrations
+          cp "$GITHUB_WORKSPACE/supabase/baseline/001_v6_zero_cost_baseline.sql" \
+            supabase/migrations/202609200001_v6_zero_cost_baseline.sql
+      - name: Apply and replay migration-001
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="$RUNNER_TEMP/nexusrag-clean-rehearsal"
+          cd "$root"
+          supabase db start
+          supabase db reset --local
+          supabase db lint --local --level error
+          supabase gen types typescript --local > "$RUNNER_TEMP/database.types.ts"
+          test -s "$RUNNER_TEMP/database.types.ts"
+      - name: Preserve non-sensitive rehearsal evidence
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            echo "status=${{ job.status }}"
+            echo "baseline_sha256=a024f96282cdd2cce91290082a5e88c5abb9cb23c5496c95cf2cec200d1813de"
+            echo "production_applied=false"
+            echo "paid_resource_created=false"
+          } > "$RUNNER_TEMP/v6-database-rehearsal.txt"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: v6-database-rehearsal-evidence
+          path: |
+            ${{ runner.temp }}/v6-database-rehearsal.txt
+            ${{ runner.temp }}/database.types.ts
+          if-no-files-found: warn
+          retention-days: 14
