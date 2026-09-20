@@ -15,6 +15,8 @@ class QdrantVectorStore:
     _PAYLOAD_INDEXES: tuple[tuple[str, str], ...] = (
         ("workspace_id", "keyword"),
         ("document_id", "keyword"),
+        ("version_id", "keyword"),
+        ("index_generation", "keyword"),
         ("filename", "keyword"),
         ("metadata.file_type", "keyword"),
         ("metadata.uploaded_by", "keyword"),
@@ -102,6 +104,9 @@ class QdrantVectorStore:
             "content_hash": chunk.content_hash,
             "content": chunk.content,
             "metadata": chunk.metadata,
+            "version_id": chunk.metadata.get("version_id")
+            or chunk.metadata.get("document_version_id"),
+            "index_generation": chunk.metadata.get("index_generation"),
         }
 
     @classmethod
@@ -132,7 +137,7 @@ class QdrantVectorStore:
         filters: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         return {
-            "vector": query_embedding,
+            "query": query_embedding,
             "limit": top_k,
             "with_payload": True,
             "filter": cls.workspace_filter(workspace_id, filters),
@@ -218,7 +223,7 @@ class QdrantVectorStore:
     ) -> list[VectorSearchResult]:
         with httpx.Client(timeout=30) as client:
             response = client.post(
-                self._endpoint("/points/search"),
+                self._endpoint("/points/query"),
                 json=self.search_payload(
                     workspace_id=workspace_id,
                     query_embedding=query_embedding,
@@ -241,7 +246,7 @@ class QdrantVectorStore:
     ) -> list[VectorSearchResult]:
         async with httpx.AsyncClient(timeout=30) as client:
             response = await client.post(
-                self._endpoint("/points/search"),
+                self._endpoint("/points/query"),
                 json=self.search_payload(
                     workspace_id=workspace_id,
                     query_embedding=query_embedding,
@@ -258,7 +263,9 @@ class QdrantVectorStore:
     @staticmethod
     def _results_from_search_response(data: dict[str, Any]) -> list[VectorSearchResult]:
         results: list[VectorSearchResult] = []
-        for item in data.get("result", []):
+        raw_result = data.get("result", [])
+        items = raw_result.get("points", []) if isinstance(raw_result, dict) else raw_result
+        for item in items:
             payload = item.get("payload") or {}
             results.append(
                 VectorSearchResult(

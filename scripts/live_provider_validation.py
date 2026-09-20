@@ -66,6 +66,13 @@ def validate_qdrant() -> dict:
             body={"vectors": {"size": 4, "distance": "Cosine"}},
         )
         created = True
+        for field_name in ("workspace_id", "version_id", "index_generation"):
+            _json_request(
+                "PUT",
+                f"{endpoint}/index?wait=true",
+                headers=headers,
+                body={"field_name": field_name, "field_schema": "keyword"},
+            )
         _json_request(
             "PUT",
             f"{endpoint}/points?wait=true",
@@ -95,10 +102,10 @@ def validate_qdrant() -> dict:
         )
         _, result = _json_request(
             "POST",
-            f"{endpoint}/points/search",
+            f"{endpoint}/points/query",
             headers=headers,
             body={
-                "vector": [1.0, 0.0, 0.0, 0.0],
+                "query": [1.0, 0.0, 0.0, 0.0],
                 "limit": 10,
                 "with_payload": True,
                 "filter": {
@@ -109,7 +116,7 @@ def validate_qdrant() -> dict:
                 },
             },
         )
-        points = result.get("result", [])
+        points = (result.get("result") or {}).get("points", [])
         if len(points) != 1 or points[0].get("payload", {}).get("workspace_id") != "ci-workspace-a":
             raise RuntimeError("Qdrant tenant/version isolation probe failed")
         return {

@@ -19,7 +19,7 @@ def test_qdrant_point_payload_contains_workspace_and_document_ids() -> None:
         page_number=2,
         chunk_index=0,
         content_hash="hash-1",
-        metadata={"section": "Intro"},
+        metadata={"section": "Intro", "version_id": "version-1", "index_generation": "g1"},
     )
 
     point = QdrantVectorStore.point(
@@ -32,7 +32,13 @@ def test_qdrant_point_payload_contains_workspace_and_document_ids() -> None:
     assert point["payload"]["workspace_id"] == "workspace-1"
     assert point["payload"]["document_id"] == "document-1"
     assert point["payload"]["chunk_id"] == "chunk-1"
-    assert point["payload"]["metadata"] == {"section": "Intro"}
+    assert point["payload"]["metadata"] == {
+        "section": "Intro",
+        "version_id": "version-1",
+        "index_generation": "g1",
+    }
+    assert point["payload"]["version_id"] == "version-1"
+    assert point["payload"]["index_generation"] == "g1"
 
 
 def test_qdrant_search_payload_always_filters_workspace() -> None:
@@ -48,6 +54,8 @@ def test_qdrant_search_payload_always_filters_workspace() -> None:
     assert {"key": "document_id", "match": {"value": "doc-a"}} in must
     assert {"key": "file_type", "match": {"value": "pdf"}} in must
     assert payload["limit"] == 5
+    assert payload["query"] == [0.1, 0.2]
+    assert "vector" not in payload
 
 
 def test_qdrant_collection_payload_declares_vector_size() -> None:
@@ -66,6 +74,8 @@ def test_qdrant_indexes_all_frequently_filtered_payload_fields() -> None:
     assert set(QdrantVectorStore._PAYLOAD_INDEXES) >= {
         ("workspace_id", "keyword"),
         ("document_id", "keyword"),
+        ("version_id", "keyword"),
+        ("index_generation", "keyword"),
         ("filename", "keyword"),
         ("metadata.file_type", "keyword"),
         ("metadata.uploaded_by", "keyword"),
@@ -76,18 +86,20 @@ def test_qdrant_indexes_all_frequently_filtered_payload_fields() -> None:
 def test_qdrant_search_response_maps_payload_to_result() -> None:
     results = QdrantVectorStore._results_from_search_response(
         {
-            "result": [
-                {
-                    "id": "point-1",
-                    "score": 0.91,
-                    "payload": {
-                        "chunk_id": "chunk-1",
-                        "document_id": "doc-1",
-                        "content": "hello",
-                        "workspace_id": "workspace-a",
-                    },
-                }
-            ]
+            "result": {
+                "points": [
+                    {
+                        "id": "point-1",
+                        "score": 0.91,
+                        "payload": {
+                            "chunk_id": "chunk-1",
+                            "document_id": "doc-1",
+                            "content": "hello",
+                            "workspace_id": "workspace-a",
+                        },
+                    }
+                ]
+            }
         }
     )
 

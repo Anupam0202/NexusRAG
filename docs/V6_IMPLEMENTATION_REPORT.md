@@ -25,6 +25,8 @@ This report deliberately does not use “complete.” Live Qdrant, Gemini, Cloud
 - The connected project is not empty (Auth users and private Storage objects exist), so no destructive rebuild was attempted.
 - Supabase security advisor reports leaked-password protection disabled; this remains an operator action.
 - Cloudflare has one V6 preview gateway Worker and no Pages project, KV namespace, Queue, Workflow, AI Gateway, or zone. R2 is not enabled. One empty permission-check D1 database exists.
+- Cloudflare’s Qdrant secret bindings passed a disposable live create/index/upsert/query/delete probe. The probe exposed and fixed use of Qdrant’s retired search endpoint and added explicit workspace, version, and index-generation payload indexes.
+- Cloudflare recognizes the Gemini binding, but the bounded synthetic Gemini request returned HTTP 403. No customer data was sent and no paid fallback was attempted.
 
 ## Safety properties
 
@@ -38,12 +40,13 @@ This report deliberately does not use “complete.” Live Qdrant, Gemini, Cloud
 
 ## Exact blockers
 
-1. Qdrant and Gemini production credentials remain intentionally unavailable to local isolated tests; protected CI performs bounded validation.
-2. Public-provider terms and quota evidence requires current source review before enabling recurring acquisition.
-3. Cloudflare frontend upload, canary, rollback, DNS, and parity gates are not yet all verified.
-4. Full RLS and Storage multi-user integration tests require disposable authenticated users and a controlled cleanup rehearsal.
-5. Supabase leaked-password protection must be enabled by an authorized operator.
-6. All `R`, `CF`, `A`, `S`, `G`, `P`, and `Z` register items have not yet passed.
+1. The `production` GitHub Environment does not currently expose `QDRANT_URL` to Actions under either `secrets.QDRANT_URL` or `vars.QDRANT_URL`; the protected workflow remains manually dispatchable after that mapping is corrected.
+2. The Cloudflare `GOOGLE_API_KEY` binding returns HTTP 403 from the Gemini Generative Language API and must be replaced or have the API/model permission enabled.
+3. Public-provider terms and quota evidence requires current source review before enabling recurring acquisition.
+4. Cloudflare frontend upload, canary, rollback, DNS, and parity gates are not yet all verified.
+5. Full RLS and Storage multi-user integration tests require disposable authenticated users and a controlled cleanup rehearsal.
+6. Supabase leaked-password protection must be enabled by an authorized operator.
+7. All `R`, `CF`, `A`, `S`, `G`, `P`, and `Z` register items have not yet passed.
 
 ## Rollback
 
