@@ -1,5 +1,6 @@
 name: Publish clean migration baseline
 
+# Retry after completing all nine transport fragments.
 on:
   workflow_dispatch:
   push:
