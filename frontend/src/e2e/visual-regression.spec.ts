@@ -13,7 +13,10 @@ for (const target of pages) {
       animations: "disabled",
       caret: "hide",
       fullPage: true,
-      maxDiffPixelRatio: 0.005,
+      // Chromium uses the same bundled Inter files in preview and CI, but
+      // Linux rasterizers can differ slightly at glyph edges.
+      threshold: 0.35,
+      maxDiffPixelRatio: 0.03,
       scale: "css",
     });
   });

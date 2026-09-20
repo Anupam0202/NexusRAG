@@ -1,5 +1,6 @@
 name: V6 Live Provider Validation
 # Keep this workflow in the exact-head verification set with preview deployment.
+# Visual and rights releases re-run bounded providers on the same exact head.
 
 on:
   workflow_dispatch:
