@@ -14,6 +14,18 @@ test("preview health is honest and zero-cost", async () => {
   assert.equal(body.production_verified, false);
   assert.equal(body.paid_fallback, false);
   assert.deepEqual(body.authorities, { business_records: "supabase", vectors: "qdrant" });
+  assert.deepEqual(body.providers, { qdrant: "BLOCKED", gemini: "BLOCKED" });
+});
+
+test("preview reports provider configuration without exposing secret values", async () => {
+  const response = await handle(request(), {
+    QDRANT_URL: "https://qdrant.invalid",
+    QDRANT_API_KEY: "synthetic-secret",
+    GOOGLE_API_KEY: "synthetic-secret",
+  });
+  const body = await response.json();
+  assert.deepEqual(body.providers, { qdrant: "CONFIGURED", gemini: "CONFIGURED" });
+  assert.doesNotMatch(JSON.stringify(body), /synthetic-secret/);
 });
 
 test("preview responses use defensive headers", async () => {

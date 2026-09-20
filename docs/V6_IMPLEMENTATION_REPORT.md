@@ -13,6 +13,8 @@ This report deliberately does not use “complete.” Live Qdrant, Gemini, Cloud
 - Fail-closed zero-cost provider registry starter. Every public connector remains `LEGAL_REVIEW` until terms, attribution, quotas, and allowed operations are evidenced.
 - Evidence Intelligence OS product surface and Setup Center with explicit readiness states.
 - Offline regression coverage for claim status, contradictions, calculations, obligations, and passport exports.
+- Authenticated Evidence OS APIs for capability discovery, claim assessment, calculations, obligation review, and Product Passport export.
+- Bounded live-provider validation that uses one synthetic Gemini request and a disposable, automatically deleted Qdrant collection.
 
 ## Verified connected state
 
@@ -36,7 +38,7 @@ This report deliberately does not use “complete.” Live Qdrant, Gemini, Cloud
 
 ## Exact blockers
 
-1. Qdrant and Gemini protected credentials were not available to local isolated tests.
+1. Qdrant and Gemini production credentials remain intentionally unavailable to local isolated tests; protected CI performs bounded validation.
 2. Public-provider terms and quota evidence requires current source review before enabling recurring acquisition.
 3. Cloudflare frontend upload, canary, rollback, DNS, and parity gates are not yet all verified.
 4. Full RLS and Storage multi-user integration tests require disposable authenticated users and a controlled cleanup rehearsal.

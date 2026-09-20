@@ -26,7 +26,7 @@ function jsonResponse(request, body, status = 200) {
   });
 }
 
-export async function handle(request) {
+export async function handle(request, env = {}) {
   const url = new URL(request.url);
   if (request.method !== "GET" && request.method !== "HEAD") {
     return jsonResponse(
@@ -46,6 +46,10 @@ export async function handle(request) {
       status: "DEGRADED",
       production_verified: false,
       authorities: { business_records: "supabase", vectors: "qdrant" },
+      providers: {
+        qdrant: env.QDRANT_URL && env.QDRANT_API_KEY ? "CONFIGURED" : "BLOCKED",
+        gemini: env.GOOGLE_API_KEY ? "CONFIGURED" : "BLOCKED",
+      },
       paid_fallback: false,
     });
   }
