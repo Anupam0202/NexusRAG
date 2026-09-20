@@ -40,13 +40,12 @@ This report deliberately does not use “complete.” Live Qdrant, Gemini, Cloud
 
 ## Exact blockers
 
-1. The `production` GitHub Environment does not currently expose `QDRANT_URL` to Actions under either `secrets.QDRANT_URL` or `vars.QDRANT_URL`; the protected workflow remains manually dispatchable after that mapping is corrected.
-2. The Cloudflare `GOOGLE_API_KEY` binding returns HTTP 403 from the Gemini Generative Language API and must be replaced or have the API/model permission enabled.
-3. Public-provider terms and quota evidence requires current source review before enabling recurring acquisition.
-4. Cloudflare frontend upload, canary, rollback, DNS, and parity gates are not yet all verified.
-5. Full RLS and Storage multi-user integration tests require disposable authenticated users and a controlled cleanup rehearsal.
-6. Supabase leaked-password protection must be enabled by an authorized operator.
-7. All `R`, `CF`, `A`, `S`, `G`, `P`, and `Z` register items have not yet passed.
+1. The Cloudflare `GOOGLE_API_KEY` binding returns HTTP 403 from the Gemini Generative Language API and must be replaced or have the API/model permission enabled.
+2. Public-provider terms and quota evidence requires current source review before enabling recurring acquisition.
+3. Cloudflare frontend upload, canary, rollback, DNS, and parity gates are not yet all verified.
+4. Full RLS and Storage multi-user integration tests require disposable authenticated users and a controlled cleanup rehearsal.
+5. Supabase leaked-password protection remains disabled by explicit operator decision.
+6. All `R`, `CF`, `A`, `S`, `G`, `P`, and `Z` register items have not yet passed.
 
 ## Rollback
 
