@@ -9,7 +9,8 @@ Evaluation should prove that NexusRAG answers from uploaded documents, cites the
 - A committed Playwright public smoke suite covers guarded production routes.
 - The public suite covers desktop and Pixel 7-class mobile layouts, console and
   page errors, safe auth redirects, configured OAuth providers, horizontal
-  overflow, keyboard focus, and reduced-motion behavior.
+  overflow, keyboard focus, reduced-motion behavior, and committed full-page
+  visual baselines for the homepage and Evidence OS.
 - Sample evaluation routes and result models exist for RAG quality checks.
 - Evaluation summaries include p50/p95 latency, fallback rate, quota failure rate, and estimated cost posture.
 - Analytics records usage, errors, fallback posture, cache behavior, and ingestion status.

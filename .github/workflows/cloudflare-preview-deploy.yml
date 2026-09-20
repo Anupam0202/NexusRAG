@@ -103,9 +103,12 @@ jobs:
         run: npx playwright install --with-deps chromium
       - name: Run deployed desktop and mobile E2E
         run: |
+          npm run test:visual:prepare
           E2E_BASE_URL="$NEXT_PUBLIC_SITE_URL" \
           E2E_OAUTH_PROVIDERS="$NEXT_PUBLIC_OAUTH_PROVIDERS" \
-          npx playwright test src/e2e/public-smoke.spec.ts \
+          npx playwright test \
+            src/e2e/public-smoke.spec.ts \
+            src/e2e/visual-regression.spec.ts \
             --project=chromium --project=mobile-chrome
       - uses: actions/upload-artifact@v4
         if: always()

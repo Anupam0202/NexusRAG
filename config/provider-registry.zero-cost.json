@@ -4,18 +4,193 @@
     "default": "REVIEW_REQUIRED",
     "undocumentedQuota": "DENY",
     "paidFallback": false,
-    "browserRendering": "LAST_RESORT"
+    "browserRendering": "LAST_RESORT",
+    "enabledRecurringProviders": 0,
+    "rightsReviewDate": "2026-09-21",
+    "reviewAfter": "2026-12-20"
   },
   "providers": [
-    {"id": "sec-edgar", "class": "public_api", "status": "LEGAL_REVIEW", "cadence": "IMPORTANT_WEEKLY"},
-    {"id": "us-federal-register", "class": "public_api", "status": "LEGAL_REVIEW", "cadence": "CRITICAL_DAILY"},
-    {"id": "eu-ted", "class": "public_api", "status": "LEGAL_REVIEW", "cadence": "IMPORTANT_WEEKLY"},
-    {"id": "gleif", "class": "public_api", "status": "LEGAL_REVIEW", "cadence": "STANDARD_MONTHLY"},
-    {"id": "crossref", "class": "public_api", "status": "LEGAL_REVIEW", "cadence": "STANDARD_MONTHLY"},
-    {"id": "openalex", "class": "public_api", "status": "LEGAL_REVIEW", "cadence": "STANDARD_MONTHLY"},
-    {"id": "osv", "class": "public_api", "status": "LEGAL_REVIEW", "cadence": "CRITICAL_DAILY"},
-    {"id": "cisa-kev", "class": "public_dataset", "status": "LEGAL_REVIEW", "cadence": "CRITICAL_DAILY"},
-    {"id": "usgs", "class": "public_api", "status": "LEGAL_REVIEW", "cadence": "CRITICAL_DAILY"},
-    {"id": "noaa", "class": "public_api", "status": "LEGAL_REVIEW", "cadence": "IMPORTANT_WEEKLY"}
+    {
+      "id": "sec-edgar",
+      "class": "public_api",
+      "status": "APPROVED_WITH_DUTIES",
+      "cadence": "IMPORTANT_WEEKLY",
+      "enabled": false,
+      "rights": "US federal public records; preserve source attribution and filing context",
+      "quota": {
+        "requests_per_second": 10,
+        "daily_cap": 5000
+      },
+      "duties": [
+        "declared User-Agent with contact",
+        "max 10 requests/second",
+        "conditional requests where supported"
+      ],
+      "evidence_url": "https://www.sec.gov/search-filings/edgar-search-assistance/accessing-edgar-data"
+    },
+    {
+      "id": "us-federal-register",
+      "class": "public_api",
+      "status": "REVIEW_REQUIRED",
+      "cadence": "CRITICAL_DAILY",
+      "enabled": false,
+      "rights": "Public API documented; explicit reuse and numeric request limits not captured",
+      "quota": {
+        "requests_per_second": 1,
+        "daily_cap": 1000
+      },
+      "duties": [
+        "identify source",
+        "respect Retry-After",
+        "review before recurring enablement"
+      ],
+      "evidence_url": "https://www.federalregister.gov/developers/documentation/api/v1"
+    },
+    {
+      "id": "eu-ted",
+      "class": "public_api",
+      "status": "REVIEW_REQUIRED",
+      "cadence": "IMPORTANT_WEEKLY",
+      "enabled": false,
+      "rights": "Read-only public search API; reuse terms require final legal confirmation",
+      "quota": {
+        "page_size": 250,
+        "pagination_notice_cap": 15000,
+        "daily_cap": 1000
+      },
+      "duties": [
+        "preserve TED notice identity",
+        "respect documented pagination limits",
+        "review licence before recurring enablement"
+      ],
+      "evidence_url": "https://docs.ted.europa.eu/ODS/latest/reuse/search-api.html"
+    },
+    {
+      "id": "gleif",
+      "class": "public_api",
+      "status": "APPROVED_WITH_DUTIES",
+      "cadence": "STANDARD_MONTHLY",
+      "enabled": false,
+      "rights": "LEI Data Terms of Use apply; no charge",
+      "quota": {
+        "requests_per_minute": 60,
+        "daily_cap": 5000
+      },
+      "duties": [
+        "preserve LEI source and update timestamps",
+        "comply with GLEIF LEI Data Terms of Use"
+      ],
+      "evidence_url": "https://api.gleif.org/docs"
+    },
+    {
+      "id": "crossref",
+      "class": "public_api",
+      "status": "APPROVED_WITH_DUTIES",
+      "cadence": "STANDARD_MONTHLY",
+      "enabled": false,
+      "rights": "Most metadata reusable; abstracts can retain publisher or author copyright",
+      "quota": {
+        "pool": "polite",
+        "requests_per_second": 10,
+        "concurrency": 3,
+        "daily_cap": 5000
+      },
+      "duties": [
+        "send mailto identifier",
+        "honor response rate-limit headers and 429",
+        "do not assume abstract reuse rights"
+      ],
+      "evidence_url": "https://www.crossref.org/documentation/retrieve-metadata/rest-api/access-and-authentication"
+    },
+    {
+      "id": "openalex",
+      "class": "public_api",
+      "status": "LEGAL_REVIEW",
+      "cadence": "STANDARD_MONTHLY",
+      "enabled": false,
+      "rights": "No current official rights and quota evidence captured in this audit",
+      "quota": {
+        "requests_per_second": null,
+        "daily_cap": 0
+      },
+      "duties": [
+        "disabled until current official evidence is recorded"
+      ],
+      "evidence_url": null
+    },
+    {
+      "id": "osv",
+      "class": "public_api",
+      "status": "APPROVED_WITH_DUTIES",
+      "cadence": "CRITICAL_DAILY",
+      "enabled": false,
+      "rights": "Public vulnerability API; upstream record licences and attribution must pass through",
+      "quota": {
+        "service_rate_limit": null,
+        "client_requests_per_second": 2,
+        "daily_cap": 2000
+      },
+      "duties": [
+        "use HTTP/2 for potentially large results",
+        "preserve upstream aliases, references, and licence metadata",
+        "no SLA claim"
+      ],
+      "evidence_url": "https://google.github.io/osv.dev/faq"
+    },
+    {
+      "id": "cisa-kev",
+      "class": "public_dataset",
+      "status": "APPROVED_WITH_DUTIES",
+      "cadence": "CRITICAL_DAILY",
+      "enabled": false,
+      "rights": "CISA publishes a machine-readable catalog with an explicit licence file",
+      "quota": {
+        "requests_per_hour": 4,
+        "daily_cap": 24
+      },
+      "duties": [
+        "store source URL and retrieved_at",
+        "retain CISA licence and remediation context",
+        "use conditional HTTP"
+      ],
+      "evidence_url": "https://www.cisa.gov/known-exploited-vulnerabilities-catalog"
+    },
+    {
+      "id": "usgs",
+      "class": "public_api",
+      "status": "REVIEW_REQUIRED",
+      "cadence": "CRITICAL_DAILY",
+      "enabled": false,
+      "rights": "Public earthquake service documented; complete reuse notice not captured",
+      "quota": {
+        "max_events_per_query": 20000,
+        "requests_per_second": 1,
+        "daily_cap": 1000
+      },
+      "duties": [
+        "bound date windows and result counts",
+        "review data policy before recurring enablement"
+      ],
+      "evidence_url": "https://earthquake.usgs.gov/fdsnws/event/1/"
+    },
+    {
+      "id": "noaa",
+      "class": "public_api",
+      "status": "APPROVED_WITH_DUTIES",
+      "cadence": "IMPORTANT_WEEKLY",
+      "enabled": false,
+      "rights": "Dataset-specific NOAA licence and attribution requirements apply",
+      "quota": {
+        "requests_per_second": 5,
+        "requests_per_day": 10000,
+        "client_daily_cap": 1000
+      },
+      "duties": [
+        "requires NOAA token for CDO",
+        "preserve dataset metadata and licence",
+        "maximum 1000 records per response"
+      ],
+      "evidence_url": "https://www.ncei.noaa.gov/cdo-web/webservices/v2"
+    }
   ]
 }

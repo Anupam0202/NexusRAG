@@ -9,6 +9,7 @@
     "lint": "eslint .",
     "test": "vitest run",
     "test:e2e": "playwright test",
+    "test:visual:prepare": "node scripts/materialize-visual-baselines.mjs",
     "cf:build": "opennextjs-cloudflare build",
     "cf:preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
     "cf:deploy": "opennextjs-cloudflare deploy"

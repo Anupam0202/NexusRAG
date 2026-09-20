@@ -17,7 +17,7 @@ Audited against **NEXUSRAG MASTER IMPLEMENTATION PROMPT V6** on
 | 5 — Gemini | PREVIEW_VERIFIED | Bounded synthetic request passes with thinking disabled and no customer data or paid fallback. |
 | 6 — Evidence Workbench UI | PREVIEW_VERIFIED | Evidence OS route builds, deploys, passes smoke validation, and has zero automated WCAG 2 A/AA violations. Authenticated product E2E remains incomplete. |
 | 7 — findings/reviews/calculations/monitors | LOCALLY_TESTED | Domain and database contracts exist; complete browser workflow is not verified. |
-| 8 — provider registry/rights | LOCALLY_TESTED | Fail-closed registry and rights decisions exist; current rights evidence for enabled recurring sources is incomplete. |
+| 8 — provider registry/rights | REVIEWED_FAIL_CLOSED | Current official evidence, conservative client caps, duties, review dates, and evidence URLs are recorded. Zero recurring public providers are enabled; uncertain sources remain `LEGAL_REVIEW` or `REVIEW_REQUIRED`. |
 | 9 — terms/quota radar | LOCALLY_TESTED | Review-safe domain behavior exists; recurring monitoring is not deployed end-to-end. |
 | 10 — obligation compiler | LOCALLY_TESTED | Review-first obligation model and tests exist; selected-scope end-to-end workflow is incomplete. |
 | 11 — procurement graph | PARTIAL | Shared graph schema exists; provider-specific end-to-end product is incomplete. |
@@ -25,7 +25,7 @@ Audited against **NEXUSRAG MASTER IMPLEMENTATION PROMPT V6** on
 | 13 — product passport | LOCALLY_TESTED | Deterministic JSON-LD/W3C PROV export and receipt tests pass. |
 | 14 — scientific/open-source packs | PARTIAL | Shared evidence foundations exist; both complete product packs are not verified. |
 | 15 — Evidence API/MCP | PARTIAL | Authenticated Evidence API routes exist; a complete published capability-enforced MCP surface is not verified. |
-| 16 — evaluation/recovery/release | PARTIAL | CI, migration rehearsal, supply-chain evidence, provider probes, fixed synthetic quality scoring, deployed accessibility scans, and public desktop/mobile browser E2E pass. Authenticated product E2E, visual baselines, restore/canary/rollback, and release gates remain incomplete. |
+| 16 — evaluation/recovery/release | PARTIAL | CI, migration rehearsal, supply-chain evidence, provider probes, fixed synthetic quality scoring, deployed accessibility scans, public desktop/mobile browser E2E, and committed visual baselines pass. Authenticated product E2E and live canary/rollback promotion evidence remain incomplete. |
 
 ## Connected-state verification
 
@@ -68,10 +68,10 @@ Verified on the feature branch:
 
 Not yet verified to the master definition of done:
 
-- authenticated product E2E and visual-regression baselines;
+- authenticated product E2E;
 - provider-backed quality scoring beyond the deterministic synthetic contract
-  dataset; the 400 labeled and 125 held-out fixtures now pass fixed synthetic
-  gates but do not establish production retrieval or model quality;
+  dataset; the 400 labeled and 125 held-out fixtures pass fixed synthetic gates
+  but do not establish production retrieval or model quality;
 - service-mediated API isolation with real signed-in sessions; direct Storage
   RLS isolation has been live-rehearsed with two controlled identities;
 - restore, canary, rollback, and deletion rehearsal against deployed preview;

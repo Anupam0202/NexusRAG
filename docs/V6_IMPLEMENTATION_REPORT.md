@@ -63,8 +63,7 @@ Worker origins, builds and uploads OpenNext, then smoke-tests the live routes.
 
 1. Public-provider terms and quota evidence requires current source review before enabling recurring acquisition.
 2. No custom-domain DNS cutover is possible until a Cloudflare zone is connected.
-3. Authenticated end-to-end application workflows still require real provider
-   sessions; direct live Storage isolation and cleanup have passed.
+3. Authenticated end-to-end application workflows still require a deployed full API backend and real provider sessions; direct live Storage isolation and cleanup have passed.
 4. Supabase leaked-password protection remains disabled by explicit operator decision.
 5. All `R`, `CF`, `A`, `S`, `G`, `P`, and `Z` register items have not yet passed.
 

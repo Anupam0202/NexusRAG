@@ -3,7 +3,7 @@
   "product": "NexusRAG Evidence Intelligence OS",
   "profile": "ZERO_COST_LOW_TRAFFIC",
   "status": "PREVIEW_VERIFIED",
-  "observed_at": "2026-09-20T18:20:00Z",
+  "observed_at": "2026-09-21T00:00:00Z",
   "privacy": {
     "account_identifiers_published": false,
     "resource_identifiers_published": false,
@@ -98,17 +98,19 @@
     "current recurring-free allowance configuration",
     "OpenNext frontend deployment with Workers Static Assets",
     "homepage, Evidence OS, and gateway health smoke checks",
-    "zero automated WCAG 2 A/AA violations on Chat and Evidence OS routes"
+    "zero automated WCAG 2 A/AA violations on Chat and Evidence OS routes",
+    "desktop and mobile full-page visual regression baselines",
+    "current provider rights register with zero recurring connectors enabled",
+    "D1 permission-check resource deletion and zero remaining D1 databases"
   ],
   "blocked": [
-    "No queue or workflow resources are configured",
     "Production custom-domain cutover is unavailable because no Cloudflare zone is connected"
   ],
   "next_safe_actions": [
     "Verify authenticated multi-user browser workflows with controlled identities",
-    "Rehearse rollback and restore against a disposable release",
     "Add only resources justified by recurring free allowances",
-    "Keep Supabase and Qdrant as the sole selected authorities"
+    "Keep Supabase and Qdrant as the sole selected authorities",
+    "Complete live percentage canary, rollback, and restore on the newly uploaded frontend version"
   ],
   "claims": {
     "gateway_health_verified": true,
