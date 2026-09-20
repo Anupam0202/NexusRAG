@@ -1,0 +1,21 @@
+{
+  "profile": "ZERO_COST_LOW_TRAFFIC",
+  "policy": {
+    "default": "REVIEW_REQUIRED",
+    "undocumentedQuota": "DENY",
+    "paidFallback": false,
+    "browserRendering": "LAST_RESORT"
+  },
+  "providers": [
+    {"id": "sec-edgar", "class": "public_api", "status": "LEGAL_REVIEW", "cadence": "IMPORTANT_WEEKLY"},
+    {"id": "us-federal-register", "class": "public_api", "status": "LEGAL_REVIEW", "cadence": "CRITICAL_DAILY"},
+    {"id": "eu-ted", "class": "public_api", "status": "LEGAL_REVIEW", "cadence": "IMPORTANT_WEEKLY"},
+    {"id": "gleif", "class": "public_api", "status": "LEGAL_REVIEW", "cadence": "STANDARD_MONTHLY"},
+    {"id": "crossref", "class": "public_api", "status": "LEGAL_REVIEW", "cadence": "STANDARD_MONTHLY"},
+    {"id": "openalex", "class": "public_api", "status": "LEGAL_REVIEW", "cadence": "STANDARD_MONTHLY"},
+    {"id": "osv", "class": "public_api", "status": "LEGAL_REVIEW", "cadence": "CRITICAL_DAILY"},
+    {"id": "cisa-kev", "class": "public_dataset", "status": "LEGAL_REVIEW", "cadence": "CRITICAL_DAILY"},
+    {"id": "usgs", "class": "public_api", "status": "LEGAL_REVIEW", "cadence": "CRITICAL_DAILY"},
+    {"id": "noaa", "class": "public_api", "status": "LEGAL_REVIEW", "cadence": "IMPORTANT_WEEKLY"}
+  ]
+}

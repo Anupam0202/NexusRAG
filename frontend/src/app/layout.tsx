@@ -16,9 +16,9 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "NexusRAG",
-  description: "NexusRAG — Enterprise Document Intelligence Platform. Upload documents and ask AI-powered questions.",
-  keywords: ["RAG", "AI", "document intelligence", "enterprise", "retrieval augmented generation", "NexusRAG"],
+  title: "NexusRAG Evidence Intelligence OS",
+  description: "Rights-aware evidence workflows with reviewable claims, provenance, quotas, and portable evidence packages.",
+  keywords: ["evidence intelligence", "RAG", "provenance", "research", "document intelligence", "NexusRAG"],
   icons: {
     icon: "/favicon.svg",
     shortcut: "/favicon.svg",
