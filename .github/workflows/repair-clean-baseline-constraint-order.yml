@@ -1,0 +1,121 @@
+name: Repair clean baseline constraint order
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - v6-zero-cost-foundations-clean
+    paths:
+      - .github/workflows/repair-clean-baseline-constraint-order.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: repair-clean-baseline-constraint-order
+  cancel-in-progress: false
+
+jobs:
+  repair:
+    if: github.ref == 'refs/heads/v6-zero-cost-foundations-clean'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: v6-zero-cost-foundations-clean
+          fetch-depth: 0
+      - name: Reorder key constraints and regenerate evidence
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import hashlib, json, re
+
+          sql_path = Path('supabase/baseline/001_v6_zero_cost_baseline.sql')
+          sql = sql_path.read_text(encoding='utf-8')
+          start = sql.index('alter table only public.')
+          end = sql.index('\nCREATE INDEX ', start)
+          constraints = [line for line in sql[start:end].splitlines() if line.strip()]
+          if len(constraints) != 267:
+              raise SystemExit(f'expected 267 constraints, found {len(constraints)}')
+          if not all(line.startswith('alter table only public.') and line.endswith(';') for line in constraints):
+              raise SystemExit('unexpected multiline or non-public constraint definition')
+          non_foreign = [line for line in constraints if ' FOREIGN KEY ' not in line]
+          foreign = [line for line in constraints if ' FOREIGN KEY ' in line]
+          if len(non_foreign) != 178 or len(foreign) != 89:
+              raise SystemExit('constraint class count mismatch')
+
+          unique_targets = set()
+          for line in non_foreign:
+              match = re.search(r'alter table only public\."([^"]+)" add constraint "[^"]+" (?:PRIMARY KEY|UNIQUE) \(([^)]+)\);$', line)
+              if match:
+                  unique_targets.add((match.group(1), tuple(value.strip().strip('"') for value in match.group(2).split(','))))
+
+          missing = []
+          for line in foreign:
+              match = re.search(r'^alter table only public\."([^"]+)" add constraint "([^"]+)" FOREIGN KEY \(([^)]+)\) REFERENCES ([a-zA-Z0-9_."]+)\(([^)]+)\)', line)
+              if not match:
+                  raise SystemExit(f'unparsed foreign key: {line}')
+              target = match.group(4).replace('"', '')
+              if '.' in target:
+                  schema, table = target.split('.', 1)
+              else:
+                  schema, table = 'public', target
+              columns = tuple(value.strip().strip('"') for value in match.group(5).split(','))
+              if schema == 'public' and (table, columns) not in unique_targets:
+                  missing.append((match.group(2), table, columns))
+          if missing:
+              raise SystemExit(f'foreign key targets without primary/unique constraints: {missing}')
+
+          repaired = sql[:start] + '\n'.join(non_foreign + foreign) + '\n' + sql[end:]
+          if len(repaired.encode()) != len(sql.encode()) or repaired.count('\n') != sql.count('\n'):
+              raise SystemExit('constraint reordering unexpectedly changed byte or line count')
+          sql_path.write_text(repaired, encoding='utf-8')
+          digest = hashlib.sha256(repaired.encode()).hexdigest()
+          expected = '4b26456c8a9887979e6dba8e66dba6032b5a929c33a276ece4430dd24ae0f10c'
+          if digest != expected:
+              raise SystemExit(f'unexpected repaired baseline digest: {digest}')
+
+          report_path = Path('supabase/baseline/catalog_validation_report.json')
+          report = json.loads(report_path.read_text(encoding='utf-8'))
+          report['baseline_sha256'] = digest
+          report_path.write_text(json.dumps(report, indent=2, sort_keys=True) + '\n', encoding='utf-8')
+
+          replacements = {
+              'docs/CLEAN_BASELINE_STATUS.md': (
+                  'a024f96282cdd2cce91290082a5e88c5abb9cb23c5496c95cf2cec200d1813de',
+                  digest,
+              ),
+              '.github/workflows/v6-database-rehearsal.yml': (
+                  'a024f96282cdd2cce91290082a5e88c5abb9cb23c5496c95cf2cec200d1813de',
+                  digest,
+              ),
+          }
+          for name, (old, new) in replacements.items():
+              path = Path(name)
+              text = path.read_text(encoding='utf-8')
+              if text.count(old) != 1:
+                  raise SystemExit(f'expected one old digest in {name}')
+              path.write_text(text.replace(old, new), encoding='utf-8')
+          PY
+          python3 scripts/build_clean_baseline.py
+          python3 scripts/build_clean_baseline.py --check
+          python3 scripts/verify_v6_migrations.py
+          grep -F '"sha256": "4b26456c8a9887979e6dba8e66dba6032b5a929c33a276ece4430dd24ae0f10c"' supabase/baseline/manifest.json
+      - name: Publish repaired candidate and remove one-time workflow
+        run: |
+          set -euo pipefail
+          rm .github/workflows/repair-clean-baseline-constraint-order.yml
+          git config user.name 'Anupam Roy'
+          git config user.email '42176802+Anupam0202@users.noreply.github.com'
+          git add supabase/baseline/001_v6_zero_cost_baseline.sql \
+                  supabase/baseline/manifest.json \
+                  supabase/baseline/schema_inventory.json \
+                  supabase/baseline/catalog_validation_report.json \
+                  docs/CLEAN_BASELINE_STATUS.md \
+                  .github/workflows/v6-database-rehearsal.yml \
+                  .github/workflows/repair-clean-baseline-constraint-order.yml
+          git diff --cached --check
+          git commit -m 'fix: order clean baseline keys before foreign keys'
+          git push origin HEAD:v6-zero-cost-foundations-clean
