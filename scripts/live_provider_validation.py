@@ -125,6 +125,8 @@ def validate_qdrant() -> dict:
             "isolated_results": 1,
             "temporary_collection_deleted": True,
         }
+    except Exception as exc:
+        raise RuntimeError(f"QDRANT_VALIDATION_FAILED:{exc}") from None
     finally:
         if created:
             _json_request("DELETE", endpoint, headers=headers)
@@ -137,30 +139,33 @@ def validate_gemini() -> dict:
         f"https://generativelanguage.googleapis.com/v1beta/models/"
         f"{parse.quote(model, safe='.-_')}:generateContent?key={parse.quote(api_key, safe='')}"
     )
-    _, result = _json_request(
-        "POST",
-        url,
-        body={
-            "contents": [
-                {
-                    "role": "user",
-                    "parts": [
-                        {
-                            "text": (
-                                "Synthetic CI probe; contains no customer data. "
-                                "Return exactly NEXUSRAG_GEMINI_OK."
-                            )
-                        }
-                    ],
-                }
-            ],
-            "generationConfig": {
-                "temperature": 0,
-                "maxOutputTokens": 32,
-                "candidateCount": 1,
+    try:
+        _, result = _json_request(
+            "POST",
+            url,
+            body={
+                "contents": [
+                    {
+                        "role": "user",
+                        "parts": [
+                            {
+                                "text": (
+                                    "Synthetic CI probe; contains no customer data. "
+                                    "Return exactly NEXUSRAG_GEMINI_OK."
+                                )
+                            }
+                        ],
+                    }
+                ],
+                "generationConfig": {
+                    "temperature": 0,
+                    "maxOutputTokens": 32,
+                    "candidateCount": 1,
+                },
             },
-        },
-    )
+        )
+    except Exception as exc:
+        raise RuntimeError(f"GEMINI_VALIDATION_FAILED:{exc}") from None
     text = "".join(
         part.get("text", "")
         for candidate in result.get("candidates", [])
@@ -199,5 +204,23 @@ if __name__ == "__main__":
     try:
         raise SystemExit(main())
     except Exception as exc:
-        print(str(exc), file=sys.stderr)
+        safe_error = str(exc).replace("\r", " ").replace("\n", " ")[:300]
+        failure_output = Path(
+            os.environ.get("VALIDATION_REPORT", "artifacts/live-provider-validation.json")
+        )
+        failure_output.parent.mkdir(parents=True, exist_ok=True)
+        failure_output.write_text(
+            json.dumps(
+                {
+                    "profile": "ZERO_COST_LOW_TRAFFIC",
+                    "validated_at": datetime.now(timezone.utc).isoformat(),
+                    "state": "BLOCKED",
+                    "reason": safe_error,
+                },
+                indent=2,
+                sort_keys=True,
+            )
+            + "\n"
+        )
+        print(f"::error title=Live provider validation::{safe_error}", file=sys.stderr)
         raise SystemExit(1)
