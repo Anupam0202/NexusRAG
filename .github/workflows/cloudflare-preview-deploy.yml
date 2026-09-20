@@ -28,10 +28,10 @@ jobs:
     env:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID || vars.CLOUDFLARE_ACCOUNT_ID }}
-      NEXT_PUBLIC_API_URL: ${{ vars.CLOUDFLARE_GATEWAY_URL }}
-      NEXT_PUBLIC_SITE_URL: ${{ vars.CLOUDFLARE_FRONTEND_URL }}
-      NEXT_PUBLIC_SUPABASE_URL: ${{ vars.SUPABASE_URL }}
-      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY || vars.SUPABASE_PUBLISHABLE_KEY }}
+      NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL || vars.NEXT_PUBLIC_API_URL || vars.CLOUDFLARE_GATEWAY_URL }}
+      NEXT_PUBLIC_SITE_URL: ${{ secrets.NEXT_PUBLIC_SITE_URL || vars.NEXT_PUBLIC_SITE_URL || vars.CLOUDFLARE_FRONTEND_URL }}
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL || vars.NEXT_PUBLIC_SUPABASE_URL || vars.SUPABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || vars.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || secrets.SUPABASE_PUBLISHABLE_KEY || vars.SUPABASE_PUBLISHABLE_KEY }}
       NEXT_PUBLIC_OAUTH_PROVIDERS: ${{ vars.NEXT_PUBLIC_OAUTH_PROVIDERS || 'github' }}
     defaults:
       run:
@@ -46,9 +46,14 @@ jobs:
       - name: Require Cloudflare and public application configuration
         run: |
           set -euo pipefail
+          missing=()
           for name in CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID NEXT_PUBLIC_API_URL NEXT_PUBLIC_SITE_URL NEXT_PUBLIC_SUPABASE_URL NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY; do
-            test -n "${!name:-}" || { echo "::error::$name is missing from the Preview environment"; exit 1; }
+            if [ -z "${!name:-}" ]; then
+              echo "::error::$name is missing from the Preview environment"
+              missing+=("$name")
+            fi
           done
+          test "${#missing[@]}" -eq 0
       - run: npm ci --ignore-scripts
       - run: npm run lint
       - run: npm test
