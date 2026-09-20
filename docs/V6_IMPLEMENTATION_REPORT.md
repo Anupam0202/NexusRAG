@@ -2,7 +2,10 @@
 
 Status: `PARTIAL_NOT_COMPLETE`
 
-Preview foundations, live providers, the Cloudflare frontend build, and the Supabase rehearsal are verified. The frontend upload is blocked because the GitHub `Preview` environment does not expose `CLOUDFLARE_API_TOKEN` to Actions.
+Preview foundations, live providers, the Cloudflare frontend build, and the
+Supabase rehearsal are verified. The Cloudflare credential preflight passes,
+but the frontend upload is blocked because four required public application
+variables are absent from the GitHub `Preview` environment.
 
 ## Delivered in this increment
 
@@ -43,7 +46,10 @@ Preview foundations, live providers, the Cloudflare frontend build, and the Supa
 
 ## Exact blockers
 
-1. `CLOUDFLARE_API_TOKEN` is missing from the GitHub `Preview` environment, so the OpenNext upload fails closed.
+1. `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_SITE_URL`,
+   `NEXT_PUBLIC_SUPABASE_URL`, and
+   `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` are missing from the GitHub
+   `Preview` environment, so the OpenNext upload fails closed.
 2. Public-provider terms and quota evidence requires current source review before enabling recurring acquisition.
 3. No custom-domain DNS cutover is possible until a Cloudflare zone is connected.
 4. Full RLS and Storage multi-user integration tests require controlled test identities and cleanup.
