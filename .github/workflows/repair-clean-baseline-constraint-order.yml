@@ -103,7 +103,7 @@ jobs:
           python3 scripts/build_clean_baseline.py --check
           python3 scripts/verify_v6_migrations.py
           grep -F '"sha256": "4b26456c8a9887979e6dba8e66dba6032b5a929c33a276ece4430dd24ae0f10c"' supabase/baseline/manifest.json
-      - name: Publish repaired candidate and remove one-time workflow
+      - name: Stage repaired candidate
         run: |
           set -euo pipefail
           rm .github/workflows/repair-clean-baseline-constraint-order.yml
@@ -117,5 +117,12 @@ jobs:
                   .github/workflows/v6-database-rehearsal.yml \
                   .github/workflows/repair-clean-baseline-constraint-order.yml
           git diff --cached --check
+          test -n "$(git diff --cached --name-only)"
+      - name: Commit repaired candidate
+        run: |
+          set -euo pipefail
           git commit -m 'fix: order clean baseline keys before foreign keys'
+      - name: Push repaired candidate
+        run: |
+          set -euo pipefail
           git push origin HEAD:v6-zero-cost-foundations-clean
