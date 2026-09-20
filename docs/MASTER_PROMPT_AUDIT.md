@@ -11,11 +11,11 @@ Audited against **NEXUSRAG MASTER IMPLEMENTATION PROMPT V6** on
 | --- | --- | --- |
 | 0 — connected-platform audit | PARTIAL | GitHub, Cloudflare, Supabase, Qdrant, and Gemini were inspected; GitHub environment values cannot be enumerated by the connector and are validated by fail-closed CI instead. |
 | 1 — shared foundations | LOCALLY_TESTED | Tenant/version/job/usage/evidence/streaming/deletion contracts and 51-table Supabase schema are present. |
-| 2 — Cloudflare preview | BLOCKED | OpenNext builds locally; protected deploy requires four missing public `Preview` variables. |
+| 2 — Cloudflare preview | PREVIEW_VERIFIED | OpenNext frontend and gateway are deployed; live route and health smoke checks pass. |
 | 3 — Supabase | PARTIAL | 51/51 public tables have RLS, 83 public policies and 3 Storage policies exist, and the clean baseline rehearsal passes. Controlled multi-user live isolation remains pending. |
 | 4 — Qdrant | PREVIEW_VERIFIED | Disposable create/index/upsert/tenant-and-version query/delete validation passes. |
 | 5 — Gemini | PREVIEW_VERIFIED | Bounded synthetic request passes with thinking disabled and no customer data or paid fallback. |
-| 6 — Evidence Workbench UI | LOCALLY_TESTED | Evidence OS route builds and frontend unit coverage passes; deployed route smoke test is blocked by Phase 2. |
+| 6 — Evidence Workbench UI | PREVIEW_VERIFIED | Evidence OS route builds, deploys, passes smoke validation, and has zero automated WCAG 2 A/AA violations. Authenticated product E2E remains incomplete. |
 | 7 — findings/reviews/calculations/monitors | LOCALLY_TESTED | Domain and database contracts exist; complete browser workflow is not verified. |
 | 8 — provider registry/rights | LOCALLY_TESTED | Fail-closed registry and rights decisions exist; current rights evidence for enabled recurring sources is incomplete. |
 | 9 — terms/quota radar | LOCALLY_TESTED | Review-safe domain behavior exists; recurring monitoring is not deployed end-to-end. |
@@ -32,8 +32,8 @@ Audited against **NEXUSRAG MASTER IMPLEMENTATION PROMPT V6** on
 - GitHub branch: `v6-zero-cost-foundations-clean`; pull request remains draft.
 - Vercel and Render deployment files are absent. New commits no longer receive
   the prior Vercel preview check.
-- Cloudflare currently has the gateway Worker but not the OpenNext frontend
-  Worker. No custom-domain zone is connected.
+- Cloudflare has both the gateway Worker and OpenNext frontend Worker. The
+  frontend carries static assets. No custom-domain zone is connected.
 - The intended Supabase project contains 51 public tables; all 51 have RLS.
   There are 83 public policies, 3 Storage policies, 8 Auth users, and 7 Storage
   objects. No destructive rebuild was attempted.
@@ -71,12 +71,12 @@ Not yet verified to the master definition of done:
   `Z` entries but does not include the source definitions for the other legacy
   registers.
 
-## Current Preview environment blocker
+## Current Preview environment
 
 The credential preflight confirms that `CLOUDFLARE_API_TOKEN` and
 `CLOUDFLARE_ACCOUNT_ID` are available. Cloudflare Worker origins are derived
-from the account at deployment time. Add these browser-safe values as GitHub
-`Preview` environment **variables**:
+from the account at deployment time. These browser-safe GitHub `Preview`
+environment variables are configured:
 
 1. `NEXT_PUBLIC_SUPABASE_URL`
 2. `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`

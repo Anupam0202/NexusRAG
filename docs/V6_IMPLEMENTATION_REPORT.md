@@ -1,11 +1,10 @@
 # NexusRAG V6 implementation report
 
-Status: `PARTIAL_NOT_COMPLETE`
+Status: `PREVIEW_VERIFIED`
 
-Preview foundations, live providers, the Cloudflare frontend build, and the
-Supabase rehearsal are verified. The Cloudflare credential preflight passes,
-but the frontend upload is blocked because four required public application
-variables are absent from the GitHub `Preview` environment.
+Preview foundations, live providers, the Cloudflare frontend and gateway, and
+the Supabase rehearsal are verified. The deployment workflow derives standard
+Worker origins, builds and uploads OpenNext, then smoke-tests the live routes.
 
 ## Delivered in this increment
 
@@ -33,6 +32,10 @@ variables are absent from the GitHub `Preview` environment.
 - Cloudflare’s Qdrant secret bindings passed a disposable live create/index/upsert/query/delete probe. The probe exposed and fixed use of Qdrant’s retired search endpoint and added explicit workspace, version, and index-generation payload indexes.
 - Cloudflare and GitHub Preview Gemini bindings pass bounded synthetic validation with thinking disabled, no customer data, and no paid fallback.
 - The Next.js application passes lint, unit tests, typecheck, production build, and OpenNext Cloudflare bundle generation.
+- The live Cloudflare frontend passes homepage, Evidence OS, and gateway-health
+  smoke checks.
+- WCAG 2 A/AA scans report zero violations on the deployed Chat and Evidence OS
+  routes after contrast, zoom, and keyboard-scroll fixes.
 
 ## Safety properties
 
@@ -46,14 +49,11 @@ variables are absent from the GitHub `Preview` environment.
 
 ## Exact blockers
 
-1. The protected Cloudflare deployment must be rerun after configuring the
-   browser-safe Supabase URL and publishable-key Preview variables. Cloudflare
-   Worker origins are derived from the account during deployment.
-2. Public-provider terms and quota evidence requires current source review before enabling recurring acquisition.
-3. No custom-domain DNS cutover is possible until a Cloudflare zone is connected.
-4. Full RLS and Storage multi-user integration tests require controlled test identities and cleanup.
-5. Supabase leaked-password protection remains disabled by explicit operator decision.
-6. All `R`, `CF`, `A`, `S`, `G`, `P`, and `Z` register items have not yet passed.
+1. Public-provider terms and quota evidence requires current source review before enabling recurring acquisition.
+2. No custom-domain DNS cutover is possible until a Cloudflare zone is connected.
+3. Full RLS and Storage multi-user integration tests require controlled test identities and cleanup.
+4. Supabase leaked-password protection remains disabled by explicit operator decision.
+5. All `R`, `CF`, `A`, `S`, `G`, `P`, and `Z` register items have not yet passed.
 
 ## Rollback
 

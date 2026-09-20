@@ -1,4 +1,5 @@
 {
+  // Standard workers.dev origins are derived by the protected Preview workflow.
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "nexusrag-v6-frontend-preview",
   "main": ".open-next/worker.js",

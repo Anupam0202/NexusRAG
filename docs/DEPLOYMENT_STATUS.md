@@ -1,6 +1,6 @@
 # Deployment status
 
-Status: `PARTIAL_NOT_COMPLETE`
+Status: `PREVIEW_VERIFIED`
 
 ## Verified
 
@@ -11,6 +11,11 @@ Status: `PARTIAL_NOT_COMPLETE`
 - The clean Supabase baseline rehearsal, migration integrity, RLS contracts, private Storage contracts, frontend build, dependency review, SBOM, and licence inventory pass in CI.
 - Vercel and Render deployment blueprints are removed from the active branch.
 - The protected Cloudflare deployment workflow is committed and the OpenNext bundle is locally verified.
+- The OpenNext frontend Worker and gateway Worker are deployed on Cloudflare.
+- Live smoke checks pass for the frontend, Evidence OS route, and
+  `ZERO_COST_LOW_TRAFFIC` gateway health contract.
+- Automated WCAG 2 A/AA scans report zero violations on the deployed Chat and
+  Evidence OS routes.
 
 ## Active deployment path
 
@@ -32,5 +37,6 @@ The operator has configured the Cloudflare account identifier and API token in
 the GitHub `Preview` environment. Worker origins are derived from the
 Cloudflare account instead of duplicated as GitHub variables. The deployment
 workflow performs post-upload smoke checks for the homepage, Evidence OS route,
-and gateway health contract. Preview verification remains pending until that
-protected workflow succeeds for the current commit.
+and gateway health contract. Production verification, custom-domain cutover,
+authenticated multi-user E2E, and the remaining master-prompt gates are not
+claimed.
