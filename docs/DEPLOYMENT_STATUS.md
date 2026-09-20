@@ -1,6 +1,6 @@
 # Deployment status
 
-Status: `PREVIEW_VERIFIED`
+Status: `PARTIAL_NOT_COMPLETE`
 
 ## Verified
 
@@ -10,6 +10,7 @@ Status: `PREVIEW_VERIFIED`
 - Bounded live Gemini validation passed with synthetic content, thinking disabled, no customer data, and no paid fallback.
 - The clean Supabase baseline rehearsal, migration integrity, RLS contracts, private Storage contracts, frontend build, dependency review, SBOM, and licence inventory pass in CI.
 - Vercel and Render deployment blueprints are removed from the active branch.
+- The protected Cloudflare deployment workflow is committed and the OpenNext bundle is locally verified.
 
 ## Active deployment path
 
@@ -24,3 +25,10 @@ Status: `PREVIEW_VERIFIED`
 - Supabase leaked-password protection remains disabled by explicit operator decision.
 - No custom-domain DNS cutover is claimed because the connected Cloudflare account has no zone.
 - Production verification and release remain separate from preview verification.
+
+## Exact deployment blocker
+
+The GitHub `Preview` environment does not currently expose
+`CLOUDFLARE_API_TOKEN` to Actions. The deployment workflow therefore fails
+closed before upload. Add a scoped Workers Scripts/Edit token to that exact
+secret name, then rerun `Cloudflare Preview Deploy`.

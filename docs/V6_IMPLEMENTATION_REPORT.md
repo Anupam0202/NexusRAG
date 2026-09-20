@@ -1,8 +1,8 @@
 # NexusRAG V6 implementation report
 
-Status: `PREVIEW_VERIFIED`
+Status: `PARTIAL_NOT_COMPLETE`
 
-Preview foundations, live providers, the Cloudflare frontend build, and the Supabase rehearsal are verified. Production promotion, a custom-domain cutover, exhaustive public-provider rights review, and every requirement-register gate remain separate work.
+Preview foundations, live providers, the Cloudflare frontend build, and the Supabase rehearsal are verified. The frontend upload is blocked because the GitHub `Preview` environment does not expose `CLOUDFLARE_API_TOKEN` to Actions.
 
 ## Delivered in this increment
 
@@ -43,11 +43,12 @@ Preview foundations, live providers, the Cloudflare frontend build, and the Supa
 
 ## Exact blockers
 
-1. Public-provider terms and quota evidence requires current source review before enabling recurring acquisition.
-2. No custom-domain DNS cutover is possible until a Cloudflare zone is connected.
-3. Full RLS and Storage multi-user integration tests require controlled test identities and cleanup.
-4. Supabase leaked-password protection remains disabled by explicit operator decision.
-5. All `R`, `CF`, `A`, `S`, `G`, `P`, and `Z` register items have not yet passed.
+1. `CLOUDFLARE_API_TOKEN` is missing from the GitHub `Preview` environment, so the OpenNext upload fails closed.
+2. Public-provider terms and quota evidence requires current source review before enabling recurring acquisition.
+3. No custom-domain DNS cutover is possible until a Cloudflare zone is connected.
+4. Full RLS and Storage multi-user integration tests require controlled test identities and cleanup.
+5. Supabase leaked-password protection remains disabled by explicit operator decision.
+6. All `R`, `CF`, `A`, `S`, `G`, `P`, and `Z` register items have not yet passed.
 
 ## Rollback
 
