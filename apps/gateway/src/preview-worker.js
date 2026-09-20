@@ -1,4 +1,4 @@
-// Supabase service-role access is kept in a Cloudflare secret binding.
+// Supabase service-role access is kept in a Cloudflare secret binding; OAuth and MCP gates are exact-head validated.
 const BASE_HEADERS = Object.freeze({
   "cache-control": "private, no-store, max-age=0",
   "content-security-policy": "default-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
