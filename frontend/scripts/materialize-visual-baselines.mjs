@@ -1,3 +1,4 @@
+// Materialize committed, platform-neutral baselines for exact-head CI.
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";

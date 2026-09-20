@@ -1,3 +1,4 @@
+# Exact-head release evidence; bounded and disposable by design.
 """Bounded disposable Qdrant and Gemini verification for protected CI.
 
 This script never prints credentials, never reads customer data, uses one small
