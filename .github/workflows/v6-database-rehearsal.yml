@@ -27,13 +27,11 @@ jobs:
         with:
           version: latest
       - name: Verify immutable candidate identity
-        shell: bash
         run: |
           set -euo pipefail
           python3 scripts/build_clean_baseline.py --check
           python3 scripts/verify_v6_migrations.py
       - name: Build isolated local Supabase project
-        shell: bash
         run: |
           set -euo pipefail
           root="$RUNNER_TEMP/nexusrag-clean-rehearsal"
@@ -42,22 +40,30 @@ jobs:
           cd "$root"
           supabase init
           mkdir -p supabase/migrations
-          cp "$GITHUB_WORKSPACE/supabase/baseline/001_v6_zero_cost_baseline.sql" \
-            supabase/migrations/202609200001_v6_zero_cost_baseline.sql
-      - name: Apply and replay migration-001
-        shell: bash
+          cp "$GITHUB_WORKSPACE/supabase/baseline/001_v6_zero_cost_baseline.sql" supabase/migrations/202609200001_v6_zero_cost_baseline.sql
+      - name: Start local Supabase database and apply migration-001
         run: |
           set -euo pipefail
-          root="$RUNNER_TEMP/nexusrag-clean-rehearsal"
-          cd "$root"
+          cd "$RUNNER_TEMP/nexusrag-clean-rehearsal"
           supabase db start
+      - name: Replay migration-001 from a clean database
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/nexusrag-clean-rehearsal"
           supabase db reset --local
+      - name: Lint rehearsed database
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/nexusrag-clean-rehearsal"
           supabase db lint --local --level error
+      - name: Generate types from rehearsed database
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/nexusrag-clean-rehearsal"
           supabase gen types typescript --local > "$RUNNER_TEMP/database.types.ts"
           test -s "$RUNNER_TEMP/database.types.ts"
       - name: Preserve non-sensitive rehearsal evidence
         if: always()
-        shell: bash
         run: |
           set -euo pipefail
           {
