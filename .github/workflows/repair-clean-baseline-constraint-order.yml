@@ -82,22 +82,12 @@ jobs:
           report['baseline_sha256'] = digest
           report_path.write_text(json.dumps(report, indent=2, sort_keys=True) + '\n', encoding='utf-8')
 
-          replacements = {
-              'docs/CLEAN_BASELINE_STATUS.md': (
-                  'a024f96282cdd2cce91290082a5e88c5abb9cb23c5496c95cf2cec200d1813de',
-                  digest,
-              ),
-              '.github/workflows/v6-database-rehearsal.yml': (
-                  'a024f96282cdd2cce91290082a5e88c5abb9cb23c5496c95cf2cec200d1813de',
-                  digest,
-              ),
-          }
-          for name, (old, new) in replacements.items():
-              path = Path(name)
-              text = path.read_text(encoding='utf-8')
-              if text.count(old) != 1:
-                  raise SystemExit(f'expected one old digest in {name}')
-              path.write_text(text.replace(old, new), encoding='utf-8')
+          status_path = Path('docs/CLEAN_BASELINE_STATUS.md')
+          status = status_path.read_text(encoding='utf-8')
+          old = 'a024f96282cdd2cce91290082a5e88c5abb9cb23c5496c95cf2cec200d1813de'
+          if status.count(old) != 1:
+              raise SystemExit('expected one old digest in clean-baseline status')
+          status_path.write_text(status.replace(old, digest), encoding='utf-8')
           PY
           python3 scripts/build_clean_baseline.py
           python3 scripts/build_clean_baseline.py --check
@@ -106,16 +96,13 @@ jobs:
       - name: Stage repaired candidate
         run: |
           set -euo pipefail
-          rm .github/workflows/repair-clean-baseline-constraint-order.yml
           git config user.name 'Anupam Roy'
           git config user.email '42176802+Anupam0202@users.noreply.github.com'
           git add supabase/baseline/001_v6_zero_cost_baseline.sql \
                   supabase/baseline/manifest.json \
                   supabase/baseline/schema_inventory.json \
                   supabase/baseline/catalog_validation_report.json \
-                  docs/CLEAN_BASELINE_STATUS.md \
-                  .github/workflows/v6-database-rehearsal.yml \
-                  .github/workflows/repair-clean-baseline-constraint-order.yml
+                  docs/CLEAN_BASELINE_STATUS.md
           git diff --cached --check
           test -n "$(git diff --cached --name-only)"
       - name: Commit repaired candidate
