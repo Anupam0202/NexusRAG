@@ -3,7 +3,7 @@
   "product": "NexusRAG Evidence Intelligence OS",
   "profile": "ZERO_COST_LOW_TRAFFIC",
   "status": "PREVIEW_VERIFIED",
-  "observed_at": "2026-09-20T19:45:00Z",
+  "observed_at": "2026-09-20T20:40:00Z",
   "privacy": {
     "account_identifiers_published": false,
     "resource_identifiers_published": false,
@@ -20,10 +20,10 @@
   "inventory": {
     "workers": {
       "count": 2,
-      "state": "FRONTEND_AND_GATEWAY_PREVIEW_VERIFIED",
+      "state": "AUTHENTICATED_FRONTEND_AND_GATEWAY_PREVIEW_VERIFIED",
       "public_health_verified": true,
       "health_profile": "ZERO_COST_LOW_TRAFFIC",
-      "health_state": "DEGRADED",
+      "health_state": "READY",
       "production_verified": false,
       "paid_fallback": false,
       "business_authority": "Supabase",
@@ -31,7 +31,7 @@
       "compatibility_date_explicit": true,
       "compatibility_date": "2026-09-20",
       "compatibility_flags": [],
-      "binding_count": 6
+      "binding_count": 9
     },
     "pages_projects": {
       "count": 0,
@@ -104,11 +104,17 @@
     "D1 permission-check resource deletion and zero remaining D1 databases",
     "5%/95% live percentage canary with 25 successful probes",
     "100% rollback to last known-good with route probes",
-    "100% restoration of validated current version"
+    "100% restoration of validated current version",
+    "Cloudflare account 2FA enabled",
+    "GitHub OAuth callback on Cloudflare preview",
+    "authenticated workspace listing and selection",
+    "owner capability discovery",
+    "bounded Evidence API reads",
+    "cross-workspace API denial",
+    "read-only capability-scoped MCP operation surface"
   ],
   "blocked": [
-    "Production custom-domain cutover is unavailable because no Cloudflare zone is connected",
-    "Cloudflare account two-factor authentication is disabled and must be enabled by the account owner"
+    "Production custom-domain cutover is unavailable because no Cloudflare zone is connected; Workers.dev is the approved Preview origin"
   ],
   "next_safe_actions": [
     "Verify authenticated multi-user browser workflows with controlled identities",
@@ -124,6 +130,6 @@
     "sla_claimed": false
   },
   "account_security": {
-    "two_factor_authentication": "DISABLED_OWNER_ACTION_REQUIRED"
+    "two_factor_authentication": "ENABLED_VERIFIED"
   }
 }

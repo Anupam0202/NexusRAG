@@ -79,7 +79,7 @@ The live migration history includes migrations 014 through 025. Exact repository
 
 ## Remaining security warning
 
-Supabase Auth leaked-password protection remains disabled and the advisor warning remains visible. Supabase documents this feature as available only on the Pro plan and above; enabling it would violate the selected zero-cost operating contract without an explicit paid-plan decision. The deployed UI is OAuth-only and does not expose email/password sign-up or sign-in. The Email provider is also disabled in the connected Supabase project; GitHub and Google OAuth remain enabled. The warning is therefore an inactive-path plan limitation, not a cleared finding. If email/password authentication is enabled later or the project moves to Pro, leaked-password protection becomes a mandatory release gate.
+Supabase Auth leaked-password protection remains disabled and the advisor warning remains visible. Supabase documents this feature as available only on the Pro plan and above; enabling it would violate the selected zero-cost operating contract without an explicit paid-plan decision. The deployed UI is OAuth-only and does not expose email/password sign-up or sign-in. The Email provider is also disabled in the connected Supabase project; GitHub and Google OAuth remain enabled. The owner explicitly excluded this inactive-path plan limitation from the current Preview gate. If email/password authentication is enabled later or the project moves to Pro, leaked-password protection becomes a mandatory release gate.
 
 Reference: https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection
 

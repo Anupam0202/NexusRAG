@@ -28,7 +28,7 @@ Status: `PARTIAL_NOT_COMPLETE_WITH_PUBLISHED_EVIDENCE`
 | 22 | Gemini report | live-provider workflow artifact | PREVIEW_VERIFIED |
 | 23 | Computer/Browser report | Cloudflare ledger and recovery report | PREVIEW_VERIFIED |
 | 24 | UI route/component inventory | Next build output and public browser suite | PREVIEW_VERIFIED |
-| 25 | Requirement traceability | `docs/implementation/REQUIREMENT_TRACEABILITY.md` | PARTIAL — legacy definitions missing |
+| 25 | Requirement traceability | `docs/implementation/REQUIREMENT_TRACEABILITY.md` and owner-directed legacy replacement baseline | PREVIEW_BASELINE_DEFINED |
 | 26 | Commands/exact results | live platform report and GitHub Actions | VERIFIED |
 | 27 | Evaluation report | `docs/EVALUATION.md` plus evaluation artifacts | SYNTHETIC_GATES_PASSED |
 | 28 | Security/privacy report | `docs/SECURITY.md` and Supabase report | PREVIEW_VERIFIED |

@@ -24,7 +24,7 @@ Audited against **NEXUSRAG MASTER IMPLEMENTATION PROMPT V6** on
 | 12 — counterparty graph | PARTIAL | Shared graph and uncertainty contracts exist; end-to-end product is incomplete. |
 | 13 — product passport | LOCALLY_TESTED | Deterministic JSON-LD/W3C PROV export and receipt tests pass. |
 | 14 — scientific/open-source packs | PARTIAL | Shared evidence foundations exist; both complete product packs are not verified. |
-| 15 — Evidence API/MCP | PARTIAL | Authenticated Evidence API routes exist; a complete published capability-enforced MCP surface is not verified. |
+| 15 — Evidence API/MCP | PREVIEW_VERIFIED | Cloudflare now exposes authenticated, workspace-bound, capability-scoped, rate- and result-limited Evidence API reads plus bounded read-only MCP operation discovery/execution. Live OAuth, owner capability discovery, empty-result reads, and cross-workspace denial passed. |
 | 16 — evaluation/recovery/release | PARTIAL | CI, migration rehearsal, supply-chain evidence, provider probes, fixed synthetic quality scoring, deployed accessibility scans, public desktop/mobile browser E2E, and committed visual baselines pass. Authenticated product E2E remains incomplete; live canary, rollback, and restore have passed on Preview. |
 
 ## Connected-state verification
@@ -42,11 +42,7 @@ Audited against **NEXUSRAG MASTER IMPLEMENTATION PROMPT V6** on
   used two synthetic identities and two isolated workspaces, then verified
   zero remaining fixture users, workspaces, and Storage rows. No destructive
   rebuild was attempted.
-- Supabase security advisor has one plan-limited warning: leaked-password
-  protection remains disabled. Email/password authentication is now disabled at
-  the provider level; GitHub and Google OAuth remain enabled. The warning is
-  still reported honestly and must be cleared if password authentication is
-  restored.
+- Supabase leaked-password protection remains disabled, but Email/password authentication is disabled and the owner explicitly excluded this inactive-path warning from the current Preview gate. GitHub and Google OAuth remain enabled.
 - Supabase performance advisor reports unused indexes. This is expected for a
   low-traffic schema and is not sufficient evidence to remove security,
   lifecycle, or query-path indexes.
@@ -71,19 +67,18 @@ Verified on the feature branch:
 
 Not yet verified to the master definition of done:
 
-- authenticated product E2E;
+- full document-ingestion and generated-answer product E2E; live GitHub OAuth, workspace listing/selection, owner capability discovery, bounded Evidence API reads, and cross-workspace denial now pass;
 - provider-backed quality scoring beyond the deterministic synthetic contract
   dataset; the 400 labeled and 125 held-out fixtures pass fixed synthetic gates
   but do not establish production retrieval or model quality;
-- service-mediated API isolation with real signed-in sessions; direct Storage
-  RLS isolation has been live-rehearsed with two controlled identities;
+- two-simultaneous-real-OAuth-user browser isolation; service-mediated API denial passes with a real signed-in session, and direct Storage RLS isolation passed earlier with two controlled identities;
 - full application-level workspace deletion and authority restore with real authenticated sessions; Cloudflare canary/rollback/restore and controlled fixture deletion have passed;
-- complete legacy `R01–R32`, `CF01–CF32`, and `A01–A32` traceability.
-  The supplied prompt and repository history do not contain their normative
-  definitions, so they are blocked rather than invented. The new `S`, `G`,
-  `P`, and `Z` registers are mapped in the traceability report.
+- recovery of the unavailable historical `R`, `CF`, and `A` text. Per the accountable owner’s 2026-09-21 direction, an explicit best-understanding replacement baseline now defines all 96 entries for Preview; it does not claim to reproduce missing historical wording.
 
 ## Current Preview environment
+
+Cloudflare account 2FA is enabled. Supabase Auth’s Site URL and callback now target the Cloudflare preview; the retired Vercel callback is no longer canonical. The authenticated gateway reports `READY`, keeps the service-role JWT only in a Worker secret binding, and exposes no unrestricted or destructive MCP operation.
+
 
 The credential preflight confirms that `CLOUDFLARE_API_TOKEN` and
 `CLOUDFLARE_ACCOUNT_ID` are available. Cloudflare Worker origins are derived

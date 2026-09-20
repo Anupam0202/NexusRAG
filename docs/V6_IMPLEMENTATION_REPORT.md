@@ -32,7 +32,7 @@ Worker origins, builds and uploads OpenNext, then smoke-tests the live routes.
 - The connected Supabase MCP targets the previously observed NexusRAG schema; its protected project identifier is intentionally not committed.
 - The connected Supabase schema contains the V6 shared evidence, rights, graph, monitor, budget, export, and deletion foundations with RLS enabled on reviewed public tables.
 - The connected project is not empty (Auth users and private Storage objects exist), so no destructive rebuild was attempted.
-- Supabase security advisor reports leaked-password protection disabled. Email/password authentication has been disabled at the provider level; GitHub and Google OAuth remain enabled. A Pro upgrade is still required to clear the advisor if password authentication is restored.
+- Email/password authentication is disabled; GitHub and Google OAuth remain enabled. The owner excluded the inactive-path leaked-password warning from the current Preview gate.
 - Cloudflare has one V6 preview gateway Worker and one OpenNext frontend
   Worker, with no Pages project, KV namespace, Queue, Workflow, AI Gateway,
   Vectorize index, D1 database, custom domain, or zone. R2 is not enabled. The
@@ -40,8 +40,7 @@ Worker origins, builds and uploads OpenNext, then smoke-tests the live routes.
 - Cloudflare’s Qdrant secret bindings passed a disposable live create/index/upsert/query/delete probe. The probe exposed and fixed use of Qdrant’s retired search endpoint and added explicit workspace, version, and index-generation payload indexes.
 - Cloudflare and GitHub Preview Gemini bindings pass bounded synthetic validation with thinking disabled, no customer data, and no paid fallback.
 - The Next.js application passes lint, unit tests, typecheck, production build, and OpenNext Cloudflare bundle generation.
-- The live Cloudflare frontend passes homepage, Evidence OS, and gateway-health
-  smoke checks. GitHub `main` is protected by pull requests, five required
+- The live Cloudflare frontend passes homepage, Evidence OS, and gateway-health smoke checks. Live GitHub OAuth, workspace listing/selection, owner capability discovery, bounded Evidence API reads, and cross-workspace denial pass through the authenticated Cloudflare gateway. GitHub `main` is protected by pull requests, five required
   checks, an up-to-date branch requirement, conversation resolution, linear
   history, the `Preview` deployment gate, and no administrator bypass.
 - WCAG 2 A/AA scans report zero violations on the deployed Chat and Evidence OS
@@ -65,10 +64,9 @@ Worker origins, builds and uploads OpenNext, then smoke-tests the live routes.
 
 1. Public-provider terms and quota evidence requires current source review before enabling recurring acquisition.
 2. No custom-domain DNS cutover is possible until a Cloudflare zone is connected.
-3. Authenticated end-to-end application workflows still require a deployed full API backend and real provider sessions; direct live Storage isolation and cleanup have passed.
-4. Supabase leaked-password protection remains disabled because the feature is Pro-only. Password authentication is disabled, so this is not an active sign-in path; the advisor still remains open.
-5. The original `R01–R32`, `CF01–CF32`, and `A01–A32` definitions are absent from the supplied prompt and repository history; an accountable owner must supply or formally replace them.
-6. Cloudflare account two-factor authentication is disabled and requires the account owner to enroll a second factor.
+3. Full document ingestion, generated-answer chat, and two-real-OAuth-user browser E2E still require the Python processing runtime or equivalent Worker implementation. The authenticated Evidence API/MCP read surface is deployed and live-verified.
+4. The unavailable historical `R`, `CF`, and `A` wording was replaced by an owner-directed Preview baseline; recovered originals would require a reviewed gap analysis.
+5. No Cloudflare zone exists. Workers.dev is the approved Preview origin; a custom domain remains a Production-only action.
 
 ## Rollback
 

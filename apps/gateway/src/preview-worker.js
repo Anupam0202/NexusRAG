@@ -25,6 +25,19 @@ const READ_ROUTES = Object.freeze({
   "/api/v2/monitors": { table: "monitors", capability: "monitor:read" },
 });
 
+const MCP_OPERATIONS = Object.freeze({
+  evidence_search: READ_ROUTES["/api/v2/evidence/search"],
+  claim_retrieval: READ_ROUTES["/api/v2/claims"],
+  citation_retrieval: READ_ROUTES["/api/v2/citations"],
+  entity_lookup: READ_ROUTES["/api/v2/entities"],
+  relationship_lookup: READ_ROUTES["/api/v2/relationships"],
+  obligation_lookup: READ_ROUTES["/api/v2/obligations"],
+  procurement_lookup: READ_ROUTES["/api/v2/procurement"],
+  passport_retrieval: READ_ROUTES["/api/v2/passports"],
+  finding_retrieval: READ_ROUTES["/api/v2/findings"],
+  monitor_status: READ_ROUTES["/api/v2/monitors"],
+});
+
 const ROLE_CAPABILITIES = Object.freeze({
   viewer: ["evidence:read", "finding:read", "monitor:read", "obligation:read", "procurement:read", "counterparty:read", "passport:read"],
   editor: ["evidence:read", "research:run", "finding:read", "finding:write", "monitor:read", "monitor:write", "obligation:read", "procurement:read", "counterparty:read", "passport:read", "passport:write", "export:create"],
@@ -144,6 +157,22 @@ async function handle(request, env = {}) {
       if (!bound) return json(request, env, { status: "READY", authenticated: true, workspace_bound: false, capabilities: [] });
       const member = await membership(env, user.id, workspaceId(request));
       return json(request, env, { status: "READY", authenticated: true, workspace_bound: true, workspace_id: member.workspace_id, role: member.role, capabilities: ROLE_CAPABILITIES[member.role] || [] });
+    }
+
+    if (url.pathname === "/api/v2/mcp/operations" && (request.method === "GET" || request.method === "HEAD")) {
+      const id = workspaceId(request); const member = await membership(env, user.id, id);
+      const granted = new Set(ROLE_CAPABILITIES[member.role] || []);
+      return json(request, env, { protocol: "nexusrag-evidence-mcp/1", destructive_operations: false, operations: Object.entries(MCP_OPERATIONS).filter(([, spec]) => granted.has(spec.capability)).map(([name, spec]) => ({ name, capability: spec.capability, result_limit: 50, deadline_ms: 8000, read_only: true })) });
+    }
+    if (url.pathname === "/api/v2/mcp/execute" && request.method === "POST") {
+      const id = workspaceId(request); const member = await membership(env, user.id, id);
+      const body = await request.json(); const operation = String(body?.operation || ""); const spec = MCP_OPERATIONS[operation];
+      if (!spec) throw Object.assign(new Error("The MCP operation is not available."), { status: 404, code: "INVALID_SCOPE" });
+      if (!(ROLE_CAPABILITIES[member.role] || []).includes(spec.capability)) throw Object.assign(new Error("The required capability is not granted."), { status: 403, code: "FORBIDDEN" });
+      const limit = Math.min(Math.max(Number.parseInt(String(body?.limit || 20), 10) || 20, 1), 50);
+      const rows = await serviceRequest(env, `${spec.table}?workspace_id=eq.${id}&select=*&limit=${limit}`);
+      await audit(env, request, user.id, id, `mcp.${operation}`, spec.table);
+      return json(request, env, { protocol: "nexusrag-evidence-mcp/1", operation, items: rows, limit, workspace_id: id });
     }
 
     if (url.pathname === "/api/v1/workspaces" && request.method === "POST") return json(request, env, await createWorkspace(request, env, user), 201);

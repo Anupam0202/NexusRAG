@@ -152,12 +152,12 @@ The supplied V6 prompt defines `Z01–Z32` and instructs the project to add `S`,
 | Z31 | Free-tier behavior is tested | `PREVIEW_VERIFIED` | `backend/src/domain/zero_cost.py; backend/src/domain/resource_accounting.py; config/zero-cost/cloudflare.free.json; backend/tests/regressions/test_v6_zero_cost_foundations.py` |
 | Z32 | The application never claims an SLA for free dependencies | `PREVIEW_VERIFIED` | `backend/src/domain/zero_cost.py; backend/src/domain/resource_accounting.py; config/zero-cost/cloudflare.free.json; backend/tests/regressions/test_v6_zero_cost_foundations.py` |
 
-## Legacy register blockers
+## Owner-directed legacy replacement baseline
 
-| Family | Entries | State | Blocker |
+The accountable owner directed use of the best understanding of the application on 2026-09-21. `docs/implementation/LEGACY_REPLACEMENT_BASELINE.md` now defines `R01–R32`, `CF01–CF32`, and `A01–A32` for Preview verification. This replaces the missing normative text for this repository without claiming historical equivalence.
+
+| Family | Entries | State | Evidence |
 | --- | ---: | --- | --- |
-| R | 32 | `BLOCKED` | Normative R01–R32 definitions are absent from the supplied master prompt and repository history. |
-| CF | 32 | `BLOCKED` | Normative CF01–CF32 definitions are absent from the supplied master prompt and repository history. |
-| A | 32 | `BLOCKED` | Normative A01–A32 definitions are absent from the supplied master prompt and repository history. |
-
-Completion must not be claimed until the original legacy definitions are supplied or an accountable owner formally replaces them with a new baseline.
+| R | 32 | `LOCALLY_TESTED` | Legacy replacement baseline and Supabase/backend contracts |
+| CF | 32 | `PREVIEW_VERIFIED` | Legacy replacement baseline, Cloudflare tests, live deployment |
+| A | 32 | `PREVIEW_VERIFIED` | Legacy replacement baseline, live OAuth/API/browser validation |
