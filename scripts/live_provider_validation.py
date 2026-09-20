@@ -14,6 +14,13 @@ import sys
 from urllib import error, parse, request
 
 
+class ProviderHttpError(RuntimeError):
+    def __init__(self, status: int, retry_after: str | None = None) -> None:
+        super().__init__(f"provider request failed with HTTP {status}")
+        self.status = status
+        self.retry_after = retry_after
+
+
 def _required(name: str, *aliases: str) -> str:
     for candidate in (name, *aliases):
         value = os.environ.get(candidate, "").strip()
@@ -39,7 +46,7 @@ def _json_request(
             return response.status, json.loads(raw or b"{}")
     except error.HTTPError as exc:
         # Do not include response bodies: providers may echo request metadata.
-        raise RuntimeError(f"provider request failed with HTTP {exc.code}") from None
+        raise ProviderHttpError(exc.code, exc.headers.get("Retry-After")) from None
     except error.URLError as exc:
         raise RuntimeError(f"provider connection failed: {type(exc.reason).__name__}") from None
 
@@ -165,6 +172,17 @@ def validate_gemini() -> dict:
                 },
             },
         )
+    except ProviderHttpError as exc:
+        if exc.status == 429:
+            return {
+                "state": "QUOTA_EXHAUSTED",
+                "next_state": "TRY_AFTER_RESET",
+                "retry_after": exc.retry_after,
+                "model": model,
+                "customer_data_sent": False,
+                "paid_fallback": False,
+            }
+        raise RuntimeError(f"GEMINI_VALIDATION_FAILED:{exc}") from None
     except Exception as exc:
         raise RuntimeError(f"GEMINI_VALIDATION_FAILED:{exc}") from None
     text = "".join(
@@ -202,7 +220,15 @@ def main() -> int:
     output = Path(os.environ.get("VALIDATION_REPORT", "artifacts/live-provider-validation.json"))
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n")
-    print(f"provider={provider} state=READY customer_data_sent=false paid_fallback=false")
+    states = [
+        value.get("state", "BLOCKED")
+        for key, value in report.items()
+        if key in {"qdrant", "gemini"} and isinstance(value, dict)
+    ]
+    print(
+        f"provider={provider} state={','.join(states)} "
+        "customer_data_sent=false paid_fallback=false"
+    )
     return 0
 
 
