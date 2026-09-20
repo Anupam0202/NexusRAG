@@ -74,13 +74,12 @@ Not yet verified to the master definition of done:
 ## Current Preview environment blocker
 
 The credential preflight confirms that `CLOUDFLARE_API_TOKEN` and
-`CLOUDFLARE_ACCOUNT_ID` are available. Add these four browser-safe values as
-GitHub `Preview` environment **variables**:
+`CLOUDFLARE_ACCOUNT_ID` are available. Cloudflare Worker origins are derived
+from the account at deployment time. Add these browser-safe values as GitHub
+`Preview` environment **variables**:
 
-1. `NEXT_PUBLIC_API_URL`
-2. `NEXT_PUBLIC_SITE_URL`
-3. `NEXT_PUBLIC_SUPABASE_URL`
-4. `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
+1. `NEXT_PUBLIC_SUPABASE_URL`
+2. `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
 
 Canonical placement and ownership are documented in
 `docs/GITHUB_ENVIRONMENTS.md`.

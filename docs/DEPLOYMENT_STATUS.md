@@ -29,7 +29,8 @@ Status: `PARTIAL_NOT_COMPLETE`
 ## Current verification boundary
 
 The operator has configured the Cloudflare account identifier and API token in
-the GitHub `Preview` environment. The deployment workflow now performs
-post-upload smoke checks for the homepage, Evidence OS route, and gateway
-health contract. Preview verification remains pending until that protected
-workflow succeeds for the current commit.
+the GitHub `Preview` environment. Worker origins are derived from the
+Cloudflare account instead of duplicated as GitHub variables. The deployment
+workflow performs post-upload smoke checks for the homepage, Evidence OS route,
+and gateway health contract. Preview verification remains pending until that
+protected workflow succeeds for the current commit.

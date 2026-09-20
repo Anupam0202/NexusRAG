@@ -27,8 +27,6 @@ environment variables:
 | Name | Purpose |
 | --- | --- |
 | `CLOUDFLARE_ACCOUNT_ID` | Cloudflare account identifier |
-| `NEXT_PUBLIC_API_URL` | Cloudflare gateway origin |
-| `NEXT_PUBLIC_SITE_URL` | Canonical Cloudflare frontend origin |
 | `NEXT_PUBLIC_SUPABASE_URL` | Supabase project API origin |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Browser-safe Supabase publishable key |
 | `NEXT_PUBLIC_OAUTH_PROVIDERS` | Comma-separated enabled providers, currently `github` unless Google is configured |
@@ -37,6 +35,11 @@ environment variables:
 
 The workflows accept a few older aliases so rotations are non-disruptive, but
 new configuration should use the canonical names above.
+
+`NEXT_PUBLIC_API_URL` and `NEXT_PUBLIC_SITE_URL` are derived at deployment time
+from the Cloudflare Workers subdomain and the reviewed Worker names. They may be
+set as Preview variables only when a deliberate custom origin must override the
+standard `workers.dev` origins.
 
 ## Protection and ownership
 

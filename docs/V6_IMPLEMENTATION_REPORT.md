@@ -46,10 +46,9 @@ variables are absent from the GitHub `Preview` environment.
 
 ## Exact blockers
 
-1. `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_SITE_URL`,
-   `NEXT_PUBLIC_SUPABASE_URL`, and
-   `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` are missing from the GitHub
-   `Preview` environment, so the OpenNext upload fails closed.
+1. The protected Cloudflare deployment must be rerun after configuring the
+   browser-safe Supabase URL and publishable-key Preview variables. Cloudflare
+   Worker origins are derived from the account during deployment.
 2. Public-provider terms and quota evidence requires current source review before enabling recurring acquisition.
 3. No custom-domain DNS cutover is possible until a Cloudflare zone is connected.
 4. Full RLS and Storage multi-user integration tests require controlled test identities and cleanup.

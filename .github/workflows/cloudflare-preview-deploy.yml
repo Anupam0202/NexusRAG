@@ -43,11 +43,29 @@ jobs:
           node-version: "24"
           cache: npm
           cache-dependency-path: frontend/package-lock.json
-      - name: Require Cloudflare and public application configuration
+      - name: Resolve canonical Cloudflare worker origins
+        working-directory: .
+        run: |
+          set -euo pipefail
+          test -n "${CLOUDFLARE_API_TOKEN:-}" || { echo "::error::CLOUDFLARE_API_TOKEN is missing from the Preview environment"; exit 1; }
+          test -n "${CLOUDFLARE_ACCOUNT_ID:-}" || { echo "::error::CLOUDFLARE_ACCOUNT_ID is missing from the Preview environment"; exit 1; }
+
+          if [ -z "${NEXT_PUBLIC_API_URL:-}" ] || [ -z "${NEXT_PUBLIC_SITE_URL:-}" ]; then
+            response="$(curl --fail --silent --show-error \
+              --connect-timeout 10 --max-time 30 \
+              -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+              "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/subdomain")"
+            subdomain="$(jq -er '.result.subdomain' <<<"$response")"
+            {
+              echo "NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-https://nexusrag-v6-preview-gateway.${subdomain}.workers.dev}"
+              echo "NEXT_PUBLIC_SITE_URL=${NEXT_PUBLIC_SITE_URL:-https://nexusrag-v6-frontend-preview.${subdomain}.workers.dev}"
+            } >> "$GITHUB_ENV"
+          fi
+      - name: Require public application configuration
         run: |
           set -euo pipefail
           missing=()
-          for name in CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID NEXT_PUBLIC_API_URL NEXT_PUBLIC_SITE_URL NEXT_PUBLIC_SUPABASE_URL NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY; do
+          for name in NEXT_PUBLIC_API_URL NEXT_PUBLIC_SITE_URL NEXT_PUBLIC_SUPABASE_URL NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY; do
             if [ -z "${!name:-}" ]; then
               echo "::error::$name is missing from the Preview environment"
               missing+=("$name")
@@ -61,9 +79,6 @@ jobs:
       - run: npm run cf:deploy
       - name: Verify deployed frontend and gateway
         working-directory: .
-        env:
-          FRONTEND_URL: ${{ vars.CLOUDFLARE_FRONTEND_URL }}
-          GATEWAY_URL: ${{ vars.CLOUDFLARE_GATEWAY_URL }}
         run: |
           set -euo pipefail
           probe() {
@@ -80,20 +95,17 @@ jobs:
             done
             return 1
           }
-          probe "$FRONTEND_URL/" "NexusRAG"
-          probe "$FRONTEND_URL/evidence-os" "Evidence"
-          probe "$GATEWAY_URL/health" "ZERO_COST_LOW_TRAFFIC"
+          probe "$NEXT_PUBLIC_SITE_URL/" "NexusRAG"
+          probe "$NEXT_PUBLIC_SITE_URL/evidence-os" "Evidence"
+          probe "$NEXT_PUBLIC_API_URL/health" "ZERO_COST_LOW_TRAFFIC"
       - name: Publish deployment summary
         working-directory: .
-        env:
-          FRONTEND_URL: ${{ vars.CLOUDFLARE_FRONTEND_URL }}
-          GATEWAY_URL: ${{ vars.CLOUDFLARE_GATEWAY_URL }}
         run: |
           {
             echo "## Cloudflare preview"
             echo
-            echo "- Frontend: $FRONTEND_URL"
-            echo "- Gateway health: $GATEWAY_URL/health"
+            echo "- Frontend: $NEXT_PUBLIC_SITE_URL"
+            echo "- Gateway health: $NEXT_PUBLIC_API_URL/health"
             echo "- Commit: \`$GITHUB_SHA\`"
             echo "- Environment: \`Preview\`"
           } >> "$GITHUB_STEP_SUMMARY"
