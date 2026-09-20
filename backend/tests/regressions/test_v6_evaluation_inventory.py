@@ -6,6 +6,7 @@ import unittest
 from pathlib import Path
 
 from evals.build_v6_dataset import DOMAINS, TASKS, build_cases, main, validate
+from evals.score_v6_contracts import GATES, score
 
 
 class V6EvaluationInventoryTests(unittest.TestCase):
@@ -28,6 +29,14 @@ class V6EvaluationInventoryTests(unittest.TestCase):
             self.assertEqual(case["claim_state"], "SUPPORTED")
             self.assertEqual(case["rights_decision"], "ALLOW")
             self.assertTrue(case["synthetic"])
+
+    def test_synthetic_contract_gates_are_scored_without_production_claim(self) -> None:
+        labeled, heldout = build_cases()
+        report = score(labeled + heldout)
+        self.assertEqual(report["status"], "SYNTHETIC_CONTRACT_GATES_PASSED")
+        self.assertFalse(report["production_quality_claimed"])
+        self.assertEqual(set(report["metrics"]), set(GATES))
+        self.assertTrue(all(report["passed"].values()))
 
 
 if __name__ == "__main__":

@@ -1,7 +1,7 @@
 """Authenticated deterministic APIs shared by the Evidence Intelligence products."""
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 from typing import Literal
 
@@ -15,6 +15,7 @@ from src.domain.deterministic_calculations import (
     Quantity,
     calculate,
 )
+from src.domain.evidence_mcp import OPERATIONS
 from src.domain.evidence_quality import Citation, assess_claim
 from src.domain.obligations import Obligation, review
 from src.domain.product_passport import (
@@ -22,6 +23,9 @@ from src.domain.product_passport import (
     PassportClaimStatus,
     ProductPassport,
 )
+from src.domain.research_planner import MODE_LIMITS, ResearchMode, ResearchPlan
+from src.domain.setup_center import CHECK_IDS
+from src.domain.standards_mapping import mapping_report
 
 router = APIRouter(
     prefix="/evidence",
@@ -100,6 +104,22 @@ class PassportExportInput(BaseModel):
     claims: list[PassportClaimInput] = Field(max_length=200)
 
 
+class ResearchPlanInput(BaseModel):
+    plan_id: str = Field(min_length=1, max_length=128)
+    mode: ResearchMode
+    question: str = Field(min_length=1, max_length=10_000)
+    subquestions: list[str] = Field(default_factory=list, max_length=12)
+    private_source_ids: list[str] = Field(default_factory=list, max_length=60)
+    public_provider_ids: list[str] = Field(default_factory=list, max_length=60)
+    date_from: date | None = None
+    date_to: date | None = None
+    jurisdiction: str | None = Field(default=None, max_length=128)
+    entity_scope: list[str] = Field(default_factory=list, max_length=100)
+    rights_constraints: list[str] = Field(default_factory=list, max_length=100)
+    expected_calculations: list[str] = Field(default_factory=list, max_length=50)
+    completion_criteria: list[str] = Field(min_length=1, max_length=50)
+
+
 @router.get("/capabilities")
 async def capabilities(
     workspace: WorkspaceContext | None = Depends(VIEWER),
@@ -120,6 +140,89 @@ async def capabilities(
             "public_risk": "PROVIDER_REVIEW",
             "evidence_api_mcp": "CONTRACT_READY",
         },
+    }
+
+
+@router.get("/mcp/operations")
+async def mcp_operations(
+    _workspace: WorkspaceContext | None = Depends(VIEWER),
+) -> dict:
+    return {
+        "authentication_required": True,
+        "workspace_binding_required": True,
+        "unrestricted_bulk_export": False,
+        "autonomous_destructive_tools": False,
+        "operations": [
+            {
+                "name": item.name,
+                "capability": item.capability.value,
+                "max_results": item.max_results,
+                "deadline_ms": item.deadline_ms,
+                "rate_limit_per_minute": item.rate_limit_per_minute,
+                "idempotent": item.idempotent,
+                "rights_action": item.rights_action,
+                "audit_event": item.audit_event,
+            }
+            for item in OPERATIONS
+        ],
+    }
+
+
+@router.get("/standards")
+async def standards(
+    _workspace: WorkspaceContext | None = Depends(VIEWER),
+) -> dict:
+    return mapping_report()
+
+
+@router.get("/setup/checks")
+async def setup_checks(
+    _workspace: WorkspaceContext | None = Depends(VIEWER),
+) -> dict:
+    return {
+        "check_ids": CHECK_IDS,
+        "live_state_source": "deployment inventory and provider health",
+        "unknown_state": "REVIEW_REQUIRED",
+        "paid_fallback": False,
+    }
+
+
+@router.post("/research/plans")
+async def create_research_plan(
+    payload: ResearchPlanInput,
+    workspace: WorkspaceContext | None = Depends(EDITOR),
+) -> dict:
+    if workspace is None:
+        raise ValueError("Enterprise workspace context is required")
+    plan = ResearchPlan(
+        payload.plan_id,
+        workspace.workspace_id,
+        payload.mode,
+        payload.question,
+        tuple(payload.subquestions),
+        tuple(payload.private_source_ids),
+        tuple(payload.public_provider_ids),
+        payload.date_from,
+        payload.date_to,
+        payload.jurisdiction,
+        tuple(payload.entity_scope),
+        tuple(payload.rights_constraints),
+        tuple(payload.expected_calculations),
+        tuple(payload.completion_criteria),
+    )
+    limits = MODE_LIMITS[plan.mode]
+    return {
+        "plan_id": plan.plan_id,
+        "workspace_id": plan.workspace_id,
+        "mode": plan.mode.value,
+        "limits": {
+            "max_subquestions": limits.max_subquestions,
+            "max_sources": limits.max_sources,
+            "max_query_variants": limits.max_variants,
+            "max_runtime_seconds": limits.max_runtime_seconds,
+            "requires_review": limits.requires_review,
+        },
+        "state": "PLANNED",
     }
 
 

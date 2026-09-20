@@ -43,6 +43,13 @@ jobs:
         with: {python-version: "3.13"}
       - run: python3 evals/build_v6_dataset.py --output-dir /tmp/nexusrag-v6-evals
         working-directory: backend
+      - name: Score fixed synthetic contract gates
+        run: |
+          python3 evals/score_v6_contracts.py \
+            --labeled /tmp/nexusrag-v6-evals/v6-labeled.jsonl \
+            --heldout /tmp/nexusrag-v6-evals/v6-heldout.jsonl \
+            --output /tmp/nexusrag-v6-evals/v6-contract-score.json
+        working-directory: backend
       - name: Validate required counts and held-out separation
         run: |
           python3 - <<'PY'
@@ -52,6 +59,9 @@ jobs:
           assert report['status']=='FIXTURE_INVENTORY_ONLY'
           assert report['labeled_cases'] >= 400
           assert report['heldout_cases'] >= 125
+          score=json.loads(Path('/tmp/nexusrag-v6-evals/v6-contract-score.json').read_text())
+          assert score['status']=='SYNTHETIC_CONTRACT_GATES_PASSED'
+          assert score['production_quality_claimed'] is False
           PY
       - uses: actions/upload-artifact@v4
         with:

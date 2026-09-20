@@ -17,14 +17,20 @@ class EvidenceApiContractTests(unittest.TestCase):
             '"/calculations"',
             '"/obligations/review"',
             '"/passports/export"',
+            '"/mcp/operations"',
+            '"/standards"',
+            '"/setup/checks"',
+            '"/research/plans"',
         ):
             self.assertIn(route, self.source)
-        self.assertGreaterEqual(self.source.count("Depends(VIEWER)"), 3)
-        self.assertGreaterEqual(self.source.count("Depends(EDITOR)"), 2)
+        self.assertGreaterEqual(self.source.count("Depends(VIEWER)"), 6)
+        self.assertGreaterEqual(self.source.count("Depends(EDITOR)"), 3)
 
     def test_deterministic_engines_are_used(self):
         self.assertIn("result = calculate(", self.source)
         self.assertIn("claim = assess_claim(", self.source)
         self.assertIn("result = review(", self.source)
         self.assertIn("passport.canonical_receipt()", self.source)
+        self.assertIn("ResearchPlan(", self.source)
+        self.assertIn('"autonomous_destructive_tools": False', self.source)
         self.assertNotIn("ChatGoogleGenerativeAI", self.source)

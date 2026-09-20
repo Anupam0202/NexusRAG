@@ -33,7 +33,16 @@ TASKS = (
     "extraction",
     "entity_resolution",
     "change_detection",
+    "obligation_extraction",
+    "applicability",
+    "procurement_normalization",
+    "product_passport_completeness",
     "tenant_isolation",
+    "prompt_injection",
+    "retrieval_poisoning",
+    "provider_failure",
+    "quota_exhaustion",
+    "accessibility",
 )
 WORKSPACES = (
     "11111111-1111-4111-8111-111111111111",
@@ -60,6 +69,13 @@ def _case(domain: str, split: str, ordinal: int, global_index: int) -> dict[str,
         "forbidden_sources": [f"{other_workspace}-{marker}.txt"],
         "claim_state": "SUPPORTED",
         "requires_human_review": task in {"entity_resolution", "contradiction"},
+        "expected_abstention": task in {
+            "abstention", "provider_failure", "quota_exhaustion",
+            "prompt_injection", "retrieval_poisoning",
+        },
+        "expected_entity_auto_link": task == "entity_resolution" and ordinal % 5 != 0,
+        "expected_change_alert": task == "change_detection" and ordinal % 4 != 0,
+        "expected_obligation_approved": task == "obligation_extraction" and ordinal % 3 != 0,
         "rights_decision": "ALLOW",
         "synthetic": True,
     }
@@ -95,6 +111,8 @@ def validate(labeled: list[dict[str, Any]], heldout: list[dict[str, Any]]) -> di
         "id", "split", "domain", "task", "workspace_id", "question",
         "expected_answer", "expected_terms", "expected_sources", "forbidden_sources",
         "claim_state", "requires_human_review", "rights_decision", "synthetic",
+        "expected_abstention", "expected_entity_auto_link",
+        "expected_change_alert", "expected_obligation_approved",
     }
     assert all(required.issubset(case) for case in all_cases)
     digest = hashlib.sha256(

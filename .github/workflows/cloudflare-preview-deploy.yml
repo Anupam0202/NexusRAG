@@ -98,6 +98,23 @@ jobs:
           probe "$NEXT_PUBLIC_SITE_URL/" "NexusRAG"
           probe "$NEXT_PUBLIC_SITE_URL/evidence-os" "Evidence"
           probe "$NEXT_PUBLIC_API_URL/health" "ZERO_COST_LOW_TRAFFIC"
+      - name: Install browser for desktop and mobile E2E
+        run: npx playwright install --with-deps chromium
+      - name: Run deployed desktop and mobile E2E
+        run: |
+          E2E_BASE_URL="$NEXT_PUBLIC_SITE_URL" \
+          E2E_OAUTH_PROVIDERS="$NEXT_PUBLIC_OAUTH_PROVIDERS" \
+          npx playwright test src/e2e/public-smoke.spec.ts \
+            --project=chromium --project=mobile-chrome
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cloudflare-preview-browser-evidence
+          path: |
+            frontend/playwright-report
+            frontend/test-results
+          if-no-files-found: ignore
+          retention-days: 14
       - name: Publish deployment summary
         working-directory: .
         run: |
