@@ -1,5 +1,10 @@
 import { expect, test } from "@playwright/test";
 
+const providerLabels: Record<string, string> = {
+  github: "GitHub",
+  google: "Google",
+};
+
 const routes = [
   { path: "/auth/login", heading: "Sign in to NexusRAG" },
   { path: "/chat", heading: "Chat" },
@@ -37,7 +42,7 @@ test("OAuth gateway presents exactly the configured providers", async ({ page })
   await expect(providerButtons).toHaveCount(expectedProviders.length);
   for (const [index, provider] of expectedProviders.entries()) {
     await expect(providerButtons.nth(index)).toHaveAccessibleName(
-      `Continue with ${provider[0].toUpperCase()}${provider.slice(1)}`
+      `Continue with ${providerLabels[provider] ?? provider[0].toUpperCase() + provider.slice(1)}`
     );
   }
 });

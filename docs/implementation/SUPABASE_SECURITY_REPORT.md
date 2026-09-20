@@ -1,8 +1,8 @@
 # Supabase Security Verification
 
-Status: `PARTIAL_NOT_COMPLETE`
+Status: `LIVE_STORAGE_ISOLATION_VERIFIED`
 
-Verified: 2026-09-12
+Verified: 2026-09-20
 
 ## Authority boundary
 
@@ -53,7 +53,25 @@ The `documents` bucket exists and is private. Its live configuration enforces a 
 - `nexusrag_documents_insert`
 - `nexusrag_documents_update`
 
-Client deletion is intentionally unavailable; cleanup is service-mediated and bounded. Live cross-workspace fixtures and signed-URL expiry tests are still required before the Storage gate can pass.
+Client deletion is intentionally unavailable; cleanup is service-mediated and
+bounded.
+
+### Controlled live isolation rehearsal
+
+Two synthetic identities and two workspaces were created with reserved E2E
+UUIDs. The rehearsal proved:
+
+- an editor/owner can insert only the exact allocated object key;
+- an arbitrary object key is rejected with PostgreSQL `42501` by Storage RLS;
+- before publication, the exact object is not readable;
+- after a service-mediated `ready` version is published, the owning identity
+  sees exactly one object;
+- the identity from the other workspace sees zero objects;
+- cleanup leaves zero synthetic users, workspaces, and Storage object rows.
+
+Core authority tables intentionally have no direct browser grants, so their
+isolation is enforced through the service-mediated API boundary rather than
+direct Supabase browser reads.
 
 ## Migration-source integrity
 
@@ -67,11 +85,10 @@ Reference: https://supabase.com/docs/guides/auth/password-security#password-stre
 
 ## Remaining validation
 
-- Authenticated cross-workspace denial fixtures.
 - Revoked-membership and stale-authorization fixtures.
-- Exact-path Storage success and arbitrary-path denial.
 - Viewer/editor/admin capability matrix.
-- Upload expiry, multipart cleanup, signed-URL expiry, and deletion receipts.
+- Upload expiry, multipart cleanup, signed-URL expiry, and deletion receipts
+  through the deployed application.
 - Recovery, restore, and read-only-mode rehearsal.
 - Exact historical migration-source recovery or an explicitly approved baseline replacement procedure.
 

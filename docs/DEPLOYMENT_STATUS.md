@@ -16,6 +16,11 @@ Status: `PREVIEW_VERIFIED`
   `ZERO_COST_LOW_TRAFFIC` gateway health contract.
 - Automated WCAG 2 A/AA scans report zero violations on the deployed Chat and
   Evidence OS routes.
+- Controlled live Supabase Storage isolation passed for exact-key admission,
+  arbitrary-key denial, own-workspace read, cross-workspace denial, and full
+  fixture cleanup.
+- Cloudflare inventory is clean: only the two intended Workers remain; D1, KV,
+  and Vectorize are empty, R2 is disabled, and no custom domain is connected.
 
 ## Active deployment path
 
@@ -38,5 +43,6 @@ the GitHub `Preview` environment. Worker origins are derived from the
 Cloudflare account instead of duplicated as GitHub variables. The deployment
 workflow performs post-upload smoke checks for the homepage, Evidence OS route,
 and gateway health contract. Production verification, custom-domain cutover,
-authenticated multi-user E2E, and the remaining master-prompt gates are not
-claimed.
+authenticated application E2E, provider-backed quality scoring, visual
+regression, restore/canary/rollback rehearsals, and the remaining
+master-prompt gates are not claimed.

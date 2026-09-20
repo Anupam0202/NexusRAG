@@ -12,7 +12,7 @@ Audited against **NEXUSRAG MASTER IMPLEMENTATION PROMPT V6** on
 | 0 — connected-platform audit | PARTIAL | GitHub, Cloudflare, Supabase, Qdrant, and Gemini were inspected; GitHub environment values cannot be enumerated by the connector and are validated by fail-closed CI instead. |
 | 1 — shared foundations | LOCALLY_TESTED | Tenant/version/job/usage/evidence/streaming/deletion contracts and 51-table Supabase schema are present. |
 | 2 — Cloudflare preview | PREVIEW_VERIFIED | OpenNext frontend and gateway are deployed; live route and health smoke checks pass. |
-| 3 — Supabase | PARTIAL | 51/51 public tables have RLS, 83 public policies and 3 Storage policies exist, and the clean baseline rehearsal passes. Controlled multi-user live isolation remains pending. |
+| 3 — Supabase | LIVE_STORAGE_ISOLATION_VERIFIED | 51/51 public tables have RLS, 83 public policies and 3 Storage policies exist. A controlled two-identity live rehearsal proved exact-key upload admission, arbitrary-key denial, own-workspace published-object visibility, cross-workspace invisibility, and complete fixture cleanup. Core authority tables remain intentionally service-mediated rather than browser-readable. |
 | 4 — Qdrant | PREVIEW_VERIFIED | Disposable create/index/upsert/tenant-and-version query/delete validation passes. |
 | 5 — Gemini | PREVIEW_VERIFIED | Bounded synthetic request passes with thinking disabled and no customer data or paid fallback. |
 | 6 — Evidence Workbench UI | PREVIEW_VERIFIED | Evidence OS route builds, deploys, passes smoke validation, and has zero automated WCAG 2 A/AA violations. Authenticated product E2E remains incomplete. |
@@ -25,7 +25,7 @@ Audited against **NEXUSRAG MASTER IMPLEMENTATION PROMPT V6** on
 | 13 — product passport | LOCALLY_TESTED | Deterministic JSON-LD/W3C PROV export and receipt tests pass. |
 | 14 — scientific/open-source packs | PARTIAL | Shared evidence foundations exist; both complete product packs are not verified. |
 | 15 — Evidence API/MCP | PARTIAL | Authenticated Evidence API routes exist; a complete published capability-enforced MCP surface is not verified. |
-| 16 — evaluation/recovery/release | PARTIAL | CI, migration rehearsal, supply-chain evidence, and provider probes pass. Quality metrics, accessibility, browser E2E, restore/canary/rollback, and release gates remain incomplete. |
+| 16 — evaluation/recovery/release | PARTIAL | CI, migration rehearsal, supply-chain evidence, provider probes, fixed synthetic quality scoring, deployed accessibility scans, and public desktop/mobile browser E2E pass. Authenticated product E2E, visual baselines, restore/canary/rollback, and release gates remain incomplete. |
 
 ## Connected-state verification
 
@@ -33,10 +33,15 @@ Audited against **NEXUSRAG MASTER IMPLEMENTATION PROMPT V6** on
 - Vercel and Render deployment files are absent. New commits no longer receive
   the prior Vercel preview check.
 - Cloudflare has both the gateway Worker and OpenNext frontend Worker. The
-  frontend carries static assets. No custom-domain zone is connected.
+  frontend carries static assets. No custom-domain zone is connected. The
+  empty permission-check D1 database was removed after an identity and
+  zero-table safety check; D1, KV, R2, and Vectorize now hold no application
+  state.
 - The intended Supabase project contains 51 public tables; all 51 have RLS.
-  There are 83 public policies, 3 Storage policies, 8 Auth users, and 7 Storage
-  objects. No destructive rebuild was attempted.
+  There are 83 public policies and 3 Storage policies. Controlled E2E fixtures
+  used two synthetic identities and two isolated workspaces, then verified
+  zero remaining fixture users, workspaces, and Storage rows. No destructive
+  rebuild was attempted.
 - Supabase security advisor has one accepted warning: leaked-password
   protection remains disabled by explicit operator decision.
 - Supabase performance advisor reports unused indexes. This is expected for a
@@ -55,16 +60,20 @@ Verified on the feature branch:
 - bounded Qdrant and Gemini live validation;
 - dependency audit;
 - CycloneDX SBOM and licence inventory.
+- fixed scoring of all 525 synthetic contract cases, including the committed
+  thresholds for retrieval, citations, claim support, abstention, entity
+  precision, change alerts, reviewed obligations, calculations, and tenant
+  isolation;
+- public desktop/mobile Playwright coverage and deployed WCAG 2 A/AA scans.
 
 Not yet verified to the master definition of done:
 
-- desktop/mobile authenticated E2E and visual regression;
-- automated accessibility gate on the deployed preview;
-- measured Recall@20, citation precision, supported-claim coverage, abstention,
-  entity-link, change-alert, and reviewed-obligation thresholds;
-- 400 labeled plus 125 held-out evaluated cases (the current job validates
-  fixture inventory only);
-- controlled multi-user RLS and Storage integration;
+- authenticated product E2E and visual-regression baselines;
+- provider-backed quality scoring beyond the deterministic synthetic contract
+  dataset; the 400 labeled and 125 held-out fixtures now pass fixed synthetic
+  gates but do not establish production retrieval or model quality;
+- service-mediated API isolation with real signed-in sessions; direct Storage
+  RLS isolation has been live-rehearsed with two controlled identities;
 - restore, canary, rollback, and deletion rehearsal against deployed preview;
 - complete `R01–R32`, `CF01–CF32`, `A01–A32`, `S01–S32`, `G01–G32`,
   `P01–P32`, and `Z01–Z32` traceability. The supplied V6 prompt defines the
@@ -86,8 +95,7 @@ Canonical placement and ownership are documented in
 
 ## Merge decision
 
-**DO NOT MERGE.** The deployment job is red and the master definition of done
-has mandatory partial gates. Merge is permitted only after all required checks
-for one head commit are green and remaining master requirements are either
-implemented and measured or explicitly accepted as blockers without using a
-completion claim.
+**DO NOT MERGE.** All current-head GitHub checks are green, but the master
+definition of done still has mandatory partial gates. Merge is permitted only
+after the remaining requirements are implemented and measured or explicitly
+accepted as blockers without using a completion claim.
