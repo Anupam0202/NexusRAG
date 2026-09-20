@@ -29,7 +29,7 @@ Audited against **NEXUSRAG MASTER IMPLEMENTATION PROMPT V6** on
 
 ## Connected-state verification
 
-- GitHub branch: `v6-zero-cost-foundations-clean`; pull request remains draft.
+- GitHub branch: `v6-zero-cost-foundations-clean`; pull request remains draft. The `main` branch is now protected: pull requests, five named required checks, up-to-date branches, conversation resolution, linear history, successful `Preview` deployment, and no administrator bypass are required.
 - Vercel and Render deployment files are absent. New commits no longer receive
   the prior Vercel preview check.
 - Cloudflare has both the gateway Worker and OpenNext frontend Worker. The
@@ -42,8 +42,11 @@ Audited against **NEXUSRAG MASTER IMPLEMENTATION PROMPT V6** on
   used two synthetic identities and two isolated workspaces, then verified
   zero remaining fixture users, workspaces, and Storage rows. No destructive
   rebuild was attempted.
-- Supabase security advisor has one accepted warning: leaked-password
-  protection remains disabled by explicit operator decision.
+- Supabase security advisor has one plan-limited warning: leaked-password
+  protection remains disabled. Email/password authentication is now disabled at
+  the provider level; GitHub and Google OAuth remain enabled. The warning is
+  still reported honestly and must be cleared if password authentication is
+  restored.
 - Supabase performance advisor reports unused indexes. This is expected for a
   low-traffic schema and is not sufficient evidence to remove security,
   lifecycle, or query-path indexes.
@@ -75,10 +78,10 @@ Not yet verified to the master definition of done:
 - service-mediated API isolation with real signed-in sessions; direct Storage
   RLS isolation has been live-rehearsed with two controlled identities;
 - full application-level workspace deletion and authority restore with real authenticated sessions; Cloudflare canary/rollback/restore and controlled fixture deletion have passed;
-- complete `R01–R32`, `CF01–CF32`, `A01–A32`, `S01–S32`, `G01–G32`,
-  `P01–P32`, and `Z01–Z32` traceability. The supplied V6 prompt defines the
-  `Z` entries but does not include the source definitions for the other legacy
-  registers.
+- complete legacy `R01–R32`, `CF01–CF32`, and `A01–A32` traceability.
+  The supplied prompt and repository history do not contain their normative
+  definitions, so they are blocked rather than invented. The new `S`, `G`,
+  `P`, and `Z` registers are mapped in the traceability report.
 
 ## Current Preview environment
 

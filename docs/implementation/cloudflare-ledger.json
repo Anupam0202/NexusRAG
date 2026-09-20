@@ -3,7 +3,7 @@
   "product": "NexusRAG Evidence Intelligence OS",
   "profile": "ZERO_COST_LOW_TRAFFIC",
   "status": "PREVIEW_VERIFIED",
-  "observed_at": "2026-09-21T00:00:00Z",
+  "observed_at": "2026-09-20T19:45:00Z",
   "privacy": {
     "account_identifiers_published": false,
     "resource_identifiers_published": false,
@@ -29,7 +29,7 @@
       "business_authority": "Supabase",
       "vector_authority": "Qdrant",
       "compatibility_date_explicit": true,
-      "compatibility_date": "2026-09-12",
+      "compatibility_date": "2026-09-20",
       "compatibility_flags": [],
       "binding_count": 6
     },
@@ -107,7 +107,8 @@
     "100% restoration of validated current version"
   ],
   "blocked": [
-    "Production custom-domain cutover is unavailable because no Cloudflare zone is connected"
+    "Production custom-domain cutover is unavailable because no Cloudflare zone is connected",
+    "Cloudflare account two-factor authentication is disabled and must be enabled by the account owner"
   ],
   "next_safe_actions": [
     "Verify authenticated multi-user browser workflows with controlled identities",
@@ -121,5 +122,8 @@
     "preview_verified": true,
     "complete": false,
     "sla_claimed": false
+  },
+  "account_security": {
+    "two_factor_authentication": "DISABLED_OWNER_ACTION_REQUIRED"
   }
 }

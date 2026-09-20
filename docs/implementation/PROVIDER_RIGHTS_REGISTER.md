@@ -2,7 +2,7 @@
 
 Status: `REVIEWED_FAIL_CLOSED`
 
-Reviewed: 2026-09-21  
+Reviewed: 2026-09-21
 Review again by: 2026-12-20
 
 No recurring public connector is enabled. The runtime default remains

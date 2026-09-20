@@ -6,7 +6,7 @@ Status: `PARTIAL_NOT_COMPLETE_WITH_PUBLISHED_EVIDENCE`
 | ---: | --- | --- | --- |
 | 1 | Executive implementation report | `docs/V6_IMPLEMENTATION_REPORT.md` | PREVIEW_VERIFIED |
 | 2 | Repository inventory | `docs/MASTER_PROMPT_AUDIT.md` | VERIFIED |
-| 3 | GitHub state | `docs/implementation/LIVE_PLATFORM_VALIDATION_2026-09-20.md` | VERIFIED |
+| 3 | GitHub state | `docs/implementation/LIVE_PLATFORM_VALIDATION_2026-09-20.md` and protected `main` rule | VERIFIED |
 | 4 | Cloudflare inventory | `docs/implementation/cloudflare-ledger.json` | VERIFIED |
 | 5 | Supabase inventory | `docs/implementation/SUPABASE_SECURITY_REPORT.md` | VERIFIED |
 | 6 | Confirmed project mapping | live platform report | VERIFIED |
