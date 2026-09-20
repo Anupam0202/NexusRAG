@@ -1,0 +1,55 @@
+name: Publish clean migration baseline
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - v6-zero-cost-foundations-clean
+    paths:
+      - .github/workflows/publish-clean-baseline.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: publish-clean-baseline
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: v6-zero-cost-foundations-clean
+          fetch-depth: 0
+      - name: Reconstruct canonical SQL
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(find .github/baseline-parts -maxdepth 1 -type f -name 'part-*' | wc -l)" -eq 9
+          mkdir -p supabase/baseline
+          cat .github/baseline-parts/part-* | base64 --decode | gzip --decompress > supabase/baseline/001_v6_zero_cost_baseline.sql
+          printf '%s  %s\n' 'a024f96282cdd2cce91290082a5e88c5abb9cb23c5496c95cf2cec200d1813de' 'supabase/baseline/001_v6_zero_cost_baseline.sql' | sha256sum --check --strict
+          test "$(wc -c < supabase/baseline/001_v6_zero_cost_baseline.sql)" -eq 230273
+          test "$(wc -l < supabase/baseline/001_v6_zero_cost_baseline.sql)" -eq 2311
+      - name: Validate deterministic artifacts
+        run: |
+          set -euo pipefail
+          python3 scripts/build_clean_baseline.py --check
+          python3 scripts/verify_v6_migrations.py
+      - name: Remove one-time transport files
+        run: |
+          rm -rf .github/baseline-parts
+          rm -f .github/workflows/publish-clean-baseline.yml
+      - name: Commit verified baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'Anupam Roy'
+          git config user.email '42176802+Anupam0202@users.noreply.github.com'
+          git add supabase/baseline/001_v6_zero_cost_baseline.sql .github/baseline-parts .github/workflows/publish-clean-baseline.yml
+          git diff --cached --check
+          git commit -m 'feat: publish verified clean Supabase baseline'
+          git push origin HEAD:v6-zero-cost-foundations-clean
