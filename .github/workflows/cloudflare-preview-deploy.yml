@@ -1,5 +1,6 @@
 name: Cloudflare Preview Deploy
 # Keep this workflow in the exact-head verification set with live provider probes.
+# Exact-head release evidence includes the completed Preview canary/rollback rehearsal.
 
 on:
   workflow_dispatch:

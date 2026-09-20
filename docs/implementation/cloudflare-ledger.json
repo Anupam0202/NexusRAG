@@ -101,7 +101,10 @@
     "zero automated WCAG 2 A/AA violations on Chat and Evidence OS routes",
     "desktop and mobile full-page visual regression baselines",
     "current provider rights register with zero recurring connectors enabled",
-    "D1 permission-check resource deletion and zero remaining D1 databases"
+    "D1 permission-check resource deletion and zero remaining D1 databases",
+    "5%/95% live percentage canary with 25 successful probes",
+    "100% rollback to last known-good with route probes",
+    "100% restoration of validated current version"
   ],
   "blocked": [
     "Production custom-domain cutover is unavailable because no Cloudflare zone is connected"
@@ -109,8 +112,7 @@
   "next_safe_actions": [
     "Verify authenticated multi-user browser workflows with controlled identities",
     "Add only resources justified by recurring free allowances",
-    "Keep Supabase and Qdrant as the sole selected authorities",
-    "Complete live percentage canary, rollback, and restore on the newly uploaded frontend version"
+    "Keep Supabase and Qdrant as the sole selected authorities"
   ],
   "claims": {
     "gateway_health_verified": true,

@@ -1,6 +1,6 @@
 # Deployment, canary, rollback, restore, and deletion rehearsal
 
-Status: `PREVIEW_REHEARSAL_IN_PROGRESS`
+Status: `PREVIEW_REHEARSAL_VERIFIED`
 
 Reviewed: 2026-09-21
 
@@ -25,9 +25,9 @@ state.
 8. Preserve deployment IDs and timestamps in this report. Never delete the
    final known-good version during the rehearsal.
 
-The current Preview workflow already performs build, deploy, live smoke,
-accessibility, desktop/mobile, and visual gates. Percentage canary and live
-rollback evidence is appended only after the API rehearsal succeeds.
+The Preview workflow performs build, deploy, live smoke, accessibility,
+desktop/mobile, and visual gates. A live percentage canary and rollback
+rehearsal completed successfully on 2026-09-21.
 
 ## Supabase restore
 
@@ -75,3 +75,16 @@ Stop promotion and retain or restore the last known-good version if any of the
 following occurs: authentication or authorization failure, private evidence
 exposure, failed deletion, missing export, visual/accessibility regression,
 provider rights block, unmeasured quota, or incomplete accounting.
+
+## Live Cloudflare evidence — 2026-09-21
+
+- Candidate version: `9ada722a-08c9-44d0-93ca-6503f29b4636`.
+- Last known-good version: `be3d80cd-17fd-4182-b117-b27d3e70db15`.
+- Canary deployment `0cc68712-fe0a-4859-ac50-f98a03a6b2ed`: 5% candidate, 95% known-good.
+- Canary probes: 25/25 Evidence OS requests passed.
+- Promotion deployment: `f81c7447-91c7-4cd3-a6e4-166fdb6d8c03`.
+- Rollback deployment: `07bf4c99-7e54-42d0-a736-cb29713e3f38`; homepage, Evidence OS, and sign-in probes passed.
+- Restore deployment: `57caf250-02ea-49b1-9cf5-bf7bcdb56a1b`; current candidate restored to 100%.
+- Post-restore probes: homepage, Evidence OS, and gateway health passed.
+
+No customer authority data, DNS, secret value, or paid resource was changed.

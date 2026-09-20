@@ -25,7 +25,7 @@ Audited against **NEXUSRAG MASTER IMPLEMENTATION PROMPT V6** on
 | 13 — product passport | LOCALLY_TESTED | Deterministic JSON-LD/W3C PROV export and receipt tests pass. |
 | 14 — scientific/open-source packs | PARTIAL | Shared evidence foundations exist; both complete product packs are not verified. |
 | 15 — Evidence API/MCP | PARTIAL | Authenticated Evidence API routes exist; a complete published capability-enforced MCP surface is not verified. |
-| 16 — evaluation/recovery/release | PARTIAL | CI, migration rehearsal, supply-chain evidence, provider probes, fixed synthetic quality scoring, deployed accessibility scans, public desktop/mobile browser E2E, and committed visual baselines pass. Authenticated product E2E and live canary/rollback promotion evidence remain incomplete. |
+| 16 — evaluation/recovery/release | PARTIAL | CI, migration rehearsal, supply-chain evidence, provider probes, fixed synthetic quality scoring, deployed accessibility scans, public desktop/mobile browser E2E, and committed visual baselines pass. Authenticated product E2E remains incomplete; live canary, rollback, and restore have passed on Preview. |
 
 ## Connected-state verification
 
@@ -74,7 +74,7 @@ Not yet verified to the master definition of done:
   but do not establish production retrieval or model quality;
 - service-mediated API isolation with real signed-in sessions; direct Storage
   RLS isolation has been live-rehearsed with two controlled identities;
-- restore, canary, rollback, and deletion rehearsal against deployed preview;
+- full application-level workspace deletion and authority restore with real authenticated sessions; Cloudflare canary/rollback/restore and controlled fixture deletion have passed;
 - complete `R01–R32`, `CF01–CF32`, `A01–A32`, `S01–S32`, `G01–G32`,
   `P01–P32`, and `Z01–Z32` traceability. The supplied V6 prompt defines the
   `Z` entries but does not include the source definitions for the other legacy

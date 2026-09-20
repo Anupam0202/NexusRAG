@@ -36,7 +36,7 @@ Status: `PARTIAL_NOT_COMPLETE_WITH_PUBLISHED_EVIDENCE`
 | 30 | SBOM/licence report | CI CycloneDX and licence artifacts | VERIFIED |
 | 31 | Capacity/utilization report | zero-cost config, provider registry, Setup Center | LOCALLY_TESTED |
 | 32 | Free-to-paid migration paths | Cloudflare matrix and architecture report | LOCALLY_TESTED |
-| 33 | Deployment/canary/rollback/restore/deletion | `docs/implementation/RECOVERY_REHEARSAL.md` | PARTIAL — live canary/rollback pending |
+| 33 | Deployment/canary/rollback/restore/deletion | `docs/implementation/RECOVERY_REHEARSAL.md` | PREVIEW_VERIFIED |
 | 34 | Exact blockers | master audit | VERIFIED |
 | 35 | Published links | PR and GitHub Actions links only | VERIFIED |
 
