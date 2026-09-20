@@ -335,6 +335,7 @@ export async function createWorkspace(
 ): Promise<WorkspaceSummary> {
   return request("/api/v1/workspaces", {
     method: "POST",
+    headers: { "Idempotency-Key": `workspace-create:${body.slug}` },
     body: JSON.stringify(body),
   });
 }
