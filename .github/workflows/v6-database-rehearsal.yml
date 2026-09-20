@@ -25,7 +25,9 @@ jobs:
       - uses: actions/checkout@v4
       - uses: supabase/setup-cli@v1
         with:
-          version: latest
+          # Pin the reviewed release so CI does not depend on an unauthenticated
+          # "latest release" lookup that can fail under GitHub API rate limits.
+          version: 2.117.0
       - name: Verify immutable candidate identity
         run: |
           set -euo pipefail
