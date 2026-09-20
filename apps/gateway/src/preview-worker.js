@@ -59,7 +59,7 @@ function fail(request, env, code, message, status, retryable = false) {
   return json(request, env, { error: { code, message, retryable, request_id: headers(request, env).get("x-request-id") } }, status);
 }
 function configured(env) {
-  return Boolean(env.SUPABASE_URL && env.SUPABASE_PUBLISHABLE_KEY && env.SUPABASE_SECRET_KEY);
+  return Boolean(env.SUPABASE_URL && env.SUPABASE_PUBLISHABLE_KEY && env.SUPABASE_SERVICE_ROLE_KEY);
 }
 async function apiFetch(url, init = {}, timeout = 8_000) {
   return fetch(url, { ...init, signal: AbortSignal.timeout(timeout) });
@@ -77,8 +77,8 @@ async function serviceRequest(env, tablePath, init = {}) {
   const response = await apiFetch(`${env.SUPABASE_URL}/rest/v1/${tablePath}`, {
     ...init,
     headers: {
-      apikey: env.SUPABASE_SECRET_KEY,
-      authorization: `Bearer ${env.SUPABASE_SECRET_KEY}`,
+      apikey: env.SUPABASE_SERVICE_ROLE_KEY,
+      authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
       "content-type": "application/json",
       prefer: "return=representation",
       ...(init.headers || {}),

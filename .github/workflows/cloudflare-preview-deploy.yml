@@ -30,7 +30,7 @@ jobs:
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID || vars.CLOUDFLARE_ACCOUNT_ID }}
       SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL }}
       SUPABASE_PUBLISHABLE_KEY: ${{ vars.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
-      SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
       FRONTEND_ORIGIN: ${{ vars.NEXT_PUBLIC_SITE_URL }}
       GATEWAY_ORIGIN: ${{ vars.NEXT_PUBLIC_API_URL }}
     steps:
@@ -40,11 +40,11 @@ jobs:
       - name: Require authenticated gateway inputs
         run: |
           set -euo pipefail
-          for name in CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID SUPABASE_URL SUPABASE_PUBLISHABLE_KEY SUPABASE_SECRET_KEY FRONTEND_ORIGIN GATEWAY_ORIGIN; do
+          for name in CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID SUPABASE_URL SUPABASE_PUBLISHABLE_KEY SUPABASE_SERVICE_ROLE_KEY FRONTEND_ORIGIN GATEWAY_ORIGIN; do
             test -n "${!name:-}" || { echo "::error::$name is missing from Preview"; exit 1; }
           done
       - name: Install Supabase service credential as a Worker secret
-        run: printf '%s' "$SUPABASE_SECRET_KEY" | npx --yes wrangler@4.37.1 secret put SUPABASE_SECRET_KEY --name nexusrag-v6-preview-gateway
+        run: printf '%s' "$SUPABASE_SERVICE_ROLE_KEY" | npx --yes wrangler@4.37.1 secret put SUPABASE_SERVICE_ROLE_KEY --name nexusrag-v6-preview-gateway
       - name: Deploy authenticated gateway
         run: |
           npx --yes wrangler@4.37.1 deploy apps/gateway/src/preview-worker.js \

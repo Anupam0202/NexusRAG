@@ -28,7 +28,7 @@ if not missing:
  if budgets.get("paid_fallback") is not False:errors.append("paid fallback must be false")
  if budgets.get("unknown_quotas_fail_closed") is not True:errors.append("unknown quotas must fail closed")
  if budgets.get("thresholds_percent")!=[50,70,85,95,100]:errors.append("admission thresholds mismatch")
- for fragment in ("content-security-policy","strict-transport-security","cross-origin-resource-policy","AUTH_REQUIRED","SUPABASE_SECRET_KEY","workspace_members","ROLE_CAPABILITIES","production_verified: false","paid_fallback: false"):
+ for fragment in ("content-security-policy","strict-transport-security","cross-origin-resource-policy","AUTH_REQUIRED","SUPABASE_SERVICE_ROLE_KEY","workspace_members","ROLE_CAPABILITIES","production_verified: false","paid_fallback: false"):
   if fragment not in preview:errors.append(f"preview contract missing: {fragment}")
  required_budgets={
   "workers_requests":100000,"workers_cpu":10,"kv_reads":100000,"kv_writes":1000,

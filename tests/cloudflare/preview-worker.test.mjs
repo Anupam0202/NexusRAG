@@ -6,7 +6,7 @@ const request = (path = "/health", init = {}) => new Request(`https://preview.in
 const configured = {
   SUPABASE_URL: "https://supabase.invalid",
   SUPABASE_PUBLISHABLE_KEY: "synthetic-publishable",
-  SUPABASE_SECRET_KEY: "synthetic-service-secret",
+  SUPABASE_SERVICE_ROLE_KEY: "synthetic-service-secret",
   FRONTEND_ORIGIN: "https://frontend.invalid",
   QDRANT_URL: "https://qdrant.invalid",
   QDRANT_API_KEY: "synthetic-qdrant-secret",
