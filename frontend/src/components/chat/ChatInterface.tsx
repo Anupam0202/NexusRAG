@@ -541,7 +541,7 @@ export default function ChatInterface() {
               </div>
             </div>
 
-            <p className="text-[10px] text-[var(--text-muted)] text-center mt-1.5 opacity-60">
+            <p className="text-[10px] text-[var(--text-muted)] text-center mt-1.5">
               RAG responses are generated from your uploaded documents
             </p>
           </div>

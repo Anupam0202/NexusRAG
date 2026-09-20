@@ -26,7 +26,11 @@ const STATUS_STYLE: Record<string, string> = {
 
 export default function EvidenceOSPage() {
   return (
-    <main className="h-full overflow-y-auto">
+    <main
+      className="h-full overflow-y-auto"
+      tabIndex={0}
+      aria-label="Evidence Intelligence OS content"
+    >
       <div className="mx-auto max-w-6xl space-y-6 px-4 py-6 md:px-8 md:py-8">
         <section className="relative overflow-hidden rounded-3xl border border-brand-400/20 bg-gradient-to-br from-slate-950 via-indigo-950 to-purple-950 p-6 text-white shadow-2xl md:p-9">
           <div className="absolute -right-20 -top-20 h-64 w-64 rounded-full bg-purple-500/20 blur-3xl" />

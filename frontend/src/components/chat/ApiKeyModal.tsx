@@ -220,7 +220,7 @@ export function ApiKeyModal() {
                   </button>
                 </div>
 
-                <p className="text-[10px] text-[var(--text-muted)] text-center mt-4 opacity-70">
+                <p className="text-[10px] text-[var(--text-muted)] text-center mt-4">
                   Your browser forgets the raw key after submit. The backend stores only an encrypted workspace key.
                 </p>
               </div>
