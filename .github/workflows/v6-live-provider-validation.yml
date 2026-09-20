@@ -39,7 +39,7 @@ jobs:
       GEMINI_MODEL: gemini-2.5-flash
       VALIDATION_REPORT: artifacts/live-provider-${{ matrix.provider }}-validation.json
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: actions/setup-python@v5
         with: {python-version: "3.13"}
       - name: Validate protected secret presence

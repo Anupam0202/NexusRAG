@@ -329,6 +329,9 @@ NexusRAG/
 | `NEXT_PUBLIC_SUPABASE_URL` | empty | Supabase project URL supplied by the GitHub Preview environment |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` / `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | empty | Supabase publishable key supplied by the GitHub Preview environment |
 | `NEXT_PUBLIC_SITE_URL` | current browser origin | Canonical production frontend origin for email auth callbacks |
+
+The canonical split between GitHub `Preview` environment secrets and variables
+is documented in [GitHub environments](docs/GITHUB_ENVIRONMENTS.md).
 | `NEXT_PUBLIC_OAUTH_PROVIDERS` | `github` | Comma-separated OAuth providers shown on the login screen; set `google,github` only after both providers are enabled in Supabase |
 
 ---
