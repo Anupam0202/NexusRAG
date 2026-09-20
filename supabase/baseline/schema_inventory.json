@@ -5,7 +5,7 @@
     "qdrant": "reconstructible retrieval index",
     "supabase": "business records"
   },
-  "baseline_sha256": "a024f96282cdd2cce91290082a5e88c5abb9cb23c5496c95cf2cec200d1813de",
+  "baseline_sha256": "4b26456c8a9887979e6dba8e66dba6032b5a929c33a276ece4430dd24ae0f10c",
   "counts": {
     "columns": 600,
     "constraints": 267,

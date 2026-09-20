@@ -7,7 +7,7 @@ The reviewed migration-001 candidate is published on this branch. Publication do
 ## Candidate identity
 
 - Path: `supabase/baseline/001_v6_zero_cost_baseline.sql`
-- SHA-256: `a024f96282cdd2cce91290082a5e88c5abb9cb23c5496c95cf2cec200d1813de`
+- SHA-256: `4b26456c8a9887979e6dba8e66dba6032b5a929c33a276ece4430dd24ae0f10c`
 - Size: 230,273 bytes
 - Lines: 2,311
 - Profile: `ZERO_COST_LOW_TRAFFIC`
