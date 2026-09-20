@@ -187,16 +187,21 @@ def validate_gemini() -> dict:
 def main() -> int:
     if os.environ.get("LIVE_EXTERNAL_VALIDATION") != "true":
         raise RuntimeError("BLOCKED: LIVE_EXTERNAL_VALIDATION=true is required")
+    provider = os.environ.get("PROVIDER_UNDER_TEST", "all").strip().lower()
+    if provider not in {"all", "qdrant", "gemini"}:
+        raise RuntimeError("BLOCKED: PROVIDER_UNDER_TEST must be all, qdrant, or gemini")
     report = {
         "profile": "ZERO_COST_LOW_TRAFFIC",
         "validated_at": datetime.now(timezone.utc).isoformat(),
-        "qdrant": validate_qdrant(),
-        "gemini": validate_gemini(),
     }
+    if provider in {"all", "qdrant"}:
+        report["qdrant"] = validate_qdrant()
+    if provider in {"all", "gemini"}:
+        report["gemini"] = validate_gemini()
     output = Path(os.environ.get("VALIDATION_REPORT", "artifacts/live-provider-validation.json"))
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n")
-    print("qdrant=READY gemini=READY customer_data_sent=false paid_fallback=false")
+    print(f"provider={provider} state=READY customer_data_sent=false paid_fallback=false")
     return 0
 
 
