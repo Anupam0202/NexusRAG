@@ -21,6 +21,20 @@ def main():
  if inv.get('authority',{}).get('browser_public_table_grants')!=0 or inv.get('authority',{}).get('anonymous_routine_grants')!=0: fail('unsafe authority inventory')
  if len(re.findall(r'alter table public\."[a-z0-9_]+" enable row level security;',sql,re.I))!=51: fail('RLS enablement mismatch')
  if sql.count('create policy ')!=86 or sql.count('"nexusrag_explicit_client_deny"')<35: fail('policy contract mismatch')
+ constraints=re.findall(r'^alter table only public\."[^"]+" add constraint "[^"]+" .+;$',sql,re.M)
+ if len(constraints)!=267: fail('constraint definition count mismatch')
+ non_foreign=[line for line in constraints if ' FOREIGN KEY ' not in line]; foreign=[line for line in constraints if ' FOREIGN KEY ' in line]
+ if len(non_foreign)!=178 or len(foreign)!=89 or constraints!=non_foreign+foreign: fail('primary and unique constraints must precede all foreign keys')
+ unique_targets=set()
+ for line in non_foreign:
+  match=re.search(r'alter table only public\."([^"]+)" add constraint "[^"]+" (?:PRIMARY KEY|UNIQUE) \(([^)]+)\);$',line)
+  if match: unique_targets.add((match.group(1),tuple(value.strip().strip('"') for value in match.group(2).split(','))))
+ for line in foreign:
+  match=re.search(r'^alter table only public\."([^"]+)" add constraint "([^"]+)" FOREIGN KEY \(([^)]+)\) REFERENCES ([a-zA-Z0-9_."]+)\(([^)]+)\)',line)
+  if not match: fail(f'unparsed foreign key: {line}')
+  target=match.group(4).replace('"',''); schema,table=target.split('.',1) if '.' in target else ('public',target)
+  columns=tuple(value.strip().strip('"') for value in match.group(5).split(','))
+  if schema=='public' and (table,columns) not in unique_targets: fail(f'foreign key target lacks prior primary/unique constraint: {match.group(2)}')
  for fragment in ('create schema if not exists nexusrag_private','create extension if not exists vector with schema extensions','workbench_turn_order','revoke execute on all functions in schema public from public, anon, authenticated','insert into storage.buckets','production application requires separate authorization'):
   if fragment.casefold() not in sql.casefold(): fail(f'missing baseline contract: {fragment}')
  for retired in ('014_identity_visibility_policy','015_versions_fenced_jobs','016_credentials_usage_lifecycle','017_workbench_upload_publication','018_durable_query_runs','019_workbench_interfaces','020_workbench_operations','021_v6_evidence_governance_foundations','022_v6_rights_quota_interfaces'):
@@ -32,5 +46,6 @@ def main():
  if run.returncode: fail(run.stdout+run.stderr)
  print('clean_baseline_integrity=PASS'); print(f'sha256={digest}')
  for k,v in required.items(): print(f'{k}={v}')
+ print('constraint_dependency_order=PASS')
  print('retired_dependencies=0\nproduction_applied=false\ndisposable_rehearsal_passed=false')
 if __name__=='__main__': main()
