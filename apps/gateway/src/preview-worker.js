@@ -1,3 +1,14 @@
+import {
+  chunkText,
+  generateAnswer,
+  groundedPrompt,
+  indexChunks,
+  safeFilename,
+  searchChunks,
+  sha256,
+  validateWorkerFile,
+} from "./worker-pipeline.js";
+
 // Supabase service-role access is kept in a Cloudflare secret binding; OAuth and MCP gates are exact-head validated.
 const BASE_HEADERS = Object.freeze({
   "cache-control": "private, no-store, max-age=0",
@@ -139,6 +150,107 @@ async function createWorkspace(request, env, user) {
   await audit(env, request, user.id, id, "workspace.create", "workspace");
   return { id, workspace_id: id, name, slug, role: "owner", plan: "free" };
 }
+
+function requireCapability(member, capability) {
+  if (!(ROLE_CAPABILITIES[member.role] || []).includes(capability)) {
+    throw Object.assign(new Error("The required capability is not granted."), { status: 403, code: "FORBIDDEN" });
+  }
+}
+
+function storagePath(value) {
+  return value.split("/").map((part) => encodeURIComponent(part)).join("/");
+}
+
+async function storageWrite(env, key, file) {
+  const response = await apiFetch(`${env.SUPABASE_URL}/storage/v1/object/documents/${storagePath(key)}`, {
+    method: "POST",
+    headers: {
+      apikey: env.SUPABASE_SERVICE_ROLE_KEY,
+      authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
+      "content-type": file.type,
+      "x-upsert": "false",
+    },
+    body: file,
+  }, 20_000);
+  if (!response.ok) throw Object.assign(new Error("Private original storage rejected the upload."), { status: 503, code: "PERSISTENCE_UNAVAILABLE" });
+}
+
+async function storageDelete(env, key) {
+  await apiFetch(`${env.SUPABASE_URL}/storage/v1/object/documents/${storagePath(key)}`, {
+    method: "DELETE",
+    headers: { apikey: env.SUPABASE_SERVICE_ROLE_KEY, authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}` },
+  }).catch(() => null);
+}
+
+function documentView(row) {
+  return {
+    document_id: row.id,
+    filename: row.filename,
+    file_type: row.content_type || "unknown",
+    file_size_bytes: Number(row.file_size_bytes || 0),
+    page_count: Number(row.page_count || 0),
+    chunk_count: Number(row.chunk_count || 0),
+    status: row.status === "queued" ? "pending" : row.status,
+    created_at: row.created_at,
+    processing_time_seconds: 0,
+    extraction_method: "cloudflare-worker-text-v1",
+    extra: { version_id: row.active_version_id },
+  };
+}
+
+async function uploadDocument(request, env, user, workspace, member) {
+  requireCapability(member, "research:run");
+  const form = await request.formData();
+  const file = form.get("file");
+  validateWorkerFile(file);
+  const filename = safeFilename(file.name);
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  const text = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+  const chunks = chunkText(text);
+  if (!chunks.length) throw Object.assign(new Error("The document contains no indexable text."), { status: 422, code: "EMPTY_DOCUMENT" });
+
+  const contentHash = await sha256(bytes);
+  const duplicate = await serviceRequest(env, `documents?workspace_id=eq.${workspace}&uploaded_by=eq.${user.id}&sha256=eq.${contentHash}&select=*&limit=1`);
+  if (duplicate?.[0]) return { success: true, message: `${duplicate[0].filename} already uploaded`, document: documentView(duplicate[0]) };
+
+  const documentId = crypto.randomUUID();
+  const versionId = crypto.randomUUID();
+  const generation = crypto.randomUUID();
+  const originalKey = `${workspace}/${documentId}/${versionId}/${filename}`;
+  let originalStored = false;
+  try {
+    await storageWrite(env, originalKey, file); originalStored = true;
+    await serviceRequest(env, "documents", { method: "POST", body: JSON.stringify([{ id: documentId, workspace_id: workspace, uploaded_by: user.id, filename, original_filename: filename, content_type: file.type, file_size_bytes: bytes.length, storage_bucket: "documents", storage_path: originalKey, sha256: contentHash, status: "processing" }]) });
+    await serviceRequest(env, "document_versions", { method: "POST", body: JSON.stringify([{ id: versionId, workspace_id: workspace, document_id: documentId, original_bucket: "documents", original_key: originalKey, original_hash: contentHash, original_bytes: bytes.length, original_verified_at: new Date().toISOString(), parser_version: "worker-text-v1", chunker_version: "worker-char-v1", embedding_space_id: env.GEMINI_EMBEDDING_MODEL || "text-embedding-004", index_generation: generation, lifecycle_epoch: 1, publication_state: "processing" }]) });
+    const points = await indexChunks(env, { workspaceId: workspace, documentId, versionId, generation, filename, chunks });
+    const rows = await Promise.all(points.map(async (point, index) => ({ id: point.id, workspace_id: workspace, document_id: documentId, version_id: versionId, chunk_index: index, content: chunks[index].content, original_text: chunks[index].content, original_content_hash: await sha256(chunks[index].content), content_hash: await sha256(chunks[index].content), token_count: Math.ceil(chunks[index].content.length / 4), qdrant_point_id: point.id, location: point.payload.location, embedding_space_id: env.GEMINI_EMBEDDING_MODEL || "text-embedding-004", metadata: { filename, content_type: file.type, index_generation: generation } })));
+    for (let offset = 0; offset < rows.length; offset += 50) await serviceRequest(env, "document_chunks", { method: "POST", body: JSON.stringify(rows.slice(offset, offset + 50)) });
+    await serviceRequest(env, `document_versions?id=eq.${versionId}`, { method: "PATCH", body: JSON.stringify({ publication_state: "ready", published_at: new Date().toISOString() }) });
+    const updated = await serviceRequest(env, `documents?id=eq.${documentId}`, { method: "PATCH", body: JSON.stringify({ status: "ready", chunk_count: rows.length, active_version_id: versionId, updated_at: new Date().toISOString() }) });
+    await audit(env, request, user.id, workspace, "document.ingest", "document");
+    const document = documentView(updated[0]);
+    return { success: true, message: `${filename} uploaded and indexed`, document, job_id: null, job: null };
+  } catch (error) {
+    await serviceRequest(env, `documents?id=eq.${documentId}`, { method: "DELETE" }).catch(() => null);
+    if (originalStored) await storageDelete(env, originalKey);
+    throw error;
+  }
+}
+
+async function chat(request, env, user, workspace, member) {
+  requireCapability(member, "research:run");
+  const body = await request.json();
+  const question = String(body?.question || "").trim();
+  if (!question || question.length > 10_000) throw Object.assign(new Error("Question must contain 1 to 10,000 characters."), { status: 422, code: "INVALID_SCOPE" });
+  const documentIds = Array.isArray(body?.document_ids) ? body.document_ids.filter((value) => /^[0-9a-f-]{36}$/i.test(value)).slice(0, 25) : [];
+  const hits = await searchChunks(env, { workspaceId: workspace, question, documentIds, limit: Math.min(Number(body?.top_k || 8), 12) });
+  const sources = hits.map((hit) => ({ content: String(hit.payload?.content || ""), filename: String(hit.payload?.filename || "document"), page_number: Number(hit.payload?.page_number || 0), chunk_index: Number(hit.payload?.chunk_index || 0), relevance_score: Number(hit.score || 0), document_type: "text", metadata: { document_id: hit.payload?.document_id, version_id: hit.payload?.version_id, chunk_id: hit.payload?.chunk_id } }));
+  if (!sources.length) return { answer: "I could not find sufficient evidence in the selected workspace, so I cannot answer reliably.", sources: [], query_type: "general", confidence: 0, response_time_seconds: 0, metadata: { claim_state: "UNSUPPORTED", abstained: true } };
+  const generated = await generateAnswer(env, groundedPrompt(question, hits));
+  await serviceRequest(env, "llm_usage_events", { method: "POST", body: JSON.stringify([{ workspace_id: workspace, user_id: user.id, provider: "gemini", model: generated.model, operation: "grounded_chat", input_tokens: generated.usage.promptTokenCount || null, output_tokens: generated.usage.candidatesTokenCount || null, success: true, cost_microusd: 0 }]) }).catch(() => null);
+  await audit(env, request, user.id, workspace, "research.run", "query");
+  return { answer: generated.answer, sources, query_type: "general", confidence: Math.min(1, Math.max(0, sources[0]?.relevance_score || 0)), response_time_seconds: 0, metadata: { claim_state: "SUPPORTED", citation_required: true, model: generated.model, paid_fallback: false } };
+}
 async function handle(request, env = {}) {
   const url = new URL(request.url);
   if (request.method === "OPTIONS") {
@@ -187,6 +299,20 @@ async function handle(request, env = {}) {
       const id = workspaceId(request); const member = await membership(env, user.id, id);
       const rows = await serviceRequest(env, `workspaces?id=eq.${id}&select=id,name,slug,plan,lifecycle_state,created_at&limit=1`);
       return json(request, env, { ...(rows[0] || {}), workspace_id: id, role: member.role });
+    }
+
+    if (url.pathname === "/api/v1/documents/upload" && request.method === "POST") {
+      const id = workspaceId(request); const member = await membership(env, user.id, id);
+      return json(request, env, await uploadDocument(request, env, user, id, member), 201);
+    }
+    if (url.pathname === "/api/v1/documents" && (request.method === "GET" || request.method === "HEAD")) {
+      const id = workspaceId(request); await membership(env, user.id, id);
+      const rows = await serviceRequest(env, `documents?workspace_id=eq.${id}&lifecycle_state=eq.active&select=*&order=created_at.desc&limit=100`);
+      return json(request, env, { documents: rows.map(documentView), total: rows.length });
+    }
+    if (url.pathname === "/api/v1/chat" && request.method === "POST") {
+      const id = workspaceId(request); const member = await membership(env, user.id, id);
+      return json(request, env, await chat(request, env, user, id, member));
     }
 
     const route = READ_ROUTES[url.pathname];
