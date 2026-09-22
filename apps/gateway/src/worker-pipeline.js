@@ -4,7 +4,7 @@ const SUPPORTED_WORKER_MIME = new Set([
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "application/zip",
   "image/png", "image/jpeg", "image/webp", "image/tiff",
 ]);
-const EMBEDDING_MODEL = "text-embedding-004";
+const EMBEDDING_MODEL = "gemini-embedding-001";
 const GENERATION_MODEL = "gemini-2.5-flash";
 const QDRANT_COLLECTION = "nexusrag-v6-preview";
 
@@ -75,7 +75,7 @@ async function embedText(env, text, taskType) {
     {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ model: `models/${model}`, content: { parts: [{ text }] }, taskType }),
+      body: JSON.stringify({ model: `models/${model}`, content: { parts: [{ text }] }, taskType, outputDimensionality: 768 }),
     },
   );
   const vector = result?.embedding?.values;
