@@ -8,6 +8,7 @@ on:
   push:
     branches: [v6-zero-cost-foundations-clean, main]
     paths:
+      - apps/gateway/**
       - scripts/live_provider_validation.py
       - backend/src/vectorstores/qdrant_store.py
       - backend/src/generation/**
