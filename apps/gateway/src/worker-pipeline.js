@@ -83,9 +83,10 @@ async function embedText(env, text, taskType) {
   return vector;
 }
 
-function qdrantFilter(workspaceId, documentIds = []) {
+function qdrantFilter(workspaceId, documentIds = [], versionIds = []) {
   const must = [{ key: "workspace_id", match: { value: workspaceId } }];
   if (documentIds.length) must.push({ key: "document_id", match: { any: documentIds.slice(0, 25) } });
+  if (versionIds.length) must.push({ key: "version_id", match: { any: versionIds.slice(0, 100) } });
   return { must };
 }
 
@@ -118,10 +119,10 @@ async function indexChunks(env, { workspaceId, documentId, versionId, generation
   return points;
 }
 
-async function searchChunks(env, { workspaceId, question, documentIds = [], limit = 8 }) {
+async function searchChunks(env, { workspaceId, question, documentIds = [], versionIds = [], limit = 8 }) {
   const vector = await embedText(env, question, "RETRIEVAL_QUERY");
   const { base, headers } = await ensureQdrant(env, vector.length);
-  const body = { query: vector, limit: Math.min(Math.max(limit, 1), 12), with_payload: true, filter: qdrantFilter(workspaceId, documentIds) };
+  const body = { query: vector, limit: Math.min(Math.max(limit, 1), 12), with_payload: true, filter: qdrantFilter(workspaceId, documentIds, versionIds) };
   const result = await providerJson(`${base}/points/query`, { method: "POST", headers, body: JSON.stringify(body) });
   return (result?.result?.points || []).filter((item) => item?.payload?.workspace_id === workspaceId);
 }

@@ -8,7 +8,8 @@ import {
   sha256,
   validateWorkerFile,
 } from "./worker-pipeline.js";
-import { deleteQdrantDocument, extractFileText, hybridFuse } from "./worker-lifecycle.js";
+import { deleteQdrantDocument, hybridFuse } from "./worker-lifecycle.js";
+import { handleQueue, sweepJobs } from "./worker-jobs.js";
 
 // Supabase service-role access is kept in a Cloudflare secret binding; OAuth and MCP gates are exact-head validated.
 const BASE_HEADERS = Object.freeze({
@@ -412,5 +413,7 @@ async function handle(request, env = {}) {
     return fail(request, env, error.code || "INTERNAL_ERROR", error.message || "The request could not be completed.", error.status || 500, Boolean(error.status === 429 || error.status === 503));
   }
 }
-export { allowRequest, handle };
-export default { fetch: handle };
+async function queue(batch,env){return handleQueue(batch,env)}
+async function scheduled(_event,env,ctx){ctx.waitUntil(sweepJobs(env))}
+export { allowRequest, handle, queue, scheduled };
+export default { fetch: handle, queue, scheduled };
