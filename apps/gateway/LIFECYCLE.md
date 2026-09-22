@@ -10,3 +10,5 @@ Current safety bounds:
 - deletion is complete only after Qdrant, private Storage, and Supabase receipts verify the operation;
 - request-time processing records durable job and lease state, but a queue/Workflow consumer is still required before claiming fully asynchronous ingestion;
 - production DNS, release, and paid-resource changes require explicit owner authorization.
+
+This boundary record is included in the exact-head Preview validation set.
