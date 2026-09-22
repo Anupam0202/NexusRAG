@@ -1,9 +1,8 @@
-const MAX_WORKER_UPLOAD_BYTES = 1_000_000;
+const MAX_WORKER_UPLOAD_BYTES = 10_000_000;
 const SUPPORTED_WORKER_MIME = new Set([
-  "text/plain",
-  "text/markdown",
-  "text/csv",
-  "application/json",
+  "text/plain", "text/markdown", "text/csv", "application/json", "application/pdf",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "application/zip",
+  "image/png", "image/jpeg", "image/webp", "image/tiff",
 ]);
 const EMBEDDING_MODEL = "text-embedding-004";
 const GENERATION_MODEL = "gemini-2.5-flash";
@@ -16,7 +15,7 @@ function pipelineError(code, message, status = 422, retryable = false) {
 function validateWorkerFile(file) {
   if (!(file instanceof File)) throw pipelineError("INVALID_FILE", "A file is required.", 400);
   if (!SUPPORTED_WORKER_MIME.has(file.type)) {
-    throw pipelineError("UNSUPPORTED_MEDIA_TYPE", "Worker ingestion supports TXT, Markdown, CSV, and JSON files.", 415);
+    throw pipelineError("UNSUPPORTED_MEDIA_TYPE", "Worker ingestion supports bounded text, Markdown, CSV, JSON, PDF, DOCX, ZIP, PNG, JPEG, WebP, and TIFF files.", 415);
   }
   if (file.size < 1 || file.size > MAX_WORKER_UPLOAD_BYTES) {
     throw pipelineError("FILE_SIZE_LIMIT", `Worker ingestion accepts files from 1 to ${MAX_WORKER_UPLOAD_BYTES} bytes.`, 413);

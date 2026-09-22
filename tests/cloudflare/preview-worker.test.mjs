@@ -45,6 +45,11 @@ test("private API fails closed without an access token", async () => {
   assert.ok(response.headers.get("x-request-id"));
 });
 
+test("document lifecycle and chat-history routes fail closed", async () => {
+  const routes = [["GET","/api/v1/documents/11111111-1111-4111-8111-111111111111/status"],["GET","/api/v1/documents/11111111-1111-4111-8111-111111111111/chunks"],["POST","/api/v1/documents/11111111-1111-4111-8111-111111111111/reindex"],["POST","/api/v1/documents/11111111-1111-4111-8111-111111111111/delete"],["GET","/api/v1/documents/jobs/11111111-1111-4111-8111-111111111111"],["POST","/api/v1/documents/jobs/11111111-1111-4111-8111-111111111111/cancel"],["GET","/api/v1/chat/sessions/11111111-1111-4111-8111-111111111111/messages"]];
+  for (const [method,path] of routes) { const response=await handle(request(path,{method}),configured); assert.equal(response.status,401,`${method} ${path}`); assert.equal((await response.json()).error.code,"AUTH_REQUIRED"); }
+});
+
 test("CORS is exact-origin and preflight is bounded", async () => {
   const allowed = await handle(request("/api/v2/capabilities", { method: "OPTIONS", headers: { Origin: configured.FRONTEND_ORIGIN } }), configured);
   assert.equal(allowed.status, 204);

@@ -8,6 +8,7 @@ import {
   sha256,
   validateWorkerFile,
 } from "./worker-pipeline.js";
+import { deleteQdrantDocument, extractFileText, hybridFuse } from "./worker-lifecycle.js";
 
 // Supabase service-role access is kept in a Cloudflare secret binding; OAuth and MCP gates are exact-head validated.
 const BASE_HEADERS = Object.freeze({
@@ -176,10 +177,11 @@ async function storageWrite(env, key, file) {
 }
 
 async function storageDelete(env, key) {
-  await apiFetch(`${env.SUPABASE_URL}/storage/v1/object/documents/${storagePath(key)}`, {
-    method: "DELETE",
-    headers: { apikey: env.SUPABASE_SERVICE_ROLE_KEY, authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}` },
-  }).catch(() => null);
+  const url = `${env.SUPABASE_URL}/storage/v1/object/documents/${storagePath(key)}`;
+  const response = await apiFetch(url, { method: "DELETE", headers: { apikey: env.SUPABASE_SERVICE_ROLE_KEY, authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}` } });
+  if (!response.ok && response.status !== 404) throw Object.assign(new Error("Private original deletion failed."), { status: 503, code: "STORAGE_DELETE_FAILED", retryable: true });
+  const verification = await apiFetch(url, { headers: { apikey: env.SUPABASE_SERVICE_ROLE_KEY, authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}` } });
+  if (verification.status !== 404) throw Object.assign(new Error("Private original deletion could not be verified."), { status: 503, code: "STORAGE_DELETE_UNVERIFIED", retryable: true });
 }
 
 function documentView(row) {
@@ -198,15 +200,25 @@ function documentView(row) {
   };
 }
 
+function jobView(job, document = null) {
+  return { job_id: job.id, document_id: job.document_id, filename: document?.filename || job.payload?.filename || "document", status: job.status === "retry_wait" ? "queued" : job.status, stage: job.stage || job.status, progress: Number(job.progress || 0), message: job.error_message || `Ingestion ${job.status}`, error_message: job.error_message || null, created_at: job.created_at, updated_at: job.updated_at, started_at: job.started_at, completed_at: job.completed_at, document: document ? documentView(document) : null };
+}
+
+async function loadBoundDocument(env, workspace, documentId) {
+  const rows = await serviceRequest(env, `documents?workspace_id=eq.${workspace}&id=eq.${documentId}&select=*&limit=1`);
+  if (!rows?.[0]) throw Object.assign(new Error("Document not found."), { status: 404, code: "DOCUMENT_NOT_FOUND" });
+  return rows[0];
+}
+
 async function uploadDocument(request, env, user, workspace, member) {
   requireCapability(member, "research:run");
   const form = await request.formData();
   const file = form.get("file");
   validateWorkerFile(file);
   const filename = safeFilename(file.name);
-  const bytes = new Uint8Array(await file.arrayBuffer());
-  const text = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
-  const chunks = chunkText(text);
+  const extraction = await extractFileText(env, file);
+  const bytes = extraction.bytes;
+  const chunks = chunkText(extraction.text);
   if (!chunks.length) throw Object.assign(new Error("The document contains no indexable text."), { status: 422, code: "EMPTY_DOCUMENT" });
 
   const contentHash = await sha256(bytes);
@@ -216,40 +228,93 @@ async function uploadDocument(request, env, user, workspace, member) {
   const documentId = crypto.randomUUID();
   const versionId = crypto.randomUUID();
   const generation = crypto.randomUUID();
+  const jobId = crypto.randomUUID();
   const originalKey = `${workspace}/${documentId}/${versionId}/${filename}`;
   let originalStored = false;
   try {
     await storageWrite(env, originalKey, file); originalStored = true;
     await serviceRequest(env, "documents", { method: "POST", body: JSON.stringify([{ id: documentId, workspace_id: workspace, uploaded_by: user.id, filename, original_filename: filename, content_type: file.type, file_size_bytes: bytes.length, storage_bucket: "documents", storage_path: originalKey, sha256: contentHash, status: "processing" }]) });
-    await serviceRequest(env, "document_versions", { method: "POST", body: JSON.stringify([{ id: versionId, workspace_id: workspace, document_id: documentId, original_bucket: "documents", original_key: originalKey, original_hash: contentHash, original_bytes: bytes.length, original_verified_at: new Date().toISOString(), parser_version: "worker-text-v1", chunker_version: "worker-char-v1", embedding_space_id: env.GEMINI_EMBEDDING_MODEL || "text-embedding-004", index_generation: generation, lifecycle_epoch: 1, publication_state: "processing" }]) });
+    await serviceRequest(env, "document_versions", { method: "POST", body: JSON.stringify([{ id: versionId, workspace_id: workspace, document_id: documentId, original_bucket: "documents", original_key: originalKey, original_hash: contentHash, original_bytes: bytes.length, original_verified_at: new Date().toISOString(), parser_version: extraction.method, chunker_version: "worker-char-v1", embedding_space_id: env.GEMINI_EMBEDDING_MODEL || "text-embedding-004", index_generation: generation, extraction_manifest: extraction.manifest || {}, lifecycle_epoch: 1, publication_state: "processing" }]) });
+    await serviceRequest(env, "ingestion_jobs", { method: "POST", body: JSON.stringify([{ id: jobId, workspace_id: workspace, document_id: documentId, version_id: versionId, status: "processing", progress: 30, stage: "embedding", attempts: 1, started_at: new Date().toISOString(), heartbeat_at: new Date().toISOString(), lease_owner: `cf:${request.headers.get("cf-ray") || crypto.randomUUID()}`, lease_generation: 1, lease_expires_at: new Date(Date.now() + 120000).toISOString(), payload: { filename }, kind: "ingestion" }]) });
     const points = await indexChunks(env, { workspaceId: workspace, documentId, versionId, generation, filename, chunks });
     const rows = await Promise.all(points.map(async (point, index) => ({ id: point.id, workspace_id: workspace, document_id: documentId, version_id: versionId, chunk_index: index, content: chunks[index].content, original_text: chunks[index].content, original_content_hash: await sha256(chunks[index].content), content_hash: await sha256(chunks[index].content), token_count: Math.ceil(chunks[index].content.length / 4), qdrant_point_id: point.id, location: point.payload.location, embedding_space_id: env.GEMINI_EMBEDDING_MODEL || "text-embedding-004", metadata: { filename, content_type: file.type, index_generation: generation } })));
     for (let offset = 0; offset < rows.length; offset += 50) await serviceRequest(env, "document_chunks", { method: "POST", body: JSON.stringify(rows.slice(offset, offset + 50)) });
+    await serviceRequest(env, `ingestion_jobs?id=eq.${jobId}&status=eq.processing&lease_generation=eq.1`, { method: "PATCH", body: JSON.stringify({ stage: "persisting", progress: 75, heartbeat_at: new Date().toISOString() }) });
     await serviceRequest(env, `document_versions?id=eq.${versionId}`, { method: "PATCH", body: JSON.stringify({ publication_state: "ready", published_at: new Date().toISOString() }) });
     const updated = await serviceRequest(env, `documents?id=eq.${documentId}`, { method: "PATCH", body: JSON.stringify({ status: "ready", chunk_count: rows.length, active_version_id: versionId, updated_at: new Date().toISOString() }) });
+    const completedAt = new Date().toISOString();
+    const completed = await serviceRequest(env, `ingestion_jobs?id=eq.${jobId}&status=eq.processing&lease_generation=eq.1`, { method: "PATCH", body: JSON.stringify({ status: "completed", stage: "completed", progress: 100, completed_at: completedAt, heartbeat_at: completedAt, lease_owner: null, lease_expires_at: null }) });
+    if (!completed?.[0]) throw Object.assign(new Error("The ingestion lease became stale."), { status: 409, code: "STALE_WORKER" });
     await audit(env, request, user.id, workspace, "document.ingest", "document");
     const document = documentView(updated[0]);
-    return { success: true, message: `${filename} uploaded and indexed`, document, job_id: null, job: null };
+    return { success: true, message: `${filename} uploaded and indexed`, document, job_id: jobId, job: jobView(completed[0], updated[0]) };
   } catch (error) {
-    await serviceRequest(env, `documents?id=eq.${documentId}`, { method: "DELETE" }).catch(() => null);
-    if (originalStored) await storageDelete(env, originalKey);
+    const now = new Date().toISOString();
+    await serviceRequest(env, `ingestion_jobs?id=eq.${jobId}&status=eq.processing`, { method: "PATCH", body: JSON.stringify({ status: error.retryable ? "retry_wait" : "failed", stage: "failed", error_message: String(error.message || "Ingestion failed").slice(0, 1000), error_code: error.code || "INGESTION_FAILED", last_error_at: now, available_at: new Date(Date.now() + 10_000).toISOString(), lease_owner: null, lease_expires_at: null }) }).catch(() => null);
+    await serviceRequest(env, `documents?id=eq.${documentId}`, { method: "PATCH", body: JSON.stringify({ status: "error", error_message: String(error.message || "Ingestion failed").slice(0, 1000), updated_at: now }) }).catch(() => null);
+    if (!originalStored) await serviceRequest(env, `documents?id=eq.${documentId}`, { method: "DELETE" }).catch(() => null);
     throw error;
   }
 }
 
-async function chat(request, env, user, workspace, member) {
+async function getJob(env, workspace, jobId) {
+  const jobs = await serviceRequest(env, `ingestion_jobs?workspace_id=eq.${workspace}&id=eq.${jobId}&select=*&limit=1`);
+  if (!jobs?.[0]) throw Object.assign(new Error("Ingestion job not found."), { status: 404, code: "JOB_NOT_FOUND" });
+  const docs = jobs[0].document_id ? await serviceRequest(env, `documents?workspace_id=eq.${workspace}&id=eq.${jobs[0].document_id}&select=*&limit=1`) : [];
+  return jobView(jobs[0], docs?.[0] || null);
+}
+
+async function reindexDocument(request, env, user, workspace, member, documentId) {
   requireCapability(member, "research:run");
-  const body = await request.json();
-  const question = String(body?.question || "").trim();
-  if (!question || question.length > 10_000) throw Object.assign(new Error("Question must contain 1 to 10,000 characters."), { status: 422, code: "INVALID_SCOPE" });
-  const documentIds = Array.isArray(body?.document_ids) ? body.document_ids.filter((value) => /^[0-9a-f-]{36}$/i.test(value)).slice(0, 25) : [];
-  const hits = await searchChunks(env, { workspaceId: workspace, question, documentIds, limit: Math.min(Number(body?.top_k || 8), 12) });
-  const sources = hits.map((hit) => ({ content: String(hit.payload?.content || ""), filename: String(hit.payload?.filename || "document"), page_number: Number(hit.payload?.page_number || 0), chunk_index: Number(hit.payload?.chunk_index || 0), relevance_score: Number(hit.score || 0), document_type: "text", metadata: { document_id: hit.payload?.document_id, version_id: hit.payload?.version_id, chunk_id: hit.payload?.chunk_id } }));
-  if (!sources.length) return { answer: "I could not find sufficient evidence in the selected workspace, so I cannot answer reliably.", sources: [], query_type: "general", confidence: 0, response_time_seconds: 0, metadata: { claim_state: "UNSUPPORTED", abstained: true } };
-  const generated = await generateAnswer(env, groundedPrompt(question, hits));
-  await serviceRequest(env, "llm_usage_events", { method: "POST", body: JSON.stringify([{ workspace_id: workspace, user_id: user.id, provider: "gemini", model: generated.model, operation: "grounded_chat", input_tokens: generated.usage.promptTokenCount || null, output_tokens: generated.usage.candidatesTokenCount || null, success: true, cost_microusd: 0 }]) }).catch(() => null);
-  await audit(env, request, user.id, workspace, "research.run", "query");
-  return { answer: generated.answer, sources, query_type: "general", confidence: Math.min(1, Math.max(0, sources[0]?.relevance_score || 0)), response_time_seconds: 0, metadata: { claim_state: "SUPPORTED", citation_required: true, model: generated.model, paid_fallback: false } };
+  const document = await loadBoundDocument(env, workspace, documentId);
+  const versions = await serviceRequest(env, `document_versions?workspace_id=eq.${workspace}&document_id=eq.${documentId}&id=eq.${document.active_version_id}&select=*&limit=1`);
+  if (!versions?.[0]) throw Object.assign(new Error("Active document version is unavailable."), { status: 409, code: "VERSION_UNAVAILABLE" });
+  const original = await apiFetch(`${env.SUPABASE_URL}/storage/v1/object/documents/${storagePath(versions[0].original_key)}`, { headers: { apikey: env.SUPABASE_SERVICE_ROLE_KEY, authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}` } }, 30000);
+  if (!original.ok) throw Object.assign(new Error("Private original could not be read."), { status: 503, code: "PERSISTENCE_UNAVAILABLE" });
+  const file = new File([await original.arrayBuffer()], document.original_filename || document.filename, { type: document.content_type });
+  const extraction = await extractFileText(env, file); const chunks = chunkText(extraction.text); const versionId = crypto.randomUUID(); const generation = crypto.randomUUID(); const jobId = crypto.randomUUID();
+  await serviceRequest(env, "document_versions", { method: "POST", body: JSON.stringify([{ id: versionId, workspace_id: workspace, document_id: documentId, original_bucket: versions[0].original_bucket, original_key: versions[0].original_key, original_hash: versions[0].original_hash, original_bytes: versions[0].original_bytes, original_verified_at: new Date().toISOString(), parser_version: extraction.method, chunker_version: "worker-char-v1", embedding_space_id: env.GEMINI_EMBEDDING_MODEL || "text-embedding-004", index_generation: generation, extraction_manifest: extraction.manifest || {}, lifecycle_epoch: Number(document.lifecycle_epoch || 1), publication_state: "processing" }]) });
+  const jobs = await serviceRequest(env, "ingestion_jobs", { method: "POST", body: JSON.stringify([{ id: jobId, workspace_id: workspace, document_id: documentId, version_id: versionId, status: "processing", progress: 30, stage: "embedding", attempts: 1, started_at: new Date().toISOString(), heartbeat_at: new Date().toISOString(), lease_owner: `cf:${request.headers.get("cf-ray") || crypto.randomUUID()}`, lease_generation: 1, lease_expires_at: new Date(Date.now()+120000).toISOString(), payload: { filename: document.filename }, kind: "lifecycle" }]) });
+  try {
+    await deleteQdrantDocument(env, workspace, documentId);
+    const points = await indexChunks(env, { workspaceId: workspace, documentId, versionId, generation, filename: document.filename, chunks });
+    await serviceRequest(env, `document_chunks?workspace_id=eq.${workspace}&document_id=eq.${documentId}`, { method: "DELETE" });
+    const rows = await Promise.all(points.map(async (point,index)=>({ id: point.id, workspace_id: workspace, document_id: documentId, version_id: versionId, chunk_index:index, content:chunks[index].content, original_text:chunks[index].content, original_content_hash:await sha256(chunks[index].content), content_hash:await sha256(chunks[index].content), token_count:Math.ceil(chunks[index].content.length/4), qdrant_point_id:point.id, location:point.payload.location, embedding_space_id:env.GEMINI_EMBEDDING_MODEL||"text-embedding-004", metadata:{filename:document.filename,content_type:file.type,index_generation:generation,extraction_method:extraction.method} })));
+    for(let offset=0;offset<rows.length;offset+=50) await serviceRequest(env,"document_chunks",{method:"POST",body:JSON.stringify(rows.slice(offset,offset+50))});
+    await serviceRequest(env,`document_versions?id=eq.${versionId}`,{method:"PATCH",body:JSON.stringify({publication_state:"ready",published_at:new Date().toISOString()})});
+    const docs=await serviceRequest(env,`documents?id=eq.${documentId}`,{method:"PATCH",body:JSON.stringify({status:"ready",chunk_count:rows.length,active_version_id:versionId,error_message:null,updated_at:new Date().toISOString()})});
+    const completed=await serviceRequest(env,`ingestion_jobs?id=eq.${jobId}&status=eq.processing&lease_generation=eq.1`,{method:"PATCH",body:JSON.stringify({status:"completed",stage:"completed",progress:100,completed_at:new Date().toISOString(),lease_owner:null,lease_expires_at:null})});
+    if(!completed?.[0]) throw Object.assign(new Error("The reindex lease became stale."),{status:409,code:"STALE_WORKER"});
+    return jobView(completed[0],docs[0]);
+  } catch(error) {
+    await serviceRequest(env,`ingestion_jobs?id=eq.${jobId}&status=eq.processing`,{method:"PATCH",body:JSON.stringify({status:error.retryable?"retry_wait":"failed",stage:"failed",error_message:String(error.message||"Reindex failed").slice(0,1000),error_code:error.code||"REINDEX_FAILED",lease_owner:null,lease_expires_at:null,last_error_at:new Date().toISOString()})}).catch(()=>null); throw error;
+  }
+}
+
+async function deleteDocument(request, env, user, workspace, member, documentId) {
+  requireCapability(member,"research:run"); const document=await loadBoundDocument(env,workspace,documentId);
+  const rpc=await apiFetch(`${env.SUPABASE_URL}/rest/v1/rpc/tombstone_document`,{method:"POST",headers:{apikey:env.SUPABASE_SERVICE_ROLE_KEY,authorization:`Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,"content-type":"application/json"},body:JSON.stringify({p_workspace:workspace,p_document:documentId,p_actor:user.id})});
+  if(!rpc.ok) throw Object.assign(new Error("Document tombstone could not be created."),{status:409,code:"DELETE_CONFLICT"}); const operationId=await rpc.json();
+  await serviceRequest(env,`deletion_operations?id=eq.${operationId}`,{method:"PATCH",body:JSON.stringify({state:"cleaning"})}); const targets=await serviceRequest(env,`deletion_targets?workspace_id=eq.${workspace}&operation_id=eq.${operationId}&select=*&order=kind.asc`);
+  const receipt=async(target,provider)=>{const verifiedAt=new Date().toISOString();const receiptHash=await sha256(JSON.stringify({workspace,operation_id:operationId,target_id:target.id,provider,verified_at:verifiedAt}));await serviceRequest(env,"deletion_receipts",{method:"POST",body:JSON.stringify([{workspace_id:workspace,operation_id:operationId,target_id:target.id,provider,receipt_hash:receiptHash,verified_at:verifiedAt}])});await serviceRequest(env,`deletion_targets?id=eq.${target.id}`,{method:"PATCH",body:JSON.stringify({attempts:Number(target.attempts||0)+1,verified_at:verifiedAt,failure_code:null})});};
+  try {
+    const indexes=targets.filter(t=>t.kind==="version_index"); if(indexes.length){await deleteQdrantDocument(env,workspace,documentId);for(const target of indexes)await receipt(target,"qdrant");}
+    for(const target of targets.filter(t=>t.kind==="original")){await storageDelete(env,target.object_key);await receipt(target,"supabase_storage");}
+    for(const target of targets.filter(t=>!["original","version_index"].includes(t.kind)))await receipt(target,"supabase");
+    await serviceRequest(env,`documents?workspace_id=eq.${workspace}&id=eq.${documentId}`,{method:"DELETE"}); const remaining=await serviceRequest(env,`documents?workspace_id=eq.${workspace}&id=eq.${documentId}&select=id`); if(remaining.length)throw Object.assign(new Error("Supabase document deletion could not be verified."),{status:503,code:"SUPABASE_DELETE_UNVERIFIED"});
+    await serviceRequest(env,`deletion_operations?id=eq.${operationId}`,{method:"PATCH",body:JSON.stringify({state:"verified",verified_at:new Date().toISOString()})}); await audit(env,request,user.id,workspace,"document.delete","document"); return{success:true,message:`${document.filename} deleted with verified provider receipts`,operation_id:operationId,receipts:targets.length};
+  }catch(error){await serviceRequest(env,`deletion_operations?id=eq.${operationId}`,{method:"PATCH",body:JSON.stringify({state:"blocked"})}).catch(()=>null);throw Object.assign(error,{status:error.status||503,code:error.code||"DELETE_PARTIAL_FAILURE"});}
+}
+
+async function chat(request, env, user, workspace, member) {
+  requireCapability(member,"research:run"); const started=Date.now(); const body=await request.json(); const question=String(body?.question||"").trim(); if(!question||question.length>10000)throw Object.assign(new Error("Question must contain 1 to 10,000 characters."),{status:422,code:"INVALID_SCOPE"});
+  const documentIds=Array.isArray(body?.document_ids)?body.document_ids.filter(v=>/^[0-9a-f-]{36}$/i.test(v)).slice(0,25):[]; const sessionId=/^[0-9a-f-]{36}$/i.test(String(body?.session_id||""))?body.session_id:crypto.randomUUID();
+  let sessions=await serviceRequest(env,`chat_sessions?workspace_id=eq.${workspace}&id=eq.${sessionId}&user_id=eq.${user.id}&deleted_at=is.null&select=*&limit=1`); if(!sessions?.[0])sessions=await serviceRequest(env,"chat_sessions",{method:"POST",body:JSON.stringify([{id:sessionId,workspace_id:workspace,user_id:user.id,title:question.slice(0,120),visibility:"private"}])});
+  await serviceRequest(env,"chat_messages",{method:"POST",body:JSON.stringify([{workspace_id:workspace,session_id:sessionId,role:"user",content:question,sources:[],metadata:{query_type:"general"}}])});
+  const vectorHits=await searchChunks(env,{workspaceId:workspace,question,documentIds,limit:Math.min(Number(body?.top_k||12),12)});const filter=documentIds.length?`&document_id=in.(${documentIds.join(",")})`:"";const lexical=await serviceRequest(env,`document_chunks?workspace_id=eq.${workspace}${filter}&select=id,document_id,version_id,chunk_index,page_number,content,metadata&limit=200`);const hits=hybridFuse(question,vectorHits,lexical,Math.min(Number(body?.top_k||8),12));
+  const sources=hits.map(hit=>({content:String(hit.payload?.content||""),filename:String(hit.payload?.filename||"document"),page_number:Number(hit.payload?.page_number||0),chunk_index:Number(hit.payload?.chunk_index||0),relevance_score:Number(hit.score||hit.lexical_score||0),document_type:"text",metadata:{document_id:hit.payload?.document_id,version_id:hit.payload?.version_id,chunk_id:hit.payload?.chunk_id,hybrid_rrf:hit.rrf}}));let response;
+  if(!sources.length)response={answer:"I could not find sufficient evidence in the selected workspace, so I cannot answer reliably.",sources:[],query_type:"general",confidence:0,response_time_seconds:(Date.now()-started)/1000,metadata:{claim_state:"UNSUPPORTED",abstained:true,session_id:sessionId}};else{const generated=await generateAnswer(env,groundedPrompt(question,hits));response={answer:generated.answer,sources,query_type:"hybrid",confidence:Math.min(1,Math.max(0,sources[0]?.relevance_score||0)),response_time_seconds:(Date.now()-started)/1000,metadata:{claim_state:"SUPPORTED",citation_required:true,model:generated.model,paid_fallback:false,retrieval:"rrf_dense_lexical",session_id:sessionId}};await serviceRequest(env,"llm_usage_events",{method:"POST",body:JSON.stringify([{workspace_id:workspace,user_id:user.id,provider:"gemini",model:generated.model,operation:"grounded_chat",input_tokens:generated.usage.promptTokenCount||null,output_tokens:generated.usage.candidatesTokenCount||null,success:true,cost_microusd:0}])}).catch(()=>null);}
+  await serviceRequest(env,"chat_messages",{method:"POST",body:JSON.stringify([{workspace_id:workspace,session_id:sessionId,role:"assistant",content:response.answer,sources:response.sources,metadata:{...response.metadata,query_type:response.query_type,confidence:response.confidence,response_time_seconds:response.response_time_seconds}}])}); await serviceRequest(env,`chat_sessions?id=eq.${sessionId}`,{method:"PATCH",body:JSON.stringify({updated_at:new Date().toISOString(),revision:Number(sessions[0].revision||1)+1})}); await audit(env,request,user.id,workspace,"research.run","query"); return response;
 }
 async function handle(request, env = {}) {
   const url = new URL(request.url);
@@ -310,9 +375,26 @@ async function handle(request, env = {}) {
       const rows = await serviceRequest(env, `documents?workspace_id=eq.${id}&lifecycle_state=eq.active&select=*&order=created_at.desc&limit=100`);
       return json(request, env, { documents: rows.map(documentView), total: rows.length });
     }
+    const jobRoute = url.pathname.match(/^\/api\/v1\/documents\/jobs\/([0-9a-f-]{36})(?:\/(retry|cancel))?$/i);
+    if (jobRoute) {
+      const id=workspaceId(request);const member=await membership(env,user.id,id);
+      if(!jobRoute[2]&&(request.method==="GET"||request.method==="HEAD"))return json(request,env,await getJob(env,id,jobRoute[1]));
+      if(jobRoute[2]==="retry"&&request.method==="POST"){const current=await getJob(env,id,jobRoute[1]);if(!["failed","queued"].includes(current.status))return json(request,env,current);return json(request,env,await reindexDocument(request,env,user,id,member,current.document_id),202);}
+      if(jobRoute[2]==="cancel"&&request.method==="POST"){requireCapability(member,"research:run");const rows=await serviceRequest(env,`ingestion_jobs?workspace_id=eq.${id}&id=eq.${jobRoute[1]}&status=in.(queued,processing,retry_wait)`,{method:"PATCH",body:JSON.stringify({status:"cancelled",stage:"cancelled",cancellation_requested_at:new Date().toISOString(),lease_generation:2147483647,lease_owner:null,lease_expires_at:null,completed_at:new Date().toISOString()})});if(!rows?.[0])throw Object.assign(new Error("Cancelable ingestion job not found."),{status:409,code:"JOB_NOT_CANCELABLE"});return json(request,env,jobView(rows[0]),202);}
+    }
+    const documentRoute=url.pathname.match(/^\/api\/v1\/documents\/([0-9a-f-]{36})\/(status|chunks|reindex|delete)$/i);
+    if(documentRoute){const id=workspaceId(request);const member=await membership(env,user.id,id);const documentId=documentRoute[1];const action=documentRoute[2];
+      if(action==="status"&&(request.method==="GET"||request.method==="HEAD")){const document=await loadBoundDocument(env,id,documentId);const jobs=await serviceRequest(env,`ingestion_jobs?workspace_id=eq.${id}&document_id=eq.${documentId}&select=*&order=created_at.desc&limit=1`);return json(request,env,jobs?.[0]?jobView(jobs[0],document):{job_id:"",document_id:documentId,filename:document.filename,status:document.status==="ready"?"completed":document.status==="error"?"failed":document.status,stage:document.status,progress:document.status==="ready"?100:0,message:`Document ${document.status}`,error_message:document.error_message,created_at:document.created_at,updated_at:document.updated_at,document:documentView(document)});}
+      if(action==="chunks"&&(request.method==="GET"||request.method==="HEAD")){const document=await loadBoundDocument(env,id,documentId);const limit=Math.min(Math.max(Number.parseInt(url.searchParams.get("limit")||"100",10)||100,1),200);const query=String(url.searchParams.get("search")||"").trim().toLowerCase();let chunks=await serviceRequest(env,`document_chunks?workspace_id=eq.${id}&document_id=eq.${documentId}&select=chunk_index,content,page_number,section_title,token_count,metadata&order=chunk_index.asc&limit=${limit}`);if(query)chunks=chunks.filter(c=>String(c.content||"").toLowerCase().includes(query));return json(request,env,{document_id:documentId,filename:document.filename,chunks,total:chunks.length,query:query||null});}
+      if(action==="reindex"&&request.method==="POST")return json(request,env,await reindexDocument(request,env,user,id,member,documentId),202);
+      if(action==="delete"&&request.method==="POST")return json(request,env,await deleteDocument(request,env,user,id,member,documentId));
+    }
+    const sessionRoute=url.pathname.match(/^\/api\/v1\/chat\/sessions\/([0-9a-f-]{36})\/(messages|clear)$/i);
+    if(sessionRoute){const id=workspaceId(request);await membership(env,user.id,id);const sessionId=sessionRoute[1];const sessions=await serviceRequest(env,`chat_sessions?workspace_id=eq.${id}&id=eq.${sessionId}&user_id=eq.${user.id}&deleted_at=is.null&select=*&limit=1`);if(!sessions?.[0]&&sessionRoute[2]==="messages")return json(request,env,{session_id:sessionId,messages:[],total:0});if(!sessions?.[0])throw Object.assign(new Error("Chat session not found."),{status:404,code:"SESSION_NOT_FOUND"});if(sessionRoute[2]==="messages"&&(request.method==="GET"||request.method==="HEAD")){const messages=await serviceRequest(env,`chat_messages?workspace_id=eq.${id}&session_id=eq.${sessionId}&select=role,content,sources,metadata,created_at&order=created_at.asc&limit=500`);return json(request,env,{session_id:sessionId,messages,total:messages.length});}if(sessionRoute[2]==="clear"&&request.method==="POST"){const messages=await serviceRequest(env,`chat_messages?workspace_id=eq.${id}&session_id=eq.${sessionId}&select=id`);await serviceRequest(env,`chat_messages?workspace_id=eq.${id}&session_id=eq.${sessionId}`,{method:"DELETE"});await serviceRequest(env,`chat_sessions?id=eq.${sessionId}`,{method:"PATCH",body:JSON.stringify({updated_at:new Date().toISOString(),revision:Number(sessions[0].revision||1)+1})});return json(request,env,{success:true,durable_messages_deleted:messages.length});}}
     if (url.pathname === "/api/v1/chat" && request.method === "POST") {
-      const id = workspaceId(request); const member = await membership(env, user.id, id);
-      return json(request, env, await chat(request, env, user, id, member));
+      const id=workspaceId(request);const member=await membership(env,user.id,id);const result=await chat(request,env,user,id,member);
+      if((request.headers.get("accept")||"").includes("text/event-stream")){const encoder=new TextEncoder();const stream=new ReadableStream({start(controller){for(const token of result.answer.match(/.{1,96}/gs)||[])controller.enqueue(encoder.encode(`event: token\ndata: ${JSON.stringify({content:token})}\n\n`));controller.enqueue(encoder.encode(`event: sources\ndata: ${JSON.stringify({sources:result.sources})}\n\nevent: done\ndata: ${JSON.stringify({metadata:result.metadata})}\n\n`));controller.close();}});const output=headers(request,env);output.set("content-type","text/event-stream; charset=utf-8");output.set("connection","keep-alive");return new Response(stream,{status:200,headers:output});}
+      return json(request,env,result);
     }
 
     const route = READ_ROUTES[url.pathname];
