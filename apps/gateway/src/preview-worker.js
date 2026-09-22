@@ -211,52 +211,8 @@ async function loadBoundDocument(env, workspace, documentId) {
   return rows[0];
 }
 
-async function uploadDocument(request, env, user, workspace, member) {
-  requireCapability(member, "research:run");
-  const form = await request.formData();
-  const file = form.get("file");
-  validateWorkerFile(file);
-  const filename = safeFilename(file.name);
-  const extraction = await extractFileText(env, file);
-  const bytes = extraction.bytes;
-  const chunks = chunkText(extraction.text);
-  if (!chunks.length) throw Object.assign(new Error("The document contains no indexable text."), { status: 422, code: "EMPTY_DOCUMENT" });
-
-  const contentHash = await sha256(bytes);
-  const duplicate = await serviceRequest(env, `documents?workspace_id=eq.${workspace}&uploaded_by=eq.${user.id}&sha256=eq.${contentHash}&select=*&limit=1`);
-  if (duplicate?.[0]) return { success: true, message: `${duplicate[0].filename} already uploaded`, document: documentView(duplicate[0]) };
-
-  const documentId = crypto.randomUUID();
-  const versionId = crypto.randomUUID();
-  const generation = crypto.randomUUID();
-  const jobId = crypto.randomUUID();
-  const originalKey = `${workspace}/${documentId}/${versionId}/${filename}`;
-  let originalStored = false;
-  try {
-    await storageWrite(env, originalKey, file); originalStored = true;
-    await serviceRequest(env, "documents", { method: "POST", body: JSON.stringify([{ id: documentId, workspace_id: workspace, uploaded_by: user.id, filename, original_filename: filename, content_type: file.type, file_size_bytes: bytes.length, storage_bucket: "documents", storage_path: originalKey, sha256: contentHash, status: "processing" }]) });
-    await serviceRequest(env, "document_versions", { method: "POST", body: JSON.stringify([{ id: versionId, workspace_id: workspace, document_id: documentId, original_bucket: "documents", original_key: originalKey, original_hash: contentHash, original_bytes: bytes.length, original_verified_at: new Date().toISOString(), parser_version: extraction.method, chunker_version: "worker-char-v1", embedding_space_id: env.GEMINI_EMBEDDING_MODEL || "text-embedding-004", index_generation: generation, extraction_manifest: extraction.manifest || {}, lifecycle_epoch: 1, publication_state: "processing" }]) });
-    await serviceRequest(env, "ingestion_jobs", { method: "POST", body: JSON.stringify([{ id: jobId, workspace_id: workspace, document_id: documentId, version_id: versionId, status: "processing", progress: 30, stage: "embedding", attempts: 1, started_at: new Date().toISOString(), heartbeat_at: new Date().toISOString(), lease_owner: `cf:${request.headers.get("cf-ray") || crypto.randomUUID()}`, lease_generation: 1, lease_expires_at: new Date(Date.now() + 120000).toISOString(), payload: { filename }, kind: "ingestion" }]) });
-    const points = await indexChunks(env, { workspaceId: workspace, documentId, versionId, generation, filename, chunks });
-    const rows = await Promise.all(points.map(async (point, index) => ({ id: point.id, workspace_id: workspace, document_id: documentId, version_id: versionId, chunk_index: index, content: chunks[index].content, original_text: chunks[index].content, original_content_hash: await sha256(chunks[index].content), content_hash: await sha256(chunks[index].content), token_count: Math.ceil(chunks[index].content.length / 4), qdrant_point_id: point.id, location: point.payload.location, embedding_space_id: env.GEMINI_EMBEDDING_MODEL || "text-embedding-004", metadata: { filename, content_type: file.type, index_generation: generation } })));
-    for (let offset = 0; offset < rows.length; offset += 50) await serviceRequest(env, "document_chunks", { method: "POST", body: JSON.stringify(rows.slice(offset, offset + 50)) });
-    await serviceRequest(env, `ingestion_jobs?id=eq.${jobId}&status=eq.processing&lease_generation=eq.1`, { method: "PATCH", body: JSON.stringify({ stage: "persisting", progress: 75, heartbeat_at: new Date().toISOString() }) });
-    await serviceRequest(env, `document_versions?id=eq.${versionId}`, { method: "PATCH", body: JSON.stringify({ publication_state: "ready", published_at: new Date().toISOString() }) });
-    const updated = await serviceRequest(env, `documents?id=eq.${documentId}`, { method: "PATCH", body: JSON.stringify({ status: "ready", chunk_count: rows.length, active_version_id: versionId, updated_at: new Date().toISOString() }) });
-    const completedAt = new Date().toISOString();
-    const completed = await serviceRequest(env, `ingestion_jobs?id=eq.${jobId}&status=eq.processing&lease_generation=eq.1`, { method: "PATCH", body: JSON.stringify({ status: "completed", stage: "completed", progress: 100, completed_at: completedAt, heartbeat_at: completedAt, lease_owner: null, lease_expires_at: null }) });
-    if (!completed?.[0]) throw Object.assign(new Error("The ingestion lease became stale."), { status: 409, code: "STALE_WORKER" });
-    await audit(env, request, user.id, workspace, "document.ingest", "document");
-    const document = documentView(updated[0]);
-    return { success: true, message: `${filename} uploaded and indexed`, document, job_id: jobId, job: jobView(completed[0], updated[0]) };
-  } catch (error) {
-    const now = new Date().toISOString();
-    await serviceRequest(env, `ingestion_jobs?id=eq.${jobId}&status=eq.processing`, { method: "PATCH", body: JSON.stringify({ status: error.retryable ? "retry_wait" : "failed", stage: "failed", error_message: String(error.message || "Ingestion failed").slice(0, 1000), error_code: error.code || "INGESTION_FAILED", last_error_at: now, available_at: new Date(Date.now() + 10_000).toISOString(), lease_owner: null, lease_expires_at: null }) }).catch(() => null);
-    await serviceRequest(env, `documents?id=eq.${documentId}`, { method: "PATCH", body: JSON.stringify({ status: "error", error_message: String(error.message || "Ingestion failed").slice(0, 1000), updated_at: now }) }).catch(() => null);
-    if (!originalStored) await serviceRequest(env, `documents?id=eq.${documentId}`, { method: "DELETE" }).catch(() => null);
-    throw error;
-  }
-}
+async function enqueueJob(env,job){if(!env.INGESTION_QUEUE?.send)throw Object.assign(new Error("The durable ingestion queue is unavailable."),{status:503,code:"QUEUE_UNAVAILABLE",retryable:true});await env.INGESTION_QUEUE.send({job_id:job.id,workspace_id:job.workspace_id,document_id:job.document_id,version_id:job.version_id,lifecycle_epoch:Number(job.lifecycle_epoch||1)});}
+async function uploadDocument(request,env,user,workspace,member){requireCapability(member,"research:run");const form=await request.formData(),file=form.get("file");validateWorkerFile(file);const filename=safeFilename(file.name),bytes=new Uint8Array(await file.arrayBuffer()),hash=await sha256(bytes);const dup=await serviceRequest(env,`documents?workspace_id=eq.${workspace}&uploaded_by=eq.${user.id}&sha256=eq.${hash}&lifecycle_state=eq.active&select=*&limit=1`);if(dup?.[0])return{success:true,message:`${dup[0].filename} already uploaded`,document:documentView(dup[0]),duplicate:true};const documentId=crypto.randomUUID(),versionId=crypto.randomUUID(),generation=crypto.randomUUID(),jobId=crypto.randomUUID(),key=`${workspace}/${documentId}/${versionId}/${filename}`;await storageWrite(env,key,file);await serviceRequest(env,"documents",{method:"POST",body:JSON.stringify([{id:documentId,workspace_id:workspace,uploaded_by:user.id,filename,original_filename:filename,content_type:file.type,file_size_bytes:bytes.length,storage_bucket:"documents",storage_path:key,sha256:hash,status:"queued"}])});await serviceRequest(env,"document_versions",{method:"POST",body:JSON.stringify([{id:versionId,workspace_id:workspace,document_id:documentId,original_bucket:"documents",original_key:key,original_hash:hash,original_bytes:bytes.length,original_verified_at:new Date().toISOString(),parser_version:"pending",chunker_version:"worker-char-v1",embedding_space_id:env.GEMINI_EMBEDDING_MODEL||"text-embedding-004",index_generation:generation,extraction_manifest:{},lifecycle_epoch:1,publication_state:"staged"}])});const jobs=await serviceRequest(env,"ingestion_jobs",{method:"POST",body:JSON.stringify([{id:jobId,workspace_id:workspace,document_id:documentId,version_id:versionId,status:"queued",progress:0,stage:"queued",attempts:0,available_at:new Date().toISOString(),lifecycle_epoch:1,payload:{filename,content_type:file.type,operation:"upload"},kind:"ingestion"}])});await enqueueJob(env,jobs[0]);const document=await loadBoundDocument(env,workspace,documentId);return{success:true,message:`${filename} accepted for durable processing`,document:documentView(document),job_id:jobId,job:jobView(jobs[0],document)};}
 
 async function getJob(env, workspace, jobId) {
   const jobs = await serviceRequest(env, `ingestion_jobs?workspace_id=eq.${workspace}&id=eq.${jobId}&select=*&limit=1`);
@@ -265,32 +221,7 @@ async function getJob(env, workspace, jobId) {
   return jobView(jobs[0], docs?.[0] || null);
 }
 
-async function reindexDocument(request, env, user, workspace, member, documentId) {
-  requireCapability(member, "research:run");
-  const document = await loadBoundDocument(env, workspace, documentId);
-  const versions = await serviceRequest(env, `document_versions?workspace_id=eq.${workspace}&document_id=eq.${documentId}&id=eq.${document.active_version_id}&select=*&limit=1`);
-  if (!versions?.[0]) throw Object.assign(new Error("Active document version is unavailable."), { status: 409, code: "VERSION_UNAVAILABLE" });
-  const original = await apiFetch(`${env.SUPABASE_URL}/storage/v1/object/documents/${storagePath(versions[0].original_key)}`, { headers: { apikey: env.SUPABASE_SERVICE_ROLE_KEY, authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}` } }, 30000);
-  if (!original.ok) throw Object.assign(new Error("Private original could not be read."), { status: 503, code: "PERSISTENCE_UNAVAILABLE" });
-  const file = new File([await original.arrayBuffer()], document.original_filename || document.filename, { type: document.content_type });
-  const extraction = await extractFileText(env, file); const chunks = chunkText(extraction.text); const versionId = crypto.randomUUID(); const generation = crypto.randomUUID(); const jobId = crypto.randomUUID();
-  await serviceRequest(env, "document_versions", { method: "POST", body: JSON.stringify([{ id: versionId, workspace_id: workspace, document_id: documentId, original_bucket: versions[0].original_bucket, original_key: versions[0].original_key, original_hash: versions[0].original_hash, original_bytes: versions[0].original_bytes, original_verified_at: new Date().toISOString(), parser_version: extraction.method, chunker_version: "worker-char-v1", embedding_space_id: env.GEMINI_EMBEDDING_MODEL || "text-embedding-004", index_generation: generation, extraction_manifest: extraction.manifest || {}, lifecycle_epoch: Number(document.lifecycle_epoch || 1), publication_state: "processing" }]) });
-  const jobs = await serviceRequest(env, "ingestion_jobs", { method: "POST", body: JSON.stringify([{ id: jobId, workspace_id: workspace, document_id: documentId, version_id: versionId, status: "processing", progress: 30, stage: "embedding", attempts: 1, started_at: new Date().toISOString(), heartbeat_at: new Date().toISOString(), lease_owner: `cf:${request.headers.get("cf-ray") || crypto.randomUUID()}`, lease_generation: 1, lease_expires_at: new Date(Date.now()+120000).toISOString(), payload: { filename: document.filename }, kind: "lifecycle" }]) });
-  try {
-    await deleteQdrantDocument(env, workspace, documentId);
-    const points = await indexChunks(env, { workspaceId: workspace, documentId, versionId, generation, filename: document.filename, chunks });
-    await serviceRequest(env, `document_chunks?workspace_id=eq.${workspace}&document_id=eq.${documentId}`, { method: "DELETE" });
-    const rows = await Promise.all(points.map(async (point,index)=>({ id: point.id, workspace_id: workspace, document_id: documentId, version_id: versionId, chunk_index:index, content:chunks[index].content, original_text:chunks[index].content, original_content_hash:await sha256(chunks[index].content), content_hash:await sha256(chunks[index].content), token_count:Math.ceil(chunks[index].content.length/4), qdrant_point_id:point.id, location:point.payload.location, embedding_space_id:env.GEMINI_EMBEDDING_MODEL||"text-embedding-004", metadata:{filename:document.filename,content_type:file.type,index_generation:generation,extraction_method:extraction.method} })));
-    for(let offset=0;offset<rows.length;offset+=50) await serviceRequest(env,"document_chunks",{method:"POST",body:JSON.stringify(rows.slice(offset,offset+50))});
-    await serviceRequest(env,`document_versions?id=eq.${versionId}`,{method:"PATCH",body:JSON.stringify({publication_state:"ready",published_at:new Date().toISOString()})});
-    const docs=await serviceRequest(env,`documents?id=eq.${documentId}`,{method:"PATCH",body:JSON.stringify({status:"ready",chunk_count:rows.length,active_version_id:versionId,error_message:null,updated_at:new Date().toISOString()})});
-    const completed=await serviceRequest(env,`ingestion_jobs?id=eq.${jobId}&status=eq.processing&lease_generation=eq.1`,{method:"PATCH",body:JSON.stringify({status:"completed",stage:"completed",progress:100,completed_at:new Date().toISOString(),lease_owner:null,lease_expires_at:null})});
-    if(!completed?.[0]) throw Object.assign(new Error("The reindex lease became stale."),{status:409,code:"STALE_WORKER"});
-    return jobView(completed[0],docs[0]);
-  } catch(error) {
-    await serviceRequest(env,`ingestion_jobs?id=eq.${jobId}&status=eq.processing`,{method:"PATCH",body:JSON.stringify({status:error.retryable?"retry_wait":"failed",stage:"failed",error_message:String(error.message||"Reindex failed").slice(0,1000),error_code:error.code||"REINDEX_FAILED",lease_owner:null,lease_expires_at:null,last_error_at:new Date().toISOString()})}).catch(()=>null); throw error;
-  }
-}
+async function reindexDocument(request,env,user,workspace,member,documentId){requireCapability(member,"research:run");const document=await loadBoundDocument(env,workspace,documentId),v=await serviceRequest(env,`document_versions?workspace_id=eq.${workspace}&id=eq.${document.active_version_id}&select=*&limit=1`);if(!v?.[0])throw Object.assign(new Error("Active version unavailable."),{status:409,code:"VERSION_UNAVAILABLE"});const source=v[0],versionId=crypto.randomUUID(),generation=crypto.randomUUID(),jobId=crypto.randomUUID();await serviceRequest(env,"document_versions",{method:"POST",body:JSON.stringify([{id:versionId,workspace_id:workspace,document_id:documentId,original_bucket:source.original_bucket,original_key:source.original_key,original_hash:source.original_hash,original_bytes:source.original_bytes,original_verified_at:source.original_verified_at,parser_version:"pending",chunker_version:"worker-char-v1",embedding_space_id:env.GEMINI_EMBEDDING_MODEL||"text-embedding-004",index_generation:generation,extraction_manifest:{},lifecycle_epoch:Number(document.lifecycle_epoch||1),publication_state:"staged"}])});const jobs=await serviceRequest(env,"ingestion_jobs",{method:"POST",body:JSON.stringify([{id:jobId,workspace_id:workspace,document_id:documentId,version_id:versionId,status:"queued",progress:0,stage:"queued",attempts:0,available_at:new Date().toISOString(),lifecycle_epoch:Number(document.lifecycle_epoch||1),payload:{filename:document.filename,operation:"reindex",supersedes_version_id:source.id},kind:"lifecycle"}])});await enqueueJob(env,jobs[0]);return jobView(jobs[0],document);}
 
 async function deleteDocument(request, env, user, workspace, member, documentId) {
   requireCapability(member,"research:run"); const document=await loadBoundDocument(env,workspace,documentId);
@@ -369,7 +300,7 @@ async function handle(request, env = {}) {
 
     if (url.pathname === "/api/v1/documents/upload" && request.method === "POST") {
       const id = workspaceId(request); const member = await membership(env, user.id, id);
-      return json(request, env, await uploadDocument(request, env, user, id, member), 201);
+      return json(request, env, await uploadDocument(request, env, user, id, member), 202);
     }
     if (url.pathname === "/api/v1/documents" && (request.method === "GET" || request.method === "HEAD")) {
       const id = workspaceId(request); await membership(env, user.id, id);
