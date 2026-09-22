@@ -47,9 +47,8 @@ jobs:
         run: printf '%s' "$SUPABASE_SERVICE_ROLE_KEY" | npx --yes wrangler@4.37.1 secret put SUPABASE_SERVICE_ROLE_KEY --name nexusrag-v6-preview-gateway
       - name: Deploy authenticated gateway
         run: |
-          npx --yes wrangler@4.37.1 deploy apps/gateway/src/preview-worker.js \
-            --name nexusrag-v6-preview-gateway \
-            --compatibility-date 2026-09-20 \
+          npx --yes wrangler@4.37.1 deploy \
+            --config apps/gateway/wrangler.preview.jsonc \
             --keep-vars \
             --var "SUPABASE_URL:$SUPABASE_URL" \
             --var "SUPABASE_PUBLISHABLE_KEY:$SUPABASE_PUBLISHABLE_KEY" \
