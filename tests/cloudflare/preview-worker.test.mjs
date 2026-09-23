@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import worker, { allowRequest, handle, storageDelete } from "../../apps/gateway/src/preview-worker.js";
 
-const request = (path = "/health", init = {}) => new Request(`{{https://preview.invalid${path}}}`, init);
+const request = (path = "/health", init = {}) => new Request(`https://preview.invalid${path}`, init);
 const configured = {
   SUPABASE_URL: "https://supabase.invalid",
   SUPABASE_PUBLISHABLE_KEY: "synthetic-publishable",
@@ -69,6 +69,7 @@ test("HEAD emits no response body", async () => {
   assert.equal(response.status, 200);
   assert.equal(await response.text(), "");
 });
+
 
 test("storage deletion accepts Supabase NoSuchKey absence verification", async () => {
   const originalFetch = globalThis.fetch;
