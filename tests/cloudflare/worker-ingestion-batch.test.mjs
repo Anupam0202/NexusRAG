@@ -22,20 +22,28 @@ const configured = {
   INGESTION_QUEUE: { sent: [], async send(message) { this.sent.push(message); } },
 };
 
-function fakeIngestionFetch(source = "Reviewed policy evidence. ".repeat(190)) {
+function fakeIngestionFetch(sourceOrOptions = "Reviewed policy evidence. ".repeat(190)) {
+  const options = typeof sourceOrOptions === "string" ? { source: sourceOrOptions } : sourceOrOptions;
+  const source = options.source || "Reviewed policy evidence. ".repeat(190);
+  const contentType = options.contentType || "text/plain";
+  const extractedText = options.extractedText || source;
   const job = {
     id: jobId, workspace_id: workspace, document_id: documentId, version_id: versionId,
     lifecycle_epoch: 1, status: "queued", stage: "queued", progress: 0, attempts: 0,
     max_attempts: 3, lease_generation: 0, lease_owner: null, lease_expires_at: null,
     cancellation_requested_at: null, available_at: new Date(Date.now() - 60_000).toISOString(),
-    kind: "ingestion", payload: { filename: "policy.txt", content_type: "text/plain", operation: "upload" },
+    kind: "ingestion", payload: { filename: "policy.txt", content_type: contentType, operation: "upload" },
   };
-  const document = { id: documentId, workspace_id: workspace, filename: "policy.txt", content_type: "text/plain", lifecycle_epoch: 1, lifecycle_state: "active", active_version_id: null };
+  const document = { id: documentId, workspace_id: workspace, filename: "policy.txt", content_type: contentType, lifecycle_epoch: 1, lifecycle_state: "active", active_version_id: null };
   const version = { id: versionId, workspace_id: workspace, document_id: documentId, original_bucket: "documents", original_key: `${workspace}/${documentId}/${versionId}/policy.txt`, index_generation: generation, publication_state: "staged" };
   const staged = new Map();
+  const extraction = new Map();
   const points = new Map();
   const events = [];
+  let extractionManifest = null;
+  let extractionTotal = 0;
   let reservations = 0;
+  let extractionCalls = 0;
   let failNextStage = false;
   const fetch = async (rawUrl, init = {}) => {
     const url = new URL(String(rawUrl));
@@ -54,6 +62,27 @@ function fakeIngestionFetch(source = "Reviewed policy evidence. ".repeat(190)) {
         return json({ state: "READY", reservations: values });
       }
       if (path.startsWith("rpc/v6_settle_many")) return json({ state: body.p_provider_called ? "SETTLED" : "RELEASED" });
+      if (path.startsWith("rpc/workbench_read_extracted_batch")) {
+        if (!extractionManifest) return json({ found: false });
+        return json({
+          found: true, total_chunks: extractionTotal, manifest: extractionManifest,
+          chunks: [...extraction.values()].filter((chunk) => chunk.ordinal >= body.p_offset).slice(0, body.p_limit),
+        });
+      }
+      if (path.startsWith("rpc/workbench_store_extracted_chunks")) {
+        assert.equal(body.p_chunks.length, body.p_total_chunks);
+        extractionTotal = body.p_total_chunks;
+        extractionManifest = body.p_manifest;
+        for (const chunk of body.p_chunks) {
+          const old = extraction.get(chunk.ordinal);
+          if (old) assert.deepEqual(old, chunk, "extraction replay must be byte-identical");
+          extraction.set(chunk.ordinal, chunk);
+        }
+        version.index_generation = body.p_index;
+        version.publication_state = "processing";
+        version.extraction_manifest = { ...body.p_manifest, expected_chunks: body.p_total_chunks };
+        return json({ found: true, count: extraction.size, total_chunks: extractionTotal, manifest: extractionManifest });
+      }
       if (path.startsWith("rpc/workbench_stage_chunk_batch")) {
         if (body.p_offset === 3 && failNextStage) {
           failNextStage = false;
@@ -72,6 +101,7 @@ function fakeIngestionFetch(source = "Reviewed policy evidence. ".repeat(190)) {
         assert.equal(body.p_receipt.verified_vectors, staged.size);
         job.status = "completed";
         version.publication_state = "ready";
+        extraction.clear();
         document.active_version_id = versionId;
         return json({ state: "ready", chunks: staged.size });
       }
@@ -80,8 +110,11 @@ function fakeIngestionFetch(source = "Reviewed policy evidence. ".repeat(190)) {
     }
     if (url.hostname === "supabase.invalid" && url.pathname.startsWith("/storage/v1/object/")) return new Response(source, { status: 200 });
     if (url.hostname === "generativelanguage.googleapis.com") {
-      assert.match(url.pathname, /:embedContent$/);
-      return json({ embedding: { values: Array(768).fill(0.01) } });
+      if (url.pathname.endsWith(":embedContent")) return json({ embedding: { values: Array(768).fill(0.01) } });
+      if (url.pathname.endsWith(":generateContent")) {
+        extractionCalls += 1;
+        return json({ candidates: [{ content: { parts: [{ text: extractedText }] } }] });
+      }
     }
     if (url.hostname === "qdrant.invalid") {
       if (url.pathname.endsWith("/points/delete")) {
@@ -103,7 +136,7 @@ function fakeIngestionFetch(source = "Reviewed policy evidence. ".repeat(190)) {
     }
     throw new Error(`Unexpected external request: ${method} ${url.href}`);
   };
-  return { fetch, job, document, version, staged, points, events, failNextStage() { failNextStage = true; }, get reservations() { return reservations; } };
+  return { fetch, job, document, version, staged, extraction, points, events, failNextStage() { failNextStage = true; }, get reservations() { return reservations; }, get extractionCalls() { return extractionCalls; } };
 }
 
 test("synthetic text ingestion resumes in <=3-chunk batches and publishes only after exact vector count", async (t) => {
@@ -139,6 +172,8 @@ test("synthetic text ingestion resumes in <=3-chunk batches and publishes only a
   assert.deepEqual([...fixture.points.keys()].sort(), pointIdsBeforeRetry);
   assert.equal(fixture.job.status, "completed");
   assert.equal(fixture.version.publication_state, "ready");
+  assert.equal(fixture.extraction.size, 0, "terminal publication removes temporary extracted text");
+  assert.equal(fixture.events.filter((event) => event.path.includes("/storage/v1/object/")).length, 1, "retry reuses staged extraction instead of rereading the source");
   assert.ok(fixture.reservations >= 18, "each Gemini/Qdrant index, cleanup, retry, and final verification must pass quota admission");
   assert.equal(fixture.events.filter((event) => event.host === "generativelanguage.googleapis.com").length, 5);
 });
@@ -175,6 +210,38 @@ test("synthetic near-capacity text document completes over bounded queued batche
   assert.equal(fixture.job.status, "completed");
   assert.equal(fixture.version.publication_state, "ready");
   assert.equal(fixture.events.filter((event) => event.host === "generativelanguage.googleapis.com").length, expectedChunks);
+  assert.equal(fixture.events.filter((event) => event.path.includes("/storage/v1/object/")).length, 1, "large text source is fetched once for all queued batches");
+  assert.equal(fixture.extraction.size, 0, "temporary extraction rows are removed after publication");
+  assert.ok(maxSubrequests < 50);
+});
+
+test("binary OCR extraction is durably cached and charged once across queued batches", async (t) => {
+  const extractedText = "Scanned agreement clause with an auditable retention term. ".repeat(240);
+  const expectedChunks = chunkText(extractedText).length;
+  assert.ok(expectedChunks > 3 && expectedChunks <= 400);
+  const fixture = fakeIngestionFetch({ source: "%PDF-1.7 synthetic bytes", contentType: "application/pdf", extractedText });
+  t.mock.method(globalThis, "fetch", fixture.fetch);
+
+  let message = { job_id: jobId, workspace_id: workspace, document_id: documentId, version_id: versionId, lifecycle_epoch: 1, batch_offset: 0 };
+  let maxSubrequests = 0;
+  let batches = 0;
+  while (true) {
+    const start = fixture.events.length;
+    const result = await processIngestionMessage(configured, message);
+    maxSubrequests = Math.max(maxSubrequests, fixture.events.length - start);
+    batches += 1;
+    if (result.completed) {
+      assert.equal(result.total_chunks, expectedChunks);
+      break;
+    }
+    message = configured.INGESTION_QUEUE.sent.shift();
+    assert.ok(message);
+  }
+  assert.equal(batches, Math.ceil(expectedChunks / 3));
+  assert.equal(fixture.extractionCalls, 1, "OCR is not repeated on later queue batches");
+  assert.equal(fixture.events.filter((event) => event.path.includes("/storage/v1/object/")).length, 1, "binary source is read only once");
+  assert.equal(fixture.points.size, expectedChunks);
+  assert.equal(fixture.extraction.size, 0, "OCR text is purged after terminal publication");
   assert.ok(maxSubrequests < 50);
 });
 

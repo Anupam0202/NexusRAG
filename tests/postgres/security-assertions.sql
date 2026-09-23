@@ -2,7 +2,7 @@
 DO $$ DECLARE n int; BEGIN
  SELECT count(*) INTO n FROM pg_class c JOIN pg_namespace s ON s.oid=c.relnamespace
  WHERE s.nspname='public' AND c.relkind='r' AND c.relrowsecurity;
- IF n<>51 THEN RAISE EXCEPTION 'expected 51 RLS tables, found %',n; END IF;
+ IF n<>53 THEN RAISE EXCEPTION 'expected 53 RLS tables, found %',n; END IF;
  IF has_table_privilege('authenticated','public.provider_registry','select') OR has_table_privilege('anon','public.provider_registry','select') THEN
   RAISE EXCEPTION 'client role unexpectedly reads protected provider table';
  END IF;
@@ -13,6 +13,14 @@ DO $$ DECLARE n int; BEGIN
  END IF;
  IF has_function_privilege('anon','public.workbench_stage_chunk_batch(uuid,uuid,text,bigint,uuid,bigint,text,text,jsonb,integer,integer,jsonb)','execute') OR
     has_function_privilege('authenticated','public.workbench_finalize_chunk_stage(uuid,uuid,text,bigint,uuid,bigint,integer,text)','execute') OR
+    has_function_privilege('anon','public.workbench_store_extracted_chunks(uuid,uuid,text,bigint,uuid,bigint,text,text,jsonb,integer,jsonb)','execute') OR
+    has_function_privilege('authenticated','public.workbench_read_extracted_batch(uuid,uuid,text,bigint,uuid,bigint,integer,integer)','execute') OR
+    has_function_privilege('anon','public.workbench_cleanup_expired_extractions(integer)','execute') OR
+    has_table_privilege('anon','public.ingestion_extraction_manifests','SELECT') OR
+    NOT has_function_privilege('service_role','public.workbench_cleanup_expired_extractions(integer)','execute') OR
+    NOT has_function_privilege('service_role','public.workbench_store_extracted_chunks(uuid,uuid,text,bigint,uuid,bigint,text,text,jsonb,integer,jsonb)','execute') OR
+    NOT has_function_privilege('service_role','public.workbench_read_extracted_batch(uuid,uuid,text,bigint,uuid,bigint,integer,integer)','execute') OR
+    has_table_privilege('authenticated','public.ingestion_extraction_chunks','SELECT') OR
     NOT has_function_privilege('service_role','public.workbench_finalize_chunk_stage(uuid,uuid,text,bigint,uuid,bigint,integer,text)','execute') THEN
   RAISE EXCEPTION 'batch staging function grants are too broad or missing';
  END IF;

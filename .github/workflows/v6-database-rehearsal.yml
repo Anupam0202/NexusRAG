@@ -7,6 +7,7 @@ on:
       - supabase/baseline/**
       - supabase/migrations/027_metered_operation_admission.sql
       - supabase/migrations/028_resumable_chunk_staging.sql
+      - supabase/migrations/029_durable_extraction_staging.sql
       - scripts/build_clean_baseline.py
       - scripts/verify_v6_migrations.py
       - tests/postgres/**
@@ -56,6 +57,7 @@ jobs:
           cp "$GITHUB_WORKSPACE/supabase/baseline/001_v6_zero_cost_baseline.sql" "$source_dir/supabase/baseline/"
           cp "$GITHUB_WORKSPACE/supabase/migrations/027_metered_operation_admission.sql" "$source_dir/supabase/migrations/"
           cp "$GITHUB_WORKSPACE/supabase/migrations/028_resumable_chunk_staging.sql" "$source_dir/supabase/migrations/"
+          cp "$GITHUB_WORKSPACE/supabase/migrations/029_durable_extraction_staging.sql" "$source_dir/supabase/migrations/"
           chmod -R a+rX "$source_dir"
           cleanup() {
             sudo -u postgres dropdb --if-exists -h /var/run/postgresql -p "$port" "$db" >/dev/null 2>&1 || true
@@ -70,7 +72,7 @@ jobs:
             PGUSER=postgres \
             PGDATABASE="$db" \
             bash "$source_dir/tests/postgres/local-rehearsal.sh" >"$log" 2>&1; then
-            grep -E 'concurrent_reservation_settlement_pass|storage_rls_two_identity_pass|LOCAL_POSTGRES_REHEARSAL_PASS' "$log"
+            grep -E 'postgres_durable_extraction_stage_pass|concurrent_reservation_settlement_pass|storage_rls_two_identity_pass|LOCAL_POSTGRES_REHEARSAL_PASS' "$log"
           else
             tail -n 80 "$log"
             exit 1

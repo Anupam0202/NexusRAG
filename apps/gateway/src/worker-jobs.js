@@ -118,28 +118,70 @@ async function processIngestionMessage(env, message) {
     generation = version.index_generation || crypto.randomUUID();
     if (offset === 0) await cleanupStagedGeneration(env, job, generation);
 
-    const key = version.original_key.split("/").map(encodeURIComponent).join("/");
-    const original = await fetch(`${env.SUPABASE_URL}/storage/v1/object/${encodeURIComponent(version.original_bucket)}/${key}`, {
-      headers: { apikey: env.SUPABASE_SERVICE_ROLE_KEY, authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}` },
+    const extractionIdentity = {
+      p_job: job.id, p_workspace: job.workspace_id, p_owner: claimResult.owner,
+      p_generation: claimResult.generation, p_version: job.version_id, p_epoch: Number(job.lifecycle_epoch),
+    };
+    const savedBatch = await rpc(env, "workbench_read_extracted_batch", {
+      ...extractionIdentity, p_offset: offset, p_limit: MAX_INDEX_BATCH_CHUNKS,
     });
-    if (!original.ok) throw err("PERSISTENCE_UNAVAILABLE", "Original unavailable.", true);
-    const file = new File([await original.arrayBuffer()], document.filename, { type: document.content_type });
-    const extracted = await extractFileText(env, file, { workspaceId: job.workspace_id, priority: "background" });
-    const chunks = chunkText(extracted.text);
-    if (!chunks.length) throw err("EMPTY_DOCUMENT", "The document contains no indexable text.");
-    if (chunks.length > MAX_DOCUMENT_CHUNKS) throw err("CAPACITY_REACHED", "Document exceeds the 400-chunk bounded ingestion limit.");
-    const repeatSafeTextTypes = new Set(["text/plain", "text/markdown", "text/csv", "application/json"]);
-    if (chunks.length > MAX_INDEX_BATCH_CHUNKS && !repeatSafeTextTypes.has(file.type)) {
-      throw err("CAPACITY_REACHED", "Only directly decoded UTF-8 text formats can span Worker batches. Export larger binary or archive documents to text to avoid repeated extraction and expansion.");
+    let extractionManifest;
+    let totalChunks;
+    let batch;
+    if (savedBatch?.found) {
+      extractionManifest = savedBatch.manifest || {};
+      totalChunks = Number(savedBatch.total_chunks);
+      batch = (savedBatch.chunks || []).map((chunk) => ({
+        chunk_index: Number(chunk.ordinal),
+        content: chunk.original_text,
+        start: Number(chunk.location?.char_start),
+        end: Number(chunk.location?.char_end),
+      }));
+    } else {
+      if (offset !== 0) throw err("VERSION_CONFLICT", "Durable extraction staging is missing for a resumed batch.");
+      const key = version.original_key.split("/").map(encodeURIComponent).join("/");
+      const original = await fetch(`${env.SUPABASE_URL}/storage/v1/object/${encodeURIComponent(version.original_bucket)}/${key}`, {
+        headers: { apikey: env.SUPABASE_SERVICE_ROLE_KEY, authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}` },
+      });
+      if (!original.ok) throw err("PERSISTENCE_UNAVAILABLE", "Original unavailable.", true);
+      const file = new File([await original.arrayBuffer()], document.filename, { type: document.content_type });
+      const extracted = await extractFileText(env, file, { workspaceId: job.workspace_id, priority: "background" });
+      const chunks = chunkText(extracted.text);
+      if (!chunks.length) throw err("EMPTY_DOCUMENT", "The document contains no indexable text.");
+      if (chunks.length > MAX_DOCUMENT_CHUNKS) throw err("CAPACITY_REACHED", "Document exceeds the 400-chunk bounded ingestion limit.");
+      extractionManifest = { ...(extracted.manifest || {}), method: extracted.method };
+      totalChunks = chunks.length;
+      const extractionRows = await Promise.all(chunks.map(async (chunk) => ({
+        ordinal: chunk.chunk_index,
+        original_text: chunk.content,
+        original_content_hash: await sha256(chunk.content),
+        location: { char_start: chunk.start, char_end: chunk.end },
+      })));
+      const stored = await rpc(env, "workbench_store_extracted_chunks", {
+        ...extractionIdentity,
+        p_space: env.GEMINI_EMBEDDING_MODEL || "gemini-embedding-001",
+        p_index: generation,
+        p_manifest: extractionManifest,
+        p_total_chunks: totalChunks,
+        p_chunks: extractionRows,
+      });
+      if (!stored?.found || Number(stored.count) !== totalChunks) throw err("INGESTION_FAILED", "Extracted content was not durably staged.", true);
+      version.index_generation = generation;
+      batch = chunks.slice(0, MAX_INDEX_BATCH_CHUNKS);
     }
-    if (offset >= chunks.length || offset % MAX_INDEX_BATCH_CHUNKS !== 0) throw err("STALE_MESSAGE", "Ingestion cursor is outside the source manifest.");
-    if (offset > 0 && Number(job.payload?.batch_total) !== chunks.length) throw err("VERSION_CONFLICT", "Re-extracted content no longer matches the durable batch manifest.");
+    if (!Number.isSafeInteger(totalChunks) || totalChunks < 1 || totalChunks > MAX_DOCUMENT_CHUNKS
+        || offset >= totalChunks || offset % MAX_INDEX_BATCH_CHUNKS !== 0
+        || batch.length !== Math.min(MAX_INDEX_BATCH_CHUNKS, totalChunks - offset)) {
+      throw err("STALE_MESSAGE", "Ingestion cursor or durable extraction manifest is invalid.");
+    }
+    if (Number(job.payload?.batch_total || totalChunks) !== totalChunks) {
+      throw err("VERSION_CONFLICT", "Durable extraction chunk count differs from the job cursor.");
+    }
     const manifestBefore = job.payload?.extraction_manifest;
-    if (offset > 0 && manifestBefore && JSON.stringify(manifestBefore) !== JSON.stringify(extracted.manifest || {})) {
-      throw err("VERSION_CONFLICT", "Extraction manifest changed between batches.");
+    if (manifestBefore && JSON.stringify(manifestBefore) !== JSON.stringify(extractionManifest)) {
+      throw err("VERSION_CONFLICT", "Durable extraction manifest differs from the job cursor.");
     }
 
-    const batch = chunks.slice(offset, offset + MAX_INDEX_BATCH_CHUNKS);
     const points = await indexChunks(env, {
       workspaceId: job.workspace_id, documentId: job.document_id, versionId: job.version_id,
       generation, filename: document.filename, chunks: batch, initializeIndex: offset === 0,
@@ -150,36 +192,36 @@ async function processIngestionMessage(env, message) {
         chunk_id: point.id, workspace_id: job.workspace_id, document_id: job.document_id,
         version_id: job.version_id, ordinal: chunk.chunk_index, original_text: chunk.content,
         original_content_hash: await sha256(chunk.content), retrieval_text: chunk.content,
-        location: point.payload.location, extraction: { method: extracted.method, filename: document.filename },
+        location: point.payload.location, extraction: { method: extractionManifest.method || "worker-extracted", filename: document.filename },
       };
     }));
     const staged = await rpc(env, "workbench_stage_chunk_batch", {
       p_job: job.id, p_workspace: job.workspace_id, p_owner: claimResult.owner,
       p_generation: claimResult.generation, p_version: job.version_id, p_epoch: Number(job.lifecycle_epoch),
       p_space: env.GEMINI_EMBEDDING_MODEL || "gemini-embedding-001", p_index: generation,
-      p_manifest: extracted.manifest || {}, p_total_chunks: chunks.length, p_offset: offset, p_chunks: stagedChunks,
+      p_manifest: extractionManifest, p_total_chunks: totalChunks, p_offset: offset, p_chunks: stagedChunks,
     });
     if (Number(staged?.count) < offset + batch.length) throw err("INGESTION_FAILED", "Staged batch was not durably recorded.", true);
 
     const nextOffset = offset + batch.length;
-    if (nextOffset < chunks.length) {
-      const progress = Math.min(89, 10 + Math.floor(75 * nextOffset / chunks.length));
+    if (nextOffset < totalChunks) {
+      const progress = Math.min(89, 10 + Math.floor(75 * nextOffset / totalChunks));
       const nextPayload = {
         ...job.payload,
         batch_offset: nextOffset,
-        batch_total: chunks.length,
-        extraction_manifest: extracted.manifest || {},
+        batch_total: totalChunks,
+        extraction_manifest: extractionManifest,
       };
       await checkpointBatch(env, claimResult, { nextOffset, nextPayload, progress });
-      return { completed: false, next_batch_offset: nextOffset, total_chunks: chunks.length };
+      return { completed: false, next_batch_offset: nextOffset, total_chunks: totalChunks };
     }
 
-    const vectorReceipt = await verifyQdrantGeneration(env, job.workspace_id, job.document_id, job.version_id, generation, chunks.length);
-    if (!vectorReceipt.verified || vectorReceipt.count !== chunks.length) throw err("QDRANT_INDEX_UNVERIFIED", "Final vector count could not be verified.", true);
+    const vectorReceipt = await verifyQdrantGeneration(env, job.workspace_id, job.document_id, job.version_id, generation, totalChunks);
+    if (!vectorReceipt.verified || vectorReceipt.count !== totalChunks) throw err("QDRANT_INDEX_UNVERIFIED", "Final vector count could not be verified.", true);
     const finalized = await rpc(env, "workbench_finalize_chunk_stage", {
       p_job: job.id, p_workspace: job.workspace_id, p_owner: claimResult.owner,
       p_generation: claimResult.generation, p_version: job.version_id, p_epoch: Number(job.lifecycle_epoch),
-      p_total_chunks: chunks.length, p_index: generation,
+      p_total_chunks: totalChunks, p_index: generation,
     });
     await beat(env, claimResult, { stage: "activating", progress: 95 });
     await rpc(env, "workbench_publish_version", {
@@ -193,7 +235,7 @@ async function processIngestionMessage(env, message) {
         await deleteQdrantGeneration(env, job.workspace_id, job.document_id, document.active_version_id, version.supersedes_index_generation).catch(() => null);
       }
     }
-    return { completed: true, total_chunks: chunks.length };
+    return { completed: true, total_chunks: totalChunks };
   } catch (error) {
     const maxAttempts = Number(job.max_attempts || 3);
     const retry = Boolean(error.retryable) && Number(job.attempts || 0) < maxAttempts;
@@ -233,6 +275,7 @@ async function sweepJobs(env) {
     db(env, `ingestion_jobs?kind=eq.ingestion&status=in.(queued,retry_wait)&available_at=lte.${due}&cancellation_requested_at=is.null&select=id,workspace_id,document_id,version_id,lifecycle_epoch,attempts,max_attempts,payload&order=available_at.asc&limit=25`),
     db(env, `ingestion_jobs?kind=eq.ingestion&status=eq.processing&lease_expires_at=lte.${due}&cancellation_requested_at=is.null&select=id,workspace_id,document_id,version_id,lifecycle_epoch,attempts,max_attempts,payload&order=lease_expires_at.asc&limit=25`),
   ]);
+  await rpc(env, "workbench_cleanup_expired_extractions", { p_limit: 100 });
   const unique = new Map([...(queued || []), ...(expired || [])].map((job) => [job.id, job]));
   let enqueued = 0;
   for (const job of unique.values()) {

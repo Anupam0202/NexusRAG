@@ -15,6 +15,8 @@ function localAppFixture() {
   const versions = new Map();
   const jobs = new Map();
   const chunks = new Map();
+  const extractionManifests = new Map();
+  const extractionChunks = new Map();
   const objects = new Map();
   const points = new Map();
   const sessions = new Map();
@@ -132,6 +134,32 @@ function localAppFixture() {
         }
         if (rpc === "v6_reserve_many") return json({ state: "READY", reservations: Object.entries(body.p_dimensions).map(([dimension, amount]) => ({ id: crypto.randomUUID(), amount, dimension })) });
         if (rpc === "v6_settle_many") return json({ state: body.p_provider_called ? "SETTLED" : "RELEASED" });
+        if (rpc === "workbench_read_extracted_batch") {
+          const manifest = extractionManifests.get(body.p_job);
+          if (!manifest) return json({ found: false });
+          return json({
+            found: true, total_chunks: manifest.total_chunks, manifest: manifest.extraction_manifest,
+            chunks: [...(extractionChunks.get(body.p_job)?.values() || [])].filter((row) => row.ordinal >= body.p_offset).slice(0, body.p_limit),
+          });
+        }
+        if (rpc === "workbench_store_extracted_chunks") {
+          const oldManifest = extractionManifests.get(body.p_job);
+          if (oldManifest) assert.deepEqual(oldManifest.extraction_manifest, body.p_manifest);
+          const stored = extractionChunks.get(body.p_job) || new Map();
+          assert.equal(body.p_chunks.length, body.p_total_chunks);
+          for (const row of body.p_chunks) {
+            const existing = stored.get(row.ordinal);
+            if (existing) assert.deepEqual(existing, row);
+            else stored.set(row.ordinal, row);
+          }
+          extractionChunks.set(body.p_job, stored);
+          extractionManifests.set(body.p_job, { total_chunks: body.p_total_chunks, extraction_manifest: body.p_manifest });
+          const version = versions.get(body.p_version);
+          version.index_generation = body.p_index;
+          version.publication_state = "processing";
+          version.extraction_manifest = { ...body.p_manifest, expected_chunks: body.p_total_chunks };
+          return json({ found: true, count: stored.size, total_chunks: body.p_total_chunks, manifest: body.p_manifest });
+        }
         if (rpc === "workbench_stage_chunk_batch") {
           const stored = chunks.get(body.p_version) || [];
           for (const row of body.p_chunks) {
@@ -146,6 +174,7 @@ function localAppFixture() {
         if (rpc === "workbench_publish_version") {
           const version = versions.get(body.p_version); const doc = docs.get(version.document_id); const job = jobs.get(body.p_job);
           version.publication_state = "ready"; doc.active_version_id = version.id; doc.status = "ready"; doc.chunk_count = chunks.get(version.id)?.length || 0; job.status = "completed";
+          extractionManifests.delete(body.p_job); extractionChunks.delete(body.p_job);
           return json({ state: "ready", chunks: doc.chunk_count });
         }
         throw new Error(`Unexpected RPC: ${rpc}`);
@@ -166,7 +195,7 @@ function localAppFixture() {
     }
     throw new Error(`Unexpected synthetic network request: ${method} ${url.href}`);
   };
-  return { env, user, source, expectedChunks, docs, versions, jobs, chunks, objects, points, sessions, messages, outbound, auditEvents, deletionReceipts, deletionTargets, events, queue, fetch, get deletionOperation() { return deletionOperation; }, get embeddingCalls() { return embeddingCalls; }, get generationCalls() { return generationCalls; } };
+  return { env, user, source, expectedChunks, docs, versions, jobs, chunks, extractionManifests, extractionChunks, objects, points, sessions, messages, outbound, auditEvents, deletionReceipts, deletionTargets, events, queue, fetch, get deletionOperation() { return deletionOperation; }, get embeddingCalls() { return embeddingCalls; }, get generationCalls() { return generationCalls; } };
 }
 
 test("synthetic upload → queued ingestion → indexed evidence → grounded chat completes without external calls", async (t) => {
@@ -195,6 +224,8 @@ test("synthetic upload → queued ingestion → indexed evidence → grounded ch
   assert.equal(fixture.points.size, fixture.expectedChunks);
   assert.equal(doc.status, "ready");
   assert.equal(fixture.jobs.get(uploaded.job_id).status, "completed");
+  assert.equal(fixture.extractionManifests.size, 0, "terminal publication purges temporary extracted text");
+  assert.equal(fixture.events.filter((event) => event.path.startsWith("/storage/v1/object/") && event.method === "GET").length, 1, "the original is read only once across batches");
   assert.equal(acked.length, 2, "each batch is acknowledged after durable cursor advancement/completion");
   assert.ok(acked.every((state) => state === "ack"));
 
