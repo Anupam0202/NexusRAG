@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import {
+  ApiRequestError,
   getIngestionJob,
   listDocuments,
   uploadDocument,
@@ -25,7 +26,7 @@ function sleep(ms: number) {
 }
 
 export function useDocuments() {
-  const { documents, setDocuments, addDocument, removeDocument, authMode } = useStore();
+  const { documents, setDocuments, addDocument, removeDocument, authMode, setIsQuotaBlocked, setShowApiKeyModal } = useStore();
   const canAccessWorkspaceApi = canUseWorkspaceApi(authMode);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -97,6 +98,12 @@ export function useDocuments() {
         }
         return resp;
       } catch (err: unknown) {
+        if (err instanceof ApiRequestError && err.code === "BYOK_REQUIRED") {
+          setIsQuotaBlocked(true);
+          setShowApiKeyModal(true);
+          setError(err.message);
+          throw err;
+        }
         const resp = await refresh({ suppressError: true });
         const uploaded = resp?.documents.find(
           (doc) =>
@@ -118,7 +125,7 @@ export function useDocuments() {
         setUploading(false);
       }
     },
-    [addDocument, canAccessWorkspaceApi, refresh]
+    [addDocument, canAccessWorkspaceApi, refresh, setIsQuotaBlocked, setShowApiKeyModal]
   );
 
   const remove = useCallback(

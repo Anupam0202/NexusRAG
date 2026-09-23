@@ -66,4 +66,17 @@ async function metered(env, context, dimensions, operation) {
     throw cause;
   }
 }
-export { metered };
+
+async function geminiCall(env, context, dimensions, operation) {
+  if (context?.credentialMode === "user_byok") {
+    if (typeof context.userApiKey !== "string" || context.userApiKey.length < 10) {
+      throw error("BYOK_REQUIRED", 402);
+    }
+    // This request is charged to the user's own Gemini account, not NexusRAG's
+    // platform key budget. Never include the credential in reservation payloads.
+    return operation();
+  }
+  return metered(env, context, dimensions, operation);
+}
+
+export { geminiCall, metered };

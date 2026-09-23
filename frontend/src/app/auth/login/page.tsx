@@ -12,7 +12,7 @@ import { createSupabaseBrowserClient, hasPublicSupabaseConfig } from "@/lib/supa
 type OAuthProvider = "google" | "github";
 
 const OAUTH_START_ERROR = "We could not start secure sign-in. Please try again.";
-const DEFAULT_OAUTH_PROVIDERS: OAuthProvider[] = ["github"];
+const DEFAULT_OAUTH_PROVIDERS: OAuthProvider[] = ["google", "github"];
 const PROVIDER_ORDER: OAuthProvider[] = ["google", "github"];
 
 function getEnabledOAuthProviders(): OAuthProvider[] {

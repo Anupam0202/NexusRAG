@@ -84,7 +84,7 @@ export default function ApiKeysPage() {
       setIsQuotaBlocked(false);
       setApiKeyValue("");
       setShowKey(false);
-      toast.success("Workspace API key activated");
+      toast.success("Account Gemini API key activated");
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Unable to activate API key";
       setError(message);
@@ -102,7 +102,7 @@ export default function ApiKeysPage() {
       const nextStatus = await deleteApiKey();
       setStatus(nextStatus);
       setUserApiKey(null);
-      toast.success("Workspace API key removed");
+      toast.success("Account Gemini API key removed");
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Unable to remove API key";
       setError(message);
@@ -115,7 +115,7 @@ export default function ApiKeysPage() {
   const hasWorkspaceKey = status?.workspace_key_configured === true;
   const hasServerKey = status?.server_key_configured === true;
   const effectiveMode = hasWorkspaceKey
-    ? "Workspace BYOK"
+    ? "Account Gemini key"
     : hasServerKey
       ? "Server default"
       : "Extractive fallback";
@@ -128,7 +128,7 @@ export default function ApiKeysPage() {
             authMode={authMode}
             nextPath="/settings/api-keys"
             title="Sign in to manage API keys"
-            description="Workspace provider keys are encrypted and can only be managed after sign-in."
+            description="Account Gemini keys are encrypted and can only be managed after sign-in."
           />
         </div>
       </div>
@@ -145,7 +145,7 @@ export default function ApiKeysPage() {
               <h2 className="text-lg font-bold">API Keys</h2>
             </div>
             <p className="mt-1 text-xs text-[var(--text-muted)]">
-              Workspace-scoped Gemini key management with masked status and audit logging.
+              Account-scoped Gemini key management. Five chat queries and one document are included before your key is required; the account document cap is 10.
             </p>
           </div>
           <button
@@ -179,15 +179,15 @@ export default function ApiKeysPage() {
               <div>
                 <p className="text-sm font-bold">{effectiveMode}</p>
                 <p className="mt-1 text-xs text-[var(--text-muted)]">
-                  {status?.workspace_id ?? "Workspace loading"}
+                  {status?.workspace_key_configured ? "Gemini key configured for your account" : "No account key configured"}
                 </p>
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:w-[520px]">
               <StatusTile label="Provider" value={status?.provider ?? "gemini"} />
-              <StatusTile label="Workspace key" value={hasWorkspaceKey ? "Active" : "None"} />
-              <StatusTile label="Server key" value={hasServerKey ? "Available" : "Missing"} />
+              <StatusTile label="Account key" value={hasWorkspaceKey ? "Active" : "None"} />
+              <StatusTile label="Trial key" value={hasServerKey ? "Available" : "Missing"} />
               <StatusTile label="Storage" value={status?.storage ?? "memory"} />
             </div>
           </div>
@@ -197,9 +197,9 @@ export default function ApiKeysPage() {
           <section className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4 md:p-5">
             <div className="mb-4 flex items-center justify-between gap-3">
               <div>
-                <h3 className="text-sm font-bold">Activate Workspace Key</h3>
+                <h3 className="text-sm font-bold">Activate Account Gemini Key</h3>
                 <p className="mt-1 text-xs text-[var(--text-muted)]">
-                  The raw key is sent once for validation and never rendered back.
+                  The raw key is sent over HTTPS for validation and encrypted account storage; it is never rendered back.
                 </p>
               </div>
               <a
@@ -269,7 +269,7 @@ export default function ApiKeysPage() {
               className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-semibold text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-red-900 dark:bg-red-950/20 dark:text-red-300 dark:hover:bg-red-950/30"
             >
               {removing ? <Loader2 size={15} className="animate-spin" /> : <Trash2 size={15} />}
-              {removing ? "Removing" : "Remove Workspace Key"}
+              {removing ? "Removing" : "Remove Account Key"}
             </button>
           </section>
         </div>

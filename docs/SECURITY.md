@@ -6,9 +6,9 @@ NexusRAG is designed around tenant isolation, durable auth context, and defensiv
 
 - Supabase JWT validation and workspace-scoped API context.
 - Supabase Auth is the sole identity and session authority; NexusRAG never receives Google or GitHub credentials.
-- GitHub is the currently configured preview OAuth provider. Google may be
-  enabled only after its Supabase provider configuration and redirect flow are
-  verified.
+- The candidate frontend offers Google and GitHub OAuth. Supabase provider
+  activation and real Google callback verification remain environment setup
+  gates; a visible button alone does not prove that a provider is configured.
 - OAuth callback destinations are restricted to sanitized same-origin application paths.
 - Public sign-in and callback responses avoid provider-detail and token leakage.
 - Account-security controls use explicit Supabase sign-out scopes instead of relying on the SDK's global default.
@@ -19,7 +19,10 @@ NexusRAG is designed around tenant isolation, durable auth context, and defensiv
 - Prompt-injection pattern detection and strict sanitization support.
 - PII redaction helpers for emails, phone numbers, SSNs, and card-like values.
 - Per-IP rate limiting middleware that does not trust caller-supplied identity headers.
-- BYOK provider keys are handled server-side and raw keys are not returned to the browser.
+- Candidate Gemini BYOK keys are encrypted with AES-256-GCM in server-side
+  storage, shown only as a short fingerprint, and sent to Google in an API-key
+  header (never a URL). The stable encryption secret must remain in the
+  Preview secret manager and is not configured by source code.
 - Markdown links in chat responses are restricted to relative, hash, `http`, `https`, and `mailto` links with safe external-link attributes.
 - Cloudflare frontend and gateway responses include CSP, HSTS, frame denial, restrictive permissions policy, and content-type/referrer protections.
 - Deleting a document also deletes its private Supabase Storage original before removing durable chunks and vectors.

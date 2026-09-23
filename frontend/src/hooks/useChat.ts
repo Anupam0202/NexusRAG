@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef } from "react";
-import { chatQuery, getSessionMessages } from "@/lib/api";
+import { ApiRequestError, chatQuery, getSessionMessages } from "@/lib/api";
 import { useStore } from "@/hooks/useStore";
 import { canUseWorkspaceApi } from "@/hooks/useAuthGate";
 import type { QueryRequest, UIMessage } from "@/types";
@@ -82,6 +82,13 @@ export function useChat() {
       store.setConnectionStatus("online");
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Failed to reach the backend";
+      if (err instanceof ApiRequestError && err.code === "BYOK_REQUIRED") {
+        store.setIsQuotaBlocked(true);
+        store.setShowApiKeyModal(true);
+        store.setError(id, "Your free trial is used. Add a Gemini API key from Google AI Studio to continue.");
+        store.setConnectionStatus("online");
+        return;
+      }
       if (/quota|rate.limit|429|resource.exhausted/i.test(message)) {
         store.setError(id, "The free-tier limit or workspace budget blocks this request. No paid fallback was used.");
         store.setConnectionStatus("online");

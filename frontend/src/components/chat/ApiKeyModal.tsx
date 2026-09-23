@@ -124,21 +124,21 @@ export function ApiKeyModal() {
 
                 {/* Title */}
                 <h3 className="text-lg font-bold text-center mb-1.5">
-                  {isQuotaBlocked ? "Quota Exceeded — Action Required" : "API Quota Exceeded"}
+                  {isQuotaBlocked ? "Free trial complete" : "Add your Gemini API key"}
                 </h3>
 
                 {/* Description */}
                 <p className="text-sm text-[var(--text-muted)] text-center mb-4 leading-relaxed max-w-sm mx-auto">
                   {isQuotaBlocked
-                    ? "The free-tier quota has been reached. You must provide your own Google API key to continue using the chat."
-                    : "The daily free-tier quota has been reached. Enter your own Google API key to continue."}
+                    ? "Your five free chat queries are used, or you are adding documents beyond the first. Add a Gemini API key to continue."
+                    : "Connect your own Gemini API key to process additional documents and continue chatting."}
                 </p>
 
                 {/* Mandatory notice banner (quota-blocked only) */}
                 {isQuotaBlocked && (
                   <div className="rounded-xl bg-red-500/5 border border-red-500/20 px-4 py-3 mb-4">
                     <p className="text-xs text-red-600 dark:text-red-400 font-medium text-center">
-                      Chat is unavailable without an API key. Providing your key takes 30 seconds.
+                      This account includes 5 chat queries and 1 document before a key is required. The application allows up to 10 documents per account.
                     </p>
                   </div>
                 )}
@@ -148,7 +148,7 @@ export function ApiKeyModal() {
                   <div className="flex items-start gap-2.5">
                     <Sparkles size={14} className="text-amber-500 mt-0.5 shrink-0" />
                     <div className="text-xs text-[var(--text-secondary)] leading-relaxed">
-                      <p className="font-medium text-amber-600 dark:text-amber-400 mb-1">How to get a free API key:</p>
+                          <p className="font-medium text-amber-600 dark:text-amber-400 mb-1">Get a Gemini API key:</p>
                       <ol className="list-decimal list-inside space-y-0.5">
                         <li>
                           Go to{" "}
@@ -162,8 +162,8 @@ export function ApiKeyModal() {
                           </a>
                         </li>
                         <li>Sign in with your Google account</li>
-                        <li>Click &quot;Create API key&quot;</li>
-                        <li>Copy and paste it below</li>
+                        <li>Click &quot;Create API key&quot; (create or select a Google Cloud project as prompted)</li>
+                        <li>Copy the key and paste it below</li>
                       </ol>
                     </div>
                   </div>
@@ -221,7 +221,7 @@ export function ApiKeyModal() {
                 </div>
 
                 <p className="text-[10px] text-[var(--text-muted)] text-center mt-4">
-                  Your browser forgets the raw key after submit. The backend stores only an encrypted workspace key.
+                  Your key is validated and stored encrypted for your account. It is not shown again. Google controls its own quotas and billing; this app cannot guarantee that Google usage is free. Review your Google AI Studio/Cloud billing settings.
                 </p>
               </div>
             </div>

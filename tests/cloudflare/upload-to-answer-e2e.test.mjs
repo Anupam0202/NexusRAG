@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { handleQueue } from "../../apps/gateway/src/worker-jobs.js";
 import { handle } from "../../apps/gateway/src/preview-worker.js";
 import { chunkText } from "../../apps/gateway/src/worker-pipeline.js";
+import { encryptGeminiKey } from "../../apps/gateway/src/user-gemini-key.js";
 
 const workspace = "10101010-1010-4010-8010-101010101010";
 const userId = "20202020-2020-4020-8020-202020202020";
@@ -23,6 +24,9 @@ function localAppFixture() {
   const messages = [];
   const outbound = [];
   const auditEvents = [];
+  const accountUsage = { free_chat_queries: 0, lifetime_documents: 0 };
+  const accountOperations = new Set();
+  const userKeys = new Map();
   const deletionReceipts = [];
   const deletionTargets = new Map();
   let deletionOperation = null;
@@ -32,6 +36,7 @@ function localAppFixture() {
     SUPABASE_URL: "https://supabase.invalid",
     SUPABASE_PUBLISHABLE_KEY: "synthetic-publishable",
     SUPABASE_SERVICE_ROLE_KEY: "synthetic-service-only",
+    GEMINI_USER_KEY_ENCRYPTION_SECRET: Buffer.alloc(32, 9).toString("base64"),
     QDRANT_URL: "https://qdrant.invalid",
     QDRANT_API_KEY: "synthetic-qdrant-only",
     QDRANT_COLLECTION: "nexusrag-e2e",
@@ -46,6 +51,7 @@ function localAppFixture() {
   assert.ok(expectedChunks > 3 && expectedChunks <= 400, `fixture must exercise bounded batches, got ${expectedChunks}`);
   let embeddingCalls = 0;
   let generationCalls = 0;
+  let expectedGeminiApiKey = null;
   const matchesFilter = (point, filter) => (filter?.must || []).every((condition) => {
     const actual = point.payload?.[condition.key];
     if (condition.match?.value !== undefined) return actual === condition.match.value;
@@ -56,7 +62,7 @@ function localAppFixture() {
     const url = new URL(String(rawUrl));
     const method = init.method || "GET";
     const body = typeof init.body === "string" ? JSON.parse(init.body) : null;
-    events.push({ host: url.hostname, path: url.pathname, method });
+    events.push({ host: url.hostname, path: url.pathname, method, userKeyHeader: new Headers(init.headers || {}).has("x-goog-api-key") });
 
     if (url.hostname === "supabase.invalid" && url.pathname === "/auth/v1/user") return json(user);
     if (url.hostname === "supabase.invalid" && url.pathname.startsWith("/storage/v1/object/")) {
@@ -67,6 +73,10 @@ function localAppFixture() {
     }
     if (url.hostname === "supabase.invalid" && url.pathname.startsWith("/rest/v1/")) {
       const table = url.pathname.split("/rest/v1/")[1];
+      if (table.startsWith("nexus_user_provider_keys")) {
+        const userKey = userKeys.get(userId);
+        return json(userKey ? [structuredClone(userKey)] : []);
+      }
       if (table === "workspace_members") return json([member]);
       if (table === "documents") {
         if (method === "POST") {
@@ -122,6 +132,20 @@ function localAppFixture() {
       if (table === "llm_usage_events" && method === "POST") return json(body, 201);
       if (table.startsWith("rpc/")) {
         const rpc = table.slice("rpc/".length);
+        if (rpc === "nexus_admit_account_operation") {
+          const operationKey = `${body.p_user}:${body.p_operation}:${body.p_idempotency_key}`;
+          if (accountOperations.has(operationKey)) return json({ state: "READY", replayed: true, credential_mode: "platform_trial" });
+          accountOperations.add(operationKey);
+          if (body.p_operation === "chat") {
+            if (accountUsage.free_chat_queries >= 5) return json({ state: "BYOK_REQUIRED", used: 5, limit: 5, credential_mode: "none" });
+            accountUsage.free_chat_queries += 1;
+            return json({ state: "READY", used: accountUsage.free_chat_queries, limit: 5, credential_mode: "platform_trial" });
+          }
+          if (accountUsage.lifetime_documents >= 10) return json({ state: "CAPACITY_REACHED", used: 10, limit: 10, credential_mode: "none" });
+          if (accountUsage.lifetime_documents >= 1 && !userKeys.has(body.p_user)) return json({ state: "BYOK_REQUIRED", used: accountUsage.lifetime_documents, limit: 10, credential_mode: "none" });
+          accountUsage.lifetime_documents += 1;
+          return json({ state: "READY", used: accountUsage.lifetime_documents, limit: 10, credential_mode: accountUsage.lifetime_documents === 1 ? "platform_trial" : "user_byok" });
+        }
         if (rpc === "tombstone_document") {
           const doc = docs.get(body.p_document); assert.ok(doc); doc.lifecycle_state = "deleting";
           deletionOperation = { id: crypto.randomUUID(), workspace_id: workspace, resource_id: doc.id, state: "pending" };
@@ -182,6 +206,8 @@ function localAppFixture() {
       throw new Error(`Unexpected local Supabase request: ${method} ${table}${url.search}`);
     }
     if (url.hostname === "generativelanguage.googleapis.com") {
+      assert.equal(url.searchParams.get("key"), null, "Gemini API keys must never be placed in provider URLs");
+      if (expectedGeminiApiKey) assert.equal(new Headers(init.headers || {}).get("x-goog-api-key"), expectedGeminiApiKey);
       if (url.pathname.endsWith(":embedContent")) { embeddingCalls += 1; return json({ embedding: { values: Array(768).fill(0.01) } }); }
       if (url.pathname.endsWith(":generateContent")) { generationCalls += 1; return json({ candidates: [{ content: { parts: [{ text: "The evidence describes a 30-day retention policy. [S1]" }] } }], usageMetadata: { promptTokenCount: 42, candidatesTokenCount: 12 } }); }
     }
@@ -195,7 +221,7 @@ function localAppFixture() {
     }
     throw new Error(`Unexpected synthetic network request: ${method} ${url.href}`);
   };
-  return { env, user, source, expectedChunks, docs, versions, jobs, chunks, extractionManifests, extractionChunks, objects, points, sessions, messages, outbound, auditEvents, deletionReceipts, deletionTargets, events, queue, fetch, get deletionOperation() { return deletionOperation; }, get embeddingCalls() { return embeddingCalls; }, get generationCalls() { return generationCalls; } };
+  return { env, user, source, expectedChunks, docs, versions, jobs, chunks, extractionManifests, extractionChunks, objects, points, sessions, messages, outbound, auditEvents, deletionReceipts, deletionTargets, events, queue, accountUsage, userKeys, fetch, setExpectedGeminiApiKey(value) { expectedGeminiApiKey = value; }, get deletionOperation() { return deletionOperation; }, get embeddingCalls() { return embeddingCalls; }, get generationCalls() { return generationCalls; } };
 }
 
 test("synthetic upload → queued ingestion → indexed evidence → grounded chat completes without external calls", async (t) => {
@@ -204,7 +230,7 @@ test("synthetic upload → queued ingestion → indexed evidence → grounded ch
   const file = new File([fixture.source], "retention-policy.txt", { type: "text/plain" });
   const form = new FormData(); form.set("file", file); form.set("data_classification", "non_sensitive"); form.set("non_sensitive_attested", "true");
   const upload = await handle(new Request("https://gateway.invalid/api/v1/documents/upload", {
-    method: "POST", headers: { authorization: "Bearer synthetic-oauth-token", "x-nexus-workspace-id": workspace }, body: form,
+    method: "POST", headers: { authorization: "Bearer synthetic-oauth-token", "x-nexus-workspace-id": workspace, "idempotency-key": crypto.randomUUID() }, body: form,
   }), fixture.env);
   assert.equal(upload.status, 202);
   const uploaded = await upload.json();
@@ -232,7 +258,7 @@ test("synthetic upload → queued ingestion → indexed evidence → grounded ch
   assert.ok(acked.every((state) => state === "ack"));
 
   const answerResponse = await handle(new Request("https://gateway.invalid/api/v1/chat", {
-    method: "POST", headers: { authorization: "Bearer synthetic-oauth-token", "x-nexus-workspace-id": workspace, "content-type": "application/json" },
+    method: "POST", headers: { authorization: "Bearer synthetic-oauth-token", "x-nexus-workspace-id": workspace, "content-type": "application/json", "idempotency-key": crypto.randomUUID() },
     body: JSON.stringify({ question: "What retention period does the policy specify?", non_sensitive_attested: true, document_ids: [doc.id], top_k: 8 }),
   }), fixture.env);
   assert.equal(answerResponse.status, 200);
@@ -291,4 +317,91 @@ test("chat without non-sensitive prompt attestation is denied before persistence
   assert.equal(fixture.messages.length, 0);
   assert.equal(fixture.embeddingCalls, 0);
   assert.equal(fixture.generationCalls, 0);
+});
+
+test("the sixth account chat query is denied before any provider or message write", async (t) => {
+  const fixture = localAppFixture();
+  fixture.accountUsage.free_chat_queries = 5;
+  t.mock.method(globalThis, "fetch", fixture.fetch);
+  const response = await handle(new Request("https://gateway.invalid/api/v1/chat", {
+    method: "POST",
+    headers: {
+      authorization: "Bearer synthetic-oauth-token",
+      "x-nexus-workspace-id": workspace,
+      "content-type": "application/json",
+      "idempotency-key": crypto.randomUUID(),
+    },
+    body: JSON.stringify({ question: "Summarize this policy", non_sensitive_attested: true }),
+  }), fixture.env);
+  assert.equal(response.status, 402);
+  assert.equal((await response.json()).error.code, "BYOK_REQUIRED");
+  assert.equal(fixture.generationCalls, 0);
+  assert.equal(fixture.embeddingCalls, 0);
+  assert.equal(fixture.messages.length, 0);
+});
+
+test("a second document is denied before storage until account BYOK is configured", async (t) => {
+  const fixture = localAppFixture();
+  fixture.accountUsage.lifetime_documents = 1;
+  t.mock.method(globalThis, "fetch", fixture.fetch);
+  const form = new FormData();
+  form.set("file", new File(["another document"], "second.txt", { type: "text/plain" }));
+  form.set("data_classification", "non_sensitive");
+  form.set("non_sensitive_attested", "true");
+  const response = await handle(new Request("https://gateway.invalid/api/v1/documents/upload", {
+    method: "POST",
+    headers: {
+      authorization: "Bearer synthetic-oauth-token",
+      "x-nexus-workspace-id": workspace,
+      "idempotency-key": crypto.randomUUID(),
+    },
+    body: form,
+  }), fixture.env);
+  assert.equal(response.status, 402);
+  assert.equal((await response.json()).error.code, "BYOK_REQUIRED");
+  assert.equal(fixture.objects.size, 0);
+  assert.equal(fixture.queue.sent.length, 0);
+});
+
+test("a BYOK-authorized PDF uses the uploader's encrypted key for extraction and queued embeddings", async (t) => {
+  const fixture = localAppFixture();
+  fixture.accountUsage.lifetime_documents = 1;
+  const rawKey = "AIzaSyntheticUploaderKey000000000000";
+  const sealed = await encryptGeminiKey(fixture.env, rawKey);
+  fixture.userKeys.set(userId, {
+    user_id: userId, provider: "gemini", ...sealed, key_fingerprint: "…0000", is_active: true,
+  });
+  fixture.setExpectedGeminiApiKey(rawKey);
+  t.mock.method(globalThis, "fetch", fixture.fetch);
+  const form = new FormData();
+  form.set("file", new File(["%PDF-1.4 synthetic"], "second.pdf", { type: "application/pdf" }));
+  form.set("data_classification", "non_sensitive");
+  form.set("non_sensitive_attested", "true");
+  const response = await handle(new Request("https://gateway.invalid/api/v1/documents/upload", {
+    method: "POST",
+    headers: {
+      authorization: "Bearer synthetic-oauth-token",
+      "x-nexus-workspace-id": workspace,
+      "idempotency-key": crypto.randomUUID(),
+    },
+    body: form,
+  }), fixture.env);
+  assert.equal(response.status, 202, await response.clone().text());
+  const uploaded = await response.json();
+  assert.equal(fixture.jobs.get(uploaded.job_id).payload.provider_mode, "user_byok");
+  assert.equal(fixture.queue.sent.length, 1);
+  const acknowledgements = [];
+  await handleQueue({
+    messages: [{
+      body: fixture.queue.sent.shift(),
+      ack() { acknowledgements.push("ack"); },
+      retry() { acknowledgements.push("retry"); },
+    }],
+  }, fixture.env);
+  assert.deepEqual(acknowledgements, ["ack"]);
+  assert.equal(fixture.docs.get(uploaded.document.document_id).status, "ready");
+  assert.equal(fixture.extractionManifests.size, 0);
+  assert.ok(fixture.events.filter((event) => event.host === "generativelanguage.googleapis.com").length >= 2);
+  assert.ok(fixture.events.filter((event) => event.host === "generativelanguage.googleapis.com").every((event) => event.userKeyHeader));
+  assert.ok(fixture.events.filter((event) => event.host === "generativelanguage.googleapis.com").every((event) => !event.path.includes(rawKey)));
 });

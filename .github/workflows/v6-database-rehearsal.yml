@@ -10,6 +10,8 @@ on:
       - supabase/migrations/029_durable_extraction_staging.sql
       - supabase/migrations/030_non_sensitive_gemini_policy_gate.sql
       - supabase/migrations/031_harden_extraction_storage_privileges.sql
+      - supabase/migrations/032_account_trial_and_user_gemini_keys.sql
+      - supabase/migrations/033_explicit_deny_account_trial_tables.sql
       - scripts/build_clean_baseline.py
       - scripts/verify_v6_migrations.py
       - tests/postgres/**
@@ -62,6 +64,8 @@ jobs:
           cp "$GITHUB_WORKSPACE/supabase/migrations/029_durable_extraction_staging.sql" "$source_dir/supabase/migrations/"
           cp "$GITHUB_WORKSPACE/supabase/migrations/030_non_sensitive_gemini_policy_gate.sql" "$source_dir/supabase/migrations/"
           cp "$GITHUB_WORKSPACE/supabase/migrations/031_harden_extraction_storage_privileges.sql" "$source_dir/supabase/migrations/"
+          cp "$GITHUB_WORKSPACE/supabase/migrations/032_account_trial_and_user_gemini_keys.sql" "$source_dir/supabase/migrations/"
+          cp "$GITHUB_WORKSPACE/supabase/migrations/033_explicit_deny_account_trial_tables.sql" "$source_dir/supabase/migrations/"
           chmod -R a+rX "$source_dir"
           cleanup() {
             sudo -u postgres dropdb --if-exists -h /var/run/postgresql -p "$port" "$db" >/dev/null 2>&1 || true
@@ -76,7 +80,7 @@ jobs:
             PGUSER=postgres \
             PGDATABASE="$db" \
             bash "$source_dir/tests/postgres/local-rehearsal.sh" >"$log" 2>&1; then
-            grep -E 'postgres_durable_extraction_stage_pass|concurrent_reservation_settlement_pass|storage_rls_two_identity_pass|LOCAL_POSTGRES_REHEARSAL_PASS' "$log"
+            grep -E 'postgres_durable_extraction_stage_pass|concurrent_reservation_settlement_pass|concurrent_account_trial_limit_pass|account_trial_byok_assertions_pass|account_trial_rollback_pass|storage_rls_two_identity_pass|LOCAL_POSTGRES_REHEARSAL_PASS' "$log"
           else
             tail -n 80 "$log"
             exit 1

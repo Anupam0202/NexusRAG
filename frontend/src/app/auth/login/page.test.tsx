@@ -39,12 +39,12 @@ describe("LoginPage", () => {
     window.history.replaceState({}, "", "/auth/login");
   });
 
-  it("defaults to the verified GitHub provider", () => {
+  it("defaults to Google and GitHub sign-in", () => {
     render(<LoginPage />);
 
     expect(
       screen.getAllByRole("button").map((button) => button.textContent?.trim())
-    ).toEqual(["Continue with GitHub"]);
+    ).toEqual(["Continue with Google", "Continue with GitHub"]);
   });
 
   it("renders Google before GitHub when both providers are enabled", () => {

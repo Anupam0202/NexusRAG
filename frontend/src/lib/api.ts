@@ -74,8 +74,23 @@ export function formatApiErrorDetail(detail: unknown, fallback: string): string 
 
 async function readErrorMessage(res: Response, fallback: string) {
   const body = await res.json().catch(() => ({}));
-  const detail = body && typeof body === "object" ? body.detail ?? body.message : body;
-  return formatApiErrorDetail(detail, fallback);
+  const detail = body && typeof body === "object" ? body.error ?? body.detail ?? body.message ?? body : body;
+  const message = detail && typeof detail === "object" && typeof detail.message === "string"
+    ? detail.message
+    : formatApiErrorDetail(detail, fallback);
+  const code = detail && typeof detail === "object" && typeof detail.code === "string"
+    ? detail.code
+    : undefined;
+  return { message, code };
+}
+
+export class ApiRequestError extends Error {
+  readonly code?: string;
+  constructor(message: string, code?: string) {
+    super(message);
+    this.name = "ApiRequestError";
+    this.code = code;
+  }
 }
 
 async function request<T>(
@@ -95,7 +110,8 @@ async function request<T>(
     throw new Error("Backend connection was interrupted. Please retry after the service is live.");
   }
   if (!res.ok) {
-    throw new Error(await readErrorMessage(res, `HTTP ${res.status}`));
+    const error = await readErrorMessage(res, `HTTP ${res.status}`);
+    throw new ApiRequestError(error.message, error.code);
   }
   return res.json();
 }
@@ -113,7 +129,8 @@ export async function uploadDocument(
 
   let res: Response;
   try {
-    const headers = await getApiHeaders({ json: false });
+    const headers = new Headers(await getApiHeaders({ json: false }));
+    headers.set("Idempotency-Key", crypto.randomUUID());
     res = await fetch(buildBackendUrl("/api/v1/documents/upload"), {
       method: "POST",
       headers,
@@ -128,7 +145,8 @@ export async function uploadDocument(
   }
 
   if (!res.ok) {
-    throw new Error(await readErrorMessage(res, `Upload failed (${res.status})`));
+    const error = await readErrorMessage(res, `Upload failed (${res.status})`);
+    throw new ApiRequestError(error.message, error.code);
   }
   return res.json();
 }
@@ -190,6 +208,7 @@ export async function chatQuery(body: QueryRequest): Promise<QueryResponse> {
   return request("/api/v1/chat", {
     method: "POST",
     body: JSON.stringify(body),
+    headers: { "Idempotency-Key": crypto.randomUUID() },
   });
 }
 

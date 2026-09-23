@@ -1,5 +1,6 @@
 import { chunkText, indexChunks, MAX_DOCUMENT_CHUNKS, MAX_INDEX_BATCH_CHUNKS, sha256 } from "./worker-pipeline.js";
 import { deleteQdrantGeneration, extractFileText, verifyQdrantGeneration } from "./worker-lifecycle.js";
+import { loadUserGeminiKey } from "./user-gemini-key.js";
 
 const iso = () => new Date().toISOString();
 const err = (code, message, retryable = false) => Object.assign(new Error(message), { code, status: 503, retryable });
@@ -111,6 +112,12 @@ async function processIngestionMessage(env, message) {
     const document = documents?.[0];
     version = versions?.[0];
     if (!document || !version) throw err("STALE_WORKER", "Document authority changed.");
+    const credentialMode = job.payload?.provider_mode || "platform_trial";
+    if (!["platform_trial", "user_byok"].includes(credentialMode)) throw err("INVALID_SCOPE", "Ingestion credential mode is invalid.");
+    const userApiKey = credentialMode === "user_byok"
+      ? await loadUserGeminiKey(env, document.uploaded_by)
+      : null;
+    if (credentialMode === "user_byok" && !userApiKey) throw err("BYOK_REQUIRED", "The uploader's Gemini key is unavailable; re-enter it before retrying this job.");
     if (version.data_classification !== "non_sensitive"
         || !version.classification_declared_by || !version.classification_declared_at) {
       throw err("RIGHTS_BLOCKED", "Document classification is missing or sensitive; provider processing is blocked.");
@@ -149,7 +156,7 @@ async function processIngestionMessage(env, message) {
       });
       if (!original.ok) throw err("PERSISTENCE_UNAVAILABLE", "Original unavailable.", true);
       const file = new File([await original.arrayBuffer()], document.filename, { type: document.content_type });
-      const extracted = await extractFileText(env, file, { workspaceId: job.workspace_id, priority: "background", dataClassification: version.data_classification });
+      const extracted = await extractFileText(env, file, { workspaceId: job.workspace_id, priority: "background", dataClassification: version.data_classification, userApiKey, credentialMode });
       const chunks = chunkText(extracted.text);
       if (!chunks.length) throw err("EMPTY_DOCUMENT", "The document contains no indexable text.");
       if (chunks.length > MAX_DOCUMENT_CHUNKS) throw err("CAPACITY_REACHED", "Document exceeds the 400-chunk bounded ingestion limit.");
@@ -189,7 +196,7 @@ async function processIngestionMessage(env, message) {
     const points = await indexChunks(env, {
       workspaceId: job.workspace_id, documentId: job.document_id, versionId: job.version_id,
       generation, filename: document.filename, chunks: batch, initializeIndex: offset === 0,
-      dataClassification: version.data_classification,
+      dataClassification: version.data_classification, userApiKey, credentialMode,
     });
     const stagedChunks = await Promise.all(points.map(async (point, index) => {
       const chunk = batch[index];

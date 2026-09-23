@@ -11,6 +11,13 @@ import {
 import { deleteQdrantDocument, hybridFuse } from "./worker-lifecycle.js";
 import { handleQueue, sweepJobs } from "./worker-jobs.js";
 import { assessAnswer } from "./answer-evidence.js";
+import {
+  deleteUserGeminiKey,
+  getUserGeminiKeyRecord,
+  loadUserGeminiKey,
+  saveUserGeminiKey,
+  validateGeminiKey,
+} from "./user-gemini-key.js";
 
 // Supabase service-role access is kept in a Cloudflare secret binding; OAuth and MCP gates are exact-head validated.
 const BASE_HEADERS = Object.freeze({
@@ -218,7 +225,55 @@ async function loadBoundDocument(env, workspace, documentId) {
 }
 
 async function enqueueJob(env,job){if(!env.INGESTION_QUEUE?.send)throw Object.assign(new Error("The durable ingestion queue is unavailable."),{status:503,code:"QUEUE_UNAVAILABLE",retryable:true});await env.INGESTION_QUEUE.send({job_id:job.id,workspace_id:job.workspace_id,document_id:job.document_id,version_id:job.version_id,lifecycle_epoch:Number(job.lifecycle_epoch||1)});}
-async function uploadDocument(request,env,user,workspace,member){requireCapability(member,"research:run");const form=await request.formData(),file=form.get("file");validateWorkerFile(file);if(form.get("data_classification")!=="non_sensitive"||form.get("non_sensitive_attested")!=="true")throw Object.assign(new Error("Upload blocked: explicitly attest that the document is non-sensitive; sensitive or unclassified documents are not accepted."),{status:403,code:"RIGHTS_BLOCKED"});const filename=safeFilename(file.name),bytes=new Uint8Array(await file.arrayBuffer()),hash=await sha256(bytes);const dup=await serviceRequest(env,`documents?workspace_id=eq.${workspace}&uploaded_by=eq.${user.id}&sha256=eq.${hash}&lifecycle_state=eq.active&select=*&limit=1`);if(dup?.[0])return{success:true,message:`${dup[0].filename} already uploaded`,document:documentView(dup[0]),duplicate:true};const documentId=crypto.randomUUID(),versionId=crypto.randomUUID(),generation=crypto.randomUUID(),jobId=crypto.randomUUID(),key=`${workspace}/${documentId}/${versionId}/${filename}`,declaredAt=new Date().toISOString();await storageWrite(env,key,file);await serviceRequest(env,"documents",{method:"POST",body:JSON.stringify([{id:documentId,workspace_id:workspace,uploaded_by:user.id,filename,original_filename:filename,content_type:file.type,file_size_bytes:bytes.length,storage_bucket:"documents",storage_path:key,sha256:hash,status:"queued"}])});await serviceRequest(env,"document_versions",{method:"POST",body:JSON.stringify([{id:versionId,workspace_id:workspace,document_id:documentId,original_bucket:"documents",original_key:key,original_hash:hash,original_bytes:bytes.length,original_verified_at:declaredAt,parser_version:"pending",chunker_version:"worker-char-v1",embedding_space_id:env.GEMINI_EMBEDDING_MODEL||"gemini-embedding-001",index_generation:generation,extraction_manifest:{},lifecycle_epoch:1,publication_state:"staged",data_classification:"non_sensitive",classification_declared_by:user.id,classification_declared_at:declaredAt}])});const jobs=await serviceRequest(env,"ingestion_jobs",{method:"POST",body:JSON.stringify([{id:jobId,workspace_id:workspace,document_id:documentId,version_id:versionId,status:"queued",progress:0,stage:"queued",attempts:0,available_at:declaredAt,lifecycle_epoch:1,payload:{filename,content_type:file.type,operation:"upload"},kind:"ingestion"}])});await enqueueJob(env,jobs[0]);const document=await loadBoundDocument(env,workspace,documentId);return{success:true,message:`${filename} accepted for durable processing`,document:documentView(document),job_id:jobId,job:jobView(jobs[0],document)};}
+async function accountAdmission(request, env, user, operation) {
+  const idempotencyKey = request.headers.get("idempotency-key") || "";
+  if (!/^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(idempotencyKey)) {
+    throw Object.assign(new Error("A valid Idempotency-Key is required."), { status: 400, code: "INVALID_SCOPE" });
+  }
+  const result = await serviceRequest(env, "rpc/nexus_admit_account_operation", {
+    method: "POST",
+    body: JSON.stringify({ p_user: user.id, p_operation: operation, p_idempotency_key: idempotencyKey }),
+  });
+  if (result?.replayed) {
+    throw Object.assign(new Error("This request was already admitted. Start a new request to retry safely."), { status: 409, code: "IDEMPOTENCY_REPLAY" });
+  }
+  if (result?.state !== "READY") {
+    const messages = {
+      BYOK_REQUIRED: operation === "chat"
+        ? "Your 5 free chat queries are used. Add your own Gemini API key from Google AI Studio to continue."
+        : "Your first document is included. Add your own Gemini API key before uploading additional documents.",
+      CAPACITY_REACHED: "The account has reached its 10-document lifetime limit.",
+    };
+    throw Object.assign(new Error(messages[result?.state] || "The account operation is unavailable."), {
+      status: result?.state === "BYOK_REQUIRED" ? 402 : 409,
+      code: result?.state || "ACCOUNT_LIMIT",
+    });
+  }
+  const apiKey = result.credential_mode === "user_byok" ? await loadUserGeminiKey(env, user.id) : null;
+  if (result.credential_mode === "user_byok" && !apiKey) {
+    throw Object.assign(new Error("Your Gemini key is unavailable. Re-enter it in Settings to continue."), { status: 402, code: "BYOK_REQUIRED" });
+  }
+  return { credentialMode: result.credential_mode, userApiKey: apiKey, used: result.used, limit: result.limit };
+}
+
+async function uploadDocument(request,env,user,workspace,member){
+  requireCapability(member,"research:run");
+  const form=await request.formData(),file=form.get("file");validateWorkerFile(file);
+  if(form.get("data_classification")!=="non_sensitive"||form.get("non_sensitive_attested")!=="true")
+    throw Object.assign(new Error("Upload blocked: explicitly attest that the document is non-sensitive; sensitive or unclassified documents are not accepted."),{status:403,code:"RIGHTS_BLOCKED"});
+  const filename=safeFilename(file.name),bytes=new Uint8Array(await file.arrayBuffer()),hash=await sha256(bytes);
+  const dup=await serviceRequest(env,`documents?workspace_id=eq.${workspace}&uploaded_by=eq.${user.id}&sha256=eq.${hash}&lifecycle_state=eq.active&select=*&limit=1`);
+  if(dup?.[0])return{success:true,message:`${dup[0].filename} already uploaded`,document:documentView(dup[0]),duplicate:true};
+  const admission=await accountAdmission(request,env,user,"document");
+  const documentId=crypto.randomUUID(),versionId=crypto.randomUUID(),generation=crypto.randomUUID(),jobId=crypto.randomUUID(),key=`${workspace}/${documentId}/${versionId}/${filename}`,declaredAt=new Date().toISOString();
+  await storageWrite(env,key,file);
+  await serviceRequest(env,"documents",{method:"POST",body:JSON.stringify([{id:documentId,workspace_id:workspace,uploaded_by:user.id,filename,original_filename:filename,content_type:file.type,file_size_bytes:bytes.length,storage_bucket:"documents",storage_path:key,sha256:hash,status:"queued"}])});
+  await serviceRequest(env,"document_versions",{method:"POST",body:JSON.stringify([{id:versionId,workspace_id:workspace,document_id:documentId,original_bucket:"documents",original_key:key,original_hash:hash,original_bytes:bytes.length,original_verified_at:declaredAt,parser_version:"pending",chunker_version:"worker-char-v1",embedding_space_id:env.GEMINI_EMBEDDING_MODEL||"gemini-embedding-001",index_generation:generation,extraction_manifest:{},lifecycle_epoch:1,publication_state:"staged",data_classification:"non_sensitive",classification_declared_by:user.id,classification_declared_at:declaredAt}])});
+  const jobs=await serviceRequest(env,"ingestion_jobs",{method:"POST",body:JSON.stringify([{id:jobId,workspace_id:workspace,document_id:documentId,version_id:versionId,status:"queued",progress:0,stage:"queued",attempts:0,available_at:declaredAt,lifecycle_epoch:1,payload:{filename,content_type:file.type,operation:"upload",provider_mode:admission.credentialMode},kind:"ingestion"}])});
+  await enqueueJob(env,jobs[0]);
+  const document=await loadBoundDocument(env,workspace,documentId);
+  return{success:true,message:`${filename} accepted for durable processing`,document:documentView(document),job_id:jobId,job:jobView(jobs[0],document),account_usage:{documents_used:admission.used,documents_limit:admission.limit}};
+}
 
 async function getJob(env, workspace, jobId) {
   const jobs = await serviceRequest(env, `ingestion_jobs?workspace_id=eq.${workspace}&id=eq.${jobId}&select=*&limit=1`);
@@ -262,12 +317,14 @@ async function deleteDocument(request, env, user, workspace, member, documentId)
 async function chat(request, env, user, workspace, member) {
   requireCapability(member,"research:run"); const started=Date.now(); const body=await request.json(); const question=String(body?.question||"").trim(); if(!question||question.length>10000)throw Object.assign(new Error("Question must contain 1 to 10,000 characters."),{status:422,code:"INVALID_SCOPE"});
   if(body?.non_sensitive_attested!==true)throw Object.assign(new Error("Chat blocked: confirm the question contains no personal, confidential, regulated, or other sensitive information."),{status:403,code:"RIGHTS_BLOCKED"});
+  const admission=await accountAdmission(request,env,user,"chat");
   const documentIds=Array.isArray(body?.document_ids)?body.document_ids.filter(v=>/^[0-9a-f-]{36}$/i.test(v)).slice(0,25):[]; const sessionId=/^[0-9a-f-]{36}$/i.test(String(body?.session_id||""))?body.session_id:crypto.randomUUID();
   let sessions=await serviceRequest(env,`chat_sessions?workspace_id=eq.${workspace}&id=eq.${sessionId}&user_id=eq.${user.id}&deleted_at=is.null&select=*&limit=1`); if(!sessions?.[0])sessions=await serviceRequest(env,"chat_sessions",{method:"POST",body:JSON.stringify([{id:sessionId,workspace_id:workspace,user_id:user.id,title:question.slice(0,120),visibility:"private"}])});
   await serviceRequest(env,"chat_messages",{method:"POST",body:JSON.stringify([{workspace_id:workspace,session_id:sessionId,role:"user",content:question,sources:[],metadata:{query_type:"general"}}])});
-  const requestedFilter=documentIds.length?`&id=in.(${documentIds.join(",")})`:"";const activeDocuments=await serviceRequest(env,`documents?workspace_id=eq.${workspace}&lifecycle_state=eq.active&active_version_id=not.is.null${requestedFilter}&select=id,active_version_id&limit=100`);const versions=activeDocuments.length?await serviceRequest(env,`document_versions?workspace_id=eq.${workspace}&publication_state=eq.ready&data_classification=eq.non_sensitive&select=id,document_id&limit=100`):[];const eligibleVersionIds=new Set(versions.map(item=>item.id));const eligibleDocuments=activeDocuments.filter(item=>eligibleVersionIds.has(item.active_version_id));const activeDocumentIds=eligibleDocuments.map(item=>item.id),activeVersionIds=eligibleDocuments.map(item=>item.active_version_id);const vectorHits=activeVersionIds.length?await searchChunks(env,{workspaceId:workspace,question,documentIds:activeDocumentIds,versionIds:activeVersionIds,limit:Math.min(Number(body?.top_k||12),12),dataClassification:"non_sensitive"}):[];const lexical=activeVersionIds.length?await serviceRequest(env,`document_chunks?workspace_id=eq.${workspace}&version_id=in.(${activeVersionIds.join(",")})&select=id,document_id,version_id,chunk_index,page_number,content,metadata&limit=200`):[];const hits=hybridFuse(question,vectorHits,lexical,Math.min(Number(body?.top_k||8),12));
+  const requestedFilter=documentIds.length?`&id=in.(${documentIds.join(",")})`:"";const activeDocuments=await serviceRequest(env,`documents?workspace_id=eq.${workspace}&lifecycle_state=eq.active&active_version_id=not.is.null${requestedFilter}&select=id,active_version_id&limit=100`);const versions=activeDocuments.length?await serviceRequest(env,`document_versions?workspace_id=eq.${workspace}&publication_state=eq.ready&data_classification=eq.non_sensitive&select=id,document_id&limit=100`):[];const eligibleVersionIds=new Set(versions.map(item=>item.id));const eligibleDocuments=activeDocuments.filter(item=>eligibleVersionIds.has(item.active_version_id));const activeDocumentIds=eligibleDocuments.map(item=>item.id),activeVersionIds=eligibleDocuments.map(item=>item.active_version_id);const vectorHits=activeVersionIds.length?await searchChunks(env,{workspaceId:workspace,question,documentIds:activeDocumentIds,versionIds:activeVersionIds,limit:Math.min(Number(body?.top_k||12),12),dataClassification:"non_sensitive",userApiKey:admission.userApiKey,credentialMode:admission.credentialMode}):[];const lexical=activeVersionIds.length?await serviceRequest(env,`document_chunks?workspace_id=eq.${workspace}&version_id=in.(${activeVersionIds.join(",")})&select=id,document_id,version_id,chunk_index,page_number,content,metadata&limit=200`):[];const hits=hybridFuse(question,vectorHits,lexical,Math.min(Number(body?.top_k||8),12));
   const sources=hits.map(hit=>({content:String(hit.payload?.content||""),filename:String(hit.payload?.filename||"document"),page_number:Number(hit.payload?.page_number||0),chunk_index:Number(hit.payload?.chunk_index||0),relevance_score:Number(hit.score||hit.lexical_score||0),document_type:"text",metadata:{document_id:hit.payload?.document_id,version_id:hit.payload?.version_id,chunk_id:hit.payload?.chunk_id,hybrid_rrf:hit.rrf}}));let response;
-  if(!sources.length)response={answer:"I could not find sufficient evidence in the selected non-sensitive workspace documents, so I cannot answer reliably.",sources:[],query_type:"general",confidence:0,response_time_seconds:(Date.now()-started)/1000,metadata:{claim_state:"UNSUPPORTED",abstained:true,session_id:sessionId}};else{const generated=await generateAnswer(env,groundedPrompt(question,hits),{workspaceId:workspace,priority:"interactive",dataClassification:"non_sensitive"});const checked=assessAnswer(generated.answer,sources);response={answer:checked.answer,sources,query_type:"hybrid",confidence:0,response_time_seconds:(Date.now()-started)/1000,metadata:{claim_state:checked.claim_state,abstained:checked.abstained,validated_citation_ids:checked.citations,citation_required:true,model:generated.model,paid_fallback:false,retrieval:"rrf_dense_lexical",session_id:sessionId}};await serviceRequest(env,"llm_usage_events",{method:"POST",body:JSON.stringify([{workspace_id:workspace,user_id:user.id,provider:"gemini",model:generated.model,operation:"grounded_chat",input_tokens:generated.usage.promptTokenCount||null,output_tokens:generated.usage.candidatesTokenCount||null,success:true,cost_microusd:0}])}).catch(()=>null);}
+  if(!sources.length)response={answer:"I could not find sufficient evidence in the selected non-sensitive workspace documents, so I cannot answer reliably.",sources:[],query_type:"general",confidence:0,response_time_seconds:(Date.now()-started)/1000,metadata:{claim_state:"UNSUPPORTED",abstained:true,session_id:sessionId}};else{const generated=await generateAnswer(env,groundedPrompt(question,hits),{workspaceId:workspace,priority:"interactive",dataClassification:"non_sensitive",userApiKey:admission.userApiKey,credentialMode:admission.credentialMode});const checked=assessAnswer(generated.answer,sources);response={answer:checked.answer,sources,query_type:"hybrid",confidence:0,response_time_seconds:(Date.now()-started)/1000,metadata:{claim_state:checked.claim_state,abstained:checked.abstained,validated_citation_ids:checked.citations,citation_required:true,model:generated.model,paid_fallback:false,retrieval:"rrf_dense_lexical",session_id:sessionId}};await serviceRequest(env,"llm_usage_events",{method:"POST",body:JSON.stringify([{workspace_id:workspace,user_id:user.id,provider:"gemini",model:generated.model,operation:"grounded_chat",input_tokens:generated.usage.promptTokenCount||null,output_tokens:generated.usage.candidatesTokenCount||null,success:true,cost_microusd:0}])}).catch(()=>null);}
+  response.metadata.account_usage={free_chat_queries_used:admission.credentialMode==="platform_trial"?admission.used:5,free_chat_queries_limit:5,credential_mode:admission.credentialMode};
   await serviceRequest(env,"chat_messages",{method:"POST",body:JSON.stringify([{workspace_id:workspace,session_id:sessionId,role:"assistant",content:response.answer,sources:response.sources,metadata:{...response.metadata,query_type:response.query_type,confidence:response.confidence,response_time_seconds:response.response_time_seconds}}])}); await serviceRequest(env,`chat_sessions?id=eq.${sessionId}`,{method:"PATCH",body:JSON.stringify({updated_at:new Date().toISOString(),revision:Number(sessions[0].revision||1)+1})}); await audit(env,request,user.id,workspace,"research.run","query"); return response;
 }
 async function handle(request, env = {}) {
@@ -318,6 +375,57 @@ async function handle(request, env = {}) {
       const id = workspaceId(request); const member = await membership(env, user.id, id);
       const rows = await serviceRequest(env, `workspaces?id=eq.${id}&select=id,name,slug,plan,lifecycle_state,created_at&limit=1`);
       return json(request, env, { ...(rows[0] || {}), workspace_id: id, role: member.role });
+    }
+
+    if (url.pathname === "/api/v1/apikey" && (request.method === "GET" || request.method === "HEAD")) {
+      const record = await getUserGeminiKeyRecord(env, user.id);
+      return json(request, env, {
+        success: true, provider: "gemini", workspace_id: user.id,
+        workspace_key_configured: Boolean(record), server_key_configured: Boolean(env.GOOGLE_API_KEY),
+        key_fingerprint: record?.key_fingerprint || null, storage: "supabase",
+      });
+    }
+    if (url.pathname === "/api/v1/apikey" && request.method === "POST") {
+      const body = await request.json();
+      const apiKey = typeof body?.api_key === "string" ? body.api_key.trim() : "";
+      if (apiKey.length < 20 || apiKey.length > 512 || /[\r\n\u0000]/.test(apiKey)) {
+        throw Object.assign(new Error("Enter a valid Gemini API key."), { status: 422, code: "INVALID_API_KEY" });
+      }
+      // Fail before validating with Google if encryption has not been provisioned.
+      if (!env.GEMINI_USER_KEY_ENCRYPTION_SECRET) {
+        throw Object.assign(new Error("Secure account-key storage is not configured for this Preview."), { status: 503, code: "KEY_VAULT_UNAVAILABLE" });
+      }
+      let check;
+      try { check = await validateGeminiKey(env, apiKey); }
+      catch { throw Object.assign(new Error("Gemini key validation is temporarily unavailable."), { status: 503, code: "PROVIDER_UNAVAILABLE" }); }
+      if (!check.ok) {
+        throw Object.assign(new Error(check.status === 401 || check.status === 403
+          ? "Google rejected this API key. Check it in Google AI Studio and try again."
+          : "Google could not validate this key right now. Please retry."), {
+          status: check.status === 401 || check.status === 403 ? 422 : check.status === 429 ? 429 : 503,
+          code: check.status === 401 || check.status === 403 ? "INVALID_API_KEY" : "PROVIDER_UNAVAILABLE",
+        });
+      }
+      const fingerprint = await saveUserGeminiKey(env, user.id, apiKey);
+      return json(request, env, {
+        success: true, message: "Gemini key validated and stored encrypted for this account.",
+        provider: "gemini", workspace_id: user.id, workspace_key_configured: true,
+        server_key_configured: Boolean(env.GOOGLE_API_KEY), key_fingerprint: fingerprint, storage: "supabase",
+      });
+    }
+    if (url.pathname === "/api/v1/apikey" && request.method === "DELETE") {
+      await deleteUserGeminiKey(env, user.id);
+      return json(request, env, {
+        success: true, message: "The account Gemini key was removed.", provider: "gemini",
+        workspace_id: user.id, workspace_key_configured: false,
+        server_key_configured: Boolean(env.GOOGLE_API_KEY), key_fingerprint: null, storage: "supabase",
+      });
+    }
+    if (url.pathname === "/api/v1/account/entitlements" && (request.method === "GET" || request.method === "HEAD")) {
+      const status = await serviceRequest(env, "rpc/nexus_account_entitlement_status", {
+        method: "POST", body: JSON.stringify({ p_user: user.id }),
+      });
+      return json(request, env, status);
     }
 
     if (url.pathname === "/api/v1/documents/upload" && request.method === "POST") {

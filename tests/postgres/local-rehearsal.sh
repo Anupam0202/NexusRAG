@@ -15,7 +15,11 @@ PSQL=(psql -X -v ON_ERROR_STOP=1 -d "$PGDATABASE")
 "${PSQL[@]}" -f "$ROOT/supabase/migrations/029_durable_extraction_staging.sql"
 "${PSQL[@]}" -f "$ROOT/supabase/migrations/030_non_sensitive_gemini_policy_gate.sql"
 "${PSQL[@]}" -f "$ROOT/supabase/migrations/031_harden_extraction_storage_privileges.sql"
+"${PSQL[@]}" -f "$ROOT/supabase/migrations/032_account_trial_and_user_gemini_keys.sql"
+"${PSQL[@]}" -f "$ROOT/supabase/migrations/033_explicit_deny_account_trial_tables.sql"
 "${PSQL[@]}" -f "$TESTS/fixtures.sql"
+"${PSQL[@]}" -f "$TESTS/account-trial-assertions.sql"
+"${PSQL[@]}" -f "$TESTS/account-rollback.sql"
 "${PSQL[@]}" -f "$TESTS/security-assertions.sql"
 "${PSQL[@]}" -f "$TESTS/quota-assertions.sql"
 "${PSQL[@]}" -f "$TESTS/storage-fixtures.sql"
@@ -23,4 +27,5 @@ PSQL=(psql -X -v ON_ERROR_STOP=1 -d "$PGDATABASE")
 "${PSQL[@]}" -f "$TESTS/extraction-assertions.sql"
 "${PSQL[@]}" -f "$TESTS/batch-assertions.sql"
 bash "$TESTS/concurrency.sh"
+bash "$TESTS/account-concurrency.sh"
 echo 'LOCAL_POSTGRES_REHEARSAL_PASS (not a hosted Supabase verification)'
