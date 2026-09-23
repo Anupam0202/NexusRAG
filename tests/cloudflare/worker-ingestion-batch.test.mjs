@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { processIngestionMessage } from "../../apps/gateway/src/worker-jobs.js";
+import { chunkText } from "../../apps/gateway/src/worker-pipeline.js";
 import { handle } from "../../apps/gateway/src/preview-worker.js";
 
 const workspace = "11111111-1111-4111-8111-111111111111";
@@ -21,7 +22,7 @@ const configured = {
   INGESTION_QUEUE: { sent: [], async send(message) { this.sent.push(message); } },
 };
 
-function fakeIngestionFetch() {
+function fakeIngestionFetch(source = "Reviewed policy evidence. ".repeat(190)) {
   const job = {
     id: jobId, workspace_id: workspace, document_id: documentId, version_id: versionId,
     lifecycle_epoch: 1, status: "queued", stage: "queued", progress: 0, attempts: 0,
@@ -31,7 +32,6 @@ function fakeIngestionFetch() {
   };
   const document = { id: documentId, workspace_id: workspace, filename: "policy.txt", content_type: "text/plain", lifecycle_epoch: 1, lifecycle_state: "active", active_version_id: null };
   const version = { id: versionId, workspace_id: workspace, document_id: documentId, original_bucket: "documents", original_key: `${workspace}/${documentId}/${versionId}/policy.txt`, index_generation: generation, publication_state: "staged" };
-  const source = "Reviewed policy evidence. ".repeat(190);
   const staged = new Map();
   const points = new Map();
   const events = [];
@@ -141,6 +141,41 @@ test("synthetic text ingestion resumes in <=3-chunk batches and publishes only a
   assert.equal(fixture.version.publication_state, "ready");
   assert.ok(fixture.reservations >= 18, "each Gemini/Qdrant index, cleanup, retry, and final verification must pass quota admission");
   assert.equal(fixture.events.filter((event) => event.host === "generativelanguage.googleapis.com").length, 5);
+});
+
+test("synthetic 100+ chunk text document completes over bounded queued batches", async (t) => {
+  const source = "Reviewed policy evidence. ".repeat(6_000);
+  const expectedChunks = chunkText(source).length;
+  assert.ok(expectedChunks > 100 && expectedChunks <= 400, `fixture has ${expectedChunks} chunks`);
+  const fixture = fakeIngestionFetch(source);
+  t.mock.method(globalThis, "fetch", fixture.fetch);
+
+  let message = { job_id: jobId, workspace_id: workspace, document_id: documentId, version_id: versionId, lifecycle_epoch: 1, batch_offset: 0 };
+  let batches = 0;
+  let maxSubrequests = 0;
+  while (true) {
+    const start = fixture.events.length;
+    const result = await processIngestionMessage(configured, message);
+    const subrequests = fixture.events.length - start;
+    maxSubrequests = Math.max(maxSubrequests, subrequests);
+    assert.ok(subrequests < 50, `batch ${batches} used ${subrequests} subrequests`);
+    batches += 1;
+    if (result.completed) {
+      assert.equal(result.total_chunks, expectedChunks);
+      break;
+    }
+    assert.equal(result.next_batch_offset, Math.min(batches * 3, expectedChunks));
+    message = configured.INGESTION_QUEUE.sent.shift();
+    assert.ok(message, `durable queue continuation missing after batch ${batches}`);
+  }
+
+  assert.equal(batches, Math.ceil(expectedChunks / 3));
+  assert.equal(fixture.staged.size, expectedChunks);
+  assert.equal(fixture.points.size, expectedChunks);
+  assert.equal(fixture.job.status, "completed");
+  assert.equal(fixture.version.publication_state, "ready");
+  assert.equal(fixture.events.filter((event) => event.host === "generativelanguage.googleapis.com").length, expectedChunks);
+  assert.ok(maxSubrequests < 50);
 });
 
 test("synthetic cross-workspace upload is denied before storage, queue, or providers", async (t) => {
