@@ -5,6 +5,8 @@ on:
   pull_request:
     paths:
       - supabase/baseline/**
+      - supabase/migrations/027_metered_operation_admission.sql
+      - supabase/migrations/028_resumable_chunk_staging.sql
       - scripts/build_clean_baseline.py
       - scripts/verify_v6_migrations.py
       - .github/workflows/v6-database-rehearsal.yml
@@ -43,7 +45,9 @@ jobs:
           supabase init
           mkdir -p supabase/migrations
           cp "$GITHUB_WORKSPACE/supabase/baseline/001_v6_zero_cost_baseline.sql" supabase/migrations/202609200001_v6_zero_cost_baseline.sql
-      - name: Start local Supabase database and apply migration-001
+          cp "$GITHUB_WORKSPACE/supabase/migrations/027_metered_operation_admission.sql" supabase/migrations/202609230001_027_metered_operation_admission.sql
+          cp "$GITHUB_WORKSPACE/supabase/migrations/028_resumable_chunk_staging.sql" supabase/migrations/202609230002_028_resumable_chunk_staging.sql
+      - name: Start local Supabase services and apply clean baseline plus candidate migrations
         run: |
           set -uo pipefail
           cd "$RUNNER_TEMP/nexusrag-clean-rehearsal"
@@ -64,7 +68,7 @@ jobs:
                 done
             exit "$status"
           fi
-      - name: Replay migration-001 from a clean database
+      - name: Replay baseline plus candidate migrations from a clean database
         run: |
           set -euo pipefail
           cd "$RUNNER_TEMP/nexusrag-clean-rehearsal"

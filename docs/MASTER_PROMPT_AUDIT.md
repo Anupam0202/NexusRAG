@@ -97,3 +97,26 @@ Canonical placement and ownership are documented in
 definition of done still has mandatory partial gates. Merge is permitted only
 after the remaining requirements are implemented and measured or explicitly
 accepted as blockers without using a completion claim.
+## Critical-gap continuation — 2026-09-23
+
+Status remains **`PARTIAL_NOT_COMPLETE`**. A local, uncommitted candidate patch now adds fail-closed atomic quota admission/settlement, answer evidence review gating, and bounded resumable text ingestion (`027_metered_operation_admission.sql`, `028_resumable_chunk_staging.sql`, gateway and test changes). The complete Cloudflare test suite passes 40/40 and Wrangler dry-run succeeds.
+
+A further zero-cost local SQL rehearsal now runs against PostgreSQL 17.10 with native `pgcrypto` and `pgvector` 0.8.6. The clean 51-table baseline and candidate migrations 027/028 apply. Real independent local database sessions test reservation contention/no oversubscription, concurrent idempotency replay, settlement replay, and partial/rollback-safe quota behavior. Local synthetic two-identity Storage RLS checks and four-chunk append/replay/finalize/publish checks pass. Reproducible scripts are in `tests/postgres/`.
+
+This advances SQL/locking evidence beyond the earlier PGlite-only check but **does not** prove hosted Supabase Auth/JWT, managed Storage API or role behavior. The local `auth` and `storage` schemas are stand-ins; no Supabase branch was created because the available branch path is not zero-cost. Live migration history still ends at 026; 027/028 remain unapplied. Do not infer that actual Cloudflare, Gemini, or Qdrant account plans/quotas have been verified; Cloudflare billing API authentication failed and Gemini/Qdrant account quota evidence is unavailable.
+
+Remaining merge/release gates: reviewed provider terms/data rights and quota ceilings (budget tables remain empty and metered work therefore fail-closed); account-owner plan/usage verification; real free-tier Worker runtime/subrequest/queue measurements; authenticated two-user upload-to-answer plus tenant denial and delete/export/restore/retry E2E; held-out human-reviewed semantic support evaluation; and the product/release partial phases listed above. No GitHub push, merge, live deployment, provider call or production migration was performed.
+
+## Synthetic gateway E2E continuation — 2026-09-23
+
+Added a provider-free route integration test for synthetic authenticated upload → durable queue message → resumable chunk indexing/publication → fenced Qdrant retrieval → cited chat answer → receipt-verified document deletion. The test runs the actual gateway handlers/Worker job code while all Auth/REST/Storage, Gemini and Qdrant network calls are deterministic local mocks. It verifies the answer remains `REVIEW_REQUIRED`, paid fallback stays false, and deletion removes the synthetic original and vectors only after verification receipts. The full Cloudflare test suite now has 40 passing tests.
+
+This improves local integration coverage only. It does not test genuine OAuth, hosted Supabase, actual providers, real Qdrant, provider budgets or production evaluation, and does not close authenticated product E2E or semantic-quality gates. Status remains `PARTIAL_NOT_COMPLETE`.
+
+### Critical-blocker reductions — local candidate, not deployed
+
+- **Closed at implementation/test level:** bounded resumable text ingestion now uses append/finalize staging, stable vector identity, exact-count-before-publish, and a three-chunk-per-invocation guard. The full mocked upload/index/chat/delete route E2E passes. This is not a claim of real Workers Free request/CPU measurements, live queue redelivery/DLQ behavior, or hosted execution.
+- **Closed at database-engine rehearsal level:** candidate migrations 027/028 pass a clean local PostgreSQL 17 + pgvector rehearsal, including independent concurrent reservation/idempotency/settlement sessions. The synthetic Auth/Storage stand-ins do not close the hosted Supabase gate.
+- **Still release-blocking:** no zero-cost hosted Supabase branch/environment exists; production contains existing user/workspace/document/storage data and must not be used as a test database. Provider budgets, registry, rights decisions, and terms snapshots are empty, so metered operations must remain fail-closed. Cloudflare account reads are blocked by API authentication. Authentic OAuth/tenant-boundary/recovery E2E, live free-tier measurements, independent semantic-support evaluation, and the remaining product verticals/release work are still open.
+
+The candidate remains local and uncommitted. The branch's existing GitHub checks pass on the unchanged base commit; they have not validated this candidate. Do not push this branch as-is: `.github/workflows/cloudflare-preview-deploy.yml` deploys Cloudflare Preview on push, so a push is a live Preview change, not merely a CI run.
