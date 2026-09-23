@@ -63,24 +63,33 @@ begin
   end loop;
 
   if p_provider = 'gemini' then
-    if p_action <> 'gemini_non_sensitive' or p_data_classification <> 'non_sensitive' then
+    if p_action is distinct from 'gemini_non_sensitive'
+       or p_data_classification is distinct from 'non_sensitive' then
       return jsonb_build_object('state','RIGHTS_BLOCKED');
     end if;
     -- Do not infer approval from public plan limits or a user's upload checkbox.
-    -- A workspace owner must record an explicit policy after reviewing current
-    -- terms; absent, stale, or ambiguous evidence denies every Gemini call.
+    -- Both the provider terms snapshot and workspace privacy review expire after
+    -- 30 days; absent, stale, future-dated, or ambiguous evidence denies calls.
     if not exists (
       select 1 from public.provider_registry pr
       where pr.id = 'gemini'
         and pr.status = 'APPROVED'
         and pr.review_owner is not null
-        and pr.terms_checked_at is not null
+        and pr.terms_checked_at between now() - interval '30 days' and now()
         and pr.terms_hash ~ '^[0-9a-f]{64}$'
+        and exists (
+          select 1 from public.provider_terms_snapshots pts
+          where pts.provider_id = pr.id
+            and pts.content_hash = pr.terms_hash
+            and pts.checked_at = pr.terms_checked_at
+            and pts.approved_by = pr.review_owner
+        )
     ) or not exists (
       select 1 from public.workspace_provider_policies wp
       where wp.workspace_id = p_workspace and wp.provider_id = 'gemini'
         and wp.status = 'APPROVED'
-        and wp.reviewed_by is not null and wp.reviewed_at is not null
+        and wp.reviewed_by is not null
+        and wp.reviewed_at between now() - interval '30 days' and now()
         and wp.allowed_actions @> array['gemini_non_sensitive']::text[]
         and not ('gemini_non_sensitive' = any(wp.prohibited_actions))
         and not ('gemini_non_sensitive' = any(wp.review_actions))

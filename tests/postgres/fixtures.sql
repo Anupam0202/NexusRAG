@@ -11,8 +11,13 @@ INSERT INTO public.workspace_members(workspace_id,user_id,role) VALUES
  ('44444444-4444-4444-8444-444444444444','33333333-3333-4333-8333-333333333333','owner');
 INSERT INTO public.provider_registry(id,display_name,authority,documentation_url,terms_url,status)
 VALUES ('gemini','Synthetic rehearsal provider','Synthetic only','https://example.invalid/docs','https://example.invalid/terms','APPROVED');
+INSERT INTO public.provider_terms_snapshots(provider_id,revision,checked_at,content_hash,retrieval_method,terms,materiality,approved_by)
+VALUES ('gemini',1,now(),repeat('c',64),'STATIC_HTML','{"fixture":"synthetic only"}'::jsonb,'RIGHTS_REVIEW',
+        '22222222-2222-4222-8222-222222222222');
 UPDATE public.provider_registry
-SET review_owner='22222222-2222-4222-8222-222222222222',terms_checked_at=now(),terms_hash=repeat('c',64)
+SET review_owner='22222222-2222-4222-8222-222222222222',
+    terms_checked_at=(SELECT checked_at FROM public.provider_terms_snapshots WHERE provider_id='gemini' AND revision=1),
+    terms_hash=(SELECT content_hash FROM public.provider_terms_snapshots WHERE provider_id='gemini' AND revision=1)
 WHERE id='gemini';
 INSERT INTO public.workspace_provider_policies(workspace_id,provider_id,status,allowed_actions,rights_hash,reviewed_by,reviewed_at)
 VALUES ('11111111-1111-4111-8111-111111111111','gemini','APPROVED',ARRAY['gemini_non_sensitive'],repeat('a',64),'22222222-2222-4222-8222-222222222222',now()),
