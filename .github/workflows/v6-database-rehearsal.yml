@@ -51,10 +51,19 @@ jobs:
         run: |
           set -uo pipefail
           cd "$RUNNER_TEMP/nexusrag-clean-rehearsal"
-          set +e
-          supabase db start > "$RUNNER_TEMP/db-start.log" 2>&1
-          status=$?
-          set -e
+          status=1
+          for attempt in 1 2 3; do
+            if supabase db start > "$RUNNER_TEMP/db-start.log" 2>&1; then
+              status=0
+              break
+            else
+              status=$?
+              if [ "$attempt" -lt 3 ]; then
+                echo "::warning::Supabase image/service startup failed (attempt $attempt/3); retrying after a short backoff."
+                sleep "$((attempt * 10))"
+              fi
+            fi
+          done
           if [ "$status" -ne 0 ]; then
             grep -Ei 'error|failed|fatal|syntax|does not exist|permission denied|cannot|invalid|duplicate|conflict' "$RUNNER_TEMP/db-start.log" \
               | grep -Eiv 'password|secret|token|api.?key|jwt' \
