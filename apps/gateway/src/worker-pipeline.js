@@ -74,6 +74,9 @@ async function providerJson(url, init, timeout = 18_000) {
 
 async function embedText(env, text, taskType, context) {
   if (!env.GOOGLE_API_KEY) throw pipelineError("CONFIGURATION_ERROR", "Gemini embedding is not configured.", 503);
+  if (context?.dataClassification !== "non_sensitive") {
+    throw pipelineError("RIGHTS_BLOCKED", "Gemini may process only explicitly attested non-sensitive data.", 403);
+  }
   const model = env.GEMINI_EMBEDDING_MODEL || EMBEDDING_MODEL;
   const result = await metered(env, { ...context, provider: "gemini" }, { requests: 1, embedding_tokens: new TextEncoder().encode(text).length }, () => providerJson(
     `https:${"//"}generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:embedContent?key=${encodeURIComponent(env.GOOGLE_API_KEY)}`,
@@ -121,9 +124,10 @@ async function deterministicPointId(identity) {
   return `${hex.slice(0,8)}-${hex.slice(8,12)}-${hex.slice(12,16)}-${hex.slice(16,20)}-${hex.slice(20)}`;
 }
 
-async function indexChunks(env, { workspaceId, documentId, versionId, generation, filename, chunks, priority = "background", initializeIndex = true }) {
+async function indexChunks(env, { workspaceId, documentId, versionId, generation, filename, chunks, priority = "background", initializeIndex = true, dataClassification = "unknown" }) {
   if (!chunks.length || chunks.length > MAX_INDEX_BATCH_CHUNKS) throw pipelineError("CAPACITY_REACHED", "Indexing accepts a maximum of three chunks per bounded Worker batch.", 413);
-  const context = { workspaceId, priority };
+  if (dataClassification !== "non_sensitive") throw pipelineError("RIGHTS_BLOCKED", "Only explicitly attested non-sensitive documents may be indexed.", 403);
+  const context = { workspaceId, priority, dataClassification };
   const requestAllowance = initializeIndex ? 7 : 2;
   return metered(env, { ...context, provider: "qdrant" }, { requests: requestAllowance, vectors: chunks.length }, async () => {
     const points = [];
@@ -138,9 +142,10 @@ async function indexChunks(env, { workspaceId, documentId, versionId, generation
   });
 }
 
-async function searchChunks(env, { workspaceId, question, documentIds = [], versionIds = [], limit = 8 }) {
+async function searchChunks(env, { workspaceId, question, documentIds = [], versionIds = [], limit = 8, dataClassification = "unknown" }) {
+  if (dataClassification !== "non_sensitive") throw pipelineError("RIGHTS_BLOCKED", "Only non-sensitive questions and document scope may be searched.", 403);
   return metered(env, { workspaceId, provider: "qdrant", priority: "interactive" }, { requests: 2 }, async () => {
-  const vector = await embedText(env, question, "RETRIEVAL_QUERY", { workspaceId, priority: "interactive" });
+  const vector = await embedText(env, question, "RETRIEVAL_QUERY", { workspaceId, priority: "interactive", dataClassification });
   const { base, headers } = await ensureQdrant(env, vector.length);
   const body = { query: vector, limit: Math.min(Math.max(limit, 1), 12), with_payload: true, filter: qdrantFilter(workspaceId, documentIds, versionIds) };
   const result = await providerJson(`${base}/points/query`, { method: "POST", headers, body: JSON.stringify(body) });
@@ -155,6 +160,9 @@ function groundedPrompt(question, hits) {
 
 async function generateAnswer(env, prompt, context) {
   if (!env.GOOGLE_API_KEY) throw pipelineError("CONFIGURATION_ERROR", "Gemini generation is not configured.", 503);
+  if (context?.dataClassification !== "non_sensitive") {
+    throw pipelineError("RIGHTS_BLOCKED", "Gemini may process only explicitly attested non-sensitive data.", 403);
+  }
   const model = env.GEMINI_MODEL || GENERATION_MODEL;
   const result = await metered(env, { ...context, provider: "gemini" }, { requests: 1, input_tokens: new TextEncoder().encode(prompt).length, output_tokens: 1024 }, () => providerJson(
     `https:${"//"}generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(env.GOOGLE_API_KEY)}`,

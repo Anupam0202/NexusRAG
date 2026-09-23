@@ -84,7 +84,7 @@ function localAppFixture() {
       }
       if (table === "document_versions") {
         if (method === "POST") { for (const row of body) versions.set(row.id, { ...row }); return json(body.map((row) => versions.get(row.id)), 201); }
-        if (method === "GET") { const id = url.searchParams.get("id")?.replace(/^eq\./, ""); return json(versions.has(id) ? [structuredClone(versions.get(id))] : []); }
+        if (method === "GET") { const id = url.searchParams.get("id")?.replace(/^eq\./, ""); if (id) return json(versions.has(id) ? [structuredClone(versions.get(id))] : []); return json([...versions.values()].filter((row) => row.workspace_id === workspace && row.publication_state === "ready" && row.data_classification === "non_sensitive").map((row) => ({ id: row.id, document_id: row.document_id }))); }
       }
       if (table === "ingestion_jobs") {
         if (method === "POST") { for (const row of body) jobs.set(row.id, { ...row, lease_generation: 0, max_attempts: row.max_attempts || 3, cancellation_requested_at: null }); return json(body.map((row) => jobs.get(row.id)), 201); }
@@ -202,7 +202,7 @@ test("synthetic upload → queued ingestion → indexed evidence → grounded ch
   const fixture = localAppFixture();
   t.mock.method(globalThis, "fetch", fixture.fetch);
   const file = new File([fixture.source], "retention-policy.txt", { type: "text/plain" });
-  const form = new FormData(); form.set("file", file);
+  const form = new FormData(); form.set("file", file); form.set("data_classification", "non_sensitive"); form.set("non_sensitive_attested", "true");
   const upload = await handle(new Request("https://gateway.invalid/api/v1/documents/upload", {
     method: "POST", headers: { authorization: "Bearer synthetic-oauth-token", "x-nexus-workspace-id": workspace }, body: form,
   }), fixture.env);
@@ -220,6 +220,8 @@ test("synthetic upload → queued ingestion → indexed evidence → grounded ch
   assert.ok(fixture.expectedChunks > 3);
   const doc = fixture.docs.get(uploaded.document.document_id);
   const version = fixture.versions.get(doc.active_version_id);
+  assert.equal(version.data_classification, "non_sensitive");
+  assert.equal(version.classification_declared_by, userId);
   assert.equal(fixture.chunks.get(version.id).length, fixture.expectedChunks);
   assert.equal(fixture.points.size, fixture.expectedChunks);
   assert.equal(doc.status, "ready");
@@ -231,7 +233,7 @@ test("synthetic upload → queued ingestion → indexed evidence → grounded ch
 
   const answerResponse = await handle(new Request("https://gateway.invalid/api/v1/chat", {
     method: "POST", headers: { authorization: "Bearer synthetic-oauth-token", "x-nexus-workspace-id": workspace, "content-type": "application/json" },
-    body: JSON.stringify({ question: "What retention period does the policy specify?", document_ids: [doc.id], top_k: 8 }),
+    body: JSON.stringify({ question: "What retention period does the policy specify?", non_sensitive_attested: true, document_ids: [doc.id], top_k: 8 }),
   }), fixture.env);
   assert.equal(answerResponse.status, 200);
   const answer = await answerResponse.json();
@@ -257,4 +259,36 @@ test("synthetic upload → queued ingestion → indexed evidence → grounded ch
   assert.equal(fixture.docs.has(doc.id), false, "authoritative document row is removed only after receipts");
   assert.ok(fixture.auditEvents.length >= 2);
   assert.ok(fixture.events.every((event) => ["supabase.invalid", "qdrant.invalid", "generativelanguage.googleapis.com"].includes(event.host)));
+});
+
+test("upload without non-sensitive attestation is denied before storage and database writes", async (t) => {
+  const fixture = localAppFixture();
+  t.mock.method(globalThis, "fetch", fixture.fetch);
+  const form = new FormData();
+  form.set("file", new File(["synthetic"], "unclassified.txt", { type: "text/plain" }));
+  const response = await handle(new Request("https://gateway.invalid/api/v1/documents/upload", {
+    method: "POST", headers: { authorization: "Bearer synthetic-oauth-token", "x-nexus-workspace-id": workspace }, body: form,
+  }), fixture.env);
+  assert.equal(response.status, 403);
+  assert.equal((await response.json()).error.code, "RIGHTS_BLOCKED");
+  assert.equal(fixture.objects.size, 0);
+  assert.equal(fixture.docs.size, 0);
+  assert.equal(fixture.queue.sent.length, 0);
+  assert.equal(fixture.embeddingCalls, 0);
+  assert.equal(fixture.generationCalls, 0);
+});
+
+test("chat without non-sensitive prompt attestation is denied before persistence", async (t) => {
+  const fixture = localAppFixture();
+  t.mock.method(globalThis, "fetch", fixture.fetch);
+  const response = await handle(new Request("https://gateway.invalid/api/v1/chat", {
+    method: "POST",
+    headers: { authorization: "Bearer synthetic-oauth-token", "x-nexus-workspace-id": workspace, "content-type": "application/json" },
+    body: JSON.stringify({ question: "synthetic sensitive question" }),
+  }), fixture.env);
+  assert.equal(response.status, 403);
+  assert.equal((await response.json()).error.code, "RIGHTS_BLOCKED");
+  assert.equal(fixture.messages.length, 0);
+  assert.equal(fixture.embeddingCalls, 0);
+  assert.equal(fixture.generationCalls, 0);
 });

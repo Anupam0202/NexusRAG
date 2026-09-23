@@ -46,7 +46,7 @@ export const DEFAULT_UPLOAD_LIMITS: UploadLimits = {
 };
 
 interface Props {
-  onUpload: (file: File) => Promise<DocumentUploadResponse>;
+  onUpload: (file: File, classification: "non_sensitive") => Promise<DocumentUploadResponse>;
   uploading: boolean;
   limits: UploadLimits;
   disabledReason?: string;
@@ -55,7 +55,8 @@ interface Props {
 export function UploadZone({ onUpload, uploading, limits, disabledReason }: Props) {
   const [status, setStatus] = useState<"idle" | "success" | "error">("idle");
   const [mounted, setMounted] = useState(false);
-  const disabled = uploading || Boolean(disabledReason);
+  const [nonSensitiveAttested, setNonSensitiveAttested] = useState(false);
+  const disabled = uploading || Boolean(disabledReason) || !nonSensitiveAttested;
 
   useEffect(() => {
     setMounted(true);
@@ -63,10 +64,14 @@ export function UploadZone({ onUpload, uploading, limits, disabledReason }: Prop
 
   const onDrop = useCallback(
     async (files: File[]) => {
+      if (!nonSensitiveAttested) {
+        toast.error("Confirm the document is non-sensitive before uploading.");
+        return;
+      }
       for (const file of files) {
         try {
           setStatus("idle");
-          const resp = await onUpload(file);
+          const resp = await onUpload(file, "non_sensitive");
           if (resp.success) {
             setStatus("success");
             const chunkCount = resp.document?.chunk_count ?? 0;
@@ -85,7 +90,7 @@ export function UploadZone({ onUpload, uploading, limits, disabledReason }: Prop
         }
       }
     },
-    [onUpload]
+    [nonSensitiveAttested, onUpload]
   );
 
   const onDropRejected = useCallback((rejections: FileRejection[]) => {
@@ -112,16 +117,17 @@ export function UploadZone({ onUpload, uploading, limits, disabledReason }: Prop
   });
 
   return (
-    <div
-      {...getRootProps({ "aria-disabled": disabled })}
-      className={cn(
+    <div className="space-y-3">
+      <div
+        {...getRootProps({ "aria-disabled": disabled })}
+        className={cn(
         "relative flex flex-col items-center justify-center rounded-xl border border-dashed px-4 py-6 sm:py-7 md:py-8 transition-all cursor-pointer",
         isDragActive
           ? "border-brand-500 bg-brand-50 dark:bg-brand-900/20"
           : "border-[var(--border)] bg-[var(--bg-secondary)] hover:border-brand-400 upload-zone-idle",
         disabled && "cursor-not-allowed opacity-65"
       )}
-    >
+      >
       {mounted && (
         <input
           {...getInputProps({
@@ -178,6 +184,19 @@ export function UploadZone({ onUpload, uploading, limits, disabledReason }: Prop
           )}
         </>
       )}
+      </div>
+      <label className="flex items-start gap-2 text-xs leading-5 text-[var(--text-muted)]">
+        <input
+          type="checkbox"
+          checked={nonSensitiveAttested}
+          onChange={(event) => setNonSensitiveAttested(event.target.checked)}
+          disabled={uploading || Boolean(disabledReason)}
+          className="mt-1 accent-brand-600"
+        />
+        <span>
+          I confirm this document contains no personal, confidential, regulated, or other sensitive data. I understand that Gemini processing remains blocked until a workspace owner has separately reviewed and approved the provider terms, privacy policy, and free-tier limits.
+        </span>
+      </label>
     </div>
   );
 }

@@ -7,24 +7,24 @@ export PGDATABASE="${PGDATABASE:-postgres}"
 TMP_DIR=$(mktemp -d)
 trap 'rm -rf "$TMP_DIR"' EXIT
 psql -X -qAt -v ON_ERROR_STOP=1 <<'SQL'
-DELETE FROM public.budget_reservations WHERE idempotency_key IN ('race-settle-seed','concurrent-A','concurrent-same-key');
+DELETE FROM public.budget_reservations WHERE idempotency_key LIKE 'race-settle-seed:%' OR idempotency_key LIKE 'concurrent-A:%' OR idempotency_key LIKE 'concurrent-same-key:%';
 UPDATE public.resource_budgets SET used=0,reserved=0 WHERE provider_id='gemini' AND dimension IN ('race','idem','settlement');
 SET ROLE service_role; SET request.jwt.claim.role='service_role';
 DO $$ DECLARE r jsonb; BEGIN
- r:=public.v6_reserve_budget('11111111-1111-4111-8111-111111111111','gemini','settlement',10,'race-settle-seed','interactive');
+ r:=public.v6_reserve_many('11111111-1111-4111-8111-111111111111','gemini','{"settlement":10}'::jsonb,'race-settle-seed','interactive','gemini_non_sensitive','non_sensitive');
  IF r->>'state'<>'READY' THEN RAISE EXCEPTION 'seed settlement: %',r; END IF;
 END $$;
 SQL
 # v6_reserve_budget stores the exact idempotency key.
-r_id=$(psql -X -qAt -v ON_ERROR_STOP=1 -c "select id from public.budget_reservations where idempotency_key='race-settle-seed'")
+r_id=$(psql -X -qAt -v ON_ERROR_STOP=1 -c "select id from public.budget_reservations where idempotency_key='race-settle-seed:settlement'")
 cat > $TMP_DIR/a-reserve.sql <<'SQL'
 BEGIN; SET ROLE service_role; SET request.jwt.claim.role='service_role';
-SELECT public.v6_reserve_budget('11111111-1111-4111-8111-111111111111','gemini','race',60,'concurrent-A','interactive');
+SELECT public.v6_reserve_many('11111111-1111-4111-8111-111111111111','gemini','{"race":60}'::jsonb,'concurrent-A','interactive','gemini_non_sensitive','non_sensitive');
 SELECT pg_sleep(3); COMMIT;
 SQL
 cat > $TMP_DIR/b-reserve.sql <<'SQL'
 SET ROLE service_role; SET request.jwt.claim.role='service_role';
-SELECT public.v6_reserve_budget('11111111-1111-4111-8111-111111111111','gemini','race',60,'concurrent-B','interactive');
+SELECT public.v6_reserve_many('11111111-1111-4111-8111-111111111111','gemini','{"race":60}'::jsonb,'concurrent-B','interactive','gemini_non_sensitive','non_sensitive');
 SQL
 psql -X -qAt -v ON_ERROR_STOP=1 -f $TMP_DIR/a-reserve.sql > $TMP_DIR/a-reserve.out & a_pid=$!
 sleep 0.4
@@ -47,12 +47,12 @@ SQL
 # Same idempotency key serializes concurrent requests: second must be denied as in-progress.
 cat > $TMP_DIR/a-idem.sql <<'SQL'
 BEGIN; SET ROLE service_role; SET request.jwt.claim.role='service_role';
-SELECT public.v6_reserve_budget('11111111-1111-4111-8111-111111111111','gemini','idem',5,'concurrent-same-key','interactive');
+SELECT public.v6_reserve_many('11111111-1111-4111-8111-111111111111','gemini','{"idem":5}'::jsonb,'concurrent-same-key','interactive','gemini_non_sensitive','non_sensitive');
 SELECT pg_sleep(3); COMMIT;
 SQL
 cat > $TMP_DIR/b-idem.sql <<'SQL'
 SET ROLE service_role; SET request.jwt.claim.role='service_role';
-SELECT public.v6_reserve_budget('11111111-1111-4111-8111-111111111111','gemini','idem',5,'concurrent-same-key','interactive');
+SELECT public.v6_reserve_many('11111111-1111-4111-8111-111111111111','gemini','{"idem":5}'::jsonb,'concurrent-same-key','interactive','gemini_non_sensitive','non_sensitive');
 SQL
 psql -X -qAt -v ON_ERROR_STOP=1 -f $TMP_DIR/a-idem.sql > $TMP_DIR/a-idem.out & a_pid=$!
 sleep 0.4

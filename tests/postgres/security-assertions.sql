@@ -6,9 +6,10 @@ DO $$ DECLARE n int; BEGIN
  IF has_table_privilege('authenticated','public.provider_registry','select') OR has_table_privilege('anon','public.provider_registry','select') THEN
   RAISE EXCEPTION 'client role unexpectedly reads protected provider table';
  END IF;
- IF has_function_privilege('anon','public.v6_reserve_many(uuid,text,jsonb,text,text)','execute') OR
-    has_function_privilege('authenticated','public.v6_reserve_many(uuid,text,jsonb,text,text)','execute') OR
-    NOT has_function_privilege('service_role','public.v6_reserve_many(uuid,text,jsonb,text,text)','execute') THEN
+ IF has_function_privilege('anon','public.v6_reserve_many(uuid,text,jsonb,text,text,text,text)','execute') OR
+    has_function_privilege('authenticated','public.v6_reserve_many(uuid,text,jsonb,text,text,text,text)','execute') OR
+    NOT has_function_privilege('service_role','public.v6_reserve_many(uuid,text,jsonb,text,text,text,text)','execute') OR
+    has_function_privilege('service_role','public.v6_reserve_budget(uuid,text,text,bigint,text,text)','execute') THEN
   RAISE EXCEPTION 'quota RPC execute grants are too broad or missing';
  END IF;
  IF has_function_privilege('anon','public.workbench_stage_chunk_batch(uuid,uuid,text,bigint,uuid,bigint,text,text,jsonb,integer,integer,jsonb)','execute') OR
@@ -29,7 +30,7 @@ SET ROLE anon;
 SET request.jwt.claim.role='anon';
 DO $$ DECLARE denied boolean := false; BEGIN
  BEGIN
-  EXECUTE $q$SELECT public.v6_reserve_many('11111111-1111-4111-8111-111111111111','gemini','{"requests":1}'::jsonb,'unauthorized','interactive')$q$;
+  EXECUTE $q$SELECT public.v6_reserve_many('11111111-1111-4111-8111-111111111111','gemini','{"requests":1}'::jsonb,'unauthorized','interactive','gemini_non_sensitive','non_sensitive')$q$;
  EXCEPTION WHEN insufficient_privilege THEN denied := true;
  END;
  IF NOT denied THEN RAISE EXCEPTION 'anon role unexpectedly executed the service-only RPC'; END IF;

@@ -111,6 +111,10 @@ async function processIngestionMessage(env, message) {
     const document = documents?.[0];
     version = versions?.[0];
     if (!document || !version) throw err("STALE_WORKER", "Document authority changed.");
+    if (version.data_classification !== "non_sensitive"
+        || !version.classification_declared_by || !version.classification_declared_at) {
+      throw err("RIGHTS_BLOCKED", "Document classification is missing or sensitive; provider processing is blocked.");
+    }
     if (offset === 0 && document.active_version_id && document.active_version_id !== job.version_id) {
       const old = await db(env, `document_versions?id=eq.${document.active_version_id}&workspace_id=eq.${job.workspace_id}&select=index_generation&limit=1`);
       version.supersedes_index_generation = old?.[0]?.index_generation || null;
@@ -145,7 +149,7 @@ async function processIngestionMessage(env, message) {
       });
       if (!original.ok) throw err("PERSISTENCE_UNAVAILABLE", "Original unavailable.", true);
       const file = new File([await original.arrayBuffer()], document.filename, { type: document.content_type });
-      const extracted = await extractFileText(env, file, { workspaceId: job.workspace_id, priority: "background" });
+      const extracted = await extractFileText(env, file, { workspaceId: job.workspace_id, priority: "background", dataClassification: version.data_classification });
       const chunks = chunkText(extracted.text);
       if (!chunks.length) throw err("EMPTY_DOCUMENT", "The document contains no indexable text.");
       if (chunks.length > MAX_DOCUMENT_CHUNKS) throw err("CAPACITY_REACHED", "Document exceeds the 400-chunk bounded ingestion limit.");
@@ -185,6 +189,7 @@ async function processIngestionMessage(env, message) {
     const points = await indexChunks(env, {
       workspaceId: job.workspace_id, documentId: job.document_id, versionId: job.version_id,
       generation, filename: document.filename, chunks: batch, initializeIndex: offset === 0,
+      dataClassification: version.data_classification,
     });
     const stagedChunks = await Promise.all(points.map(async (point, index) => {
       const chunk = batch[index];

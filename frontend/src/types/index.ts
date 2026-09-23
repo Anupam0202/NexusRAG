@@ -93,6 +93,7 @@ export interface SourceChunk {
 
 export interface QueryRequest {
   question: string;
+  non_sensitive_attested?: boolean;
   session_id?: string;
   conversation_history?: ChatMessage[];
   top_k?: number;

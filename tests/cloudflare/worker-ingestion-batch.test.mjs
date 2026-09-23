@@ -35,7 +35,7 @@ function fakeIngestionFetch(sourceOrOptions = "Reviewed policy evidence. ".repea
     kind: "ingestion", payload: { filename: "policy.txt", content_type: contentType, operation: "upload" },
   };
   const document = { id: documentId, workspace_id: workspace, filename: "policy.txt", content_type: contentType, lifecycle_epoch: 1, lifecycle_state: "active", active_version_id: null };
-  const version = { id: versionId, workspace_id: workspace, document_id: documentId, original_bucket: "documents", original_key: `${workspace}/${documentId}/${versionId}/policy.txt`, index_generation: generation, publication_state: "staged" };
+  const version = { id: versionId, workspace_id: workspace, document_id: documentId, original_bucket: "documents", original_key: `${workspace}/${documentId}/${versionId}/policy.txt`, index_generation: generation, publication_state: "staged", data_classification: "non_sensitive", classification_declared_by: userId, classification_declared_at: new Date().toISOString() };
   const staged = new Map();
   const extraction = new Map();
   const points = new Map();
@@ -256,6 +256,8 @@ test("synthetic cross-workspace upload is denied before storage, queue, or provi
   });
   const form = new FormData();
   form.set("file", new File(["private synthetic content"], "private.txt", { type: "text/plain" }));
+  form.set("data_classification", "non_sensitive");
+  form.set("non_sensitive_attested", "true");
   const response = await handle(new Request("https://gateway.invalid/api/v1/documents/upload", {
     method: "POST", headers: { authorization: "Bearer synthetic-user-token", "x-nexus-workspace-id": workspace }, body: form,
   }), configured);

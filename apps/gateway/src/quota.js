@@ -22,6 +22,10 @@ async function quotaRpc(env, name, payload) {
 async function metered(env, context, dimensions, operation) {
   if (!context || !validId.test(context.workspaceId || "") || !context.provider ||
       !["essential", "interactive", "background", "speculative"].includes(context.priority)) throw error("REVIEW_REQUIRED");
+  if (context.provider === "gemini" &&
+      (context.dataClassification !== "non_sensitive" || (context.action && context.action !== "gemini_non_sensitive"))) {
+    throw error("RIGHTS_BLOCKED", 403);
+  }
   const entries = Object.entries(dimensions);
   if (!entries.length || entries.some(([name, amount]) => !/^[a-z_]{1,40}$/.test(name) || !Number.isSafeInteger(amount) || amount < 1)) throw error("REVIEW_REQUIRED");
   let reserved = [];
@@ -30,6 +34,8 @@ async function metered(env, context, dimensions, operation) {
     const admission = await quotaRpc(env, "v6_reserve_many", {
       p_workspace: context.workspaceId, p_provider: context.provider, p_dimensions: dimensions,
       p_idempotency_key: crypto.randomUUID(), p_priority: context.priority,
+      p_action: context.action || (context.provider === "gemini" ? "gemini_non_sensitive" : "provider_operation"),
+      p_data_classification: context.dataClassification || "unknown",
     });
     if (!allowedStates.has(admission.state) || admission.replayed === true || !Array.isArray(admission.reservations) ||
         admission.reservations.length !== entries.length ||

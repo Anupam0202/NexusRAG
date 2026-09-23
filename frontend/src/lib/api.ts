@@ -103,10 +103,13 @@ async function request<T>(
 // Documents
 
 export async function uploadDocument(
-  file: File
+  file: File,
+  classification: "non_sensitive"
 ): Promise<DocumentUploadResponse> {
   const form = new FormData();
   form.append("file", file);
+  form.append("data_classification", classification);
+  form.append("non_sensitive_attested", "true");
 
   let res: Response;
   try {

@@ -68,7 +68,7 @@ export function useDocuments() {
   }, [canAccessWorkspaceApi, refresh, setDocuments]);
 
   const upload = useCallback(
-    async (file: File) => {
+    async (file: File, classification: "non_sensitive") => {
       if (!canAccessWorkspaceApi) {
         throw new Error("Sign in to upload documents.");
       }
@@ -76,7 +76,7 @@ export function useDocuments() {
       setUploading(true);
       setError(null);
       try {
-        const resp = await uploadDocument(file);
+        const resp = await uploadDocument(file, classification);
         if (resp.success && resp.document) {
           addDocument(resp.document);
           if (resp.job_id && resp.job?.status !== "completed") {
