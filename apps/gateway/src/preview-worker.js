@@ -182,7 +182,12 @@ async function storageDelete(env, key) {
   const response = await apiFetch(url, { method: "DELETE", headers: { apikey: env.SUPABASE_SERVICE_ROLE_KEY, authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}` } });
   if (!response.ok && response.status !== 404) throw Object.assign(new Error("Private original deletion failed."), { status: 503, code: "STORAGE_DELETE_FAILED", retryable: true });
   const verification = await apiFetch(url, { headers: { apikey: env.SUPABASE_SERVICE_ROLE_KEY, authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}` } });
-  if (verification.status !== 404) throw Object.assign(new Error("Private original deletion could not be verified."), { status: 503, code: "STORAGE_DELETE_UNVERIFIED", retryable: true });
+  let missing = verification.status === 404;
+  if (!missing && verification.status === 400) {
+    const detail = await verification.json().catch(() => ({}));
+    missing = detail?.code === "NoSuchKey" || detail?.error === "not_found";
+  }
+  if (!missing) throw Object.assign(new Error("Private original deletion could not be verified."), { status: 503, code: "STORAGE_DELETE_UNVERIFIED", retryable: true });
 }
 
 function documentView(row) {
@@ -234,15 +239,20 @@ async function cancelExistingJob(env,workspace,jobId,member){requireCapability(m
 async function reindexDocument(request,env,user,workspace,member,documentId){requireCapability(member,"research:run");const document=await loadBoundDocument(env,workspace,documentId),v=await serviceRequest(env,`document_versions?workspace_id=eq.${workspace}&id=eq.${document.active_version_id}&select=*&limit=1`);if(!v?.[0])throw Object.assign(new Error("Active version unavailable."),{status:409,code:"VERSION_UNAVAILABLE"});const source=v[0],versionId=crypto.randomUUID(),generation=crypto.randomUUID(),jobId=crypto.randomUUID();await serviceRequest(env,"document_versions",{method:"POST",body:JSON.stringify([{id:versionId,workspace_id:workspace,document_id:documentId,original_bucket:source.original_bucket,original_key:source.original_key,original_hash:source.original_hash,original_bytes:source.original_bytes,original_verified_at:source.original_verified_at,parser_version:"pending",chunker_version:"worker-char-v1",embedding_space_id:env.GEMINI_EMBEDDING_MODEL||"gemini-embedding-001",index_generation:generation,extraction_manifest:{},lifecycle_epoch:Number(document.lifecycle_epoch||1),publication_state:"staged"}])});const jobs=await serviceRequest(env,"ingestion_jobs",{method:"POST",body:JSON.stringify([{id:jobId,workspace_id:workspace,document_id:documentId,version_id:versionId,status:"queued",progress:0,stage:"queued",attempts:0,available_at:new Date().toISOString(),lifecycle_epoch:Number(document.lifecycle_epoch||1),payload:{filename:document.filename,operation:"reindex",supersedes_version_id:source.id},kind:"ingestion"}])});await enqueueJob(env,jobs[0]);return jobView(jobs[0],document);}
 
 async function deleteDocument(request, env, user, workspace, member, documentId) {
-  requireCapability(member,"research:run"); const document=await loadBoundDocument(env,workspace,documentId);
-  const rpc=await apiFetch(`${env.SUPABASE_URL}/rest/v1/rpc/tombstone_document`,{method:"POST",headers:{apikey:env.SUPABASE_SERVICE_ROLE_KEY,authorization:`Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,"content-type":"application/json"},body:JSON.stringify({p_workspace:workspace,p_document:documentId,p_actor:user.id})});
-  if(!rpc.ok) throw Object.assign(new Error("Document tombstone could not be created."),{status:409,code:"DELETE_CONFLICT"}); const operationId=await rpc.json();
-  await serviceRequest(env,`deletion_operations?id=eq.${operationId}`,{method:"PATCH",body:JSON.stringify({state:"cleaning"})}); const targets=await serviceRequest(env,`deletion_targets?workspace_id=eq.${workspace}&operation_id=eq.${operationId}&select=*&order=kind.asc`);
+  requireCapability(member,"research:run"); const document=await loadBoundDocument(env,workspace,documentId); let operationId;
+  if(document.lifecycle_state==="active"){
+    const rpc=await apiFetch(`${env.SUPABASE_URL}/rest/v1/rpc/tombstone_document`,{method:"POST",headers:{apikey:env.SUPABASE_SERVICE_ROLE_KEY,authorization:`Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,"content-type":"application/json"},body:JSON.stringify({p_workspace:workspace,p_document:documentId,p_actor:user.id})});
+    if(!rpc.ok) throw Object.assign(new Error("Document tombstone could not be created."),{status:409,code:"DELETE_CONFLICT"}); operationId=await rpc.json();
+  }else if(document.lifecycle_state==="deleting"){
+    const operations=await serviceRequest(env,`deletion_operations?workspace_id=eq.${workspace}&resource_id=eq.${documentId}&state=in.(pending,cleaning,blocked)&select=*&order=created_at.desc&limit=1`);
+    if(!operations?.[0])throw Object.assign(new Error("The existing deletion operation is unavailable."),{status:409,code:"DELETE_CONFLICT"}); operationId=operations[0].id;
+  }else throw Object.assign(new Error("Document not found."),{status:404,code:"DOCUMENT_NOT_FOUND"});
+  await serviceRequest(env,`deletion_operations?id=eq.${operationId}`,{method:"PATCH",body:JSON.stringify({state:"cleaning"})}); const targets=await serviceRequest(env,`deletion_targets?workspace_id=eq.${workspace}&operation_id=eq.${operationId}&select=*&order=kind.asc`); const pendingTargets=targets.filter(target=>!target.verified_at);
   const receipt=async(target,provider)=>{const verifiedAt=new Date().toISOString();const receiptHash=await sha256(JSON.stringify({workspace,operation_id:operationId,target_id:target.id,provider,verified_at:verifiedAt}));await serviceRequest(env,"deletion_receipts",{method:"POST",body:JSON.stringify([{workspace_id:workspace,operation_id:operationId,target_id:target.id,provider,receipt_hash:receiptHash,verified_at:verifiedAt}])});await serviceRequest(env,`deletion_targets?id=eq.${target.id}`,{method:"PATCH",body:JSON.stringify({attempts:Number(target.attempts||0)+1,verified_at:verifiedAt,failure_code:null})});};
   try {
-    const indexes=targets.filter(t=>t.kind==="version_index"); if(indexes.length){await deleteQdrantDocument(env,workspace,documentId);for(const target of indexes)await receipt(target,"qdrant");}
-    for(const target of targets.filter(t=>t.kind==="original")){await storageDelete(env,target.object_key);await receipt(target,"supabase_storage");}
-    for(const target of targets.filter(t=>!["original","version_index"].includes(t.kind)))await receipt(target,"supabase");
+    const indexes=pendingTargets.filter(t=>t.kind==="version_index"); if(indexes.length){await deleteQdrantDocument(env,workspace,documentId);for(const target of indexes)await receipt(target,"qdrant");}
+    for(const target of pendingTargets.filter(t=>t.kind==="original")){await storageDelete(env,target.object_key);await receipt(target,"supabase_storage");}
+    for(const target of pendingTargets.filter(t=>!["original","version_index"].includes(t.kind)))await receipt(target,"supabase");
     await serviceRequest(env,`documents?workspace_id=eq.${workspace}&id=eq.${documentId}`,{method:"DELETE"}); const remaining=await serviceRequest(env,`documents?workspace_id=eq.${workspace}&id=eq.${documentId}&select=id`); if(remaining.length)throw Object.assign(new Error("Supabase document deletion could not be verified."),{status:503,code:"SUPABASE_DELETE_UNVERIFIED"});
     await serviceRequest(env,`deletion_operations?id=eq.${operationId}`,{method:"PATCH",body:JSON.stringify({state:"verified",verified_at:new Date().toISOString()})}); await audit(env,request,user.id,workspace,"document.delete","document"); return{success:true,message:`${document.filename} deleted with verified provider receipts`,operation_id:operationId,receipts:targets.length};
   }catch(error){await serviceRequest(env,`deletion_operations?id=eq.${operationId}`,{method:"PATCH",body:JSON.stringify({state:"blocked"})}).catch(()=>null);throw Object.assign(error,{status:error.status||503,code:error.code||"DELETE_PARTIAL_FAILURE"});}
@@ -356,5 +366,5 @@ async function handle(request, env = {}) {
 }
 async function queue(batch,env){return handleQueue(batch,env)}
 async function scheduled(_event,env,ctx){ctx.waitUntil(sweepJobs(env))}
-export { allowRequest, handle, queue, scheduled };
+export { allowRequest, handle, queue, scheduled, storageDelete };
 export default { fetch: handle, queue, scheduled };
