@@ -204,6 +204,10 @@ This closes the **hosted database migration compatibility**, **hosted SQL-level 
 
 This is hosted PostgreSQL transaction evidence, not end-to-end authenticated PostgREST behavior or real OAuth/HTTP Storage evidence. No test fixtures or running test jobs remain.
 
+**Preview-deployment safety check:** Read-only Cloudflare Worker settings inspection found the shared `nexusrag-v6-preview-gateway` currently binds `SUPABASE_URL` to the active project `https://fcjaomiceajcdownarel.supabase.co`; the Worker has service-role secret bindings, whose values were not read. The candidate preview workflow targets this same Worker name. The active project remains at migration 026, so deploying candidate gateway code there would be unsafe. No candidate deployment or live production request was attempted. First provision a separate test Worker/deployment environment bound to the rehearsal project and its service credential.
+
+**Auth API check:** I also attempted synthetic password sign-in in the rehearsal project. Directly inserted test users did not produce valid Supabase Auth tokens, and public signup rejected reserved test email domains; all attempted Auth users/profiles were removed. Final checks show zero Auth users, identities, profiles, workspaces, documents, uploads, or Storage objects. Real Auth/HTTP Storage testing therefore needs valid disposable test identities (or an owner-approved test email domain), not fabricated credentials.
+
 ### Remaining release blockers
 
 1. **Zero-cost provider guard:** the owner authorized Gemini Free only for explicitly attested non-sensitive inputs under its unpaid-tier terms. Production rights, terms-snapshot, and budget rows remain empty; we have not seeded guessed account limits or made provider calls. The checkbox is not DLP, and the account-wide $0 guarantee cannot be proven while Google Cloud reports other project charges.
