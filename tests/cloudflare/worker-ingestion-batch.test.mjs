@@ -143,10 +143,10 @@ test("synthetic text ingestion resumes in <=3-chunk batches and publishes only a
   assert.equal(fixture.events.filter((event) => event.host === "generativelanguage.googleapis.com").length, 5);
 });
 
-test("synthetic 100+ chunk text document completes over bounded queued batches", async (t) => {
-  const source = "Reviewed policy evidence. ".repeat(6_000);
+test("synthetic near-capacity text document completes over bounded queued batches", async (t) => {
+  const source = "Reviewed policy evidence. ".repeat(20_000);
   const expectedChunks = chunkText(source).length;
-  assert.ok(expectedChunks > 100 && expectedChunks <= 400, `fixture has ${expectedChunks} chunks`);
+  assert.ok(expectedChunks > 380 && expectedChunks <= 400, `fixture has ${expectedChunks} chunks`);
   const fixture = fakeIngestionFetch(source);
   t.mock.method(globalThis, "fetch", fixture.fetch);
 

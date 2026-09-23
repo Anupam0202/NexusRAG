@@ -117,7 +117,7 @@ Added a provider-free route integration test for synthetic authenticated upload 
 
 This improves local integration coverage only. It does not test genuine OAuth, hosted Supabase, actual providers, real Qdrant, provider budgets or production evaluation, and does not close authenticated product E2E or semantic-quality gates. Status remains `PARTIAL_NOT_COMPLETE`.
 
-A further provider-free regression drives a 116-chunk plain-text document through 39 sequential three-chunk Queue continuations. Every mocked Worker invocation remains below 50 outbound fetches, vector IDs remain stable, staged content is exact, and publication waits for all 116 verified vectors. This closes multi-batch text state-machine coverage at mock level only; it does not measure actual Workers CPU/request usage, live Queue retries/DLQ, or non-text ingestion above three chunks.
+A further provider-free regression drives a near-capacity 385-chunk plain-text document through 129 sequential three-chunk Queue continuations. Every mocked Worker invocation remains below 50 outbound fetches, vector IDs remain stable, staged content is exact, and publication waits for all 385 verified vectors. This closes the bounded text-batch state machine through its current 400-chunk cap at mock level only; it does not measure actual Workers CPU/request usage, live Queue retries/DLQ, or non-text ingestion above three chunks.
 
 ### Critical-blocker reductions — local candidate, not deployed
 
