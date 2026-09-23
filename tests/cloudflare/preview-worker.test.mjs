@@ -1,8 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import worker, { allowRequest, handle } from "../../apps/gateway/src/preview-worker.js";
+import worker, { allowRequest, handle, storageDelete } from "../../apps/gateway/src/preview-worker.js";
 
-const request = (path = "/health", init = {}) => new Request(`https://preview.invalid${path}`, init);
+const request = (path = "/health", init = {}) => new Request(`{{https://preview.invalid${path}}}`, init);
 const configured = {
   SUPABASE_URL: "https://supabase.invalid",
   SUPABASE_PUBLISHABLE_KEY: "synthetic-publishable",
@@ -68,4 +68,35 @@ test("HEAD emits no response body", async () => {
   const response = await handle(request("/health", { method: "HEAD" }), configured);
   assert.equal(response.status, 200);
   assert.equal(await response.text(), "");
+});
+
+test("storage deletion accepts Supabase NoSuchKey absence verification", async () => {
+  const originalFetch = globalThis.fetch;
+  const calls = [];
+  globalThis.fetch = async (url, init = {}) => {
+    calls.push({ url: String(url), method: init.method || "GET" });
+    if (calls.length === 1) return new Response("{}", { status: 200 });
+    return new Response(JSON.stringify({ code: "NoSuchKey", error: "not_found", message: "Object not found" }), { status: 400, headers: { "content-type": "application/json" } });
+  };
+  try {
+    await storageDelete(configured, "workspace/document/version/file.txt");
+    assert.deepEqual(calls.map((call) => call.method), ["DELETE", "GET"]);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("storage deletion rejects an unrelated 400 verification response", async () => {
+  const originalFetch = globalThis.fetch;
+  let calls = 0;
+  globalThis.fetch = async () => {
+    calls += 1;
+    if (calls === 1) return new Response("{}", { status: 200 });
+    return new Response(JSON.stringify({ code: "InvalidRequest", message: "Malformed request" }), { status: 400, headers: { "content-type": "application/json" } });
+  };
+  try {
+    await assert.rejects(storageDelete(configured, "workspace/document/version/file.txt"), (error) => error.code === "STORAGE_DELETE_UNVERIFIED");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 });
