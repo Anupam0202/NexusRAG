@@ -61,7 +61,7 @@ jobs:
             PGPORT="$port" \
             PGUSER=postgres \
             PGDATABASE="$db" \
-            "$GITHUB_WORKSPACE/tests/postgres/local-rehearsal.sh" >"$log" 2>&1; then
+            bash "$GITHUB_WORKSPACE/tests/postgres/local-rehearsal.sh" >"$log" 2>&1; then
             grep -E 'concurrent_reservation_settlement_pass|storage_rls_two_identity_pass|LOCAL_POSTGRES_REHEARSAL_PASS' "$log"
           else
             tail -n 80 "$log"
