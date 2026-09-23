@@ -12,6 +12,17 @@ DO $$ DECLARE n int; BEGIN
     has_function_privilege('service_role','public.v6_reserve_budget(uuid,text,text,bigint,text,text)','execute') THEN
   RAISE EXCEPTION 'quota RPC execute grants are too broad or missing';
  END IF;
+ IF has_function_privilege('anon','public.cleanup_terminal_ingestion_extraction()','execute') OR
+    has_function_privilege('authenticated','public.cleanup_terminal_ingestion_extraction()','execute') OR
+    NOT has_function_privilege('service_role','public.cleanup_terminal_ingestion_extraction()','execute') THEN
+  RAISE EXCEPTION 'extraction trigger execute grants are too broad or missing';
+ END IF;
+ IF (SELECT count(*) FROM pg_policies
+       WHERE schemaname='public'
+         AND tablename IN ('ingestion_extraction_manifests','ingestion_extraction_chunks')
+         AND policyname='nexusrag_explicit_client_deny') <> 2 THEN
+  RAISE EXCEPTION 'extraction staging explicit-deny policies are missing';
+ END IF;
  IF has_function_privilege('anon','public.workbench_stage_chunk_batch(uuid,uuid,text,bigint,uuid,bigint,text,text,jsonb,integer,integer,jsonb)','execute') OR
     has_function_privilege('authenticated','public.workbench_finalize_chunk_stage(uuid,uuid,text,bigint,uuid,bigint,integer,text)','execute') OR
     has_function_privilege('anon','public.workbench_store_extracted_chunks(uuid,uuid,text,bigint,uuid,bigint,text,text,jsonb,integer,jsonb)','execute') OR

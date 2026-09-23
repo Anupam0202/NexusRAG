@@ -9,6 +9,7 @@ on:
       - supabase/migrations/028_resumable_chunk_staging.sql
       - supabase/migrations/029_durable_extraction_staging.sql
       - supabase/migrations/030_non_sensitive_gemini_policy_gate.sql
+      - supabase/migrations/031_harden_extraction_storage_privileges.sql
       - scripts/build_clean_baseline.py
       - scripts/verify_v6_migrations.py
       - tests/postgres/**
@@ -60,6 +61,7 @@ jobs:
           cp "$GITHUB_WORKSPACE/supabase/migrations/028_resumable_chunk_staging.sql" "$source_dir/supabase/migrations/"
           cp "$GITHUB_WORKSPACE/supabase/migrations/029_durable_extraction_staging.sql" "$source_dir/supabase/migrations/"
           cp "$GITHUB_WORKSPACE/supabase/migrations/030_non_sensitive_gemini_policy_gate.sql" "$source_dir/supabase/migrations/"
+          cp "$GITHUB_WORKSPACE/supabase/migrations/031_harden_extraction_storage_privileges.sql" "$source_dir/supabase/migrations/"
           chmod -R a+rX "$source_dir"
           cleanup() {
             sudo -u postgres dropdb --if-exists -h /var/run/postgresql -p "$port" "$db" >/dev/null 2>&1 || true

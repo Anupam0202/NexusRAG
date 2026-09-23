@@ -1,6 +1,6 @@
 # Local PostgreSQL rehearsal
 
-This suite applies the clean NexusRAG baseline plus candidate migrations 027/028/029/030 to a **fresh disposable PostgreSQL 17 database** with the real `pgcrypto` and `pgvector` extensions. It uses two independent `psql` connections to exercise locking, reservation races, same-key idempotency, settlement replay, and rollback-safe transactional state. It also verifies durable extraction staging/replay/lease scoping and purge-on-terminal publication, synthetic Storage policy stand-ins, and explicit denial of sensitive/unknown Gemini classifications unless provider and workspace review evidence is present.
+This suite applies the clean NexusRAG baseline plus candidate migrations 027–031 to a **fresh disposable PostgreSQL 17 database** with the real `pgcrypto` and `pgvector` extensions. It uses two independent `psql` connections to exercise locking, reservation races, same-key idempotency, settlement replay, and rollback-safe transactional state. It also verifies durable extraction staging/replay/lease scoping and purge-on-terminal publication, synthetic Storage policy stand-ins, explicit denial of sensitive/unknown Gemini classifications unless provider and workspace review evidence is present, and service-role-only extraction cleanup privileges.
 
 Example (local only):
 

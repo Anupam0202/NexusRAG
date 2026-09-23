@@ -185,3 +185,25 @@ This section supersedes stale PR counts and the earlier statement that the Googl
 6. Citation syntax still cannot establish semantic entailment; held-out expert-reviewed evaluation and accessibility, selected vertical workflows, canary/rollback, and restore gates remain open.
 
 The clean local rehearsal is evidence about PostgreSQL execution only. The production project still ends at migration 026; migrations 027–030 are unapplied. Keep draft PR #3 unmerged and the Cloudflare candidate undeployed; status remains **`PARTIAL_NOT_COMPLETE`**.
+
+## Zero-cost hosted rehearsal and security-fix continuation — 2026-09-23
+
+The owner approved checking the only Supabase organization and creating a separate project **only at a confirmed $0/month quote**. Supabase quoted $0/month; a clean `nexusrag-zero-cost-rehearsal` project was created in `us-east-1`. It contains no production data and is reserved for disposable tests.
+
+- Applied the clean 51-table baseline and migrations 027–030 to the fresh hosted Supabase/PostgreSQL 17.6 project. This first hosted rehearsal surfaced a real security-advisor defect in migration 029: the trigger function `cleanup_terminal_ingestion_extraction()` retained PostgreSQL's default `PUBLIC` execute grant, and the two service-only staging tables had RLS enabled without explicit deny policies.
+- Added candidate migration 031 to revoke that function from `PUBLIC`, `anon`, and `authenticated`, grant it only to `service_role`, and add restrictive client-deny policies for both extraction-staging tables. The same exact migration applied successfully to the disposable hosted project.
+- After migration 031, the hosted Supabase security advisor returned **zero security findings**. Direct privilege checks confirmed that `anon` and `authenticated` cannot execute the trigger function, `service_role` can, and both explicit-deny policies exist.
+- A rollback-only hosted SQL-claim test created two synthetic Auth identities and separate workspaces/documents/storage-object rows, temporarily granted only the read privileges needed to exercise RLS, and used the real `authenticated` role plus `auth.uid()`. Each identity saw one own document/object and zero cross-tenant documents/objects; the other tenant's storage predicate returned false. The transaction was rolled back; final counts for Auth users, workspaces, documents, Storage objects, provider records, and budgets are all zero.
+- A fresh local PostgreSQL 17 + pgvector rehearsal including migration 031 passed; quota/idempotency/concurrency, extraction-stage, batch publication, Storage stand-in, and privilege assertions all passed. CI still needs to run on the updated PR head.
+- The intended live Supabase project was not modified: its migration history still ends at 026. No Cloudflare deployment, Gemini call, Qdrant mutation, or paid action occurred.
+
+This closes the **hosted database migration compatibility** and **hosted SQL-level tenant/Storage RLS** gates for the tested schema. It does **not** establish real OAuth sign-in, HTTP Storage upload/download, or concurrent hosted transaction behavior; the two identities were synthetic SQL JWT claims, and hosted concurrency remains covered only by independent local PostgreSQL sessions. No test fixtures remain in the disposable database.
+
+### Remaining release blockers
+
+1. **Zero-cost provider guard:** the owner authorized Gemini Free only for explicitly attested non-sensitive inputs under its unpaid-tier terms. Production rights, terms-snapshot, and budget rows remain empty; we have not seeded guessed account limits or made provider calls. The checkbox is not DLP, and the account-wide $0 guarantee cannot be proven while Google Cloud reports other project charges.
+2. **Candidate-runtime and full product E2E:** candidate Worker remains undeployed. No real OAuth, authenticated HTTP upload-to-answer, cross-tenant Storage API denial, Qdrant integration, retry/DLQ, deletion/export/restore, or live subrequest/CPU measurement has been run.
+3. **Answer quality and master-prompt releases:** claim state remains `REVIEW_REQUIRED` until independently labeled held-out entailment evaluation passes. Selected vertical workflow, accessibility, canary/rollback, and restore gates remain open.
+4. **Production migration/release:** migrations 027–031 remain candidate-only. Do not apply them to the active project or merge/deploy until independent PR review, owner-approved operational policy/budgets, and the remaining release gates are satisfied.
+
+**Status: `PARTIAL_NOT_COMPLETE`.** PR #3 remains draft and unmerged; Cloudflare candidate remains undeployed.
