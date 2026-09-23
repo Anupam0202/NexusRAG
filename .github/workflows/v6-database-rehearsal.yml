@@ -42,6 +42,9 @@ jobs:
       - name: Replay clean baseline and candidate migrations
         run: |
           set -euo pipefail
+          if ! pg_lsclusters --no-header | awk '$1 == "17" && $2 == "main" { found = 1 } END { exit !found }'; then
+            sudo pg_createcluster --port 55432 17 main
+          fi
           sudo pg_ctlcluster 17 main start
           port="$(pg_lsclusters --no-header | awk '$1 == "17" && $2 == "main" { print $3; exit }')"
           test -n "$port"
