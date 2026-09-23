@@ -50,9 +50,17 @@ jobs:
           test -n "$port"
           db=nexusrag_candidate_rehearsal
           log="$RUNNER_TEMP/postgres-rehearsal.log"
+          source_dir="$(mktemp -d /tmp/nexusrag-pg-rehearsal.XXXXXX)"
+          mkdir -p "$source_dir/tests" "$source_dir/supabase/baseline" "$source_dir/supabase/migrations"
+          cp -R "$GITHUB_WORKSPACE/tests/postgres" "$source_dir/tests/"
+          cp "$GITHUB_WORKSPACE/supabase/baseline/001_v6_zero_cost_baseline.sql" "$source_dir/supabase/baseline/"
+          cp "$GITHUB_WORKSPACE/supabase/migrations/027_metered_operation_admission.sql" "$source_dir/supabase/migrations/"
+          cp "$GITHUB_WORKSPACE/supabase/migrations/028_resumable_chunk_staging.sql" "$source_dir/supabase/migrations/"
+          chmod -R a+rX "$source_dir"
           cleanup() {
             sudo -u postgres dropdb --if-exists -h /var/run/postgresql -p "$port" "$db" >/dev/null 2>&1 || true
             sudo pg_ctlcluster 17 main stop >/dev/null 2>&1 || true
+            rm -rf "$source_dir"
           }
           trap cleanup EXIT
           sudo -u postgres createdb -h /var/run/postgresql -p "$port" "$db"
@@ -61,7 +69,7 @@ jobs:
             PGPORT="$port" \
             PGUSER=postgres \
             PGDATABASE="$db" \
-            bash "$GITHUB_WORKSPACE/tests/postgres/local-rehearsal.sh" >"$log" 2>&1; then
+            bash "$source_dir/tests/postgres/local-rehearsal.sh" >"$log" 2>&1; then
             grep -E 'concurrent_reservation_settlement_pass|storage_rls_two_identity_pass|LOCAL_POSTGRES_REHEARSAL_PASS' "$log"
           else
             tail -n 80 "$log"
