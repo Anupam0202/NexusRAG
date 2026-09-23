@@ -13,7 +13,6 @@ on:
 
 permissions:
   contents: read
-  packages: read
 
 concurrency:
   group: v6-database-rehearsal-${{ github.ref }}
@@ -31,13 +30,11 @@ jobs:
           # Pin the reviewed release so CI does not depend on an unauthenticated
           # "latest release" lookup that can fail under GitHub API rate limits.
           version: 2.117.0
-      - name: Authenticate GHCR image pulls with the job token
-        if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
-        env:
-          GH_TOKEN: ${{ github.token }}
+      - name: Seed Supabase Postgres image from the public ECR mirror
         run: |
           set -euo pipefail
-          printf '%s' "$GH_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+          docker pull public.ecr.aws/supabase/postgres:17.6.1.167
+          docker tag public.ecr.aws/supabase/postgres:17.6.1.167 ghcr.io/supabase/postgres:17.6.1.167
       - name: Verify immutable candidate identity
         run: |
           set -euo pipefail
