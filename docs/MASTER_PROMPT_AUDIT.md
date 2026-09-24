@@ -253,9 +253,9 @@ No hard $0 cost guarantee is possible for usage under a user-supplied Gemini key
 
 **Status remains `PARTIAL_NOT_COMPLETE`.** Both PRs remain draft and unmerged per the user’s explicit choice; candidate Workers are not claimed deployed.
 
-### Candidate Qdrant secret cleanup — 2026-09-24
+### Candidate Qdrant credential and collection check — 2026-09-24
 
-The known-revoked `QDRANT_API_KEY` entry was deleted from GitHub environment `NexusRAG-Candidate-Preview`; no other environment secret was changed or revealed. The candidate environment now intentionally has no Qdrant API key, so the workflow must fail closed until an appropriately scoped key is provisioned. The Qdrant Free cluster itself was not changed; no collection, API key, point, or vector was created, deleted, or modified. No candidate collection or collection-scoped key has been verified.
+The known-revoked `QDRANT_API_KEY` entry was deleted from GitHub environment `NexusRAG-Candidate-Preview`; no other environment secret was changed or revealed. A read-only check in the authenticated Qdrant Cloud console confirms the existing `NexusRAG` cluster is on the Free tier and the API-key form supports per-collection access with separate read/write versus read-only operations. The configured candidate deployment expects the isolated collection `nexusrag-v6-candidate`, but that collection is not present in the dashboard's available collection selector (which lists only existing collections). The cluster's `:6333/dashboard` endpoint fails in this environment with `ERR_TUNNEL_CONNECTION_FAILED`, preventing safe collection creation or vector-configuration inspection. No API key, collection, point, or vector was created, deleted, or modified. Do not reuse an existing collection or cluster-wide key for the candidate. Next safe step: provision the dedicated candidate collection through an authorized Qdrant management path, verify its vector dimensions and free-tier headroom, then create a read/write key restricted only to that collection and store it as a candidate-environment secret.
 
 ### Rehearsal OAuth initiation preflight — 2026-09-24
 
