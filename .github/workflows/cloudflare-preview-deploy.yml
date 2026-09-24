@@ -6,6 +6,12 @@ name: Cloudflare Preview Deploy
 
 on:
   workflow_dispatch:
+    inputs:
+      deploy_candidate_preview:
+        description: Deploy the isolated candidate Preview after its dedicated environment is fully configured
+        required: true
+        default: false
+        type: boolean
   push:
     branches: [v6-zero-cost-foundations-clean]
     paths:
@@ -23,11 +29,11 @@ concurrency:
 
 jobs:
   gateway:
-    if: vars.NEXUSRAG_CANDIDATE_PREVIEW_DEPLOY == 'true'
+    if: github.event_name == 'workflow_dispatch' && inputs.deploy_candidate_preview
     name: Deploy authenticated Evidence API gateway
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    environment: Preview
+    environment: NexusRAG-Candidate-Preview
     env:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID || vars.CLOUDFLARE_ACCOUNT_ID }}
@@ -46,7 +52,7 @@ jobs:
         run: |
           set -euo pipefail
           for name in CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID SUPABASE_URL SUPABASE_PUBLISHABLE_KEY SUPABASE_SERVICE_ROLE_KEY GEMINI_USER_KEY_ENCRYPTION_SECRET GOOGLE_API_KEY QDRANT_URL QDRANT_API_KEY; do
-            test -n "${!name:-}" || { echo "::error::$name is missing from Preview"; exit 1; }
+            test -n "${!name:-}" || { echo "::error::$name is missing from NexusRAG-Candidate-Preview"; exit 1; }
           done
           python3 -c 'import base64,os; assert len(base64.b64decode(os.environ["GEMINI_USER_KEY_ENCRYPTION_SECRET"],validate=True))==32, "encryption secret must be base64-encoded 32-byte key material"'
           response="$(curl --fail --silent --show-error \
@@ -62,7 +68,7 @@ jobs:
         run: |
           set -euo pipefail
           expected="https://ukgjygzfhyvnrsecdcuu.supabase.co"
-          test "$SUPABASE_URL" = "$expected" || { echo "::error::Candidate deployment blocked: Preview must use the disposable zero-cost rehearsal project."; exit 1; }
+          test "$SUPABASE_URL" = "$expected" || { echo "::error::Candidate deployment blocked: NexusRAG-Candidate-Preview must use the disposable zero-cost rehearsal project."; exit 1; }
           curl --fail --silent --show-error --output /dev/null \
             -H "apikey: $SUPABASE_PUBLISHABLE_KEY" \
             "$SUPABASE_URL/auth/v1/settings"
@@ -70,7 +76,7 @@ jobs:
             -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
             -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
             "$SUPABASE_URL/auth/v1/admin/users?per_page=1")"
-          test "$code" = "200" || { echo "::error::Preview service credential does not authenticate against the isolated rehearsal project."; exit 1; }
+          test "$code" = "200" || { echo "::error::Candidate environment service credential does not authenticate against the isolated rehearsal project."; exit 1; }
       - name: Ensure dedicated candidate queues exist
         run: |
           set -euo pipefail
@@ -105,13 +111,13 @@ jobs:
           test "$(curl --silent --output /dev/null --write-out '%{http_code}' "$GATEWAY_ORIGIN/api/v2/capabilities")" = 401
 
   frontend:
-    if: vars.NEXUSRAG_CANDIDATE_PREVIEW_DEPLOY == 'true'
+    if: github.event_name == 'workflow_dispatch' && inputs.deploy_candidate_preview
     needs: gateway
     name: Build and deploy OpenNext frontend
     runs-on: ubuntu-latest
     timeout-minutes: 20
     environment:
-      name: Preview
+      name: NexusRAG-Candidate-Preview
     env:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID || vars.CLOUDFLARE_ACCOUNT_ID }}
@@ -134,8 +140,8 @@ jobs:
         working-directory: .
         run: |
           set -euo pipefail
-          test -n "${CLOUDFLARE_API_TOKEN:-}" || { echo "::error::CLOUDFLARE_API_TOKEN is missing from the Preview environment"; exit 1; }
-          test -n "${CLOUDFLARE_ACCOUNT_ID:-}" || { echo "::error::CLOUDFLARE_ACCOUNT_ID is missing from the Preview environment"; exit 1; }
+          test -n "${CLOUDFLARE_API_TOKEN:-}" || { echo "::error::CLOUDFLARE_API_TOKEN is missing from NexusRAG-Candidate-Preview"; exit 1; }
+          test -n "${CLOUDFLARE_ACCOUNT_ID:-}" || { echo "::error::CLOUDFLARE_ACCOUNT_ID is missing from NexusRAG-Candidate-Preview"; exit 1; }
 
           response="$(curl --fail --silent --show-error \
             --connect-timeout 10 --max-time 30 \
@@ -157,7 +163,7 @@ jobs:
           missing=()
           for name in NEXT_PUBLIC_API_URL NEXT_PUBLIC_SITE_URL NEXT_PUBLIC_SUPABASE_URL NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY; do
             if [ -z "${!name:-}" ]; then
-              echo "::error::$name is missing from the Preview environment"
+              echo "::error::$name is missing from NexusRAG-Candidate-Preview"
               missing+=("$name")
             fi
           done
@@ -217,5 +223,5 @@ jobs:
             echo "- Frontend: $NEXT_PUBLIC_SITE_URL"
             echo "- Gateway health: $NEXT_PUBLIC_API_URL/health"
             echo "- Commit: \`$GITHUB_SHA\`"
-            echo "- Environment: \`Preview\`"
+            echo "- Environment: \`NexusRAG-Candidate-Preview\`"
           } >> "$GITHUB_STEP_SUMMARY"
