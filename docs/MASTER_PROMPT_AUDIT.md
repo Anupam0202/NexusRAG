@@ -238,3 +238,15 @@ The following candidate update is **not merged or deployed**. It targets the sam
 5. **Broader production blockers remain:** provider legal/rights/billing review, actual free-tier utilization confirmation, held-out semantic entailment evaluation and human labels, vertical workflow/accessibility checks, canary/rollback/restore and remaining release gates.
 
 **Status remains `PARTIAL_NOT_COMPLETE`.** The intended application project `fcjaomiceajcdownarel` remains unchanged at its previous migration level; PR #3 remains draft until its CI and the separate OAuth/Preview prerequisites are completed. No merge, production migration, Cloudflare deployment, DNS change, paid resource, or real Gemini request occurred.
+
+## Production migration-state reconciliation — 2026-09-24 (supersedes earlier snapshots)
+
+A read-only Supabase MCP check on 2026-09-24 found that the intended application project `fcjaomiceajcdownarel` is active on PostgreSQL 17 and its migration registry contains `001_v6_zero_cost_baseline` and migrations `027`–`033`, plus temporary hosted-concurrency harness setup/cleanup records. The project is non-empty. This directly contradicts older statements in this audit and PR descriptions that production ends at migration 026 or was untouched. Treat those earlier statements as stale.
+
+The read-only check in this continuation made no production writes. It does not establish which application/Worker commit currently consumes that schema, whether production OAuth/runtime configuration matches the PR source, or whether any previous application of migrations was intended. Do not apply migrations again, roll back, deploy, or merge until the owner/release operator reconciles migration source hashes, current Worker bindings, backups/restore point, and app revision against the active project. Production migration state is a release blocker, not proof of deploy readiness.
+
+The separate `nexusrag-zero-cost-rehearsal` project is on the organization Free tier, PostgreSQL 17, has no development branches, and currently has zero Auth users, Storage objects, workspaces, documents, chunks, jobs, budgets, or provider registry rows. Direct read-only checks confirmed service-role-only extraction cleanup execution and two explicit client-deny RLS policies. This is useful hosted SQL evidence, but it is not authenticated OAuth or Storage HTTP E2E.
+
+No hard $0 cost guarantee is possible for usage under a user-supplied Gemini key; the key owner may incur provider charges. Keep any provider use disabled until plan/rights and spending limits are independently verified.
+
+**Status remains `PARTIAL_NOT_COMPLETE`.** Both PRs remain draft and unmerged per the user’s explicit choice; candidate Workers are not claimed deployed.
