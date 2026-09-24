@@ -254,3 +254,7 @@ No hard $0 cost guarantee is possible for usage under a user-supplied Gemini key
 ### Candidate Qdrant secret cleanup — 2026-09-24
 
 The known-revoked `QDRANT_API_KEY` entry was deleted from GitHub environment `NexusRAG-Candidate-Preview`; no other environment secret was changed or revealed. The candidate environment now intentionally has no Qdrant API key, so the workflow must fail closed until an appropriately scoped key is provisioned. The Qdrant Free cluster itself was not changed; no collection, API key, point, or vector was created, deleted, or modified. No candidate collection or collection-scoped key has been verified.
+
+### Rehearsal OAuth initiation preflight — 2026-09-24
+
+Read-only Supabase Dashboard inspection of `nexusrag-zero-cost-rehearsal` found Google and GitHub Auth providers enabled, with client IDs populated and client-secret fields present but masked. Its Site URL is the candidate frontend Workers.dev origin, and `/auth/callback` is in the redirect allowlist. Read-only OAuth-start requests using the rehearsal project's publishable key returned HTTP 302 redirects to Google's and GitHub's OAuth authorization endpoints. No provider callback, token exchange, user consent, Auth account creation, or application session was completed; no client secret was revealed or changed. This confirms provider initiation configuration only, not successful login, callback/session handling, or production Auth configuration. The candidate frontend Worker is still undeployed, so authentic app E2E remains blocked.
