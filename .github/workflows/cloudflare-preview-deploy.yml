@@ -107,8 +107,18 @@ jobs:
       - name: Verify fail-closed authenticated gateway
         run: |
           set -euo pipefail
-          curl --fail --silent --show-error "$GATEWAY_ORIGIN/health" | jq -e '.status == "READY" and .authenticated_api == true and .paid_fallback == false and .providers.gemini == "CONFIGURED" and .providers.qdrant == "CONFIGURED"'
-          test "$(curl --silent --output /dev/null --write-out '%{http_code}' "$GATEWAY_ORIGIN/api/v2/capabilities")" = 401
+          health=""
+          for attempt in 1 2 3 4 5; do
+            health="$(curl --fail --silent --show-error --connect-timeout 10 --max-time 30 "$GATEWAY_ORIGIN/health")" && break
+            if [ "$attempt" -eq 5 ]; then exit 1; fi
+            sleep $((attempt * 2))
+          done
+          printf '%s' "$health" | jq -e '.status == "READY" and .authenticated_api == true and .paid_fallback == false and .providers.gemini == "CONFIGURED" and .providers.qdrant == "CONFIGURED"'
+          for attempt in 1 2 3 4 5; do
+            if code="$(curl --silent --show-error --connect-timeout 10 --max-time 30 --output /dev/null --write-out '%{http_code}' "$GATEWAY_ORIGIN/api/v2/capabilities")" && [ "$code" = "401" ]; then break; fi
+            if [ "$attempt" -eq 5 ]; then echo 'Unauthenticated gateway did not fail closed.' >&2; exit 1; fi
+            sleep $((attempt * 2))
+          done
 
   frontend:
     if: ${{ (github.event_name == 'workflow_dispatch' && inputs.deploy_candidate_preview) || (github.event_name == 'push' && github.ref == 'refs/heads/critical-gaps/v8-remote-validation' && contains(github.event.head_commit.message, '[deploy-candidate-preview]')) }}
