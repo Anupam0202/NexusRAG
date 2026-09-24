@@ -294,3 +294,8 @@ On the unauthenticated candidate `/chat` route, UI controls remain disabled unti
 After the audit-only commit `797d032e18a79b3dff0ffca9d10aef3d3054a17e`, all eight checks that ran on the new PR #3 head completed successfully, including frontend lint/unit/typecheck/build, PostgreSQL 17 migration/concurrency, migration integrity, Cloudflare compatibility, backend regressions, dependency review, SBOM, evaluation inventory, and foundation summary. The candidate deploy workflow did not rerun on this docs-only commit; its last candidate deployment run remains red for the one mobile visual-regression mismatch (39/40 passed). Thus exact-head code CI is green, but the deployment check is not clean.
 
 **Status remains `PARTIAL_NOT_COMPLETE`.** Google OAuth is now verified for one browser-held identity only. Two-identity authorization and product E2E, account cleanup, the mobile visual-regression triage, and all other listed release gates remain open. No workspace was created. No production mutation, DNS change, Gemini/provider request, document upload, or merge occurred.
+
+
+## Exact-head CI reconciliation — 2026-09-24
+
+On PR #3 head `48589236dff269cddf69c1e5361baacc68f67683`, all nine reported checks completed successfully: Required foundation summary, backend isolated regressions, dependency review, evaluation inventory, SBOM/licence inventory, migration integrity, Cloudflare compatibility, frontend lint/unit/typecheck/build, and PostgreSQL 17 migration/concurrency rehearsal. These are code/CI checks only. The deployment workflow did not rerun because this was documentation-only; the last candidate deploy still has the one unresolved mobile visual-regression failure. The PR remains draft and the merge blockers above remain open.
