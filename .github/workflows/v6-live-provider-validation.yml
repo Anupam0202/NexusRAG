@@ -10,6 +10,7 @@ on:
     paths:
       - apps/gateway/**
       - scripts/live_provider_validation.py
+      - scripts/preview_target.py
       - backend/src/vectorstores/qdrant_store.py
       - backend/src/generation/**
       - .github/workflows/v6-live-provider-validation.yml

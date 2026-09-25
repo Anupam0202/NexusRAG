@@ -21,6 +21,7 @@ jobs:
       - uses: actions/setup-python@v5
         with: {python-version: "3.13"}
       - run: python3 scripts/verify_v6_migrations.py
+      - run: python3 -m unittest discover -s tests/scripts -p 'test_preview_target_isolation.py'
   backend-isolated:
     name: Backend isolated regressions
     runs-on: ubuntu-latest
