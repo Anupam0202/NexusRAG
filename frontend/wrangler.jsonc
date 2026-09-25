@@ -1,7 +1,7 @@
 {
   // Standard workers.dev origins are derived by the protected Preview workflow.
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "nexusrag-v6-frontend-preview",
+  "name": "nexusrag-v6-candidate-frontend",
   "main": ".open-next/worker.js",
   "compatibility_date": "2026-09-20",
   "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
@@ -12,7 +12,7 @@
   "services": [
     {
       "binding": "WORKER_SELF_REFERENCE",
-      "service": "nexusrag-v6-frontend-preview"
+      "service": "nexusrag-v6-candidate-frontend"
     }
   ],
   "observability": {
