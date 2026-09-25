@@ -69,8 +69,14 @@ export function Header() {
                 : "online"
           );
         }
-      } catch {
-        if (!cancelled) store.setConnectionStatus("offline");
+      } catch (error) {
+        const authenticationRequired =
+          error instanceof Error &&
+          "code" in error &&
+          (error as Error & { code?: unknown }).code === "AUTH_REQUIRED";
+        if (!cancelled) {
+          store.setConnectionStatus(authenticationRequired ? "auth_required" : "offline");
+        }
       }
     };
     void checkBackend();
@@ -90,6 +96,8 @@ export function Header() {
         ? "Auth setup required"
         : store.connectionStatus === "data_setup_required"
           ? "Data setup required"
+          : store.connectionStatus === "auth_required"
+            ? "Sign in required"
           : store.connectionStatus === "reconnecting"
             ? "Reconnecting"
             : store.connectionStatus === "offline"
@@ -99,7 +107,11 @@ export function Header() {
   const connectionNeedsSetup =
     browserOnline &&
     (store.connectionStatus === "auth_setup_required" ||
-      store.connectionStatus === "data_setup_required");
+      store.connectionStatus === "data_setup_required" ||
+      store.connectionStatus === "auth_required");
+  const connectionReachable =
+    browserOnline &&
+    (connectionOnline || store.connectionStatus === "auth_required");
 
   return (
     <header className="flex w-full min-w-0 items-center justify-between border-b border-white/10 dark:border-white/5 bg-white/70 dark:bg-[#0a0e1a]/70 backdrop-blur-xl px-4 sm:px-6 h-14 shrink-0 sticky top-0 z-30 shadow-[0_1px_3px_rgba(0,0,0,0.05)]">
@@ -121,7 +133,7 @@ export function Header() {
               ? "bg-amber-100 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300"
             : "bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-400"
         }`}>
-          {connectionOnline ? <Wifi size={11} /> : <WifiOff size={11} />}
+          {connectionReachable ? <Wifi size={11} /> : <WifiOff size={11} />}
           {connectionLabel}
         </div>
 

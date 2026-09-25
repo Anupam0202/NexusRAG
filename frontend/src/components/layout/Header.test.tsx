@@ -53,4 +53,19 @@ describe("Header", () => {
       expect(useStore.getState().connectionStatus).toBe("data_setup_required")
     );
   });
+
+  it("reports sign-in required rather than backend offline for an unauthenticated status request", async () => {
+    getSystemStatus.mockRejectedValue(
+      Object.assign(new Error("Authentication is required."), { code: "AUTH_REQUIRED" })
+    );
+
+    render(<Header />);
+
+    expect(await screen.findByText("Sign in required")).toBeInTheDocument();
+    expect(screen.queryByText("Backend offline")).not.toBeInTheDocument();
+    await waitFor(() =>
+      expect(useStore.getState().connectionStatus).toBe("auth_required")
+    );
+  });
+
 });
