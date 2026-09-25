@@ -542,7 +542,7 @@ function MetricCard({
     >
       <div className="opacity-80 mb-1">{icon}</div>
       <p className="text-xl md:text-2xl font-bold tabular-nums">{value}</p>
-      <p className="text-[11px] opacity-80 leading-tight mt-0.5">{label}</p>
+      <p className="text-[11px] leading-tight mt-0.5">{label}</p>
     </motion.div>
   );
 }
