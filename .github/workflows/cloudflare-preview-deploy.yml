@@ -107,9 +107,10 @@ jobs:
       - name: Ensure dedicated candidate queues exist
         run: |
           set -euo pipefail
+          # Workers Free Queue retention is 24 hours; override Wrangler's 4-day default.
           for queue in "$INGESTION_QUEUE" "$INGESTION_DLQ"; do
             if ! npx --yes wrangler@4.37.1 queues info "$queue" >/dev/null 2>&1; then
-              npx --yes wrangler@4.37.1 queues create "$queue"
+              npx --yes wrangler@4.37.1 queues create "$queue" --message-retention-period-secs 86400
             fi
           done
       - name: Install Supabase service credential as a Worker secret

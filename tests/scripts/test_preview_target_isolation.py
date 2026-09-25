@@ -1,4 +1,5 @@
 import unittest
+from pathlib import Path
 
 from scripts.preview_target import PREVIEW_TARGETS, resolve_target, validate_targets
 
@@ -31,6 +32,11 @@ class PreviewTargetIsolationTests(unittest.TestCase):
                 "refs/heads/critical-gaps/v8-remote-validation",
             },
         )
+
+    def test_queue_creation_uses_free_plan_retention_limit(self):
+        repository = Path(__file__).resolve().parents[2]
+        workflow = (repository / ".github/workflows/cloudflare-preview-deploy.yml").read_text()
+        self.assertIn("--message-retention-period-secs 86400", workflow)
 
 
 if __name__ == "__main__":
