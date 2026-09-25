@@ -96,11 +96,13 @@ test("account Gemini key cannot trigger Google validation without explicit billi
 test("BYOK Gemini generation sends credentials only in the API-key header and skips platform quota reservations", async (t) => {
   const apiKey = "AIzaAnotherSyntheticKey000000000000000";
   let callCount = 0;
+  let generationConfig;
   t.mock.method(globalThis, "fetch", async (input, init = {}) => {
     const url = new URL(String(input));
     callCount += 1;
     assert.equal(url.search, "");
     assert.equal(new Headers(init.headers).get("x-goog-api-key"), apiKey);
+    generationConfig = JSON.parse(init.body).generationConfig;
     return json({
       candidates: [{ content: { parts: [{ text: "Grounded answer [S1]" }] } }],
       usageMetadata: { promptTokenCount: 10, candidatesTokenCount: 5 },
@@ -112,7 +114,10 @@ test("BYOK Gemini generation sends credentials only in the API-key header and sk
     dataClassification: "non_sensitive",
     userApiKey: apiKey,
     credentialMode: "user_byok",
+    temperature: 0.45,
   });
   assert.equal(response.answer, "Grounded answer [S1]");
   assert.equal(callCount, 1);
+  assert.equal(generationConfig.temperature, 0.45);
+  assert.equal(generationConfig.maxOutputTokens, 1024);
 });

@@ -63,10 +63,27 @@ async function extractFileText(env, file, context) {
   throw error("UNSUPPORTED_MEDIA_TYPE", "The document type is unsupported.", 415);
 }
 function lexicalScore(question, content) { const terms = [...new Set(String(question).toLowerCase().match(/[\p{L}\p{N}]{3,}/gu) || [])].slice(0, 24); if (!terms.length) return 0; const haystack = String(content).toLowerCase(); return terms.reduce((score, term) => score + (haystack.includes(term) ? 1 : 0), 0) / terms.length; }
-function hybridFuse(question, vectorHits, lexicalRows, limit = 8) {
-  const fused = new Map(); vectorHits.forEach((hit, rank) => { const id = hit?.payload?.chunk_id || hit?.id; if (id) fused.set(id, { ...hit, score: Number(hit.score || 0), rrf: 1 / (61 + rank) }); });
-  lexicalRows.map((row) => ({ row, score: lexicalScore(question, row.content) })).filter((item) => item.score > 0).sort((a, b) => b.score - a.score).forEach((item, rank) => { const current = fused.get(item.row.id) || { id: item.row.id, payload: { ...item.row.metadata, chunk_id: item.row.id, document_id: item.row.document_id, version_id: item.row.version_id, chunk_index: item.row.chunk_index, page_number: item.row.page_number || 0, content: item.row.content, filename: item.row.metadata?.filename || "document" }, score: 0, rrf: 0 }; current.rrf += 1 / (61 + rank); current.lexical_score = item.score; fused.set(item.row.id, current); });
-  return [...fused.values()].sort((a, b) => (b.rrf + 0.02 * (b.lexical_score || 0)) - (a.rrf + 0.02 * (a.lexical_score || 0))).slice(0, Math.max(1, Math.min(limit, 12)));
+function hybridFuse(question, vectorHits, lexicalRows, limit = 8, alpha = 0.6) {
+  const rawAlpha = Number(alpha);
+  const semanticWeight = Number.isFinite(rawAlpha) ? Math.max(0, Math.min(1, rawAlpha)) : 0.6;
+  const fused = new Map();
+  vectorHits.forEach((hit, rank) => {
+    const id = hit?.payload?.chunk_id || hit?.id;
+    if (id) fused.set(id, { ...hit, score: Number(hit.score || 0), rrf: 1 / (61 + rank), dense_rrf: 1 / (61 + rank), lexical_rrf: 0 });
+  });
+  lexicalRows.map((row) => ({ row, score: lexicalScore(question, row.content) })).filter((item) => item.score > 0).sort((a, b) => b.score - a.score).forEach((item, rank) => {
+    const current = fused.get(item.row.id) || { id: item.row.id, payload: { ...item.row.metadata, chunk_id: item.row.id, document_id: item.row.document_id, version_id: item.row.version_id, chunk_index: item.row.chunk_index, page_number: item.row.page_number || 0, content: item.row.content, filename: item.row.metadata?.filename || "document" }, score: 0, rrf: 0, dense_rrf: 0, lexical_rrf: 0 };
+    const lexicalRank = 1 / (61 + rank);
+    current.rrf += lexicalRank;
+    current.lexical_rrf += lexicalRank;
+    current.lexical_score = item.score;
+    fused.set(item.row.id, current);
+  });
+  const rankingScore = (item) => (semanticWeight * item.dense_rrf)
+    + ((1 - semanticWeight) * (item.lexical_rrf + (0.02 * (item.lexical_score || 0))));
+  return [...fused.values()]
+    .sort((a, b) => rankingScore(b) - rankingScore(a))
+    .slice(0, Math.max(1, Math.min(limit, 12)));
 }
 function qdrantDeletionFilter(w,d,v=null,g=null){const must=[{key:"workspace_id",match:{value:w}},{key:"document_id",match:{value:d}}];if(v)must.push({key:"version_id",match:{value:v}});if(g)must.push({key:"index_generation",match:{value:g}});return{must}}
 async function del(env,filter,workspaceId,priority="background"){

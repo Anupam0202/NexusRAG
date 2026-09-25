@@ -146,6 +146,61 @@ async function membership(env, userId, workspaceId) {
   if (!rows?.[0]) throw Object.assign(new Error("The workspace is unavailable to this user."), { status: 403, code: "FORBIDDEN" });
   return rows[0];
 }
+const SETTINGS_SELECT = "retrieval_top_k,hybrid_search_alpha,llm_temperature,updated_at";
+const SETTINGS_DEFAULTS = Object.freeze({
+  retrieval_top_k: 10,
+  hybrid_search_alpha: 0.6,
+  llm_temperature: 0.1,
+});
+const SETTINGS_PATCH_FIELDS = new Set(Object.keys(SETTINGS_DEFAULTS));
+async function readWorkspaceSettings(env, workspaceId) {
+  const rows = await serviceRequest(
+    env,
+    `workspace_settings?workspace_id=eq.${encodeURIComponent(workspaceId)}&select=${SETTINGS_SELECT}&limit=1`,
+  );
+  const row = rows?.[0] || SETTINGS_DEFAULTS;
+  return {
+    // These values describe the actual Worker runtime; provider secrets are never returned.
+    llm_model_name: env.GEMINI_MODEL || "gemini-2.5-flash",
+    llm_temperature: Number(row.llm_temperature ?? SETTINGS_DEFAULTS.llm_temperature),
+    retrieval_top_k: Math.max(1, Math.min(12, Number(row.retrieval_top_k ?? SETTINGS_DEFAULTS.retrieval_top_k))),
+    enable_reranking: false,
+    hybrid_search_alpha: Number(row.hybrid_search_alpha ?? SETTINGS_DEFAULTS.hybrid_search_alpha),
+    // This Worker intentionally sends only the current question, not prior chat history.
+    context_window_messages: 1,
+    chunk_size: 1600,
+    chunk_overlap: 240,
+    enable_semantic_chunking: false,
+    enable_contextual_enrichment: false,
+    embedding_model: env.GEMINI_EMBEDDING_MODEL || "gemini-embedding-001",
+    updated_at: row.updated_at || null,
+  };
+}
+function validateSettingsPatch(body) {
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    throw Object.assign(new Error("Settings must be a JSON object."), { status: 400, code: "INVALID_SETTINGS" });
+  }
+  const entries = Object.entries(body);
+  if (!entries.length || entries.some(([key]) => !SETTINGS_PATCH_FIELDS.has(key))) {
+    throw Object.assign(new Error("Only temperature, retrieval top K, and hybrid search alpha can be changed on this Worker profile."), { status: 422, code: "UNSUPPORTED_SETTING" });
+  }
+  const patch = {};
+  for (const [key, value] of entries) {
+    if (typeof value !== "number" || !Number.isFinite(value)) {
+      throw Object.assign(new Error(`Setting ${key} must be a finite number.`), { status: 422, code: "INVALID_SETTINGS" });
+    }
+    const valid = key === "llm_temperature"
+      ? value >= 0 && value <= 1
+      : key === "retrieval_top_k"
+        ? Number.isInteger(value) && value >= 1 && value <= 12
+        : value >= 0 && value <= 1;
+    if (!valid) {
+      throw Object.assign(new Error(`Setting ${key} is outside the supported zero-cost Worker range.`), { status: 422, code: "INVALID_SETTINGS" });
+    }
+    patch[key] = value;
+  }
+  return patch;
+}
 function workspaceId(request) {
   const value = request.headers.get("x-nexus-workspace-id") || request.headers.get("x-workspace-id") || "";
   if (!/^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(value)) throw Object.assign(new Error("A valid workspace binding is required."), { status: 400, code: "WORKSPACE_UNAVAILABLE" });
@@ -333,19 +388,20 @@ async function chat(request, env, user, workspace, member) {
   requireCapability(member,"research:run"); const started=Date.now(); const body=await request.json(); const question=String(body?.question||"").trim(); if(!question||question.length>10000)throw Object.assign(new Error("Question must contain 1 to 10,000 characters."),{status:422,code:"INVALID_SCOPE"});
   if(body?.non_sensitive_attested!==true)throw Object.assign(new Error("Chat blocked: confirm the question contains no personal, confidential, regulated, or other sensitive information."),{status:403,code:"RIGHTS_BLOCKED"});
   const admission=await accountAdmission(request,env,user,"chat");
+  const settings=await readWorkspaceSettings(env,workspace);
   const documentIds=Array.isArray(body?.document_ids)?body.document_ids.filter(v=>/^[0-9a-f-]{36}$/i.test(v)).slice(0,25):[]; const sessionId=/^[0-9a-f-]{36}$/i.test(String(body?.session_id||""))?body.session_id:crypto.randomUUID();
   let sessions=await serviceRequest(env,`chat_sessions?workspace_id=eq.${workspace}&id=eq.${sessionId}&user_id=eq.${user.id}&deleted_at=is.null&select=*&limit=1`); if(!sessions?.[0])sessions=await serviceRequest(env,"chat_sessions",{method:"POST",body:JSON.stringify([{id:sessionId,workspace_id:workspace,user_id:user.id,title:question.slice(0,120),visibility:"private"}])});
   await serviceRequest(env,"chat_messages",{method:"POST",body:JSON.stringify([{workspace_id:workspace,session_id:sessionId,role:"user",content:question,sources:[],metadata:{query_type:"general"}}])});
-  const requestedFilter=documentIds.length?`&id=in.(${documentIds.join(",")})`:"";const activeDocuments=await serviceRequest(env,`documents?workspace_id=eq.${workspace}&lifecycle_state=eq.active&active_version_id=not.is.null${requestedFilter}&select=id,active_version_id&limit=100`);const versions=activeDocuments.length?await serviceRequest(env,`document_versions?workspace_id=eq.${workspace}&publication_state=eq.ready&data_classification=eq.non_sensitive&select=id,document_id&limit=100`):[];const eligibleVersionIds=new Set(versions.map(item=>item.id));const eligibleDocuments=activeDocuments.filter(item=>eligibleVersionIds.has(item.active_version_id));const activeDocumentIds=eligibleDocuments.map(item=>item.id),activeVersionIds=eligibleDocuments.map(item=>item.active_version_id);const vectorHits=activeVersionIds.length?await searchChunks(env,{workspaceId:workspace,question,documentIds:activeDocumentIds,versionIds:activeVersionIds,limit:Math.min(Number(body?.top_k||12),12),dataClassification:"non_sensitive",userApiKey:admission.userApiKey,credentialMode:admission.credentialMode}):[];const lexical=activeVersionIds.length?await serviceRequest(env,`document_chunks?workspace_id=eq.${workspace}&version_id=in.(${activeVersionIds.join(",")})&select=id,document_id,version_id,chunk_index,page_number,content,metadata&limit=200`):[];const hits=hybridFuse(question,vectorHits,lexical,Math.min(Number(body?.top_k||8),12));
+  const requestedFilter=documentIds.length?`&id=in.(${documentIds.join(",")})`:"";const activeDocuments=await serviceRequest(env,`documents?workspace_id=eq.${workspace}&lifecycle_state=eq.active&active_version_id=not.is.null${requestedFilter}&select=id,active_version_id&limit=100`);const versions=activeDocuments.length?await serviceRequest(env,`document_versions?workspace_id=eq.${workspace}&publication_state=eq.ready&data_classification=eq.non_sensitive&select=id,document_id&limit=100`):[];const eligibleVersionIds=new Set(versions.map(item=>item.id));const eligibleDocuments=activeDocuments.filter(item=>eligibleVersionIds.has(item.active_version_id));const activeDocumentIds=eligibleDocuments.map(item=>item.id),activeVersionIds=eligibleDocuments.map(item=>item.active_version_id),topK=settings.retrieval_top_k;const vectorHits=activeVersionIds.length?await searchChunks(env,{workspaceId:workspace,question,documentIds:activeDocumentIds,versionIds:activeVersionIds,limit:topK,dataClassification:"non_sensitive",userApiKey:admission.userApiKey,credentialMode:admission.credentialMode}):[];const lexical=activeVersionIds.length?await serviceRequest(env,`document_chunks?workspace_id=eq.${workspace}&version_id=in.(${activeVersionIds.join(",")})&select=id,document_id,version_id,chunk_index,page_number,content,metadata&limit=200`):[];const hits=hybridFuse(question,vectorHits,lexical,topK,settings.hybrid_search_alpha);
   const sources=hits.map(hit=>({content:String(hit.payload?.content||""),filename:String(hit.payload?.filename||"document"),page_number:Number(hit.payload?.page_number||0),chunk_index:Number(hit.payload?.chunk_index||0),relevance_score:Number(hit.score||hit.lexical_score||0),document_type:"text",metadata:{document_id:hit.payload?.document_id,version_id:hit.payload?.version_id,chunk_id:hit.payload?.chunk_id,hybrid_rrf:hit.rrf}}));let response;
-  if(!sources.length)response={answer:"I could not find sufficient evidence in the selected non-sensitive workspace documents, so I cannot answer reliably.",sources:[],query_type:"general",confidence:0,response_time_seconds:(Date.now()-started)/1000,metadata:{claim_state:"UNSUPPORTED",abstained:true,session_id:sessionId}};else{const generated=await generateAnswer(env,groundedPrompt(question,hits),{workspaceId:workspace,priority:"interactive",dataClassification:"non_sensitive",userApiKey:admission.userApiKey,credentialMode:admission.credentialMode});const checked=assessAnswer(generated.answer,sources);const byok=admission.credentialMode==="user_byok";response={answer:checked.answer,sources,query_type:"hybrid",confidence:0,response_time_seconds:(Date.now()-started)/1000,metadata:{claim_state:checked.claim_state,abstained:checked.abstained,validated_citation_ids:checked.citations,citation_required:true,model:generated.model,paid_fallback:false,retrieval:"rrf_dense_lexical",session_id:sessionId,provider_cost_status:"UNKNOWN",provider_cost_owner:byok?"USER_GOOGLE_PROJECT":"CONFIGURED_GOOGLE_PROJECT"}};await serviceRequest(env,"llm_usage_events",{method:"POST",body:JSON.stringify([{workspace_id:workspace,user_id:user.id,provider:"gemini",model:generated.model,operation:byok?"grounded_chat_byok":"grounded_chat_platform",input_tokens:generated.usage.promptTokenCount||null,output_tokens:generated.usage.candidatesTokenCount||null,success:true,cost_microusd:null}])}).catch(()=>null);}
+  if(!sources.length)response={answer:"I could not find sufficient evidence in the selected non-sensitive workspace documents, so I cannot answer reliably.",sources:[],query_type:"general",confidence:0,response_time_seconds:(Date.now()-started)/1000,metadata:{claim_state:"UNSUPPORTED",abstained:true,session_id:sessionId}};else{const generated=await generateAnswer(env,groundedPrompt(question,hits),{workspaceId:workspace,priority:"interactive",dataClassification:"non_sensitive",userApiKey:admission.userApiKey,credentialMode:admission.credentialMode,temperature:settings.llm_temperature});const checked=assessAnswer(generated.answer,sources);const byok=admission.credentialMode==="user_byok";response={answer:checked.answer,sources,query_type:"hybrid",confidence:0,response_time_seconds:(Date.now()-started)/1000,metadata:{claim_state:checked.claim_state,abstained:checked.abstained,validated_citation_ids:checked.citations,citation_required:true,model:generated.model,paid_fallback:false,retrieval:"rrf_dense_lexical",session_id:sessionId,provider_cost_status:"UNKNOWN",provider_cost_owner:byok?"USER_GOOGLE_PROJECT":"CONFIGURED_GOOGLE_PROJECT"}};await serviceRequest(env,"llm_usage_events",{method:"POST",body:JSON.stringify([{workspace_id:workspace,user_id:user.id,provider:"gemini",model:generated.model,operation:byok?"grounded_chat_byok":"grounded_chat_platform",input_tokens:generated.usage.promptTokenCount||null,output_tokens:generated.usage.candidatesTokenCount||null,success:true,cost_microusd:null}])}).catch(()=>null);}
   response.metadata.account_usage={free_chat_queries_used:admission.credentialMode==="platform_trial"?admission.used:5,free_chat_queries_limit:5,credential_mode:admission.credentialMode};
   await serviceRequest(env,"chat_messages",{method:"POST",body:JSON.stringify([{workspace_id:workspace,session_id:sessionId,role:"assistant",content:response.answer,sources:response.sources,metadata:{...response.metadata,query_type:response.query_type,confidence:response.confidence,response_time_seconds:response.response_time_seconds}}])}); await serviceRequest(env,`chat_sessions?id=eq.${sessionId}`,{method:"PATCH",body:JSON.stringify({updated_at:new Date().toISOString(),revision:Number(sessions[0].revision||1)+1})}); await audit(env,request,user.id,workspace,"research.run","query"); return response;
 }
 async function handle(request, env = {}) {
   const url = new URL(request.url);
   if (request.method === "OPTIONS") {
-    return json(request, env, null, 204, { "access-control-allow-methods": "GET,HEAD,POST,OPTIONS", "access-control-allow-headers": "Authorization,Content-Type,Idempotency-Key,X-Nexus-Workspace-Id,X-Workspace-ID", "access-control-max-age": "600" });
+    return json(request, env, null, 204, { "access-control-allow-methods": "GET,HEAD,POST,PATCH,OPTIONS", "access-control-allow-headers": "Authorization,Content-Type,Idempotency-Key,X-Nexus-Workspace-Id,X-Workspace-ID", "access-control-max-age": "600" });
   }
   if (url.pathname === "/" || url.pathname === "/health") {
     return json(request, env, { service: "nexusrag-v6-preview-gateway", profile: "ZERO_COST_LOW_TRAFFIC", status: configured(env) ? "READY" : "DEGRADED", authenticated_api: configured(env), production_verified: false, authorities: { business_records: "supabase", vectors: "qdrant" }, providers: { qdrant: env.QDRANT_URL && env.QDRANT_API_KEY ? "CONFIGURED" : "BLOCKED", gemini: env.GOOGLE_API_KEY ? "CONFIGURED" : "BLOCKED" }, paid_fallback: false, metered_operations: "REVIEW_REQUIRED", product_readiness: "NOT_VERIFIED" });
@@ -390,6 +446,27 @@ async function handle(request, env = {}) {
       const id = workspaceId(request); const member = await membership(env, user.id, id);
       const rows = await serviceRequest(env, `workspaces?id=eq.${id}&select=id,name,slug,plan,lifecycle_state,created_at&limit=1`);
       return json(request, env, { ...(rows[0] || {}), workspace_id: id, role: member.role });
+    }
+
+    if (url.pathname === "/api/v1/settings" && (request.method === "GET" || request.method === "HEAD")) {
+      const id = workspaceId(request);
+      await membership(env, user.id, id);
+      return json(request, env, await readWorkspaceSettings(env, id));
+    }
+    if (url.pathname === "/api/v1/settings" && request.method === "PATCH") {
+      const id = workspaceId(request);
+      const member = await membership(env, user.id, id);
+      if (!["owner", "admin"].includes(member.role)) {
+        throw Object.assign(new Error("Only workspace admins and owners can change runtime settings."), { status: 403, code: "FORBIDDEN" });
+      }
+      const patch = validateSettingsPatch(await request.json());
+      await serviceRequest(env, "workspace_settings?on_conflict=workspace_id", {
+        method: "POST",
+        headers: { prefer: "resolution=merge-duplicates,return=representation" },
+        body: JSON.stringify([{ workspace_id: id, ...patch }]),
+      });
+      await audit(env, request, user.id, id, "settings.update", "workspace_settings");
+      return json(request, env, await readWorkspaceSettings(env, id));
     }
 
     if (url.pathname === "/api/v1/billing/usage" && (request.method === "GET" || request.method === "HEAD")) {
@@ -455,6 +532,8 @@ async function handle(request, env = {}) {
         cache: { enabled: false },
         settings: {
           anonymous_demo_enabled: false,
+          memory_constrained: true,
+          use_lightweight_embeddings: true,
           supabase_configured: true,
           supabase_auth_configured: true,
           supabase_data_api_reachable: supabaseDataApiReachable,

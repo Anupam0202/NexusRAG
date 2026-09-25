@@ -166,9 +166,13 @@ async function generateAnswer(env, prompt, context) {
     throw pipelineError("RIGHTS_BLOCKED", "Gemini may process only explicitly attested non-sensitive data.", 403);
   }
   const model = env.GEMINI_MODEL || GENERATION_MODEL;
+  const requestedTemperature = Number(context?.temperature ?? 0);
+  const temperature = Number.isFinite(requestedTemperature)
+    ? Math.max(0, Math.min(1, requestedTemperature))
+    : 0;
   const result = await geminiCall(env, { ...context, provider: "gemini" }, { requests: 1, input_tokens: new TextEncoder().encode(prompt).length, output_tokens: 1024 }, () => providerJson(
     `https:${"//"}generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
-    { method: "POST", headers: { "content-type": "application/json", "x-goog-api-key": apiKey }, body: JSON.stringify({ contents: [{ role: "user", parts: [{ text: prompt }] }], generationConfig: { temperature: 0, maxOutputTokens: 1024, candidateCount: 1, thinkingConfig: { thinkingBudget: 0 } } }) },
+    { method: "POST", headers: { "content-type": "application/json", "x-goog-api-key": apiKey }, body: JSON.stringify({ contents: [{ role: "user", parts: [{ text: prompt }] }], generationConfig: { temperature, maxOutputTokens: 1024, candidateCount: 1, thinkingConfig: { thinkingBudget: 0 } } }) },
     25_000,
   ));
   const answer = (result?.candidates || []).flatMap((candidate) => candidate?.content?.parts || []).map((part) => part?.text || "").join("").trim();

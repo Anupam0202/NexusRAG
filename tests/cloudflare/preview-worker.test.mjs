@@ -113,10 +113,133 @@ test("billing usage denies non-admin workspace members before reading ledger row
   }
 });
 
+test("workspace settings are authenticated, tenant-scoped, secret-free, and use safe Worker defaults", async () => {
+  const originalFetch = globalThis.fetch;
+  const workspace = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+  const user = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
+  const calls = [];
+  globalThis.fetch = async (url) => {
+    const target = String(url);
+    calls.push(target);
+    if (target.endsWith("/auth/v1/user")) return new Response(JSON.stringify({ id: user }), { status: 200 });
+    if (target.includes(`/rest/v1/workspace_members?workspace_id=eq.${workspace}&user_id=eq.${user}`)) {
+      return new Response(JSON.stringify([{ workspace_id: workspace, user_id: user, role: "editor" }]), { status: 200 });
+    }
+    if (target.includes(`/rest/v1/workspace_settings?workspace_id=eq.${workspace}`)) return new Response("[]", { status: 200 });
+    throw new Error(`Unexpected settings request: ${target}`);
+  };
+  try {
+    const response = await handle(request("/api/v1/settings", {
+      headers: { authorization: "Bearer synthetic-user-token", "X-Nexus-Workspace-Id": workspace },
+    }), configured);
+    const body = await response.json();
+    assert.equal(response.status, 200);
+    assert.equal(body.llm_model_name, "gemini-2.5-flash");
+    assert.equal(body.embedding_model, "gemini-embedding-001");
+    assert.equal(body.retrieval_top_k, 10);
+    assert.equal(body.hybrid_search_alpha, 0.6);
+    assert.equal(body.llm_temperature, 0.1);
+    assert.equal(body.context_window_messages, 1);
+    assert.equal(body.enable_reranking, false);
+    assert.equal(body.enable_semantic_chunking, false);
+    assert.equal(body.enable_contextual_enrichment, false);
+    assert.equal(body.chunk_size, 1600);
+    assert.equal(body.chunk_overlap, 240);
+    assert.equal(JSON.stringify(body).includes("synthetic-service-secret"), false);
+    assert.equal(calls.some((target) => target.includes("/rest/v1/workspace_settings?workspace_id=eq.")), true);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("workspace owners can update bounded settings with a workspace-scoped upsert", async () => {
+  const originalFetch = globalThis.fetch;
+  const workspace = "dddddddd-dddd-4ddd-8ddd-dddddddddddd";
+  const user = "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee";
+  let settings = null;
+  let upsert = null;
+  globalThis.fetch = async (url, init = {}) => {
+    const target = String(url);
+    if (target.endsWith("/auth/v1/user")) return new Response(JSON.stringify({ id: user }), { status: 200 });
+    if (target.includes(`/rest/v1/workspace_members?workspace_id=eq.${workspace}&user_id=eq.${user}`)) {
+      return new Response(JSON.stringify([{ workspace_id: workspace, user_id: user, role: "owner" }]), { status: 200 });
+    }
+    if (target.includes(`/rest/v1/workspace_settings?on_conflict=workspace_id`) && init.method === "POST") {
+      upsert = { headers: new Headers(init.headers), body: JSON.parse(init.body) };
+      settings = { ...settings, ...upsert.body[0] };
+      return new Response(JSON.stringify([settings]), { status: 200 });
+    }
+    if (target.includes(`/rest/v1/workspace_settings?workspace_id=eq.${workspace}`)) {
+      return new Response(JSON.stringify(settings ? [settings] : []), { status: 200 });
+    }
+    if (target.includes("/rest/v1/audit_events") && init.method === "POST") return new Response("[]", { status: 201 });
+    throw new Error(`Unexpected settings request: ${target}`);
+  };
+  try {
+    const response = await handle(request("/api/v1/settings", {
+      method: "PATCH",
+      headers: { authorization: "Bearer synthetic-user-token", "X-Nexus-Workspace-Id": workspace, "content-type": "application/json" },
+      body: JSON.stringify({ llm_temperature: 0.35, retrieval_top_k: 7, hybrid_search_alpha: 0.25 }),
+    }), configured);
+    const body = await response.json();
+    assert.equal(response.status, 200);
+    assert.equal(body.llm_temperature, 0.35);
+    assert.equal(body.retrieval_top_k, 7);
+    assert.equal(body.hybrid_search_alpha, 0.25);
+    assert.equal(upsert.body[0].workspace_id, workspace);
+    assert.equal(upsert.headers.get("prefer"), "resolution=merge-duplicates,return=representation");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("workspace settings reject viewers and unsupported or out-of-range patches", async () => {
+  const originalFetch = globalThis.fetch;
+  const workspace = "ffffffff-ffff-4fff-8fff-ffffffffffff";
+  const user = "11111111-1111-4111-8111-111111111112";
+  let settingsWrites = 0;
+  let role = "viewer";
+  globalThis.fetch = async (url, init = {}) => {
+    const target = String(url);
+    if (target.endsWith("/auth/v1/user")) return new Response(JSON.stringify({ id: user }), { status: 200 });
+    if (target.includes(`/rest/v1/workspace_members?workspace_id=eq.${workspace}&user_id=eq.${user}`)) {
+      return new Response(JSON.stringify([{ workspace_id: workspace, user_id: user, role }]), { status: 200 });
+    }
+    if (target.includes("/rest/v1/workspace_settings") && init.method === "POST") {
+      settingsWrites += 1;
+      return new Response("[]", { status: 200 });
+    }
+    if (target.includes("/rest/v1/audit_events")) return new Response("[]", { status: 201 });
+    throw new Error(`Unexpected settings request: ${target}`);
+  };
+  const makePatch = (body) => request("/api/v1/settings", {
+    method: "PATCH",
+    headers: { authorization: "Bearer synthetic-user-token", "X-Nexus-Workspace-Id": workspace, "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  try {
+    const forbidden = await handle(makePatch({ llm_temperature: 0.2 }), configured);
+    assert.equal(forbidden.status, 403);
+    assert.equal((await forbidden.json()).error.code, "FORBIDDEN");
+    role = "owner";
+    const unsupported = await handle(makePatch({ enable_contextual_enrichment: true }), configured);
+    assert.equal(unsupported.status, 422);
+    assert.equal((await unsupported.json()).error.code, "UNSUPPORTED_SETTING");
+    const invalid = await handle(makePatch({ retrieval_top_k: 13 }), configured);
+    assert.equal(invalid.status, 422);
+    assert.equal((await invalid.json()).error.code, "INVALID_SETTINGS");
+    assert.equal(settingsWrites, 0);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test("CORS is exact-origin and preflight is bounded", async () => {
   const allowed = await handle(request("/api/v2/capabilities", { method: "OPTIONS", headers: { Origin: configured.FRONTEND_ORIGIN } }), configured);
   assert.equal(allowed.status, 204);
   assert.equal(allowed.headers.get("access-control-allow-origin"), configured.FRONTEND_ORIGIN);
+  const settingsPreflight = await handle(request("/api/v1/settings", { method: "OPTIONS", headers: { Origin: configured.FRONTEND_ORIGIN } }), configured);
+  assert.match(settingsPreflight.headers.get("access-control-allow-methods"), /PATCH/);
   const denied = await handle(request("/api/v2/capabilities", { method: "OPTIONS", headers: { Origin: "https://evil.invalid" } }), configured);
   assert.equal(denied.headers.get("access-control-allow-origin"), null);
 });

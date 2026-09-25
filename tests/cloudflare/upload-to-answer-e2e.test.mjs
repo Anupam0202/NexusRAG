@@ -51,6 +51,8 @@ function localAppFixture() {
   assert.ok(expectedChunks > 3 && expectedChunks <= 400, `fixture must exercise bounded batches, got ${expectedChunks}`);
   let embeddingCalls = 0;
   let generationCalls = 0;
+  const qdrantQueryLimits = [];
+  const generationTemperatures = [];
   let expectedGeminiApiKey = null;
   const matchesFilter = (point, filter) => (filter?.must || []).every((condition) => {
     const actual = point.payload?.[condition.key];
@@ -78,6 +80,12 @@ function localAppFixture() {
         return json(userKey ? [structuredClone(userKey)] : []);
       }
       if (table === "workspace_members") return json([member]);
+      if (table === "workspace_settings" && method === "GET") return json([{
+        workspace_id: workspace,
+        retrieval_top_k: 8,
+        hybrid_search_alpha: 0.6,
+        llm_temperature: 0.1,
+      }]);
       if (table === "documents") {
         if (method === "POST") {
           for (const row of body) docs.set(row.id, { ...row, lifecycle_state: "active", lifecycle_epoch: 1, active_version_id: null, created_at: new Date().toISOString(), revision: 1 });
@@ -209,19 +217,19 @@ function localAppFixture() {
       assert.equal(url.searchParams.get("key"), null, "Gemini API keys must never be placed in provider URLs");
       if (expectedGeminiApiKey) assert.equal(new Headers(init.headers || {}).get("x-goog-api-key"), expectedGeminiApiKey);
       if (url.pathname.endsWith(":embedContent")) { embeddingCalls += 1; return json({ embedding: { values: Array(768).fill(0.01) } }); }
-      if (url.pathname.endsWith(":generateContent")) { generationCalls += 1; return json({ candidates: [{ content: { parts: [{ text: "The evidence describes a 30-day retention policy. [S1]" }] } }], usageMetadata: { promptTokenCount: 42, candidatesTokenCount: 12 } }); }
+      if (url.pathname.endsWith(":generateContent")) { generationCalls += 1; generationTemperatures.push(body?.generationConfig?.temperature); return json({ candidates: [{ content: { parts: [{ text: "The evidence describes a 30-day retention policy. [S1]" }] } }], usageMetadata: { promptTokenCount: 42, candidatesTokenCount: 12 } }); }
     }
     if (url.hostname === "qdrant.invalid") {
       if (url.pathname.endsWith("/points/delete")) { for (const [id, point] of points) if (matchesFilter(point, body.filter)) points.delete(id); return json({ result: { status: "completed" } }); }
       if (url.pathname.endsWith("/points/count")) return json({ result: { count: [...points.values()].filter((point) => matchesFilter(point, body.filter)).length } });
-      if (url.pathname.endsWith("/points/query")) return json({ result: { points: [...points.values()].filter((point) => matchesFilter(point, body.filter)).slice(0, body.limit).map((point, index) => ({ id: point.id, payload: point.payload, score: 1 - index / 100 })) } });
+      if (url.pathname.endsWith("/points/query")) { qdrantQueryLimits.push(body.limit); return json({ result: { points: [...points.values()].filter((point) => matchesFilter(point, body.filter)).slice(0, body.limit).map((point, index) => ({ id: point.id, payload: point.payload, score: 1 - index / 100 })) } }); }
       if (url.pathname.includes("/collections/") && url.pathname.endsWith("/index")) return json({ result: true });
       if (url.pathname.includes("/collections/") && url.pathname.endsWith("/points")) { for (const point of body.points) points.set(point.id, point); return json({ result: { status: "completed" } }); }
       if (url.pathname.includes("/collections/")) return json({ result: { status: "green" } });
     }
     throw new Error(`Unexpected synthetic network request: ${method} ${url.href}`);
   };
-  return { env, user, source, expectedChunks, docs, versions, jobs, chunks, extractionManifests, extractionChunks, objects, points, sessions, messages, outbound, auditEvents, deletionReceipts, deletionTargets, events, queue, accountUsage, userKeys, fetch, setExpectedGeminiApiKey(value) { expectedGeminiApiKey = value; }, get deletionOperation() { return deletionOperation; }, get embeddingCalls() { return embeddingCalls; }, get generationCalls() { return generationCalls; } };
+  return { env, user, source, expectedChunks, docs, versions, jobs, chunks, extractionManifests, extractionChunks, objects, points, sessions, messages, outbound, auditEvents, deletionReceipts, deletionTargets, events, queue, accountUsage, userKeys, qdrantQueryLimits, generationTemperatures, fetch, setExpectedGeminiApiKey(value) { expectedGeminiApiKey = value; }, get deletionOperation() { return deletionOperation; }, get embeddingCalls() { return embeddingCalls; }, get generationCalls() { return generationCalls; } };
 }
 
 test("synthetic upload → queued ingestion → indexed evidence → grounded chat completes without external calls", async (t) => {
@@ -269,6 +277,8 @@ test("synthetic upload → queued ingestion → indexed evidence → grounded ch
   assert.ok(answer.sources.length > 0);
   assert.ok(fixture.embeddingCalls > fixture.expectedChunks, "both indexing and retrieval embeddings are exercised");
   assert.equal(fixture.generationCalls, 1);
+  assert.deepEqual(fixture.qdrantQueryLimits, [8], "workspace retrieval_top_k is applied to Qdrant");
+  assert.deepEqual(fixture.generationTemperatures, [0.1], "workspace llm_temperature is applied to the Gemini request");
   assert.equal(fixture.messages.filter((message) => message.role === "assistant").length, 1);
   assert.ok(fixture.auditEvents.length >= 1);
 
