@@ -13,7 +13,7 @@ on:
         default: false
         type: boolean
   push:
-    branches: [v6-zero-cost-foundations-clean]
+    branches: [v6-zero-cost-foundations-clean, critical-gaps/v8-remote-validation]
     paths:
       - frontend/**
       - apps/gateway/**
@@ -29,7 +29,7 @@ concurrency:
 
 jobs:
   gateway:
-    if: ${{ (github.event_name == 'workflow_dispatch' && inputs.deploy_candidate_preview) || (github.event_name == 'push' && github.ref == 'refs/heads/v6-zero-cost-foundations-clean' && contains(github.event.head_commit.message, '[deploy-candidate-preview]')) }}
+    if: ${{ (github.event_name == 'workflow_dispatch' && inputs.deploy_candidate_preview) || (github.event_name == 'push' && (github.ref == 'refs/heads/v6-zero-cost-foundations-clean' || github.ref == 'refs/heads/critical-gaps/v8-remote-validation') && contains(github.event.head_commit.message, '[deploy-candidate-preview]')) }}
     name: Deploy authenticated Evidence API gateway
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -111,7 +111,7 @@ jobs:
           test "$(curl --silent --output /dev/null --write-out '%{http_code}' "$GATEWAY_ORIGIN/api/v2/capabilities")" = 401
 
   frontend:
-    if: ${{ (github.event_name == 'workflow_dispatch' && inputs.deploy_candidate_preview) || (github.event_name == 'push' && github.ref == 'refs/heads/v6-zero-cost-foundations-clean' && contains(github.event.head_commit.message, '[deploy-candidate-preview]')) }}
+    if: ${{ (github.event_name == 'workflow_dispatch' && inputs.deploy_candidate_preview) || (github.event_name == 'push' && (github.ref == 'refs/heads/v6-zero-cost-foundations-clean' || github.ref == 'refs/heads/critical-gaps/v8-remote-validation') && contains(github.event.head_commit.message, '[deploy-candidate-preview]')) }}
     needs: gateway
     name: Build and deploy OpenNext frontend
     runs-on: ubuntu-latest
