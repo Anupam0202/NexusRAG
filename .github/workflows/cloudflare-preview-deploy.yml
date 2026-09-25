@@ -24,8 +24,8 @@ permissions:
   contents: read
 
 concurrency:
-  group: cloudflare-preview-${{ github.ref }}
-  cancel-in-progress: true
+  group: nexusrag-candidate-preview-deployment
+  cancel-in-progress: false
 
 jobs:
   gateway:
