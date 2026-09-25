@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import Link from "@/components/layout/StaticLink";
 import { useMemo } from "react";
 import { ExternalLink, FileText, X } from "lucide-react";
 import { DocumentChunksExplorer } from "@/components/documents/DocumentChunksExplorer";

@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useEffect, useState, useCallback, useMemo } from "react";
-import Link from "next/link";
+import Link from "@/components/layout/StaticLink";
 import { useChat } from "@/hooks/useChat";
 import { MessageBubble } from "./MessageBubble";
 import { SourcePanel } from "./SourcePanel";

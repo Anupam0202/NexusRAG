@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
+import Link from "@/components/layout/StaticLink";
 import { getSettings, getSystemStatus, updateSettings } from "@/lib/api";
 import { AuthRequiredState } from "@/components/auth/AuthRequiredState";
 import { useWorkspaceApiAccess } from "@/hooks/useAuthGate";
@@ -20,6 +20,7 @@ import {
   UsersRound,
 } from "lucide-react";
 import { useStore } from "@/hooks/useStore";
+import { reloadStatic } from "@/lib/static-navigation";
 
 export default function SettingsPage() {
   const { authMode, canAccessWorkspaceApi } = useWorkspaceApiAccess();
@@ -102,7 +103,7 @@ export default function SettingsPage() {
               <div className="mt-4 flex flex-wrap gap-2">
                 <button
                   type="button"
-                  onClick={() => window.location.reload()}
+                  onClick={reloadStatic}
                   className="rounded-lg bg-red-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-red-500"
                 >
                   Retry

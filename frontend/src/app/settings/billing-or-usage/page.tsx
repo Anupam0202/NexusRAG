@@ -2,7 +2,7 @@
 
 import type { ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
+import Link from "@/components/layout/StaticLink";
 import { Activity, AlertTriangle, ArrowLeft, Gauge, KeyRound, Loader2, ReceiptText, Zap } from "lucide-react";
 import { getAnalytics, getApiKeyStatus, getBillingUsage, getSystemStatus } from "@/lib/api";
 import { AuthRequiredState } from "@/components/auth/AuthRequiredState";

@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import Link from "next/link";
+import Link from "@/components/layout/StaticLink";
 import {
   MessageSquare, FileText, BarChart3, Settings, ChevronLeft,
   ChevronRight, Sparkles, Menu, X, ClipboardCheck, Building2,

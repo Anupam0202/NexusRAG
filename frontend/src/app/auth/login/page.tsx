@@ -1,13 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { Github, Loader2, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import { GoogleMark } from "@/components/auth/GoogleMark";
 import { useStore } from "@/hooks/useStore";
 import { buildAuthCallbackUrl, sanitizeAuthNextPath } from "@/lib/auth-redirect";
 import { createSupabaseBrowserClient, hasPublicSupabaseConfig } from "@/lib/supabase/client";
+import { navigateStatic } from "@/lib/static-navigation";
 
 type OAuthProvider = "google" | "github";
 
@@ -42,7 +42,6 @@ function ProviderIcon({ provider, pending }: { provider: OAuthProvider; pending:
 }
 
 export default function LoginPage() {
-  const router = useRouter();
   const authMode = useStore((state) => state.authMode);
   const [pendingProvider, setPendingProvider] = useState<OAuthProvider | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
@@ -63,8 +62,8 @@ export default function LoginPage() {
   }, []);
 
   useEffect(() => {
-    if (routeReady && authMode === "authenticated") router.replace(nextPath);
-  }, [authMode, nextPath, routeReady, router]);
+    if (routeReady && authMode === "authenticated") navigateStatic(nextPath);
+  }, [authMode, nextPath, routeReady]);
 
   const startOAuth = async (provider: OAuthProvider) => {
     if (!routeReady || !supabaseReady || pendingProvider) return;

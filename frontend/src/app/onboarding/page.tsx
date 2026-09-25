@@ -1,15 +1,14 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { Building2, Loader2, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { createWorkspace, getCurrentWorkspace } from "@/lib/api";
 import { createSupabaseBrowserClient, hasPublicSupabaseConfig } from "@/lib/supabase/client";
 import { useStore } from "@/hooks/useStore";
+import { navigateStatic } from "@/lib/static-navigation";
 
 export default function OnboardingPage() {
-  const router = useRouter();
   const setAuthState = useStore((state) => state.setAuthState);
   const setWorkspaceId = useStore((state) => state.setWorkspaceId);
   const [name, setName] = useState("My Workspace");
@@ -32,7 +31,7 @@ export default function OnboardingPage() {
       const { data } = await supabase.auth.getSession();
       const user = data.session?.user;
       if (!user) {
-        router.replace("/auth/login?next=/onboarding");
+        navigateStatic("/auth/login?next=%2Fonboarding");
         return;
       }
 
@@ -45,7 +44,7 @@ export default function OnboardingPage() {
         const workspace = await getCurrentWorkspace();
         if (!active) return;
         setWorkspaceId(workspace.workspace_id);
-        router.replace("/documents");
+        navigateStatic("/documents");
       } catch {
         if (active) setLoading(false);
       }
@@ -56,7 +55,7 @@ export default function OnboardingPage() {
     return () => {
       active = false;
     };
-  }, [router, setAuthState, setWorkspaceId]);
+  }, [setAuthState, setWorkspaceId]);
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -69,7 +68,7 @@ export default function OnboardingPage() {
       });
       setWorkspaceId(workspace.id);
       toast.success("Workspace created");
-      router.replace("/documents");
+      navigateStatic("/documents");
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Unable to create workspace");
     } finally {

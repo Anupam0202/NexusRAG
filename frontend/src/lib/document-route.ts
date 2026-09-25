@@ -1,0 +1,1 @@
+export const STATIC_DOCUMENT_ROUTE_ID = "__static_document__";

@@ -50,6 +50,69 @@ test("document lifecycle and chat-history routes fail closed", async () => {
   for (const [method,path] of routes) { const response=await handle(request(path,{method}),configured); assert.equal(response.status,401,`${method} ${path}`); assert.equal((await response.json()).error.code,"AUTH_REQUIRED"); }
 });
 
+test("billing usage is workspace-authorized and does not flatten unknown cost to zero", async () => {
+  const originalFetch = globalThis.fetch;
+  const workspace = "77777777-7777-4777-8777-777777777777";
+  const user = "88888888-8888-4888-8888-888888888888";
+  let usageQueryCount = 0;
+  globalThis.fetch = async (url) => {
+    const target = String(url);
+    if (target.endsWith("/auth/v1/user")) return new Response(JSON.stringify({ id: user }), { status: 200 });
+    if (target.includes(`/rest/v1/workspace_members?workspace_id=eq.${workspace}&user_id=eq.${user}`)) {
+      return new Response(JSON.stringify([{ workspace_id: workspace, user_id: user, role: "owner" }]), { status: 200 });
+    }
+    if (target.includes(`/rest/v1/workspace_usage_daily?workspace_id=eq.${workspace}`)) {
+      usageQueryCount += 1;
+      return new Response(JSON.stringify([
+        { usage_date: "2026-09-25", query_count: 2, input_tokens: 10, output_tokens: 8, total_tokens: 18, successful_calls: 2, failed_calls: 0, estimated_cost_microusd: null, reconciled_at: "2026-09-25T12:00:00Z" },
+        { usage_date: "2026-09-24", query_count: 1, input_tokens: 4, output_tokens: 5, total_tokens: 9, successful_calls: 1, failed_calls: 0, estimated_cost_microusd: 12, reconciled_at: "2026-09-24T12:00:00Z" },
+      ]), { status: 200 });
+    }
+    throw new Error(`Unexpected usage query: ${target}`);
+  };
+  try {
+    const response = await handle(request("/api/v1/billing/usage", {
+      headers: { authorization: "Bearer synthetic-user-token", "X-Nexus-Workspace-Id": workspace },
+    }), configured);
+    const body = await response.json();
+    assert.equal(response.status, 200);
+    assert.equal(body.storage, "supabase");
+    assert.equal(body.daily.length, 2);
+    assert.equal(body.totals.query_count, 3);
+    assert.equal(body.totals.total_tokens, 27);
+    assert.equal(body.totals.estimated_cost_microusd, null);
+    assert.equal(usageQueryCount, 1);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("billing usage denies non-admin workspace members before reading ledger rows", async () => {
+  const originalFetch = globalThis.fetch;
+  const workspace = "99999999-9999-4999-8999-999999999999";
+  const user = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+  let usageQueryCount = 0;
+  globalThis.fetch = async (url) => {
+    const target = String(url);
+    if (target.endsWith("/auth/v1/user")) return new Response(JSON.stringify({ id: user }), { status: 200 });
+    if (target.includes(`/rest/v1/workspace_members?workspace_id=eq.${workspace}&user_id=eq.${user}`)) {
+      return new Response(JSON.stringify([{ workspace_id: workspace, user_id: user, role: "viewer" }]), { status: 200 });
+    }
+    if (target.includes("/rest/v1/workspace_usage_daily?")) usageQueryCount += 1;
+    throw new Error(`Unexpected viewer usage query: ${target}`);
+  };
+  try {
+    const response = await handle(request("/api/v1/billing/usage", {
+      headers: { authorization: "Bearer synthetic-user-token", "X-Nexus-Workspace-Id": workspace },
+    }), configured);
+    assert.equal(response.status, 403);
+    assert.equal((await response.json()).error.code, "FORBIDDEN");
+    assert.equal(usageQueryCount, 0);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test("CORS is exact-origin and preflight is bounded", async () => {
   const allowed = await handle(request("/api/v2/capabilities", { method: "OPTIONS", headers: { Origin: configured.FRONTEND_ORIGIN } }), configured);
   assert.equal(allowed.status, 204);

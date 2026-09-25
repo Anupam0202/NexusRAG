@@ -392,6 +392,34 @@ async function handle(request, env = {}) {
       return json(request, env, { ...(rows[0] || {}), workspace_id: id, role: member.role });
     }
 
+    if (url.pathname === "/api/v1/billing/usage" && (request.method === "GET" || request.method === "HEAD")) {
+      const id = workspaceId(request); const member = await membership(env, user.id, id);
+      requireCapability(member, "admin:usage");
+      const rows = await serviceRequest(env,
+        `workspace_usage_daily?workspace_id=eq.${id}&select=usage_date,query_count,input_tokens,output_tokens,total_tokens,successful_calls,failed_calls,estimated_cost_microusd,reconciled_at&order=usage_date.desc&limit=90`);
+      const daily = rows.map((row) => ({
+        usage_date: row.usage_date,
+        query_count: Number(row.query_count || 0),
+        input_tokens: Number(row.input_tokens || 0),
+        output_tokens: Number(row.output_tokens || 0),
+        total_tokens: Number(row.total_tokens || 0),
+        successful_calls: Number(row.successful_calls || 0),
+        failed_calls: Number(row.failed_calls || 0),
+        estimated_cost_microusd: row.estimated_cost_microusd == null ? null : Number(row.estimated_cost_microusd),
+        reconciled_at: row.reconciled_at,
+      }));
+      const hasUnknownCost = daily.some((row) => row.estimated_cost_microusd === null);
+      const totals = daily.reduce((sum, row) => ({
+        query_count: sum.query_count + row.query_count,
+        input_tokens: sum.input_tokens + row.input_tokens,
+        output_tokens: sum.output_tokens + row.output_tokens,
+        total_tokens: sum.total_tokens + row.total_tokens,
+        estimated_cost_microusd: sum.estimated_cost_microusd + (row.estimated_cost_microusd ?? 0),
+      }), { query_count: 0, input_tokens: 0, output_tokens: 0, total_tokens: 0, estimated_cost_microusd: 0 });
+      if (hasUnknownCost) totals.estimated_cost_microusd = null;
+      return json(request, env, { storage: "supabase", daily, totals });
+    }
+
     if (url.pathname === "/api/v1/status" && (request.method === "GET" || request.method === "HEAD")) {
       let supabaseDataApiReachable = false;
       let totalDocuments = 0;

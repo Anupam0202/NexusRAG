@@ -1,8 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
+import Link from "@/components/layout/StaticLink";
 import {
   ArrowLeft,
   Loader2,
@@ -20,13 +19,13 @@ import {
   updateCurrentWorkspaceMember,
 } from "@/lib/api";
 import { useStore } from "@/hooks/useStore";
+import { navigateStatic } from "@/lib/static-navigation";
 import { canManageWorkspaceMember } from "@/lib/workspace-controls";
 import type { WorkspaceMember, WorkspaceRole } from "@/types";
 
 type ManageableRole = Exclude<WorkspaceRole, "owner">;
 
 export default function MembersPage() {
-  const router = useRouter();
   const authMode = useStore((state) => state.authMode);
   const authUser = useStore((state) => state.authUser);
   const [members, setMembers] = useState<WorkspaceMember[]>([]);
@@ -62,11 +61,11 @@ export default function MembersPage() {
   useEffect(() => {
     if (authMode === "loading") return;
     if (authMode === "signed_out") {
-      router.replace("/auth/login?next=/settings/members");
+      navigateStatic("/auth/login?next=%2Fsettings%2Fmembers");
       return;
     }
     void loadMembers();
-  }, [authMode, loadMembers, router]);
+  }, [authMode, loadMembers]);
 
   const addMember = async () => {
     if (!emailOrUserId.trim()) return;

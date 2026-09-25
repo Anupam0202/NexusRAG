@@ -1,7 +1,7 @@
 "use client";
 
 import { type FormEvent, type MouseEvent, useEffect, useState } from "react";
-import Link from "next/link";
+import Link from "@/components/layout/StaticLink";
 import { ArrowLeft, CalendarClock, Eraser, Loader2, Play, Save, ShieldCheck, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -16,6 +16,7 @@ import {
 } from "@/lib/api";
 import { AuthRequiredState } from "@/components/auth/AuthRequiredState";
 import { useWorkspaceApiAccess } from "@/hooks/useAuthGate";
+import { navigateStatic } from "@/lib/static-navigation";
 import { useStore } from "@/hooks/useStore";
 import { setStoredWorkspaceId } from "@/lib/api-context";
 import { deleteDocumentsBestEffort, normalizeRetentionSchedule } from "@/lib/workspace-controls";
@@ -189,8 +190,7 @@ export default function PrivacyPage() {
       await deleteCurrentWorkspace();
       setStoredWorkspaceId(null);
       // A hard navigation clears stale workspace-scoped client state after deletion.
-      // eslint-disable-next-line @next/next/no-location-assign-relative-destination
-      window.location.assign("/workspaces");
+      navigateStatic("/workspaces");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Unable to delete workspace");
       setWorking(null);

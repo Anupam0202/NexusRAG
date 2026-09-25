@@ -1,5 +1,12 @@
-import { redirect } from "next/navigation";
+"use client";
+
+import { StaticAuthRedirect } from "@/components/auth/StaticAuthRedirect";
 
 export default function SettingsUsageRedirect() {
-  redirect("/settings/billing-or-usage");
+  return (
+    <StaticAuthRedirect
+      href="/settings/billing-or-usage"
+      title="Opening billing and usage"
+    />
+  );
 }

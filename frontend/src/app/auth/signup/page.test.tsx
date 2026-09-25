@@ -1,48 +1,26 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
+import { buildAuthLoginRedirect } from "@/components/auth/StaticAuthRedirect";
 
-const { redirect } = vi.hoisted(() => ({
-  redirect: vi.fn(),
-}));
-
-vi.mock("next/navigation", () => ({ redirect }));
-
-import SignupPage from "./page";
-
-type SignupRoute = (props: {
-  searchParams: Promise<{ next?: string }>;
-}) => Promise<unknown>;
-
-describe("SignupPage", () => {
-  beforeEach(() => {
-    redirect.mockReset();
-  });
-
+describe("signup static redirect", () => {
   it("redirects signup intent to onboarding by default", async () => {
-    await (SignupPage as unknown as SignupRoute)({
-      searchParams: Promise.resolve({}),
-    });
-
-    expect(redirect).toHaveBeenCalledWith(
+    expect(buildAuthLoginRedirect("", "signup")).toBe(
       "/auth/login?intent=signup&next=%2Fonboarding"
     );
   });
 
   it("preserves a safe requested destination", async () => {
-    await (SignupPage as unknown as SignupRoute)({
-      searchParams: Promise.resolve({ next: "/workspaces" }),
-    });
-
-    expect(redirect).toHaveBeenCalledWith(
+    expect(buildAuthLoginRedirect("?next=%2Fworkspaces", "signup")).toBe(
       "/auth/login?intent=signup&next=%2Fworkspaces"
     );
   });
 
   it("rejects an external requested destination", async () => {
-    await (SignupPage as unknown as SignupRoute)({
-      searchParams: Promise.resolve({ next: "https://attacker.example/steal" }),
-    });
-
-    expect(redirect).toHaveBeenCalledWith(
+    expect(
+      buildAuthLoginRedirect(
+        "?next=https%3A%2F%2Fattacker.example%2Fsteal",
+        "signup"
+      )
+    ).toBe(
       "/auth/login?intent=signup&next=%2Fonboarding"
     );
   });
