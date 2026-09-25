@@ -100,19 +100,9 @@ jobs:
           set -euo pipefail
           for queue in nexusrag-v6-candidate-ingestion nexusrag-v6-candidate-ingestion-dlq; do
             if ! npx --yes wrangler@4.37.1 queues info "$queue" >/dev/null 2>&1; then
-              npx --yes wrangler@4.37.1 queues create "$queue"
+              npx --yes wrangler@4.37.1 queues create "$queue" --message-retention-period-secs 86400
             fi
           done
-      - name: Install Supabase service credential as a Worker secret
-        run: printf '%s' "$SUPABASE_SERVICE_ROLE_KEY" | npx --yes wrangler@4.37.1 secret put SUPABASE_SERVICE_ROLE_KEY --name nexusrag-v6-candidate-gateway
-      - name: Install account-key encryption secret
-        run: printf '%s' "$GEMINI_USER_KEY_ENCRYPTION_SECRET" | npx --yes wrangler@4.37.1 secret put GEMINI_USER_KEY_ENCRYPTION_SECRET --name nexusrag-v6-candidate-gateway
-      - name: Install free-tier provider credentials as candidate Worker secrets
-        run: |
-          set -euo pipefail
-          printf '%s' "$GOOGLE_API_KEY" | npx --yes wrangler@4.37.1 secret put GOOGLE_API_KEY --name nexusrag-v6-candidate-gateway
-          printf '%s' "$QDRANT_URL" | npx --yes wrangler@4.37.1 secret put QDRANT_URL --name nexusrag-v6-candidate-gateway
-          printf '%s' "$QDRANT_API_KEY" | npx --yes wrangler@4.37.1 secret put QDRANT_API_KEY --name nexusrag-v6-candidate-gateway
       - name: Deploy authenticated gateway
         run: |
           npx --yes wrangler@4.37.1 deploy \
@@ -123,6 +113,16 @@ jobs:
             --var "QDRANT_COLLECTION:nexusrag-v6-candidate" \
             --var "FRONTEND_ORIGIN:$FRONTEND_ORIGIN" \
             --var "RUNTIME_SERVICE_NAME:nexusrag-v6-candidate-gateway"
+      - name: Install Supabase service credential as a Worker secret
+        run: printf '%s' "$SUPABASE_SERVICE_ROLE_KEY" | npx --yes wrangler@4.37.1 secret put SUPABASE_SERVICE_ROLE_KEY --name nexusrag-v6-candidate-gateway
+      - name: Install account-key encryption secret
+        run: printf '%s' "$GEMINI_USER_KEY_ENCRYPTION_SECRET" | npx --yes wrangler@4.37.1 secret put GEMINI_USER_KEY_ENCRYPTION_SECRET --name nexusrag-v6-candidate-gateway
+      - name: Install free-tier provider credentials as candidate Worker secrets
+        run: |
+          set -euo pipefail
+          printf '%s' "$GOOGLE_API_KEY" | npx --yes wrangler@4.37.1 secret put GOOGLE_API_KEY --name nexusrag-v6-candidate-gateway
+          printf '%s' "$QDRANT_URL" | npx --yes wrangler@4.37.1 secret put QDRANT_URL --name nexusrag-v6-candidate-gateway
+          printf '%s' "$QDRANT_API_KEY" | npx --yes wrangler@4.37.1 secret put QDRANT_API_KEY --name nexusrag-v6-candidate-gateway
       - name: Verify fail-closed authenticated gateway
         run: |
           set -euo pipefail
