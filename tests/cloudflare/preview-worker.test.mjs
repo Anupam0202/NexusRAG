@@ -152,6 +152,43 @@ test("workspace settings are authenticated, tenant-scoped, secret-free, and use 
   }
 });
 
+test("workspace settings fall back to safe defaults when persisted values are malformed or out of range", async () => {
+  const originalFetch = globalThis.fetch;
+  const workspace = "abababab-abab-4bab-8bab-abababababab";
+  const user = "cdcdcdcd-cdcd-4cdc-8dcd-cdcdcdcdcdcd";
+  globalThis.fetch = async (url) => {
+    const target = String(url);
+    if (target.endsWith("/auth/v1/user")) return new Response(JSON.stringify({ id: user }), { status: 200 });
+    if (target.includes(`/rest/v1/workspace_members?workspace_id=eq.${workspace}&user_id=eq.${user}`)) {
+      return new Response(JSON.stringify([{ workspace_id: workspace, user_id: user, role: "editor" }]), { status: 200 });
+    }
+    if (target.includes(`/rest/v1/workspace_settings?workspace_id=eq.${workspace}`)) {
+      return new Response(JSON.stringify([{
+        workspace_id: workspace,
+        retrieval_top_k: 99,
+        hybrid_search_alpha: "not-a-number",
+        llm_temperature: -0.1,
+      }]), { status: 200 });
+    }
+    throw new Error(`Unexpected settings request: ${target}`);
+  };
+  try {
+    const response = await handle(request("/api/v1/settings", {
+      headers: { authorization: "Bearer synthetic-user-token", "X-Nexus-Workspace-Id": workspace },
+    }), configured);
+    const body = await response.json();
+    assert.equal(response.status, 200);
+    assert.equal(body.retrieval_top_k, 10);
+    assert.equal(body.hybrid_search_alpha, 0.6);
+    assert.equal(body.llm_temperature, 0.1);
+    assert.ok(Number.isFinite(body.retrieval_top_k));
+    assert.ok(Number.isFinite(body.hybrid_search_alpha));
+    assert.ok(Number.isFinite(body.llm_temperature));
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test("workspace owners can update bounded settings with a workspace-scoped upsert", async () => {
   const originalFetch = globalThis.fetch;
   const workspace = "dddddddd-dddd-4ddd-8ddd-dddddddddddd";

@@ -153,6 +153,19 @@ const SETTINGS_DEFAULTS = Object.freeze({
   llm_temperature: 0.1,
 });
 const SETTINGS_PATCH_FIELDS = new Set(Object.keys(SETTINGS_DEFAULTS));
+function persistedSetting(row, key, { min, max, integer = false }) {
+  const value = row?.[key];
+  if (
+    typeof value !== "number"
+    || !Number.isFinite(value)
+    || value < min
+    || value > max
+    || (integer && !Number.isInteger(value))
+  ) {
+    return SETTINGS_DEFAULTS[key];
+  }
+  return value;
+}
 async function readWorkspaceSettings(env, workspaceId) {
   const rows = await serviceRequest(
     env,
@@ -162,10 +175,10 @@ async function readWorkspaceSettings(env, workspaceId) {
   return {
     // These values describe the actual Worker runtime; provider secrets are never returned.
     llm_model_name: env.GEMINI_MODEL || "gemini-2.5-flash",
-    llm_temperature: Number(row.llm_temperature ?? SETTINGS_DEFAULTS.llm_temperature),
-    retrieval_top_k: Math.max(1, Math.min(12, Number(row.retrieval_top_k ?? SETTINGS_DEFAULTS.retrieval_top_k))),
+    llm_temperature: persistedSetting(row, "llm_temperature", { min: 0, max: 1 }),
+    retrieval_top_k: persistedSetting(row, "retrieval_top_k", { min: 1, max: 12, integer: true }),
     enable_reranking: false,
-    hybrid_search_alpha: Number(row.hybrid_search_alpha ?? SETTINGS_DEFAULTS.hybrid_search_alpha),
+    hybrid_search_alpha: persistedSetting(row, "hybrid_search_alpha", { min: 0, max: 1 }),
     // This Worker intentionally sends only the current question, not prior chat history.
     context_window_messages: 1,
     chunk_size: 1600,
