@@ -201,7 +201,7 @@ jobs:
       - run: npm run lint
       - run: npm test
       - run: npm run cf:build
-      - run: npx wrangler deploy --config wrangler.candidate.jsonc
+      - run: npm run cf:deploy -- --config wrangler.candidate.jsonc
       - name: Verify deployed frontend and gateway
         working-directory: .
         run: |
