@@ -5,6 +5,7 @@ on:
   pull_request:
     paths:
       - supabase/baseline/**
+      - supabase/migrations/026_allow_reindex_original_reuse.sql
       - supabase/migrations/027_metered_operation_admission.sql
       - supabase/migrations/028_resumable_chunk_staging.sql
       - supabase/migrations/029_durable_extraction_staging.sql
@@ -59,6 +60,7 @@ jobs:
           mkdir -p "$source_dir/tests" "$source_dir/supabase/baseline" "$source_dir/supabase/migrations"
           cp -R "$GITHUB_WORKSPACE/tests/postgres" "$source_dir/tests/"
           cp "$GITHUB_WORKSPACE/supabase/baseline/001_v6_zero_cost_baseline.sql" "$source_dir/supabase/baseline/"
+          cp "$GITHUB_WORKSPACE/supabase/migrations/026_allow_reindex_original_reuse.sql" "$source_dir/supabase/migrations/"
           cp "$GITHUB_WORKSPACE/supabase/migrations/027_metered_operation_admission.sql" "$source_dir/supabase/migrations/"
           cp "$GITHUB_WORKSPACE/supabase/migrations/028_resumable_chunk_staging.sql" "$source_dir/supabase/migrations/"
           cp "$GITHUB_WORKSPACE/supabase/migrations/029_durable_extraction_staging.sql" "$source_dir/supabase/migrations/"
@@ -80,7 +82,7 @@ jobs:
             PGUSER=postgres \
             PGDATABASE="$db" \
             bash "$source_dir/tests/postgres/local-rehearsal.sh" >"$log" 2>&1; then
-            grep -E 'postgres_durable_extraction_stage_pass|concurrent_reservation_settlement_pass|concurrent_account_trial_limit_pass|account_trial_byok_assertions_pass|account_trial_rollback_pass|storage_rls_two_identity_pass|LOCAL_POSTGRES_REHEARSAL_PASS' "$log"
+            grep -E 'postgres_durable_extraction_stage_pass|concurrent_reservation_settlement_pass|concurrent_account_trial_limit_pass|account_trial_byok_assertions_pass|account_trial_rollback_pass|storage_rls_two_identity_pass|reindex_original_storage_reuse_pass|LOCAL_POSTGRES_REHEARSAL_PASS' "$log"
           else
             tail -n 80 "$log"
             exit 1
