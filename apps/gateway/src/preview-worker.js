@@ -417,7 +417,7 @@ async function handle(request, env = {}) {
     return json(request, env, null, 204, { "access-control-allow-methods": "GET,HEAD,POST,PATCH,OPTIONS", "access-control-allow-headers": "Authorization,Content-Type,Idempotency-Key,X-Nexus-Workspace-Id,X-Workspace-ID", "access-control-max-age": "600" });
   }
   if (url.pathname === "/" || url.pathname === "/health") {
-    return json(request, env, { service: env.RUNTIME_SERVICE_NAME || "nexusrag-v6-preview-gateway", profile: "ZERO_COST_LOW_TRAFFIC", status: configured(env) ? "READY" : "DEGRADED", authenticated_api: configured(env), production_verified: false, authorities: { business_records: "supabase", vectors: "qdrant" }, providers: { qdrant: env.QDRANT_URL && env.QDRANT_API_KEY ? "CONFIGURED" : "BLOCKED", gemini: env.GOOGLE_API_KEY ? "CONFIGURED" : "BLOCKED" }, paid_fallback: false, metered_operations: "REVIEW_REQUIRED", product_readiness: "NOT_VERIFIED" });
+    return json(request, env, { service: env.RUNTIME_SERVICE_NAME || "nexusrag-v6-preview-gateway", profile: "ZERO_COST_LOW_TRAFFIC", status: configured(env) ? "READY" : "DEGRADED", authenticated_api: configured(env), production_verified: false, authorities: { business_records: "supabase", vectors: "qdrant" }, providers: { qdrant: env.QDRANT_URL && env.QDRANT_API_KEY ? "CONFIGURED" : "BLOCKED", gemini: env.GOOGLE_API_KEY ? "CONFIGURED" : "BLOCKED" }, paid_fallback: false });
   }
   if (!configured(env)) return fail(request, env, "CONFIGURATION_ERROR", "The authenticated gateway is not configured.", 503);
   try {
@@ -480,6 +480,37 @@ async function handle(request, env = {}) {
       });
       await audit(env, request, user.id, id, "settings.update", "workspace_settings");
       return json(request, env, await readWorkspaceSettings(env, id));
+    }
+
+    if (url.pathname === "/api/v1/documents/upload" && request.method === "POST") {
+      const id = workspaceId(request); const member = await membership(env, user.id, id);
+      return json(request, env, await uploadDocument(request, env, user, id, member), 202);
+    }
+    if (url.pathname === "/api/v1/documents" && (request.method === "GET" || request.method === "HEAD")) {
+      const id = workspaceId(request); await membership(env, user.id, id);
+      const rows = await serviceRequest(env, `documents?workspace_id=eq.${id}&lifecycle_state=eq.active&select=*&order=created_at.desc&limit=100`);
+      return json(request, env, { documents: rows.map(documentView), total: rows.length });
+    }
+    const jobRoute = url.pathname.match(/^\/api\/v1\/documents\/jobs\/([0-9a-f-]{36})(?:\/(retry|cancel))?$/i);
+    if (jobRoute) {
+      const id=workspaceId(request);const member=await membership(env,user.id,id);
+      if(!jobRoute[2]&&(request.method==="GET"||request.method==="HEAD"))return json(request,env,await getJob(env,id,jobRoute[1]));
+      if(jobRoute[2]==="retry"&&request.method==="POST")return json(request,env,await retryExistingJob(env,id,jobRoute[1],member),202);
+      if(jobRoute[2]==="cancel"&&request.method==="POST")return json(request,env,await cancelExistingJob(env,id,jobRoute[1],member),202);
+    }
+    const documentRoute=url.pathname.match(/^\/api\/v1\/documents\/([0-9a-f-]{36})\/(status|chunks|reindex|delete)$/i);
+    if(documentRoute){const id=workspaceId(request);const member=await membership(env,user.id,id);const documentId=documentRoute[1];const action=documentRoute[2];
+      if(action==="status"&&(request.method==="GET"||request.method==="HEAD")){const document=await loadBoundDocument(env,id,documentId);const jobs=await serviceRequest(env,`ingestion_jobs?workspace_id=eq.${id}&document_id=eq.${documentId}&select=*&order=created_at.desc&limit=1`);return json(request,env,jobs?.[0]?jobView(jobs[0],document):{job_id:"",document_id:documentId,filename:document.filename,status:document.status==="ready"?"completed":document.status==="error"?"failed":document.status,stage:document.status,progress:document.status==="ready"?100:0,message:`Document ${document.status}`,error_message:document.error_message,created_at:document.created_at,updated_at:document.updated_at,document:documentView(document)});}
+      if(action==="chunks"&&(request.method==="GET"||request.method==="HEAD")){const document=await loadBoundDocument(env,id,documentId);const limit=Math.min(Math.max(Number.parseInt(url.searchParams.get("limit")||"100",10)||100,1),200);const query=String(url.searchParams.get("search")||"").trim().toLowerCase();let chunks=document.active_version_id?await serviceRequest(env,`document_chunks?workspace_id=eq.${id}&document_id=eq.${documentId}&version_id=eq.${document.active_version_id}&select=chunk_index,content,page_number,section_title,token_count,metadata&order=chunk_index.asc&limit=${limit}`):[];if(query)chunks=chunks.filter(c=>String(c.content||"").toLowerCase().includes(query));return json(request,env,{document_id:documentId,filename:document.filename,chunks,total:chunks.length,query:query||null});}
+      if(action==="reindex"&&request.method==="POST")return json(request,env,await reindexDocument(request,env,user,id,member,documentId),202);
+      if(action==="delete"&&request.method==="POST")return json(request,env,await deleteDocument(request,env,user,id,member,documentId));
+    }
+    const sessionRoute=url.pathname.match(/^\/api\/v1\/chat\/sessions\/([0-9a-f-]{36})\/(messages|clear)$/i);
+    if(sessionRoute){const id=workspaceId(request);await membership(env,user.id,id);const sessionId=sessionRoute[1];const sessions=await serviceRequest(env,`chat_sessions?workspace_id=eq.${id}&id=eq.${sessionId}&user_id=eq.${user.id}&deleted_at=is.null&select=*&limit=1`);if(!sessions?.[0]&&sessionRoute[2]==="messages")return json(request,env,{session_id:sessionId,messages:[],total:0});if(!sessions?.[0])throw Object.assign(new Error("Chat session not found."),{status:404,code:"SESSION_NOT_FOUND"});if(sessionRoute[2]==="messages"&&(request.method==="GET"||request.method==="HEAD")){const messages=await serviceRequest(env,`chat_messages?workspace_id=eq.${id}&session_id=eq.${sessionId}&select=role,content,sources,metadata,created_at&order=created_at.asc&limit=500`);return json(request,env,{session_id:sessionId,messages,total:messages.length});}if(sessionRoute[2]==="clear"&&request.method==="POST"){const messages=await serviceRequest(env,`chat_messages?workspace_id=eq.${id}&session_id=eq.${sessionId}&select=id`);await serviceRequest(env,`chat_messages?workspace_id=eq.${id}&session_id=eq.${sessionId}`,{method:"DELETE"});await serviceRequest(env,`chat_sessions?id=eq.${sessionId}`,{method:"PATCH",body:JSON.stringify({updated_at:new Date().toISOString(),revision:Number(sessions[0].revision||1)+1})});return json(request,env,{success:true,durable_messages_deleted:messages.length});}}
+    if (url.pathname === "/api/v1/chat" && request.method === "POST") {
+      const id=workspaceId(request);const member=await membership(env,user.id,id);const result=await chat(request,env,user,id,member);
+      if((request.headers.get("accept")||"").includes("text/event-stream")){const encoder=new TextEncoder();const stream=new ReadableStream({start(controller){for(const token of result.answer.match(/.{1,96}/gs)||[])controller.enqueue(encoder.encode(`event: token\ndata: ${JSON.stringify({content:token})}\n\n`));controller.enqueue(encoder.encode(`event: sources\ndata: ${JSON.stringify({sources:result.sources})}\n\nevent: done\ndata: ${JSON.stringify({metadata:result.metadata})}\n\n`));controller.close();}});const output=headers(request,env);output.set("content-type","text/event-stream; charset=utf-8");output.set("connection","keep-alive");return new Response(stream,{status:200,headers:output});}
+      return json(request,env,result);
     }
 
     if (url.pathname === "/api/v1/billing/usage" && (request.method === "GET" || request.method === "HEAD")) {
@@ -617,37 +648,6 @@ async function handle(request, env = {}) {
         method: "POST", body: JSON.stringify({ p_user: user.id }),
       });
       return json(request, env, status);
-    }
-
-    if (url.pathname === "/api/v1/documents/upload" && request.method === "POST") {
-      const id = workspaceId(request); const member = await membership(env, user.id, id);
-      return json(request, env, await uploadDocument(request, env, user, id, member), 202);
-    }
-    if (url.pathname === "/api/v1/documents" && (request.method === "GET" || request.method === "HEAD")) {
-      const id = workspaceId(request); await membership(env, user.id, id);
-      const rows = await serviceRequest(env, `documents?workspace_id=eq.${id}&lifecycle_state=eq.active&select=*&order=created_at.desc&limit=100`);
-      return json(request, env, { documents: rows.map(documentView), total: rows.length });
-    }
-    const jobRoute = url.pathname.match(/^\/api\/v1\/documents\/jobs\/([0-9a-f-]{36})(?:\/(retry|cancel))?$/i);
-    if (jobRoute) {
-      const id=workspaceId(request);const member=await membership(env,user.id,id);
-      if(!jobRoute[2]&&(request.method==="GET"||request.method==="HEAD"))return json(request,env,await getJob(env,id,jobRoute[1]));
-      if(jobRoute[2]==="retry"&&request.method==="POST")return json(request,env,await retryExistingJob(env,id,jobRoute[1],member),202);
-      if(jobRoute[2]==="cancel"&&request.method==="POST")return json(request,env,await cancelExistingJob(env,id,jobRoute[1],member),202);
-    }
-    const documentRoute=url.pathname.match(/^\/api\/v1\/documents\/([0-9a-f-]{36})\/(status|chunks|reindex|delete)$/i);
-    if(documentRoute){const id=workspaceId(request);const member=await membership(env,user.id,id);const documentId=documentRoute[1];const action=documentRoute[2];
-      if(action==="status"&&(request.method==="GET"||request.method==="HEAD")){const document=await loadBoundDocument(env,id,documentId);const jobs=await serviceRequest(env,`ingestion_jobs?workspace_id=eq.${id}&document_id=eq.${documentId}&select=*&order=created_at.desc&limit=1`);return json(request,env,jobs?.[0]?jobView(jobs[0],document):{job_id:"",document_id:documentId,filename:document.filename,status:document.status==="ready"?"completed":document.status==="error"?"failed":document.status,stage:document.status,progress:document.status==="ready"?100:0,message:`Document ${document.status}`,error_message:document.error_message,created_at:document.created_at,updated_at:document.updated_at,document:documentView(document)});}
-      if(action==="chunks"&&(request.method==="GET"||request.method==="HEAD")){const document=await loadBoundDocument(env,id,documentId);const limit=Math.min(Math.max(Number.parseInt(url.searchParams.get("limit")||"100",10)||100,1),200);const query=String(url.searchParams.get("search")||"").trim().toLowerCase();let chunks=document.active_version_id?await serviceRequest(env,`document_chunks?workspace_id=eq.${id}&document_id=eq.${documentId}&version_id=eq.${document.active_version_id}&select=chunk_index,content,page_number,section_title,token_count,metadata&order=chunk_index.asc&limit=${limit}`):[];if(query)chunks=chunks.filter(c=>String(c.content||"").toLowerCase().includes(query));return json(request,env,{document_id:documentId,filename:document.filename,chunks,total:chunks.length,query:query||null});}
-      if(action==="reindex"&&request.method==="POST")return json(request,env,await reindexDocument(request,env,user,id,member,documentId),202);
-      if(action==="delete"&&request.method==="POST")return json(request,env,await deleteDocument(request,env,user,id,member,documentId));
-    }
-    const sessionRoute=url.pathname.match(/^\/api\/v1\/chat\/sessions\/([0-9a-f-]{36})\/(messages|clear)$/i);
-    if(sessionRoute){const id=workspaceId(request);await membership(env,user.id,id);const sessionId=sessionRoute[1];const sessions=await serviceRequest(env,`chat_sessions?workspace_id=eq.${id}&id=eq.${sessionId}&user_id=eq.${user.id}&deleted_at=is.null&select=*&limit=1`);if(!sessions?.[0]&&sessionRoute[2]==="messages")return json(request,env,{session_id:sessionId,messages:[],total:0});if(!sessions?.[0])throw Object.assign(new Error("Chat session not found."),{status:404,code:"SESSION_NOT_FOUND"});if(sessionRoute[2]==="messages"&&(request.method==="GET"||request.method==="HEAD")){const messages=await serviceRequest(env,`chat_messages?workspace_id=eq.${id}&session_id=eq.${sessionId}&select=role,content,sources,metadata,created_at&order=created_at.asc&limit=500`);return json(request,env,{session_id:sessionId,messages,total:messages.length});}if(sessionRoute[2]==="clear"&&request.method==="POST"){const messages=await serviceRequest(env,`chat_messages?workspace_id=eq.${id}&session_id=eq.${sessionId}&select=id`);await serviceRequest(env,`chat_messages?workspace_id=eq.${id}&session_id=eq.${sessionId}`,{method:"DELETE"});await serviceRequest(env,`chat_sessions?id=eq.${sessionId}`,{method:"PATCH",body:JSON.stringify({updated_at:new Date().toISOString(),revision:Number(sessions[0].revision||1)+1})});return json(request,env,{success:true,durable_messages_deleted:messages.length});}}
-    if (url.pathname === "/api/v1/chat" && request.method === "POST") {
-      const id=workspaceId(request);const member=await membership(env,user.id,id);const result=await chat(request,env,user,id,member);
-      if((request.headers.get("accept")||"").includes("text/event-stream")){const encoder=new TextEncoder();const stream=new ReadableStream({start(controller){for(const token of result.answer.match(/.{1,96}/gs)||[])controller.enqueue(encoder.encode(`event: token\ndata: ${JSON.stringify({content:token})}\n\n`));controller.enqueue(encoder.encode(`event: sources\ndata: ${JSON.stringify({sources:result.sources})}\n\nevent: done\ndata: ${JSON.stringify({metadata:result.metadata})}\n\n`));controller.close();}});const output=headers(request,env);output.set("content-type","text/event-stream; charset=utf-8");output.set("connection","keep-alive");return new Response(stream,{status:200,headers:output});}
-      return json(request,env,result);
     }
 
     const route = READ_ROUTES[url.pathname];

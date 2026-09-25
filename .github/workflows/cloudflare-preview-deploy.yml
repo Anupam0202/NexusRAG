@@ -12,6 +12,9 @@ on:
         required: true
         default: false
         type: boolean
+  pull_request:
+    branches: [v6-zero-cost-foundations-clean]
+    types: [opened, synchronize, reopened, ready_for_review]
   push:
     branches: [v6-zero-cost-foundations-clean, critical-gaps/v8-remote-validation]
     paths:
@@ -33,13 +36,13 @@ concurrency:
 
 jobs:
   gateway:
-    if: ${{ (github.event_name == 'workflow_dispatch' && inputs.deploy_candidate_preview) || (github.event_name == 'push' && (github.ref == 'refs/heads/v6-zero-cost-foundations-clean' || github.ref == 'refs/heads/critical-gaps/v8-remote-validation') && contains(github.event.head_commit.message, '[deploy-candidate-preview]')) }}
+    if: ${{ (github.event_name == 'workflow_dispatch' && inputs.deploy_candidate_preview) || (github.event_name == 'push' && (github.ref == 'refs/heads/v6-zero-cost-foundations-clean' || github.ref == 'refs/heads/critical-gaps/v8-remote-validation') && contains(github.event.head_commit.message, '[deploy-candidate-preview]')) || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.base.ref == 'v6-zero-cost-foundations-clean' && github.event.pull_request.head.ref == 'critical-gaps/v8-remote-validation') }}
     name: Deploy authenticated Evidence API gateway
     runs-on: ubuntu-latest
     timeout-minutes: 10
     environment: NexusRAG-Candidate-Preview
     env:
-      EXPECTED_SOURCE_SHA: ${{ github.sha }}
+      EXPECTED_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID || vars.CLOUDFLARE_ACCOUNT_ID }}
       SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL }}
@@ -52,10 +55,16 @@ jobs:
     steps:
       - uses: actions/checkout@v5
         with:
-          ref: ${{ github.sha }}
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - name: Resolve isolated candidate target for this branch
         working-directory: .
-        run: python3 scripts/preview_target.py "$GITHUB_REF" >> "$GITHUB_ENV"
+        run: |
+          set -euo pipefail
+          target_ref="$GITHUB_REF"
+          if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
+            target_ref="refs/heads/$GITHUB_HEAD_REF"
+          fi
+          python3 scripts/preview_target.py "$target_ref" >> "$GITHUB_ENV"
       - name: Verify deployment source is the exact event commit
         run: |
           set -euo pipefail
@@ -113,16 +122,6 @@ jobs:
               npx --yes wrangler@4.37.1 queues create "$queue" --message-retention-period-secs 86400
             fi
           done
-      - name: Install Supabase service credential as a Worker secret
-        run: printf '%s' "$SUPABASE_SERVICE_ROLE_KEY" | npx --yes wrangler@4.37.1 secret put SUPABASE_SERVICE_ROLE_KEY --name "$GATEWAY_WORKER"
-      - name: Install account-key encryption secret
-        run: printf '%s' "$GEMINI_USER_KEY_ENCRYPTION_SECRET" | npx --yes wrangler@4.37.1 secret put GEMINI_USER_KEY_ENCRYPTION_SECRET --name "$GATEWAY_WORKER"
-      - name: Install free-tier provider credentials as candidate Worker secrets
-        run: |
-          set -euo pipefail
-          printf '%s' "$GOOGLE_API_KEY" | npx --yes wrangler@4.37.1 secret put GOOGLE_API_KEY --name "$GATEWAY_WORKER"
-          printf '%s' "$QDRANT_URL" | npx --yes wrangler@4.37.1 secret put QDRANT_URL --name "$GATEWAY_WORKER"
-          printf '%s' "$QDRANT_API_KEY" | npx --yes wrangler@4.37.1 secret put QDRANT_API_KEY --name "$GATEWAY_WORKER"
       - name: Deploy authenticated gateway
         run: |
           npx --yes wrangler@4.37.1 deploy \
@@ -133,6 +132,16 @@ jobs:
             --var "QDRANT_COLLECTION:$QDRANT_COLLECTION" \
             --var "FRONTEND_ORIGIN:$FRONTEND_ORIGIN" \
             --var "RUNTIME_SERVICE_NAME:$GATEWAY_WORKER"
+      - name: Install Supabase service credential as a Worker secret
+        run: printf '%s' "$SUPABASE_SERVICE_ROLE_KEY" | npx --yes wrangler@4.37.1 secret put SUPABASE_SERVICE_ROLE_KEY --name "$GATEWAY_WORKER"
+      - name: Install account-key encryption secret
+        run: printf '%s' "$GEMINI_USER_KEY_ENCRYPTION_SECRET" | npx --yes wrangler@4.37.1 secret put GEMINI_USER_KEY_ENCRYPTION_SECRET --name "$GATEWAY_WORKER"
+      - name: Install free-tier provider credentials as candidate Worker secrets
+        run: |
+          set -euo pipefail
+          printf '%s' "$GOOGLE_API_KEY" | npx --yes wrangler@4.37.1 secret put GOOGLE_API_KEY --name "$GATEWAY_WORKER"
+          printf '%s' "$QDRANT_URL" | npx --yes wrangler@4.37.1 secret put QDRANT_URL --name "$GATEWAY_WORKER"
+          printf '%s' "$QDRANT_API_KEY" | npx --yes wrangler@4.37.1 secret put QDRANT_API_KEY --name "$GATEWAY_WORKER"
       - name: Verify fail-closed authenticated gateway
         run: |
           set -euo pipefail
@@ -142,7 +151,7 @@ jobs:
             if [ "$attempt" -eq 5 ]; then exit 1; fi
             sleep $((attempt * 2))
           done
-          printf '%s' "$health" | jq -e '.status == "READY" and .authenticated_api == true and .paid_fallback == false and .providers.gemini == "CONFIGURED" and .providers.qdrant == "CONFIGURED"'
+          printf '%s' "$health" | jq -e --arg service "$GATEWAY_WORKER" '.service == $service and .status == "READY" and .authenticated_api == true and .paid_fallback == false and .providers.gemini == "CONFIGURED" and .providers.qdrant == "CONFIGURED"'
           for attempt in 1 2 3 4 5; do
             if code="$(curl --silent --show-error --connect-timeout 10 --max-time 30 --output /dev/null --write-out '%{http_code}' "$GATEWAY_ORIGIN/api/v2/capabilities")" && [ "$code" = "401" ]; then break; fi
             if [ "$attempt" -eq 5 ]; then echo 'Unauthenticated gateway did not fail closed.' >&2; exit 1; fi
@@ -150,7 +159,7 @@ jobs:
           done
 
   frontend:
-    if: ${{ (github.event_name == 'workflow_dispatch' && inputs.deploy_candidate_preview) || (github.event_name == 'push' && (github.ref == 'refs/heads/v6-zero-cost-foundations-clean' || github.ref == 'refs/heads/critical-gaps/v8-remote-validation') && contains(github.event.head_commit.message, '[deploy-candidate-preview]')) }}
+    if: ${{ (github.event_name == 'workflow_dispatch' && inputs.deploy_candidate_preview) || (github.event_name == 'push' && (github.ref == 'refs/heads/v6-zero-cost-foundations-clean' || github.ref == 'refs/heads/critical-gaps/v8-remote-validation') && contains(github.event.head_commit.message, '[deploy-candidate-preview]')) || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.base.ref == 'v6-zero-cost-foundations-clean' && github.event.pull_request.head.ref == 'critical-gaps/v8-remote-validation') }}
     needs: gateway
     name: Build and deploy OpenNext frontend
     runs-on: ubuntu-latest
@@ -158,7 +167,7 @@ jobs:
     environment:
       name: NexusRAG-Candidate-Preview
     env:
-      EXPECTED_SOURCE_SHA: ${{ github.sha }}
+      EXPECTED_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID || vars.CLOUDFLARE_ACCOUNT_ID }}
       NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL || vars.NEXT_PUBLIC_API_URL || vars.CLOUDFLARE_GATEWAY_URL }}
@@ -172,10 +181,16 @@ jobs:
     steps:
       - uses: actions/checkout@v5
         with:
-          ref: ${{ github.sha }}
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - name: Resolve isolated candidate target for this branch
         working-directory: .
-        run: python3 scripts/preview_target.py "$GITHUB_REF" >> "$GITHUB_ENV"
+        run: |
+          set -euo pipefail
+          target_ref="$GITHUB_REF"
+          if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
+            target_ref="refs/heads/$GITHUB_HEAD_REF"
+          fi
+          python3 scripts/preview_target.py "$target_ref" >> "$GITHUB_ENV"
       - name: Verify deployment source is the exact event commit
         run: |
           set -euo pipefail
