@@ -14,7 +14,11 @@ class GeminiValidationContractTests(unittest.TestCase):
             ],
             "usageMetadata": {"promptTokenCount": 18, "candidatesTokenCount": 4},
         }
-        with mock.patch.dict(os.environ, {"GEMINI_API_KEY": api_key}, clear=True):
+        with mock.patch.dict(
+            os.environ,
+            {"GOOGLE_API_KEY": api_key, "GEMINI_API_KEY": "legacy-decoy"},
+            clear=True,
+        ):
             with mock.patch.object(
                 validation, "_json_request", return_value=(200, result)
             ) as request:
@@ -54,7 +58,7 @@ class GeminiValidationContractTests(unittest.TestCase):
         self.assertFalse(report["customer_data_sent"])
 
     def test_missing_key_blocks_before_provider_request(self):
-        with mock.patch.dict(os.environ, {}, clear=True):
+        with mock.patch.dict(os.environ, {"GEMINI_API_KEY": "legacy-only"}, clear=True):
             with mock.patch.object(validation, "_json_request") as request:
                 with self.assertRaisesRegex(RuntimeError, "missing protected secret"):
                     validation.validate_gemini()

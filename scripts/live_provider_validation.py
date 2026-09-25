@@ -153,7 +153,7 @@ def validate_qdrant() -> dict:
 
 
 def validate_gemini() -> dict:
-    api_key = _required("GEMINI_API_KEY", "GOOGLE_API_KEY")
+    api_key = _required("GOOGLE_API_KEY")
     model = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash").strip()
     url = (
         f"https://generativelanguage.googleapis.com/v1beta/models/"
