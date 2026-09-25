@@ -126,6 +126,21 @@ async function serviceRequest(env, tablePath, init = {}) {
   const text = await response.text();
   return text ? JSON.parse(text) : null;
 }
+async function countWorkspaceRows(env, table, workspace) {
+  const response = await apiFetch(`${env.SUPABASE_URL}/rest/v1/${table}?workspace_id=eq.${encodeURIComponent(workspace)}&select=id`, {
+    method: "HEAD",
+    headers: {
+      apikey: env.SUPABASE_SERVICE_ROLE_KEY,
+      authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
+      prefer: "count=exact",
+    },
+  });
+  if (!response.ok) throw Object.assign(new Error("Authoritative storage rejected the status check."), { status: 503, code: "PERSISTENCE_UNAVAILABLE" });
+  const match = response.headers.get("content-range")?.match(/\/(\d+)$/);
+  if (!match) throw Object.assign(new Error("Authoritative storage did not return an exact count."), { status: 503, code: "PERSISTENCE_UNAVAILABLE" });
+  return Number(match[1]);
+}
+
 async function membership(env, userId, workspaceId) {
   const rows = await serviceRequest(env, `workspace_members?workspace_id=eq.${encodeURIComponent(workspaceId)}&user_id=eq.${encodeURIComponent(userId)}&select=workspace_id,user_id,role&limit=1`);
   if (!rows?.[0]) throw Object.assign(new Error("The workspace is unavailable to this user."), { status: 403, code: "FORBIDDEN" });
@@ -375,6 +390,57 @@ async function handle(request, env = {}) {
       const id = workspaceId(request); const member = await membership(env, user.id, id);
       const rows = await serviceRequest(env, `workspaces?id=eq.${id}&select=id,name,slug,plan,lifecycle_state,created_at&limit=1`);
       return json(request, env, { ...(rows[0] || {}), workspace_id: id, role: member.role });
+    }
+
+    if (url.pathname === "/api/v1/status" && (request.method === "GET" || request.method === "HEAD")) {
+      let supabaseDataApiReachable = false;
+      let totalDocuments = 0;
+      let totalChunks = 0;
+      try {
+        await serviceRequest(env, "workspaces?select=id&limit=1");
+        supabaseDataApiReachable = true;
+        const bound = request.headers.get("x-nexus-workspace-id") || request.headers.get("x-workspace-id");
+        if (bound) {
+          const id = workspaceId(request);
+          await membership(env, user.id, id);
+          [totalDocuments, totalChunks] = await Promise.all([
+            countWorkspaceRows(env, "documents", id),
+            countWorkspaceRows(env, "document_chunks", id),
+          ]);
+        }
+      } catch (error) {
+        if (error?.code === "FORBIDDEN" || error?.code === "WORKSPACE_UNAVAILABLE") throw error;
+        supabaseDataApiReachable = false;
+        totalDocuments = 0;
+        totalChunks = 0;
+      }
+      const qdrantConfigured = Boolean(env.QDRANT_URL && env.QDRANT_API_KEY);
+      return json(request, env, {
+        service: "NexusRAG Cloudflare Gateway",
+        status: supabaseDataApiReachable ? "READY" : "DEGRADED",
+        version: "v6-preview",
+        total_documents: totalDocuments,
+        total_chunks: totalChunks,
+        api_key_configured: Boolean(env.GOOGLE_API_KEY),
+        llm_model_name: env.GEMINI_MODEL || "gemini-2.5-flash",
+        embedding_model: env.GEMINI_EMBEDDING_MODEL || "gemini-embedding-001",
+        cache: { enabled: false },
+        settings: {
+          anonymous_demo_enabled: false,
+          supabase_configured: true,
+          supabase_auth_configured: true,
+          supabase_data_api_reachable: supabaseDataApiReachable,
+          supabase_data_api_status: supabaseDataApiReachable ? "reachable" : "unavailable",
+          qdrant_configured: qdrantConfigured,
+          enable_qdrant: false,
+          vector_backend: qdrantConfigured ? "qdrant" : "disabled",
+          enable_pgvector_fallback: false,
+          enable_local_faiss: false,
+          enable_async_ingestion: Boolean(env.INGESTION_QUEUE?.send),
+          max_upload_size_mb: 10,
+        },
+        capabilities: { streaming: false, hybrid_search: true, semantic_cache: false, reranking: false, semantic_chunking: false, ocr: false },
+      });
     }
 
     if (url.pathname === "/api/v1/apikey" && (request.method === "GET" || request.method === "HEAD")) {

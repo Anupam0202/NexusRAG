@@ -46,7 +46,7 @@ test("private API fails closed without an access token", async () => {
 });
 
 test("document lifecycle and chat-history routes fail closed", async () => {
-  const routes = [["GET","/api/v1/documents/11111111-1111-4111-8111-111111111111/status"],["GET","/api/v1/documents/11111111-1111-4111-8111-111111111111/chunks"],["POST","/api/v1/documents/11111111-1111-4111-8111-111111111111/reindex"],["POST","/api/v1/documents/11111111-1111-4111-8111-111111111111/delete"],["GET","/api/v1/documents/jobs/11111111-1111-4111-8111-111111111111"],["POST","/api/v1/documents/jobs/11111111-1111-4111-8111-111111111111/cancel"],["GET","/api/v1/chat/sessions/11111111-1111-4111-8111-111111111111/messages"]];
+  const routes = [["GET","/api/v1/status"],["GET","/api/v1/documents/11111111-1111-4111-8111-111111111111/status"],["GET","/api/v1/documents/11111111-1111-4111-8111-111111111111/chunks"],["POST","/api/v1/documents/11111111-1111-4111-8111-111111111111/reindex"],["POST","/api/v1/documents/11111111-1111-4111-8111-111111111111/delete"],["GET","/api/v1/documents/jobs/11111111-1111-4111-8111-111111111111"],["POST","/api/v1/documents/jobs/11111111-1111-4111-8111-111111111111/cancel"],["GET","/api/v1/chat/sessions/11111111-1111-4111-8111-111111111111/messages"]];
   for (const [method,path] of routes) { const response=await handle(request(path,{method}),configured); assert.equal(response.status,401,`${method} ${path}`); assert.equal((await response.json()).error.code,"AUTH_REQUIRED"); }
 });
 
@@ -97,6 +97,57 @@ test("storage deletion rejects an unrelated 400 verification response", async ()
   };
   try {
     await assert.rejects(storageDelete(configured, "workspace/document/version/file.txt"), (error) => error.code === "STORAGE_DELETE_UNVERIFIED");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+
+test("authenticated system status reports real data-API reachability without leaking provider secrets", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url, init = {}) => {
+    const target = String(url);
+    if (target.endsWith("/auth/v1/user")) {
+      assert.equal(init.headers.authorization, "Bearer synthetic-user-token");
+      return new Response(JSON.stringify({ id: "11111111-1111-4111-8111-111111111111" }), { status: 200, headers: { "content-type": "application/json" } });
+    }
+    if (target.includes("/rest/v1/workspaces?select=id&limit=1")) {
+      return new Response("[]", { status: 200, headers: { "content-type": "application/json" } });
+    }
+    throw new Error(`Unexpected status probe: ${target}`);
+  };
+  try {
+    const response = await handle(request("/api/v1/status", { headers: { authorization: "Bearer synthetic-user-token" } }), configured);
+    const body = await response.json();
+    assert.equal(response.status, 200);
+    assert.equal(body.status, "READY");
+    assert.equal(body.settings.supabase_configured, true);
+    assert.equal(body.settings.supabase_auth_configured, true);
+    assert.equal(body.settings.supabase_data_api_reachable, true);
+    assert.equal(body.settings.enable_qdrant, false, "configured provider must not be represented as policy-approved");
+    assert.equal(body.total_documents, 0);
+    assert.equal(body.total_chunks, 0);
+    assert.doesNotMatch(JSON.stringify(body), /synthetic-(?:service|qdrant|google)-secret/);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("authenticated system status degrades when Supabase data API is unreachable", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url) => {
+    if (String(url).endsWith("/auth/v1/user")) {
+      return new Response(JSON.stringify({ id: "22222222-2222-4222-8222-222222222222" }), { status: 200, headers: { "content-type": "application/json" } });
+    }
+    return new Response("unavailable", { status: 503 });
+  };
+  try {
+    const response = await handle(request("/api/v1/status", { headers: { authorization: "Bearer synthetic-user-token" } }), configured);
+    const body = await response.json();
+    assert.equal(response.status, 200);
+    assert.equal(body.status, "DEGRADED");
+    assert.equal(body.settings.supabase_data_api_reachable, false);
+    assert.equal(body.settings.supabase_data_api_status, "unavailable");
   } finally {
     globalThis.fetch = originalFetch;
   }
