@@ -12,6 +12,9 @@ on:
         required: true
         default: false
         type: boolean
+  pull_request:
+    branches: [v6-zero-cost-foundations-clean]
+    types: [opened, synchronize, reopened, ready_for_review]
   push:
     branches: [v6-zero-cost-foundations-clean, critical-gaps/v8-remote-validation]
     paths:
@@ -29,12 +32,13 @@ concurrency:
 
 jobs:
   gateway:
-    if: ${{ (github.event_name == 'workflow_dispatch' && inputs.deploy_candidate_preview) || (github.event_name == 'push' && (github.ref == 'refs/heads/v6-zero-cost-foundations-clean' || github.ref == 'refs/heads/critical-gaps/v8-remote-validation') && contains(github.event.head_commit.message, '[deploy-candidate-preview]')) }}
+    if: ${{ (github.event_name == 'workflow_dispatch' && inputs.deploy_candidate_preview) || (github.event_name == 'push' && (github.ref == 'refs/heads/v6-zero-cost-foundations-clean' || github.ref == 'refs/heads/critical-gaps/v8-remote-validation') && contains(github.event.head_commit.message, '[deploy-candidate-preview]')) || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.base.ref == 'v6-zero-cost-foundations-clean' && github.event.pull_request.head.ref == 'critical-gaps/v8-remote-validation') }}
     name: Deploy authenticated Evidence API gateway
     runs-on: ubuntu-latest
     timeout-minutes: 10
     environment: NexusRAG-Candidate-Preview
     env:
+      EXPECTED_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID || vars.CLOUDFLARE_ACCOUNT_ID }}
       SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL }}
@@ -46,11 +50,13 @@ jobs:
       QDRANT_API_KEY: ${{ secrets.QDRANT_API_KEY }}
     steps:
       - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - name: Verify deployment source is the exact event commit
         run: |
           set -euo pipefail
           actual="$(git rev-parse HEAD)"
-          test "$actual" = "$GITHUB_SHA" || { echo "::error::Checked out $actual, expected event commit $GITHUB_SHA"; exit 1; }
+          test "$actual" = "$EXPECTED_SOURCE_SHA" || { echo "::error::Checked out $actual, expected event commit $EXPECTED_SOURCE_SHA"; exit 1; }
       - uses: actions/setup-node@v5
         with: {node-version: "24"}
       - name: Enforce isolated candidate-only gateway target
@@ -122,7 +128,7 @@ jobs:
           test "$(curl --silent --output /dev/null --write-out '%{http_code}' "$GATEWAY_ORIGIN/api/v2/capabilities")" = 401
 
   frontend:
-    if: ${{ (github.event_name == 'workflow_dispatch' && inputs.deploy_candidate_preview) || (github.event_name == 'push' && (github.ref == 'refs/heads/v6-zero-cost-foundations-clean' || github.ref == 'refs/heads/critical-gaps/v8-remote-validation') && contains(github.event.head_commit.message, '[deploy-candidate-preview]')) }}
+    if: ${{ (github.event_name == 'workflow_dispatch' && inputs.deploy_candidate_preview) || (github.event_name == 'push' && (github.ref == 'refs/heads/v6-zero-cost-foundations-clean' || github.ref == 'refs/heads/critical-gaps/v8-remote-validation') && contains(github.event.head_commit.message, '[deploy-candidate-preview]')) || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.base.ref == 'v6-zero-cost-foundations-clean' && github.event.pull_request.head.ref == 'critical-gaps/v8-remote-validation') }}
     needs: gateway
     name: Build and deploy OpenNext frontend
     runs-on: ubuntu-latest
@@ -130,6 +136,7 @@ jobs:
     environment:
       name: NexusRAG-Candidate-Preview
     env:
+      EXPECTED_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID || vars.CLOUDFLARE_ACCOUNT_ID }}
       NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL || vars.NEXT_PUBLIC_API_URL || vars.CLOUDFLARE_GATEWAY_URL }}
@@ -142,11 +149,13 @@ jobs:
         working-directory: frontend
     steps:
       - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - name: Verify deployment source is the exact event commit
         run: |
           set -euo pipefail
           actual="$(git rev-parse HEAD)"
-          test "$actual" = "$GITHUB_SHA" || { echo "::error::Checked out $actual, expected event commit $GITHUB_SHA"; exit 1; }
+          test "$actual" = "$EXPECTED_SOURCE_SHA" || { echo "::error::Checked out $actual, expected event commit $EXPECTED_SOURCE_SHA"; exit 1; }
       - uses: actions/setup-node@v5
         with:
           node-version: "24"
@@ -155,9 +164,10 @@ jobs:
       - name: Enforce isolated candidate-only frontend target
         run: |
           set -euo pipefail
-          case "$GITHUB_REF" in
-            refs/heads/v6-zero-cost-foundations-clean) config="wrangler.jsonc" ;;
-            refs/heads/critical-gaps/v8-remote-validation) config="wrangler.candidate.jsonc" ;;
+          source_ref="${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}}"
+          case "$source_ref" in
+            v6-zero-cost-foundations-clean) config="wrangler.jsonc" ;;
+            critical-gaps/v8-remote-validation) config="wrangler.candidate.jsonc" ;;
             *) echo "::error::Candidate deployment is not permitted from this ref."; exit 1 ;;
           esac
           test -f "$config" || { echo "::error::Candidate Worker config is missing."; exit 1; }
