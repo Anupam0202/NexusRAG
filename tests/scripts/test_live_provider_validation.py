@@ -137,5 +137,27 @@ class QdrantCleanupContractTests(unittest.TestCase):
         self.assertEqual(request.call_args_list[-1].args[0], "DELETE")
 
 
+    def test_cleanup_failure_prevents_ready_result(self):
+        def fail_cleanup(method, url, **kwargs):
+            if method == "DELETE":
+                raise validation.ProviderHttpError(503, "2")
+            if method == "POST" and url.endswith("/points/query"):
+                return 200, {
+                    "result": {
+                        "points": [
+                            {"payload": {"workspace_id": "ci-workspace-a", "version_id": "v1"}}
+                        ]
+                    }
+                }
+            return 200, {}
+
+        with mock.patch.object(validation, "_json_request", side_effect=fail_cleanup) as request:
+            with self.assertRaises(validation.ProviderHttpError) as raised:
+                validation.validate_qdrant()
+
+        self.assertEqual(raised.exception.status, 503)
+        self.assertEqual(request.call_args_list[-1].args[0], "DELETE")
+
+
 if __name__ == "__main__":
     unittest.main()

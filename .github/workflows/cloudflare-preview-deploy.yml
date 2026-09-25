@@ -21,6 +21,7 @@ on:
       - frontend/**
       - apps/gateway/**
       - packages/**
+      - tests/scripts/**
       - .github/workflows/cloudflare-preview-deploy.yml
 
 permissions:
