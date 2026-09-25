@@ -145,8 +145,14 @@ jobs:
       - name: Enforce isolated candidate-only frontend target
         run: |
           set -euo pipefail
-          grep -Eq '"name"[[:space:]]*:[[:space:]]*"nexusrag-v6-candidate-frontend"' wrangler.jsonc
-          grep -Eq '"service"[[:space:]]*:[[:space:]]*"nexusrag-v6-candidate-frontend"' wrangler.jsonc
+          case "$GITHUB_REF" in
+            refs/heads/v6-zero-cost-foundations-clean) config="wrangler.jsonc" ;;
+            refs/heads/critical-gaps/v8-remote-validation) config="wrangler.candidate.jsonc" ;;
+            *) echo "::error::Candidate deployment is not permitted from this ref."; exit 1 ;;
+          esac
+          test -f "$config" || { echo "::error::Candidate Worker config is missing."; exit 1; }
+          grep -Eq '"name"[[:space:]]*:[[:space:]]*"nexusrag-v6-candidate-frontend"' "$config"
+          grep -Eq '"service"[[:space:]]*:[[:space:]]*"nexusrag-v6-candidate-frontend"' "$config"
       - name: Resolve canonical Cloudflare worker origins
         working-directory: .
         run: |
