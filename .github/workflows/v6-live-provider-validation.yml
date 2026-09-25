@@ -5,10 +5,8 @@ name: V6 Live Provider Validation
 
 on:
   workflow_dispatch:
-  pull_request:
-    branches: [main]
   push:
-    branches: [v6-zero-cost-foundations-clean, main]
+    branches: [v6-zero-cost-foundations-clean, critical-gaps/v8-remote-validation, main]
     paths:
       - apps/gateway/**
       - scripts/live_provider_validation.py
