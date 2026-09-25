@@ -533,7 +533,6 @@ async function handle(request, env = {}) {
         settings: {
           anonymous_demo_enabled: false,
           memory_constrained: true,
-          use_lightweight_embeddings: true,
           supabase_configured: true,
           supabase_auth_configured: true,
           supabase_data_api_reachable: supabaseDataApiReachable,

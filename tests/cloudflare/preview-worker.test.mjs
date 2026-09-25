@@ -310,6 +310,8 @@ test("authenticated system status reports real data-API reachability without lea
     assert.equal(body.settings.supabase_configured, true);
     assert.equal(body.settings.supabase_auth_configured, true);
     assert.equal(body.settings.supabase_data_api_reachable, true);
+    assert.equal(body.settings.memory_constrained, true);
+    assert.equal("use_lightweight_embeddings" in body.settings, false, "Gemini embeddings must not be mislabeled lightweight");
     assert.equal(body.settings.enable_qdrant, false, "configured provider must not be represented as policy-approved");
     assert.equal(body.metered_operations, "REVIEW_REQUIRED");
     assert.equal(body.paid_fallback, false);
