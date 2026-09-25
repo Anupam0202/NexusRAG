@@ -440,6 +440,9 @@ async function handle(request, env = {}) {
           max_upload_size_mb: 10,
         },
         capabilities: { streaming: false, hybrid_search: true, semantic_cache: false, reranking: false, semantic_chunking: false, ocr: false },
+        metered_operations: "REVIEW_REQUIRED",
+        paid_fallback: false,
+        product_readiness: "NOT_VERIFIED",
       });
     }
 
