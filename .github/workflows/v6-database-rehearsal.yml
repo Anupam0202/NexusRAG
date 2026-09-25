@@ -1,0 +1,101 @@
+name: V6 Database Rehearsal
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - supabase/baseline/**
+      - scripts/build_clean_baseline.py
+      - scripts/verify_v6_migrations.py
+      - .github/workflows/v6-database-rehearsal.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: v6-database-rehearsal-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  clean-baseline-rehearsal:
+    name: Clean Supabase baseline rehearsal
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - uses: supabase/setup-cli@v1
+        with:
+          # Pin the reviewed release so CI does not depend on an unauthenticated
+          # "latest release" lookup that can fail under GitHub API rate limits.
+          version: 2.117.0
+      - name: Verify immutable candidate identity
+        run: |
+          set -euo pipefail
+          python3 scripts/build_clean_baseline.py --check
+          python3 scripts/verify_v6_migrations.py
+      - name: Build isolated local Supabase project
+        run: |
+          set -euo pipefail
+          root="$RUNNER_TEMP/nexusrag-clean-rehearsal"
+          rm -rf "$root"
+          mkdir -p "$root"
+          cd "$root"
+          supabase init
+          mkdir -p supabase/migrations
+          cp "$GITHUB_WORKSPACE/supabase/baseline/001_v6_zero_cost_baseline.sql" supabase/migrations/202609200001_v6_zero_cost_baseline.sql
+      - name: Start local Supabase database and apply migration-001
+        run: |
+          set -uo pipefail
+          cd "$RUNNER_TEMP/nexusrag-clean-rehearsal"
+          set +e
+          supabase db start > "$RUNNER_TEMP/db-start.log" 2>&1
+          status=$?
+          set -e
+          if [ "$status" -ne 0 ]; then
+            grep -Ei 'error|failed|fatal|syntax|does not exist|permission denied|cannot|invalid|duplicate|conflict' "$RUNNER_TEMP/db-start.log" \
+              | grep -Eiv 'password|secret|token|api.?key|jwt' \
+              | tail -n 8 \
+              | sed -E 's#(postgres(ql)?://)[^ ]+#\1[redacted]#g; s#eyJ[A-Za-z0-9._-]{20,}#[redacted]#g; s#sb_[A-Za-z0-9_-]{10,}#[redacted]#g' \
+              | while IFS= read -r line; do
+                  line=${line//'%'/'%25'}
+                  line=${line//$'\r'/'%0D'}
+                  line=${line//$'\n'/'%0A'}
+                  echo "::error title=Sanitized Supabase rehearsal failure::$line"
+                done
+            exit "$status"
+          fi
+      - name: Replay migration-001 from a clean database
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/nexusrag-clean-rehearsal"
+          supabase db reset --local
+      - name: Lint rehearsed database
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/nexusrag-clean-rehearsal"
+          supabase db lint --local --level error
+      - name: Generate types from rehearsed database
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/nexusrag-clean-rehearsal"
+          supabase gen types typescript --local > "$RUNNER_TEMP/database.types.ts"
+          test -s "$RUNNER_TEMP/database.types.ts"
+      - name: Preserve non-sensitive rehearsal evidence
+        if: always()
+        run: |
+          set -euo pipefail
+          {
+            echo "status=${{ job.status }}"
+            echo "baseline_sha256=4b26456c8a9887979e6dba8e66dba6032b5a929c33a276ece4430dd24ae0f10c"
+            echo "production_applied=false"
+            echo "paid_resource_created=false"
+          } > "$RUNNER_TEMP/v6-database-rehearsal.txt"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: v6-database-rehearsal-evidence
+          path: |
+            ${{ runner.temp }}/v6-database-rehearsal.txt
+            ${{ runner.temp }}/database.types.ts
+          if-no-files-found: warn
+          retention-days: 14

@@ -1,0 +1,300 @@
+name: Cloudflare Preview Deploy
+# Keep this workflow in the exact-head verification set with live provider probes.
+# Candidate deployments are opt-in and blocked unless they target the disposable $0 rehearsal Supabase project.
+# Candidate deployment uses dedicated Worker and Queue names; it must not replace
+# the shared Preview services, which were observed bound to the active project.
+
+on:
+  workflow_dispatch:
+    inputs:
+      deploy_candidate_preview:
+        description: Deploy the isolated candidate Preview after its dedicated environment is fully configured
+        required: true
+        default: false
+        type: boolean
+  pull_request:
+    branches: [v6-zero-cost-foundations-clean]
+    types: [opened, synchronize, reopened, ready_for_review]
+  push:
+    branches: [v6-zero-cost-foundations-clean, critical-gaps/v8-remote-validation]
+    paths:
+      - frontend/**
+      - apps/gateway/**
+      - packages/**
+      - scripts/preview_target.py
+      - tests/scripts/**
+      - tests/postgres/**
+      - .github/workflows/cloudflare-preview-deploy.yml
+      - .github/workflows/v6-database-rehearsal.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nexusrag-candidate-preview-deployment
+  cancel-in-progress: false
+
+jobs:
+  gateway:
+    if: ${{ (github.event_name == 'workflow_dispatch' && inputs.deploy_candidate_preview) || (github.event_name == 'push' && (github.ref == 'refs/heads/v6-zero-cost-foundations-clean' || github.ref == 'refs/heads/critical-gaps/v8-remote-validation') && contains(github.event.head_commit.message, '[deploy-candidate-preview]')) || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.base.ref == 'v6-zero-cost-foundations-clean' && github.event.pull_request.head.ref == 'critical-gaps/v8-remote-validation') }}
+    name: Deploy authenticated Evidence API gateway
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: NexusRAG-Candidate-Preview
+    env:
+      EXPECTED_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID || vars.CLOUDFLARE_ACCOUNT_ID }}
+      SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL }}
+      SUPABASE_PUBLISHABLE_KEY: ${{ vars.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      GEMINI_USER_KEY_ENCRYPTION_SECRET: ${{ secrets.GEMINI_USER_KEY_ENCRYPTION_SECRET }}
+      GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+      QDRANT_URL: ${{ secrets.QDRANT_URL }}
+      QDRANT_API_KEY: ${{ secrets.QDRANT_API_KEY }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Resolve isolated candidate target for this branch
+        working-directory: .
+        run: |
+          set -euo pipefail
+          target_ref="$GITHUB_REF"
+          if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
+            target_ref="refs/heads/$GITHUB_HEAD_REF"
+          fi
+          python3 scripts/preview_target.py "$target_ref" >> "$GITHUB_ENV"
+      - name: Verify deployment source is the exact event commit
+        run: |
+          set -euo pipefail
+          actual="$(git rev-parse HEAD)"
+          test "$actual" = "$EXPECTED_SOURCE_SHA" || { echo "::error::Checked out $actual, expected event commit $EXPECTED_SOURCE_SHA"; exit 1; }
+      - uses: actions/setup-node@v5
+        with: {node-version: "24"}
+      - name: Enforce isolated candidate-only gateway target
+        run: |
+          set -euo pipefail
+          jq -e \
+            --arg worker "$GATEWAY_WORKER" \
+            --arg queue "$INGESTION_QUEUE" \
+            --arg dlq "$INGESTION_DLQ" \
+            '.name == $worker
+             and .queues.producers[0].queue == $queue
+             and .queues.consumers[0].queue == $queue
+             and .queues.consumers[0].dead_letter_queue == $dlq' \
+            "$GATEWAY_CONFIG"
+      - name: Require authenticated gateway inputs
+        run: |
+          set -euo pipefail
+          for name in CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID SUPABASE_URL SUPABASE_PUBLISHABLE_KEY SUPABASE_SERVICE_ROLE_KEY GEMINI_USER_KEY_ENCRYPTION_SECRET GOOGLE_API_KEY QDRANT_URL QDRANT_API_KEY; do
+            test -n "${!name:-}" || { echo "::error::$name is missing from NexusRAG-Candidate-Preview"; exit 1; }
+          done
+          python3 -c 'import base64,os; assert len(base64.b64decode(os.environ["GEMINI_USER_KEY_ENCRYPTION_SECRET"],validate=True))==32, "encryption secret must be base64-encoded 32-byte key material"'
+          response="$(curl --fail --silent --show-error \
+            --connect-timeout 10 --max-time 30 \
+            -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+            "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/subdomain")"
+          subdomain="$(jq -er '.result.subdomain' <<<"$response")"
+          {
+            echo "GATEWAY_ORIGIN=https://${GATEWAY_WORKER}.${subdomain}.workers.dev"
+            echo "FRONTEND_ORIGIN=https://${FRONTEND_WORKER}.${subdomain}.workers.dev"
+          } >> "$GITHUB_ENV"
+      - name: Require isolated zero-cost rehearsal backend
+        run: |
+          set -euo pipefail
+          expected="https://ukgjygzfhyvnrsecdcuu.supabase.co"
+          test "$SUPABASE_URL" = "$expected" || { echo "::error::Candidate deployment blocked: NexusRAG-Candidate-Preview must use the disposable zero-cost rehearsal project."; exit 1; }
+          curl --fail --silent --show-error --output /dev/null \
+            -H "apikey: $SUPABASE_PUBLISHABLE_KEY" \
+            "$SUPABASE_URL/auth/v1/settings"
+          code="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' \
+            -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
+            -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
+            "$SUPABASE_URL/auth/v1/admin/users?per_page=1")"
+          test "$code" = "200" || { echo "::error::Candidate environment service credential does not authenticate against the isolated rehearsal project."; exit 1; }
+      - name: Ensure dedicated candidate queues exist
+        run: |
+          set -euo pipefail
+          # Workers Free Queue retention is 24 hours; override Wrangler's 4-day default.
+          for queue in "$INGESTION_QUEUE" "$INGESTION_DLQ"; do
+            if ! npx --yes wrangler@4.37.1 queues info "$queue" >/dev/null 2>&1; then
+              npx --yes wrangler@4.37.1 queues create "$queue" --message-retention-period-secs 86400
+            fi
+          done
+      - name: Deploy authenticated gateway
+        run: |
+          npx --yes wrangler@4.37.1 deploy \
+            --config "$GATEWAY_CONFIG" \
+            --keep-vars \
+            --var "SUPABASE_URL:$SUPABASE_URL" \
+            --var "SUPABASE_PUBLISHABLE_KEY:$SUPABASE_PUBLISHABLE_KEY" \
+            --var "QDRANT_COLLECTION:$QDRANT_COLLECTION" \
+            --var "FRONTEND_ORIGIN:$FRONTEND_ORIGIN" \
+            --var "RUNTIME_SERVICE_NAME:$GATEWAY_WORKER"
+      - name: Install Supabase service credential as a Worker secret
+        run: printf '%s' "$SUPABASE_SERVICE_ROLE_KEY" | npx --yes wrangler@4.37.1 secret put SUPABASE_SERVICE_ROLE_KEY --name "$GATEWAY_WORKER"
+      - name: Install account-key encryption secret
+        run: printf '%s' "$GEMINI_USER_KEY_ENCRYPTION_SECRET" | npx --yes wrangler@4.37.1 secret put GEMINI_USER_KEY_ENCRYPTION_SECRET --name "$GATEWAY_WORKER"
+      - name: Install free-tier provider credentials as candidate Worker secrets
+        run: |
+          set -euo pipefail
+          printf '%s' "$GOOGLE_API_KEY" | npx --yes wrangler@4.37.1 secret put GOOGLE_API_KEY --name "$GATEWAY_WORKER"
+          printf '%s' "$QDRANT_URL" | npx --yes wrangler@4.37.1 secret put QDRANT_URL --name "$GATEWAY_WORKER"
+          printf '%s' "$QDRANT_API_KEY" | npx --yes wrangler@4.37.1 secret put QDRANT_API_KEY --name "$GATEWAY_WORKER"
+      - name: Verify fail-closed authenticated gateway
+        run: |
+          set -euo pipefail
+          health=""
+          for attempt in 1 2 3 4 5; do
+            health="$(curl --fail --silent --show-error --connect-timeout 10 --max-time 30 "$GATEWAY_ORIGIN/health")" && break
+            if [ "$attempt" -eq 5 ]; then exit 1; fi
+            sleep $((attempt * 2))
+          done
+          printf '%s' "$health" | jq -e --arg service "$GATEWAY_WORKER" '.service == $service and .status == "READY" and .authenticated_api == true and .paid_fallback == false and .providers.gemini == "CONFIGURED" and .providers.qdrant == "CONFIGURED"'
+          for attempt in 1 2 3 4 5; do
+            if code="$(curl --silent --show-error --connect-timeout 10 --max-time 30 --output /dev/null --write-out '%{http_code}' "$GATEWAY_ORIGIN/api/v2/capabilities")" && [ "$code" = "401" ]; then break; fi
+            if [ "$attempt" -eq 5 ]; then echo 'Unauthenticated gateway did not fail closed.' >&2; exit 1; fi
+            sleep $((attempt * 2))
+          done
+
+  frontend:
+    if: ${{ (github.event_name == 'workflow_dispatch' && inputs.deploy_candidate_preview) || (github.event_name == 'push' && (github.ref == 'refs/heads/v6-zero-cost-foundations-clean' || github.ref == 'refs/heads/critical-gaps/v8-remote-validation') && contains(github.event.head_commit.message, '[deploy-candidate-preview]')) || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.base.ref == 'v6-zero-cost-foundations-clean' && github.event.pull_request.head.ref == 'critical-gaps/v8-remote-validation') }}
+    needs: gateway
+    name: Build and deploy OpenNext frontend
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment:
+      name: NexusRAG-Candidate-Preview
+    env:
+      EXPECTED_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID || vars.CLOUDFLARE_ACCOUNT_ID }}
+      NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL || vars.NEXT_PUBLIC_API_URL || vars.CLOUDFLARE_GATEWAY_URL }}
+      NEXT_PUBLIC_SITE_URL: ${{ secrets.NEXT_PUBLIC_SITE_URL || vars.NEXT_PUBLIC_SITE_URL || vars.CLOUDFLARE_FRONTEND_URL }}
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL || vars.NEXT_PUBLIC_SUPABASE_URL || vars.SUPABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || vars.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || secrets.SUPABASE_PUBLISHABLE_KEY || vars.SUPABASE_PUBLISHABLE_KEY }}
+      NEXT_PUBLIC_OAUTH_PROVIDERS: ${{ vars.NEXT_PUBLIC_OAUTH_PROVIDERS || 'google,github' }}
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Resolve isolated candidate target for this branch
+        working-directory: .
+        run: |
+          set -euo pipefail
+          target_ref="$GITHUB_REF"
+          if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
+            target_ref="refs/heads/$GITHUB_HEAD_REF"
+          fi
+          python3 scripts/preview_target.py "$target_ref" >> "$GITHUB_ENV"
+      - name: Verify deployment source is the exact event commit
+        run: |
+          set -euo pipefail
+          actual="$(git rev-parse HEAD)"
+          test "$actual" = "$EXPECTED_SOURCE_SHA" || { echo "::error::Checked out $actual, expected event commit $EXPECTED_SOURCE_SHA"; exit 1; }
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Enforce isolated candidate-only frontend target
+        run: |
+          set -euo pipefail
+          test -f "$FRONTEND_CONFIG" || { echo "::error::Candidate Worker config is missing."; exit 1; }
+          grep -Eq "\"name\"[[:space:]]*:[[:space:]]*\"${FRONTEND_WORKER}\"" "$FRONTEND_CONFIG"
+          grep -Eq "\"service\"[[:space:]]*:[[:space:]]*\"${FRONTEND_WORKER}\"" "$FRONTEND_CONFIG"
+      - name: Resolve canonical Cloudflare worker origins
+        working-directory: .
+        run: |
+          set -euo pipefail
+          test -n "${CLOUDFLARE_API_TOKEN:-}" || { echo "::error::CLOUDFLARE_API_TOKEN is missing from NexusRAG-Candidate-Preview"; exit 1; }
+          test -n "${CLOUDFLARE_ACCOUNT_ID:-}" || { echo "::error::CLOUDFLARE_ACCOUNT_ID is missing from NexusRAG-Candidate-Preview"; exit 1; }
+
+          response="$(curl --fail --silent --show-error \
+            --connect-timeout 10 --max-time 30 \
+            -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+            "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/subdomain")"
+          subdomain="$(jq -er '.result.subdomain' <<<"$response")"
+          {
+            echo "NEXT_PUBLIC_API_URL=https://${GATEWAY_WORKER}.${subdomain}.workers.dev"
+            echo "NEXT_PUBLIC_SITE_URL=https://${FRONTEND_WORKER}.${subdomain}.workers.dev"
+          } >> "$GITHUB_ENV"
+          grep -Fq "NEXT_PUBLIC_API_URL=https://${GATEWAY_WORKER}.${subdomain}.workers.dev" "$GITHUB_ENV"
+          grep -Fq "NEXT_PUBLIC_SITE_URL=https://${FRONTEND_WORKER}.${subdomain}.workers.dev" "$GITHUB_ENV"
+      - name: Require public application configuration
+        run: |
+          set -euo pipefail
+          expected="https://ukgjygzfhyvnrsecdcuu.supabase.co"
+          test "$NEXT_PUBLIC_SUPABASE_URL" = "$expected" || { echo "::error::Candidate frontend must use the disposable zero-cost rehearsal project."; exit 1; }
+          curl --fail --silent --show-error --output /dev/null \
+            -H "apikey: $NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY" \
+            "$NEXT_PUBLIC_SUPABASE_URL/auth/v1/settings"
+          missing=()
+          for name in NEXT_PUBLIC_API_URL NEXT_PUBLIC_SITE_URL NEXT_PUBLIC_SUPABASE_URL NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY; do
+            if [ -z "${!name:-}" ]; then
+              echo "::error::$name is missing from NexusRAG-Candidate-Preview"
+              missing+=("$name")
+            fi
+          done
+          test "${#missing[@]}" -eq 0
+      - run: npm ci --ignore-scripts
+      - run: npm run lint
+      - run: npm test
+      - run: npm run cf:build
+      - run: npm run cf:deploy -- --config "$FRONTEND_CONFIG"
+      - name: Verify deployed frontend and gateway
+        working-directory: .
+        run: |
+          set -euo pipefail
+          probe() {
+            local url="$1"
+            local expected="$2"
+            local output
+            for attempt in 1 2 3 4 5; do
+              output="$(curl --fail --silent --show-error --location \
+                --connect-timeout 10 --max-time 30 "$url")" && {
+                  printf '%s' "$output" | grep -q "$expected"
+                  return 0
+                }
+              sleep $((attempt * 2))
+            done
+            return 1
+          }
+          probe "$NEXT_PUBLIC_SITE_URL/" "NexusRAG"
+          probe "$NEXT_PUBLIC_SITE_URL/evidence-os" "Evidence"
+          probe "$NEXT_PUBLIC_API_URL/health" "ZERO_COST_LOW_TRAFFIC"
+      - name: Install browser for desktop and mobile E2E
+        run: npx playwright install --with-deps chromium
+      - name: Run deployed desktop and mobile E2E
+        run: |
+          npm run test:visual:prepare
+          E2E_BASE_URL="$NEXT_PUBLIC_SITE_URL" \
+          E2E_OAUTH_PROVIDERS="$NEXT_PUBLIC_OAUTH_PROVIDERS" \
+          npx playwright test \
+            src/e2e/public-smoke.spec.ts \
+            src/e2e/visual-regression.spec.ts \
+            --project=chromium --project=mobile-chrome
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cloudflare-preview-browser-evidence
+          path: |
+            frontend/playwright-report
+            frontend/test-results
+          if-no-files-found: ignore
+          retention-days: 14
+      - name: Publish deployment summary
+        working-directory: .
+        run: |
+          {
+            echo "## Cloudflare preview"
+            echo
+            echo "- Frontend: $NEXT_PUBLIC_SITE_URL"
+            echo "- Gateway health: $NEXT_PUBLIC_API_URL/health"
+            echo "- Commit: \`$GITHUB_SHA\`"
+            echo "- Environment: \`NexusRAG-Candidate-Preview\`"
+          } >> "$GITHUB_STEP_SUMMARY"

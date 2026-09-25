@@ -54,11 +54,7 @@ describe("AuthCallbackPage", () => {
     });
     vi.mocked(getCurrentWorkspace).mockResolvedValue({
       workspace_id: "workspace-1",
-      user: {
-        id: "user-1",
-        email: "user@example.com",
-        is_demo: false,
-      },
+      user_id: "user-1",
       role: "owner",
     });
   });

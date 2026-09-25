@@ -1,9 +1,9 @@
 /**
  * REST API client for the FastAPI backend.
  *
- * All browser API traffic goes directly to the configured backend. This keeps
- * REST, uploads, and WebSockets on the same Render service instead of relying
- * on Vercel rewrites, which cannot proxy WebSockets.
+ * All browser API traffic goes to the configured Cloudflare gateway. The
+ * gateway is the public authorization and routing boundary for Supabase,
+ * Qdrant, Gemini, and explicitly scheduled computer-worker operations.
  */
 
 import type {
@@ -335,6 +335,7 @@ export async function createWorkspace(
 ): Promise<WorkspaceSummary> {
   return request("/api/v1/workspaces", {
     method: "POST",
+    headers: { "Idempotency-Key": `workspace-create:${body.slug}` },
     body: JSON.stringify(body),
   });
 }

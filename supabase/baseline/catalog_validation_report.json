@@ -1,0 +1,29 @@
+{
+  "baseline_sha256": "4b26456c8a9887979e6dba8e66dba6032b5a929c33a276ece4430dd24ae0f10c",
+  "counts": {
+    "columns": 600,
+    "constraints": 267,
+    "foreign_keys": 89,
+    "functions": 76,
+    "indexes": 172,
+    "public_policies": 83,
+    "storage_policies": 3,
+    "tables": 51,
+    "triggers": 14
+  },
+  "errors": [],
+  "limitations": [
+    "Static catalog-consistency validation only.",
+    "Not a PostgreSQL/Supabase execution rehearsal.",
+    "No production schema or data was mutated."
+  ],
+  "security": {
+    "all_public_tables_rls": true,
+    "anonymous_routine_grants": 0,
+    "authenticated_public_table_grants": 0,
+    "fixed_search_path_functions": 76,
+    "restrictive_service_denies": 35
+  },
+  "status": "PASS",
+  "warnings": []
+}

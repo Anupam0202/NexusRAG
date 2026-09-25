@@ -1,6 +1,11 @@
 const LOCAL_BACKEND_URL = "http://localhost:8000";
 
-const RAILWAY_HOST_SUFFIXES = [".railway.app", ".up.railway.app"];
+const RETIRED_PLATFORM_SUFFIXES = [
+  ".railway.app",
+  ".up.railway.app",
+  ".onrender.com",
+  ".vercel.app",
+];
 
 function stripTrailingSlash(value: string): string {
   return value.replace(/\/+$/, "");
@@ -11,8 +16,8 @@ function isLocalBrowser(): boolean {
   return ["localhost", "127.0.0.1", "::1"].includes(window.location.hostname);
 }
 
-function isRailwayHost(hostname: string): boolean {
-  return RAILWAY_HOST_SUFFIXES.some(
+function isRetiredPlatformHost(hostname: string): boolean {
+  return RETIRED_PLATFORM_SUFFIXES.some(
     (suffix) => hostname === suffix.slice(1) || hostname.endsWith(suffix)
   );
 }
@@ -25,7 +30,7 @@ function validateBackendUrl(rawUrl: string): string {
     url = new URL(normalized);
   } catch {
     throw new Error(
-      "Backend URL is invalid. Set NEXT_PUBLIC_API_URL to the Render backend URL."
+      "Backend URL is invalid. Set NEXT_PUBLIC_API_URL to the Cloudflare gateway URL."
     );
   }
 
@@ -33,9 +38,9 @@ function validateBackendUrl(rawUrl: string): string {
     throw new Error("Backend URL must start with http:// or https://.");
   }
 
-  if (isRailwayHost(url.hostname)) {
+  if (isRetiredPlatformHost(url.hostname)) {
     throw new Error(
-      "Backend URL is still set to Railway. Set NEXT_PUBLIC_API_URL to the Render backend URL and redeploy."
+      "Backend URL points to a retired platform. Set NEXT_PUBLIC_API_URL to the Cloudflare gateway URL."
     );
   }
 
@@ -63,7 +68,7 @@ export function requireBackendBaseUrl(): string {
   const backendUrl = getBackendBaseUrl();
   if (!backendUrl) {
     throw new Error(
-      "Backend URL is not configured. Set NEXT_PUBLIC_API_URL to the Render backend URL and redeploy."
+      "Backend URL is not configured. Set NEXT_PUBLIC_API_URL to the Cloudflare gateway URL and redeploy."
     );
   }
   return backendUrl;

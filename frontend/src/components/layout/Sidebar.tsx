@@ -5,6 +5,7 @@ import Link from "next/link";
 import {
   MessageSquare, FileText, BarChart3, Settings, ChevronLeft,
   ChevronRight, Sparkles, Menu, X, ClipboardCheck, Building2,
+  Network,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
@@ -12,6 +13,7 @@ import { useStore } from "@/hooks/useStore";
 import { useState, useEffect } from "react";
 
 const NAV = [
+  { href: "/evidence-os", label: "Evidence OS", icon: Network },
   { href: "/chat", label: "Chat", icon: MessageSquare },
   { href: "/documents", label: "Documents", icon: FileText },
   { href: "/workspaces", label: "Workspaces", icon: Building2 },
@@ -79,7 +81,7 @@ export function Sidebar() {
                 className="overflow-hidden"
               >
                 <p className="text-sm font-bold leading-tight gradient-text">NexusRAG</p>
-                <p className="text-[10px] text-[var(--text-muted)] font-medium whitespace-nowrap">Enterprise Document Intelligence</p>
+                <p className="text-[10px] text-[var(--text-muted)] font-medium whitespace-nowrap">Evidence Intelligence OS</p>
               </motion.div>
             )}
           </AnimatePresence>

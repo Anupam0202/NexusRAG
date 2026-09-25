@@ -182,15 +182,16 @@ def test_pgvector_extension_is_kept_outside_public_schema() -> None:
     assert "alter extension vector set schema extensions" in relocation
 
 
-def test_render_blueprint_pins_production_supabase_project() -> None:
-    blueprint = (
-        Path(__file__).resolve().parents[2] / "render.yaml"
-    ).read_text(encoding="utf-8")
+def test_legacy_hosting_blueprints_are_retired() -> None:
+    root = Path(__file__).resolve().parents[2]
+    assert not (root / "render.yaml").exists()
+    assert not (root / ".vercelignore").exists()
+    assert not (root / "frontend" / "vercel.json").exists()
 
-    assert "- key: SUPABASE_URL" in blueprint
-    assert "value: \"https://fcjaomiceajcdownarel.supabase.co\"" in blueprint
-    assert "- key: SUPABASE_JWKS_URL" in blueprint
-    assert (
-        "https://fcjaomiceajcdownarel.supabase.co/auth/v1/.well-known/jwks.json"
-        in blueprint
+    deploy = (root / ".github/workflows/cloudflare-preview-deploy.yml").read_text(
+        encoding="utf-8"
     )
+    assert "environment: Preview" in deploy
+    assert "CLOUDFLARE_API_TOKEN" in deploy
+    assert "NEXT_PUBLIC_SUPABASE_URL" in deploy
+    assert "SUPABASE_PUBLISHABLE_KEY" in deploy

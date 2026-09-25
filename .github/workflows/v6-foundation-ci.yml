@@ -1,0 +1,175 @@
+name: V6 Foundation CI
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+concurrency:
+  group: v6-foundation-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+defaults:
+  run:
+    shell: bash
+jobs:
+  migration-integrity:
+    name: Migration integrity
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.13"}
+      - run: python3 scripts/verify_v6_migrations.py
+  backend-isolated:
+    name: Backend isolated regressions
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.13"}
+      - run: python3 -m compileall -q src tests
+        working-directory: backend
+      - run: python3 scripts/run_isolated.py
+        working-directory: backend
+  evaluation-inventory:
+    name: Evaluation inventory
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.13"}
+      - run: python3 evals/build_v6_dataset.py --output-dir /tmp/nexusrag-v6-evals
+        working-directory: backend
+      - name: Score fixed synthetic contract gates
+        run: |
+          python3 evals/score_v6_contracts.py \
+            --labeled /tmp/nexusrag-v6-evals/v6-labeled.jsonl \
+            --heldout /tmp/nexusrag-v6-evals/v6-heldout.jsonl \
+            --output /tmp/nexusrag-v6-evals/v6-contract-score.json
+        working-directory: backend
+      - name: Validate required counts and held-out separation
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          report=json.loads(Path('/tmp/nexusrag-v6-evals/v6-inventory.json').read_text())
+          assert report['status']=='FIXTURE_INVENTORY_ONLY'
+          assert report['labeled_cases'] >= 400
+          assert report['heldout_cases'] >= 125
+          score=json.loads(Path('/tmp/nexusrag-v6-evals/v6-contract-score.json').read_text())
+          assert score['status']=='SYNTHETIC_CONTRACT_GATES_PASSED'
+          assert score['production_quality_claimed'] is False
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v6-evaluation-inventory
+          path: /tmp/nexusrag-v6-evals
+          if-no-files-found: error
+          retention-days: 14
+  cloudflare-foundation:
+    name: Cloudflare compatibility
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with: {node-version: "24"}
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.13"}
+      - run: npm run check:cloudflare
+      - run: npm run test:cloudflare
+  frontend:
+    name: Frontend lint, unit, typecheck, build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci --ignore-scripts
+        working-directory: frontend
+      - run: npm run lint
+        working-directory: frontend
+      - run: npm test -- --reporter=default
+        working-directory: frontend
+      - run: npm exec tsc -- --noEmit
+        working-directory: frontend
+      - run: npm run build
+        working-directory: frontend
+        env: {NEXT_TELEMETRY_DISABLED: "1"}
+  dependency-review:
+    name: Dependency review (lockfiles)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci --ignore-scripts
+        working-directory: frontend
+      - name: Fail on high or critical npm advisories
+        run: |
+          set +e
+          npm audit --json --audit-level=high > npm-audit.json
+          audit_status=$?
+          set -e
+          node ../scripts/report_npm_audit.mjs npm-audit.json
+          exit "$audit_status"
+        working-directory: frontend
+  supply-chain:
+    name: SBOM and licence inventory
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with: {node-version: "24"}
+      - run: node scripts/generate_supply_chain.mjs
+      - name: Validate generated evidence
+        run: |
+          set -euo pipefail
+          test -s artifacts/nexusrag.cdx.json
+          test -s artifacts/license-inventory.json
+          node -e 'const fs=require("fs"); const b=JSON.parse(fs.readFileSync("artifacts/nexusrag.cdx.json")); if(b.bomFormat!=="CycloneDX"||b.specVersion!=="1.6"||!b.components.length) process.exit(1)'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v6-supply-chain-evidence
+          path: |
+            artifacts/nexusrag.cdx.json
+            artifacts/license-inventory.json
+          if-no-files-found: error
+          retention-days: 14
+  required-summary:
+    name: Required foundation summary
+    if: always()
+    needs: [migration-integrity,backend-isolated,evaluation-inventory,cloudflare-foundation,frontend,dependency-review,supply-chain]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fail unless required jobs passed
+        env:
+          MIGRATION_RESULT: ${{ needs.migration-integrity.result }}
+          BACKEND_RESULT: ${{ needs.backend-isolated.result }}
+          EVALUATION_RESULT: ${{ needs.evaluation-inventory.result }}
+          CLOUDFLARE_RESULT: ${{ needs.cloudflare-foundation.result }}
+          FRONTEND_RESULT: ${{ needs.frontend.result }}
+          DEPENDENCY_RESULT: ${{ needs.dependency-review.result }}
+          SUPPLY_CHAIN_RESULT: ${{ needs.supply-chain.result }}
+        run: |
+          set -euo pipefail
+          printf 'migration=%s backend=%s evaluation=%s cloudflare=%s frontend=%s dependency=%s supply_chain=%s\n' "$MIGRATION_RESULT" "$BACKEND_RESULT" "$EVALUATION_RESULT" "$CLOUDFLARE_RESULT" "$FRONTEND_RESULT" "$DEPENDENCY_RESULT" "$SUPPLY_CHAIN_RESULT"
+          test "$MIGRATION_RESULT" = success
+          test "$BACKEND_RESULT" = success
+          test "$EVALUATION_RESULT" = success
+          test "$CLOUDFLARE_RESULT" = success
+          test "$FRONTEND_RESULT" = success
+          test "$DEPENDENCY_RESULT" = success
+          test "$SUPPLY_CHAIN_RESULT" = success

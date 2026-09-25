@@ -415,11 +415,10 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def normalize_supabase_aliases(self) -> Settings:
-        """Accept env names emitted by Vercel's native Supabase integration.
+        """Accept canonical server and public-client Supabase environment names.
 
-        Render does not inherit Vercel integration variables automatically, but
-        when operators mirror them into Render the names may be either the
-        canonical backend names or Vercel's public/secret aliases.
+        Cloudflare builds use ``NEXT_PUBLIC_*`` names for the browser bundle,
+        while backend and local tooling use the server-side aliases.
         """
         if not self.supabase_url:
             self.supabase_url = _first_env("NEXT_PUBLIC_SUPABASE_URL", "SUPABASE_URL")

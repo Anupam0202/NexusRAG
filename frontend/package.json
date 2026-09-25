@@ -8,7 +8,11 @@
     "start": "next start",
     "lint": "eslint .",
     "test": "vitest run",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "test:visual:prepare": "node scripts/materialize-visual-baselines.mjs",
+    "cf:build": "opennextjs-cloudflare build",
+    "cf:preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
+    "cf:deploy": "opennextjs-cloudflare deploy"
   },
   "dependencies": {
     "@supabase/ssr": "^0.10.3",
@@ -16,7 +20,7 @@
     "clsx": "^2.1.1",
     "framer-motion": "^11.2.0",
     "lucide-react": "^0.400.0",
-    "next": "^16.2.6",
+    "next": "^16.3.5",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
     "react-dropzone": "^14.2.3",
@@ -27,6 +31,7 @@
     "zustand": "^4.5.0"
   },
   "devDependencies": {
+    "@opennextjs/cloudflare": "^1.20.6",
     "@playwright/test": "^1.60.0",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
@@ -35,20 +40,27 @@
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.2",
     "autoprefixer": "^10.4.0",
+    "esbuild": "^0.28.1",
     "eslint": "^9.39.4",
-    "eslint-config-next": "^16.2.6",
+    "eslint-config-next": "^16.3.5",
     "jsdom": "^29.1.1",
     "playwright": "^1.60.0",
-    "postcss": "^8.5.15",
+    "postcss": "^8.5.28",
     "tailwindcss": "^3.4.0",
     "typescript": "^5.5.0",
-    "vitest": "^4.1.8"
+    "vitest": "^4.1.8",
+    "wrangler": "^4.135.0"
   },
   "overrides": {
     "@babel/core": "^7.29.7",
-    "js-yaml": "^4.2.0",
-    "undici": "^7.28.0",
-    "postcss": "^8.5.15",
+    "js-yaml": "4.3.2",
+    "undici": "7.29.0",
+    "postcss": "^8.5.28",
+    "sharp": "0.35.4",
+    "nanoid": "3.3.18",
+    "browserslist": "4.28.9",
+    "brace-expansion@1.1.14": "1.1.18",
+    "brace-expansion@>=3.0.0 <=5.0.8": "5.0.9",
     "tinyglobby": {
       "picomatch": "^4.0.4"
     },

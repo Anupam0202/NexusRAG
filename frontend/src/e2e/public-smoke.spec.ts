@@ -1,5 +1,10 @@
 import { expect, test } from "@playwright/test";
 
+const providerLabels: Record<string, string> = {
+  github: "GitHub",
+  google: "Google",
+};
+
 const routes = [
   { path: "/auth/login", heading: "Sign in to NexusRAG" },
   { path: "/chat", heading: "Chat" },
@@ -7,6 +12,7 @@ const routes = [
   { path: "/settings/billing-or-usage", heading: "Billing & Usage" },
   { path: "/settings/privacy", heading: "Privacy & Data" },
   { path: "/settings/security", heading: "Account Security" },
+  { path: "/evidence-os", heading: "Evidence Intelligence OS" },
 ];
 
 for (const route of routes) {
@@ -26,17 +32,19 @@ for (const route of routes) {
   });
 }
 
-test("OAuth gateway presents Google first and GitHub second", async ({ page }) => {
+test("OAuth gateway presents exactly the configured providers", async ({ page }) => {
   await page.goto("/auth/login");
 
+  const expectedProviders = (
+    process.env.E2E_OAUTH_PROVIDERS || "github"
+  ).split(",").map((provider) => provider.trim()).filter(Boolean);
   const providerButtons = page.locator("main").getByRole("button");
-  await expect(providerButtons).toHaveCount(2);
-  await expect(providerButtons.nth(0)).toHaveAccessibleName(
-    "Continue with Google"
-  );
-  await expect(providerButtons.nth(1)).toHaveAccessibleName(
-    "Continue with GitHub"
-  );
+  await expect(providerButtons).toHaveCount(expectedProviders.length);
+  for (const [index, provider] of expectedProviders.entries()) {
+    await expect(providerButtons.nth(index)).toHaveAccessibleName(
+      `Continue with ${providerLabels[provider] ?? provider[0].toUpperCase() + provider.slice(1)}`
+    );
+  }
 });
 
 test("signup intent redirects to the OAuth gateway and preserves a safe destination", async ({
@@ -146,4 +154,27 @@ test("auth callback shows a provider-neutral recoverable error state", async ({
     "href",
     "/auth/login"
   );
+});
+
+test("layout reflows without horizontal overflow", async ({ page }) => {
+  await page.goto("/evidence-os");
+  const dimensions = await page.evaluate(() => ({
+    scrollWidth: document.documentElement.scrollWidth,
+    clientWidth: document.documentElement.clientWidth,
+  }));
+  expect(dimensions.scrollWidth).toBeLessThanOrEqual(dimensions.clientWidth + 1);
+});
+
+test("keyboard navigation exposes a visible focus target", async ({ page }) => {
+  await page.goto("/evidence-os");
+  await page.keyboard.press("Tab");
+  await expect(page.locator(":focus")).toBeVisible();
+});
+
+test("reduced-motion preference preserves the evidence content", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/evidence-os");
+  await expect(
+    page.getByRole("heading", { name: "Evidence Intelligence OS" })
+  ).toBeVisible();
 });

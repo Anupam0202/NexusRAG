@@ -15,10 +15,10 @@ import { POST } from "./route";
 function confirmationRequest(
   values: Record<string, string>,
   headers: Record<string, string> = {
-    origin: "https://nexusrag.vercel.app",
+    origin: "https://nexusrag.example",
   }
 ) {
-  return new Request("https://nexusrag.vercel.app/auth/confirm/verify", {
+  return new Request("https://nexusrag.example/auth/confirm/verify", {
     method: "POST",
     headers,
     body: new URLSearchParams(values),
@@ -46,7 +46,7 @@ describe("POST /auth/confirm/verify", () => {
       type: "email",
     });
     expect(response.headers.get("location")).toBe(
-      "https://nexusrag.vercel.app/auth/callback?next=%2Fdocuments%3Fstatus%3Dready"
+      "https://nexusrag.example/auth/callback?next=%2Fdocuments%3Fstatus%3Dready"
     );
     expect(response.status).toBe(303);
   });
@@ -67,7 +67,7 @@ describe("POST /auth/confirm/verify", () => {
       type: "recovery",
     });
     expect(response.headers.get("location")).toBe(
-      "https://nexusrag.vercel.app/auth/callback?next=%2Fauth%2Fupdate-password"
+      "https://nexusrag.example/auth/callback?next=%2Fauth%2Fupdate-password"
     );
     expect(response.status).toBe(303);
   });
@@ -84,7 +84,7 @@ describe("POST /auth/confirm/verify", () => {
     );
 
     expect(response.headers.get("location")).toBe(
-      "https://nexusrag.vercel.app/auth/callback?next=%2Fauth%2Fupdate-password"
+      "https://nexusrag.example/auth/callback?next=%2Fauth%2Fupdate-password"
     );
   });
 
@@ -98,7 +98,7 @@ describe("POST /auth/confirm/verify", () => {
 
     expect(verifyOtp).not.toHaveBeenCalled();
     expect(response.headers.get("location")).toBe(
-      "https://nexusrag.vercel.app/auth/callback?error_description=Authentication+could+not+be+completed.+Return+to+sign+in+and+try+again."
+      "https://nexusrag.example/auth/callback?error_description=Authentication+could+not+be+completed.+Return+to+sign+in+and+try+again."
     );
     expect(response.status).toBe(303);
   });
@@ -118,7 +118,7 @@ describe("POST /auth/confirm/verify", () => {
 
     const location = response.headers.get("location");
     expect(location).toBe(
-      "https://nexusrag.vercel.app/auth/callback?error_description=Authentication+could+not+be+completed.+Return+to+sign+in+and+try+again."
+      "https://nexusrag.example/auth/callback?error_description=Authentication+could+not+be+completed.+Return+to+sign+in+and+try+again."
     );
     expect(location).not.toContain("sensitive");
     expect(location).not.toContain("evil.example");
@@ -137,7 +137,7 @@ describe("POST /auth/confirm/verify", () => {
     expect(verifyOtp).not.toHaveBeenCalled();
     expect(response.status).toBe(303);
     expect(response.headers.get("location")).toBe(
-      "https://nexusrag.vercel.app/auth/callback?error_description=Authentication+could+not+be+completed.+Return+to+sign+in+and+try+again."
+      "https://nexusrag.example/auth/callback?error_description=Authentication+could+not+be+completed.+Return+to+sign+in+and+try+again."
     );
   });
 
@@ -163,7 +163,7 @@ describe("POST /auth/confirm/verify", () => {
       type: "email",
     });
     expect(response.headers.get("location")).toBe(
-      "https://nexusrag.vercel.app/auth/callback?next=%2Fdocuments"
+      "https://nexusrag.example/auth/callback?next=%2Fdocuments"
     );
   });
 
@@ -185,7 +185,7 @@ describe("POST /auth/confirm/verify", () => {
     expect(verifyOtp).not.toHaveBeenCalled();
     expect(response.status).toBe(303);
     expect(response.headers.get("location")).toBe(
-      "https://nexusrag.vercel.app/auth/callback?error_description=Authentication+could+not+be+completed.+Return+to+sign+in+and+try+again."
+      "https://nexusrag.example/auth/callback?error_description=Authentication+could+not+be+completed.+Return+to+sign+in+and+try+again."
     );
   });
 });

@@ -34,7 +34,7 @@ describe("LoginPage", () => {
     signInWithOAuth.mockReset();
     toastError.mockReset();
     signInWithOAuth.mockResolvedValue({ error: null });
-    process.env.NEXT_PUBLIC_SITE_URL = "https://nexusrag.vercel.app";
+    process.env.NEXT_PUBLIC_SITE_URL = "https://nexusrag.example";
     delete process.env.NEXT_PUBLIC_OAUTH_PROVIDERS;
     window.history.replaceState({}, "", "/auth/login");
   });
