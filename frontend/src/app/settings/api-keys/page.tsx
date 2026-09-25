@@ -24,6 +24,7 @@ export default function ApiKeysPage() {
   const { authMode, canAccessWorkspaceApi } = useWorkspaceApiAccess();
   const [status, setStatus] = useState<ApiKeyStatusResponse | null>(null);
   const [apiKey, setApiKeyValue] = useState("");
+  const [costConsentAccepted, setCostConsentAccepted] = useState(false);
   const [showKey, setShowKey] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -75,14 +76,19 @@ export default function ApiKeysPage() {
       toast.error("Enter a valid provider key");
       return;
     }
+    if (!costConsentAccepted) {
+      toast.error("Review and accept the Google billing notice before activating this key");
+      return;
+    }
     setSaving(true);
     setError(null);
     try {
-      const nextStatus = await setApiKey(trimmed);
+      const nextStatus = await setApiKey(trimmed, costConsentAccepted);
       setStatus(nextStatus);
       setUserApiKey(nextStatus.key_fingerprint);
       setIsQuotaBlocked(false);
       setApiKeyValue("");
+      setCostConsentAccepted(false);
       setShowKey(false);
       toast.success("Account Gemini API key activated");
     } catch (err: unknown) {
@@ -243,9 +249,21 @@ export default function ApiKeysPage() {
                 </div>
               </label>
 
+              <label className="flex items-start gap-2 rounded-xl border border-amber-300 bg-amber-50 p-3 text-xs leading-relaxed text-amber-900 dark:border-amber-900 dark:bg-amber-950/20 dark:text-amber-200">
+                <input
+                  type="checkbox"
+                  checked={costConsentAccepted}
+                  onChange={(event) => setCostConsentAccepted(event.target.checked)}
+                  className="mt-0.5"
+                />
+                <span>
+                  I understand this API key is billed under its Google project. Google may charge the key owner if free-tier limits are exceeded or billing is enabled; NexusRAG cannot guarantee zero Google charges. I have reviewed that project&apos;s quotas and billing settings.
+                </span>
+              </label>
+
               <button
                 type="submit"
-                disabled={saving || apiKey.trim().length < 10}
+                disabled={saving || apiKey.trim().length < 10 || !costConsentAccepted}
                 className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-brand-500 to-purple-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md transition hover:shadow-lg disabled:opacity-60 sm:w-auto"
               >
                 {saving ? <Loader2 size={15} className="animate-spin" /> : <CheckCircle2 size={15} />}

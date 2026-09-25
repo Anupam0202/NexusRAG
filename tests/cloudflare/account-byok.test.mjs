@@ -41,7 +41,7 @@ test("account Gemini key is validated, encrypted at rest, masked on read, and de
   const saveResponse = await handle(new Request("https://gateway.invalid/api/v1/apikey", {
     method: "POST",
     headers: { authorization: "Bearer synthetic-token", "content-type": "application/json" },
-    body: JSON.stringify({ api_key: rawKey }),
+    body: JSON.stringify({ api_key: rawKey, cost_consent: true }),
   }), env);
   assert.equal(saveResponse.status, 200, await saveResponse.clone().text());
   const responseBody = await saveResponse.json();
@@ -50,6 +50,7 @@ test("account Gemini key is validated, encrypted at rest, masked on read, and de
   assert.equal(JSON.stringify(responseBody).includes(rawKey), false);
   assert.ok(saved.get(userId).ciphertext);
   assert.ok(saved.get(userId).nonce);
+  assert.ok(Number.isFinite(Date.parse(saved.get(userId).cost_consent_at)));
   assert.notEqual(saved.get(userId).ciphertext, rawKey);
   assert.equal(JSON.stringify(saved.get(userId)).includes(rawKey), false);
 
@@ -60,6 +61,36 @@ test("account Gemini key is validated, encrypted at rest, masked on read, and de
   assert.equal(JSON.stringify(await statusResponse.json()).includes(rawKey), false);
   assert.equal(await loadUserGeminiKey(env, userId), rawKey);
   assert.ok(calls.every((call) => !call.url.includes(rawKey)));
+});
+
+test("account Gemini key cannot trigger Google validation without explicit billing consent", async (t) => {
+  const env = {
+    SUPABASE_URL: "https://supabase.invalid",
+    SUPABASE_PUBLISHABLE_KEY: "synthetic-publishable",
+    SUPABASE_SERVICE_ROLE_KEY: "synthetic-service-role",
+    GEMINI_USER_KEY_ENCRYPTION_SECRET: Buffer.alloc(32, 7).toString("base64"),
+  };
+  let googleCalls = 0;
+  t.mock.method(globalThis, "fetch", async (input) => {
+    const url = new URL(String(input));
+    if (url.hostname === "supabase.invalid" && url.pathname === "/auth/v1/user") {
+      return json({ id: userId });
+    }
+    if (url.hostname === "generativelanguage.googleapis.com") {
+      googleCalls += 1;
+      return json({ models: [] });
+    }
+    throw new Error(`Unexpected network call: ${url.href}`);
+  });
+
+  const response = await handle(new Request("https://gateway.invalid/api/v1/apikey", {
+    method: "POST",
+    headers: { authorization: "Bearer synthetic-token", "content-type": "application/json" },
+    body: JSON.stringify({ api_key: "AIzaSyntheticPrivateUserKey000000000000" }),
+  }), env);
+  assert.equal(response.status, 400);
+  assert.equal((await response.json()).error.code, "COST_CONSENT_REQUIRED");
+  assert.equal(googleCalls, 0, "no provider request should precede billing consent");
 });
 
 test("BYOK Gemini generation sends credentials only in the API-key header and skips platform quota reservations", async (t) => {

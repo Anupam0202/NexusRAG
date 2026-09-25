@@ -19,6 +19,7 @@ PSQL=(psql -X -v ON_ERROR_STOP=1 -d "$PGDATABASE")
 "${PSQL[@]}" -f "$ROOT/supabase/migrations/031_harden_extraction_storage_privileges.sql"
 "${PSQL[@]}" -f "$ROOT/supabase/migrations/032_account_trial_and_user_gemini_keys.sql"
 "${PSQL[@]}" -f "$ROOT/supabase/migrations/033_explicit_deny_account_trial_tables.sql"
+"${PSQL[@]}" -f "$ROOT/supabase/migrations/034_explicit_byok_cost_consent_and_unknown_costs.sql"
 "${PSQL[@]}" -f "$TESTS/fixtures.sql"
 "${PSQL[@]}" -f "$TESTS/account-trial-assertions.sql"
 "${PSQL[@]}" -f "$TESTS/account-rollback.sql"

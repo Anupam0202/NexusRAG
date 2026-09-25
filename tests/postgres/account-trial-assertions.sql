@@ -29,6 +29,15 @@ BEGIN
   r := public.nexus_admit_account_operation(
     first_user,'chat','00000000-0000-4000-8000-000000000007'
   );
+  IF r->>'state'<>'BYOK_REQUIRED' THEN
+    RAISE EXCEPTION 'BYOK without explicit cost consent was admitted: %',r;
+  END IF;
+  UPDATE public.nexus_user_provider_keys
+    SET cost_consent_at=clock_timestamp()
+    WHERE user_id=first_user AND provider='gemini';
+  r := public.nexus_admit_account_operation(
+    first_user,'chat','00000000-0000-4000-8000-000000000008'
+  );
   IF r->>'state'<>'READY' OR r->>'credential_mode'<>'user_byok'
      OR (r->>'used')::integer<>5 THEN
     RAISE EXCEPTION 'BYOK chat admission changed free usage incorrectly: %',r;
@@ -70,6 +79,21 @@ BEGIN
         AND permissive='RESTRICTIVE'
         AND qual='false' AND with_check='false')<>3 THEN
     RAISE EXCEPTION 'explicit restrictive deny policies are missing';
+  END IF;
+
+  INSERT INTO public.llm_usage_events(
+    workspace_id,provider,model,operation,success,cost_microusd
+  ) VALUES (
+    '11111111-1111-4111-8111-111111111111','gemini','fixture-model',
+    'grounded_chat_byok',true,NULL
+  );
+  PERFORM public.reconcile_workspace_usage(
+    '11111111-1111-4111-8111-111111111111',current_date
+  );
+  IF (SELECT estimated_cost_microusd FROM public.workspace_usage_daily
+      WHERE workspace_id='11111111-1111-4111-8111-111111111111'
+        AND usage_date=current_date) IS NOT NULL THEN
+    RAISE EXCEPTION 'unknown BYOK spend was presented as a zero or known cost';
   END IF;
 END
 $$;

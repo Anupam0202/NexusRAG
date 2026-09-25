@@ -87,7 +87,10 @@ export default function BillingOrUsagePage() {
   const vectorBackend = deriveVectorBackendLabel(status);
   const providerHealth = status?.provider_health ?? [];
   const reconciledTokens = billing?.totals.total_tokens ?? 0;
-  const estimatedCost = (billing?.totals.estimated_cost_microusd ?? 0) / 1_000_000;
+  const estimatedCostMicrousd = billing?.totals.estimated_cost_microusd;
+  const estimatedCost = estimatedCostMicrousd == null
+    ? "Unknown"
+    : `$${(estimatedCostMicrousd / 1_000_000).toFixed(4)}`;
 
   const posture = useMemo(() => {
     if (fallbackCount > 0 || failedCalls > 0) return "Needs attention";
@@ -194,8 +197,11 @@ export default function BillingOrUsagePage() {
               <div className="mt-3 grid gap-3 sm:grid-cols-3">
                 <StatusPanel label="Reconciled calls" value={(billing?.totals.query_count ?? 0).toLocaleString()} />
                 <StatusPanel label="Reconciled tokens" value={reconciledTokens.toLocaleString()} />
-                <StatusPanel label="Estimated cost" value={`$${estimatedCost.toFixed(4)}`} />
+                <StatusPanel label="Estimated cost" value={estimatedCost} />
               </div>
+              <p className="mt-3 text-xs leading-relaxed text-[var(--text-muted)]">
+                Unknown means at least one provider call has no reconciled price. Account-key (BYOK) calls are billed by Google to the key&apos;s project owner and are not a verified NexusRAG cost.
+              </p>
             </div>
 
             <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-card)] p-4">

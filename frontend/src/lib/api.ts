@@ -311,11 +311,12 @@ export async function healthCheck(): Promise<{
 // API Key
 
 export async function setApiKey(
-  apiKey: string
+  apiKey: string,
+  costConsentAccepted: boolean
 ): Promise<ApiKeyStatusResponse> {
   return request("/api/v1/apikey", {
     method: "POST",
-    body: JSON.stringify({ api_key: apiKey }),
+    body: JSON.stringify({ api_key: apiKey, cost_consent: costConsentAccepted }),
   });
 }
 

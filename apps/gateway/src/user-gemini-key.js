@@ -73,7 +73,7 @@ async function vaultRequest(env, path, init = {}) {
 async function getUserGeminiKeyRecord(env, userId) {
   const rows = await vaultRequest(
     env,
-    `${VAULT_TABLE}?user_id=eq.${encodeURIComponent(userId)}&provider=eq.gemini&is_active=eq.true&select=ciphertext,nonce,key_fingerprint&limit=1`,
+    `${VAULT_TABLE}?user_id=eq.${encodeURIComponent(userId)}&provider=eq.gemini&is_active=eq.true&cost_consent_at=not.is.null&select=ciphertext,nonce,key_fingerprint,cost_consent_at&limit=1`,
   );
   return rows?.[0] || null;
 }
@@ -83,7 +83,10 @@ async function loadUserGeminiKey(env, userId) {
   return record ? decryptGeminiKey(env, record) : null;
 }
 
-async function saveUserGeminiKey(env, userId, apiKey) {
+async function saveUserGeminiKey(env, userId, apiKey, costConsentAt) {
+  if (typeof costConsentAt !== "string" || !Number.isFinite(Date.parse(costConsentAt))) {
+    throw keyError("COST_CONSENT_REQUIRED", 400);
+  }
   const encrypted = await encryptGeminiKey(env, apiKey);
   const fingerprint = `…${apiKey.slice(-4)}`;
   await vaultRequest(env, `${VAULT_TABLE}?on_conflict=user_id,provider`, {
@@ -96,6 +99,7 @@ async function saveUserGeminiKey(env, userId, apiKey) {
       nonce: encrypted.nonce,
       key_fingerprint: fingerprint,
       is_active: true,
+      cost_consent_at: costConsentAt,
       updated_at: new Date().toISOString(),
     }]),
   });
@@ -105,7 +109,7 @@ async function saveUserGeminiKey(env, userId, apiKey) {
 async function deleteUserGeminiKey(env, userId) {
   await vaultRequest(env, `${VAULT_TABLE}?user_id=eq.${encodeURIComponent(userId)}&provider=eq.gemini`, {
     method: "PATCH",
-    body: JSON.stringify({ ciphertext: null, nonce: null, key_fingerprint: null, is_active: false, updated_at: new Date().toISOString() }),
+    body: JSON.stringify({ ciphertext: null, nonce: null, key_fingerprint: null, is_active: false, cost_consent_at: null, updated_at: new Date().toISOString() }),
   });
 }
 

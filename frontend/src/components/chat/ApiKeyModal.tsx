@@ -10,6 +10,7 @@ import { toast } from "sonner";
 export function ApiKeyModal() {
   const { showApiKeyModal, setShowApiKeyModal, setUserApiKey, isQuotaBlocked, setIsQuotaBlocked } = useStore();
   const [key, setKey] = useState("");
+  const [costConsentAccepted, setCostConsentAccepted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [showKey, setShowKey] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -30,6 +31,7 @@ export function ApiKeyModal() {
     if (isQuotaBlocked) return; // blocked — must submit a key
     setShowApiKeyModal(false);
     setKey("");
+    setCostConsentAccepted(false);
   };
 
   const handleSubmit = async () => {
@@ -38,13 +40,18 @@ export function ApiKeyModal() {
       toast.error("Please enter a valid API key");
       return;
     }
+    if (!costConsentAccepted) {
+      toast.error("Review and accept the Google billing notice before activating this key");
+      return;
+    }
     setLoading(true);
     try {
-      const result = await setApiKey(trimmed);
+      const result = await setApiKey(trimmed, costConsentAccepted);
       setUserApiKey(result.key_fingerprint ?? "configured");
       setIsQuotaBlocked(false);
       setShowApiKeyModal(false);
       setKey("");
+      setCostConsentAccepted(false);
       toast.success("API key updated — you can continue chatting!", {
         icon: <CheckCircle2 size={18} />,
         duration: 4000,
@@ -208,7 +215,7 @@ export function ApiKeyModal() {
                   )}
                   <button
                     onClick={handleSubmit}
-                    disabled={loading || key.trim().length < 10}
+                    disabled={loading || key.trim().length < 10 || !costConsentAccepted}
                     className={`flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-brand-500 to-purple-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 ${isQuotaBlocked ? "w-full" : "flex-1"
                       }`}
                   >
@@ -220,8 +227,20 @@ export function ApiKeyModal() {
                   </button>
                 </div>
 
-                <p className="text-[10px] text-[var(--text-muted)] text-center mt-4">
-                  Your key is validated and stored encrypted for your account. It is not shown again. Google controls its own quotas and billing; this app cannot guarantee that Google usage is free. Review your Google AI Studio/Cloud billing settings.
+                <label className="mt-4 flex items-start gap-2 rounded-xl border border-amber-300 bg-amber-50 p-3 text-left text-xs leading-relaxed text-amber-900 dark:border-amber-900 dark:bg-amber-950/20 dark:text-amber-200">
+                  <input
+                    type="checkbox"
+                    checked={costConsentAccepted}
+                    onChange={(event) => setCostConsentAccepted(event.target.checked)}
+                    disabled={loading}
+                    className="mt-0.5"
+                  />
+                  <span>
+                    I understand this API key is billed under its Google project. Google may charge the key owner if free-tier limits are exceeded or billing is enabled; NexusRAG cannot guarantee zero Google charges. I have reviewed that project&apos;s quotas and billing settings.
+                  </span>
+                </label>
+                <p className="text-[10px] text-[var(--text-muted)] text-center mt-3">
+                  Your key is validated and stored encrypted for your account. It is not shown again.
                 </p>
               </div>
             </div>

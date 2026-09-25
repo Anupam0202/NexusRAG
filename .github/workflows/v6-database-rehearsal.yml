@@ -13,6 +13,7 @@ on:
       - supabase/migrations/031_harden_extraction_storage_privileges.sql
       - supabase/migrations/032_account_trial_and_user_gemini_keys.sql
       - supabase/migrations/033_explicit_deny_account_trial_tables.sql
+      - supabase/migrations/034_explicit_byok_cost_consent_and_unknown_costs.sql
       - scripts/build_clean_baseline.py
       - scripts/verify_v6_migrations.py
       - tests/postgres/**
@@ -68,6 +69,7 @@ jobs:
           cp "$GITHUB_WORKSPACE/supabase/migrations/031_harden_extraction_storage_privileges.sql" "$source_dir/supabase/migrations/"
           cp "$GITHUB_WORKSPACE/supabase/migrations/032_account_trial_and_user_gemini_keys.sql" "$source_dir/supabase/migrations/"
           cp "$GITHUB_WORKSPACE/supabase/migrations/033_explicit_deny_account_trial_tables.sql" "$source_dir/supabase/migrations/"
+          cp "$GITHUB_WORKSPACE/supabase/migrations/034_explicit_byok_cost_consent_and_unknown_costs.sql" "$source_dir/supabase/migrations/"
           chmod -R a+rX "$source_dir"
           cleanup() {
             sudo -u postgres dropdb --if-exists -h /var/run/postgresql -p "$port" "$db" >/dev/null 2>&1 || true
