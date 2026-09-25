@@ -115,3 +115,11 @@ jobs:
             ${{ runner.temp }}/postgres-rehearsal.log
           if-no-files-found: warn
           retention-days: 14
+
+  required-clean-supabase-summary:
+    name: Clean Supabase baseline rehearsal
+    needs: clean-baseline-rehearsal
+    runs-on: ubuntu-latest
+    steps:
+      - name: Confirm clean baseline and recovery rehearsal passed
+        run: echo "Clean Supabase baseline, migration, concurrency, backup, and restore rehearsal passed."
