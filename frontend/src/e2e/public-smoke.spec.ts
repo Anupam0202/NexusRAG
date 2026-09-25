@@ -158,14 +158,11 @@ test("auth callback shows a provider-neutral recoverable error state", async ({
 
 test("layout reflows without horizontal overflow", async ({ page }) => {
   await page.goto("/evidence-os");
-<<<<<<< critical-gaps/v8-remote-validation
   await expect(
     page.getByRole("heading", { name: "Evidence Intelligence OS" })
   ).toBeVisible();
   await expect(page.locator("main")).toHaveCount(1);
   await expect(page.locator("main main")).toHaveCount(0);
-=======
->>>>>>> main
   const dimensions = await page.evaluate(() => ({
     scrollWidth: document.documentElement.scrollWidth,
     clientWidth: document.documentElement.clientWidth,

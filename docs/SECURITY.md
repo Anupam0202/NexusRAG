@@ -6,15 +6,9 @@ NexusRAG is designed around tenant isolation, durable auth context, and defensiv
 
 - Supabase JWT validation and workspace-scoped API context.
 - Supabase Auth is the sole identity and session authority; NexusRAG never receives Google or GitHub credentials.
-<<<<<<< critical-gaps/v8-remote-validation
 - The candidate frontend offers Google and GitHub OAuth. Supabase provider
   activation and real Google callback verification remain environment setup
   gates; a visible button alone does not prove that a provider is configured.
-=======
-- GitHub is the currently configured preview OAuth provider. Google may be
-  enabled only after its Supabase provider configuration and redirect flow are
-  verified.
->>>>>>> main
 - OAuth callback destinations are restricted to sanitized same-origin application paths.
 - Public sign-in and callback responses avoid provider-detail and token leakage.
 - Account-security controls use explicit Supabase sign-out scopes instead of relying on the SDK's global default.

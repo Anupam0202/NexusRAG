@@ -190,12 +190,7 @@ export default function PrivacyPage() {
       await deleteCurrentWorkspace();
       setStoredWorkspaceId(null);
       // A hard navigation clears stale workspace-scoped client state after deletion.
-<<<<<<< critical-gaps/v8-remote-validation
       navigateStatic("/workspaces");
-=======
-      // eslint-disable-next-line @next/next/no-location-assign-relative-destination
-      window.location.assign("/workspaces");
->>>>>>> main
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Unable to delete workspace");
       setWorking(null);

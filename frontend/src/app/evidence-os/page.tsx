@@ -26,12 +26,8 @@ const STATUS_STYLE: Record<string, string> = {
 
 export default function EvidenceOSPage() {
   return (
-<<<<<<< critical-gaps/v8-remote-validation
     <div
       role="region"
-=======
-    <main
->>>>>>> main
       className="h-full overflow-y-auto"
       tabIndex={0}
       aria-label="Evidence Intelligence OS content"
@@ -105,11 +101,7 @@ export default function EvidenceOSPage() {
           </div>
         </section>
       </div>
-<<<<<<< critical-gaps/v8-remote-validation
     </div>
-=======
-    </main>
->>>>>>> main
   );
 }
 
