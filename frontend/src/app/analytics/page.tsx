@@ -200,7 +200,7 @@ export default function AnalyticsPage() {
         <motion.div
           initial={{ opacity: 0, y: -8 }}
           animate={{ opacity: 1, y: 0 }}
-          className="rounded-2xl bg-gradient-to-r from-brand-500 to-purple-600 p-4 md:p-5 text-white shadow-lg"
+          className="rounded-2xl bg-brand-700 p-4 md:p-5 text-white shadow-lg"
         >
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 mb-1">
@@ -527,22 +527,22 @@ function MetricCard({
   value: string | number;
   color: "brand" | "indigo" | "green" | "purple" | "orange" | "blue";
 }) {
-  const gradients: Record<string, string> = {
-    brand: "from-brand-500 to-indigo-600",
-    indigo: "from-indigo-500 to-violet-600",
-    green: "from-green-500 to-emerald-600",
-    purple: "from-purple-500 to-fuchsia-600",
-    orange: "from-orange-400 to-red-500",
-    blue: "from-blue-500 to-cyan-600",
+  const backgrounds: Record<string, string> = {
+    brand: "bg-brand-700",
+    indigo: "bg-indigo-700",
+    green: "bg-green-700",
+    purple: "bg-purple-700",
+    orange: "bg-orange-700",
+    blue: "bg-blue-700",
   };
   return (
     <motion.div
       whileHover={{ y: -2 }}
-      className={`rounded-xl bg-gradient-to-br ${gradients[color]} p-3 md:p-4 text-white shadow-lg cursor-default`}
+      className={`rounded-xl ${backgrounds[color]} p-3 md:p-4 text-white shadow-lg cursor-default`}
     >
       <div className="opacity-80 mb-1">{icon}</div>
       <p className="text-xl md:text-2xl font-bold tabular-nums">{value}</p>
-      <p className="text-[11px] opacity-80 leading-tight mt-0.5">{label}</p>
+      <p className="text-[11px] leading-tight mt-0.5">{label}</p>
     </motion.div>
   );
 }

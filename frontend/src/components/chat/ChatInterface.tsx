@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useEffect, useState, useCallback, useMemo } from "react";
-import Link from "next/link";
+import Link from "@/components/layout/StaticLink";
 import { useChat } from "@/hooks/useChat";
 import { MessageBubble } from "./MessageBubble";
 import { SourcePanel } from "./SourcePanel";
@@ -32,6 +32,7 @@ const SUGGESTIONS = [
 export default function ChatInterface() {
   const { sendMessage, messages } = useChat();
   const [input, setInput] = useState("");
+  const [nonSensitiveAttested, setNonSensitiveAttested] = useState(false);
   const [activeSources, setActiveSources] = useState<SourceChunk[] | null>(null);
   const [showScrollBtn, setShowScrollBtn] = useState(false);
   const [chatScope, setChatScope] = useState<"workspace" | "documents">("workspace");
@@ -72,6 +73,7 @@ export default function ChatInterface() {
     selectedDocumentIds.length > 0 || Boolean(filenameFilter.trim());
   const canSend =
     Boolean(input.trim()) &&
+    nonSensitiveAttested &&
     !isStreaming &&
     canChat &&
     (chatScope === "workspace" || hasDocumentFilter);
@@ -118,6 +120,7 @@ export default function ChatInterface() {
         metadataValue,
       });
       sendMessage(q, {
+        nonSensitiveAttested: true,
         chatScope,
         documentIds: filters.document_ids,
         fileTypes: filters.file_types,
@@ -134,6 +137,7 @@ export default function ChatInterface() {
       return;
     }
     setInput("");
+    setNonSensitiveAttested(false);
     if (inputRef.current) inputRef.current.style.height = "auto";
   }, [
     canSend,
@@ -467,6 +471,18 @@ export default function ChatInterface() {
                 </div>
               </div>
             )}
+            <label className="mb-2 flex items-start gap-2 text-[11px] leading-4 text-[var(--text-muted)]">
+              <input
+                type="checkbox"
+                checked={nonSensitiveAttested}
+                onChange={(event) => setNonSensitiveAttested(event.target.checked)}
+                disabled={isStreaming || !canChat}
+                className="mt-0.5 accent-brand-600"
+              />
+              <span>
+                This question contains no personal, confidential, regulated, or other sensitive information. I understand Gemini processing still requires separate workspace-owner approval.
+              </span>
+            </label>
             <div className="glass-input flex items-end gap-2 rounded-2xl px-4 py-2.5">
               <textarea
                 ref={inputRef}
@@ -608,7 +624,7 @@ function EmptyState({
       {authMode === "signed_out" && (
         <Link
           href="/auth/login?next=/chat"
-          className="mb-8 inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-brand-500 to-purple-600 text-white px-5 py-2.5 text-sm font-semibold shadow-md hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all"
+          className="mb-8 inline-flex items-center gap-2 rounded-xl bg-indigo-700 hover:bg-indigo-800 text-white px-5 py-2.5 text-sm font-semibold shadow-md hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all"
         >
           Sign in
         </Link>
@@ -617,7 +633,7 @@ function EmptyState({
       {!error && !loading && !needsAuth && docCount === 0 && (
         <Link
           href="/documents"
-          className="mb-8 inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-brand-500 to-purple-600 text-white px-5 py-2.5 text-sm font-semibold shadow-md hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all"
+          className="mb-8 inline-flex items-center gap-2 rounded-xl bg-indigo-700 hover:bg-indigo-800 text-white px-5 py-2.5 text-sm font-semibold shadow-md hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all"
         >
           <Upload size={16} />
           Upload Documents

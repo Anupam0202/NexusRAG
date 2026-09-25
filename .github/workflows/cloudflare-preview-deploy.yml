@@ -13,7 +13,7 @@ on:
         default: false
         type: boolean
   pull_request:
-    branches: [v6-zero-cost-foundations-clean]
+    branches: [v6-zero-cost-foundations-clean, main]
     types: [opened, synchronize, reopened, ready_for_review]
   push:
     branches: [v6-zero-cost-foundations-clean, critical-gaps/v8-remote-validation]
@@ -36,7 +36,7 @@ concurrency:
 
 jobs:
   gateway:
-    if: ${{ (github.event_name == 'workflow_dispatch' && inputs.deploy_candidate_preview) || (github.event_name == 'push' && (github.ref == 'refs/heads/v6-zero-cost-foundations-clean' || github.ref == 'refs/heads/critical-gaps/v8-remote-validation') && contains(github.event.head_commit.message, '[deploy-candidate-preview]')) || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.base.ref == 'v6-zero-cost-foundations-clean' && github.event.pull_request.head.ref == 'critical-gaps/v8-remote-validation') }}
+    if: ${{ (github.event_name == 'workflow_dispatch' && inputs.deploy_candidate_preview) || (github.event_name == 'push' && (github.ref == 'refs/heads/v6-zero-cost-foundations-clean' || github.ref == 'refs/heads/critical-gaps/v8-remote-validation') && contains(github.event.head_commit.message, '[deploy-candidate-preview]')) || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && (github.event.pull_request.base.ref == 'v6-zero-cost-foundations-clean' || github.event.pull_request.base.ref == 'main') && github.event.pull_request.head.ref == 'critical-gaps/v8-remote-validation') }}
     name: Deploy authenticated Evidence API gateway
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -159,7 +159,7 @@ jobs:
           done
 
   frontend:
-    if: ${{ (github.event_name == 'workflow_dispatch' && inputs.deploy_candidate_preview) || (github.event_name == 'push' && (github.ref == 'refs/heads/v6-zero-cost-foundations-clean' || github.ref == 'refs/heads/critical-gaps/v8-remote-validation') && contains(github.event.head_commit.message, '[deploy-candidate-preview]')) || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.base.ref == 'v6-zero-cost-foundations-clean' && github.event.pull_request.head.ref == 'critical-gaps/v8-remote-validation') }}
+    if: ${{ (github.event_name == 'workflow_dispatch' && inputs.deploy_candidate_preview) || (github.event_name == 'push' && (github.ref == 'refs/heads/v6-zero-cost-foundations-clean' || github.ref == 'refs/heads/critical-gaps/v8-remote-validation') && contains(github.event.head_commit.message, '[deploy-candidate-preview]')) || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && (github.event.pull_request.base.ref == 'v6-zero-cost-foundations-clean' || github.event.pull_request.base.ref == 'main') && github.event.pull_request.head.ref == 'critical-gaps/v8-remote-validation') }}
     needs: gateway
     name: Build and deploy OpenNext frontend
     runs-on: ubuntu-latest

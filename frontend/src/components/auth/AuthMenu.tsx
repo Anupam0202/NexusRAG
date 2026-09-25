@@ -1,18 +1,17 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
+import Link from "@/components/layout/StaticLink";
 import { Building2, LogOut, ShieldCheck, UserRound } from "lucide-react";
 import { toast } from "sonner";
 import { useStore } from "@/hooks/useStore";
+import { navigateStatic } from "@/lib/static-navigation";
 import {
   createSupabaseBrowserClient,
   hasPublicSupabaseConfig,
 } from "@/lib/supabase/client";
 
 export function AuthMenu() {
-  const router = useRouter();
   const authMode = useStore((state) => state.authMode);
   const authUser = useStore((state) => state.authUser);
   const workspaceId = useStore((state) => state.workspaceId);
@@ -37,7 +36,7 @@ export function AuthMenu() {
       setWorkspaceId(null);
       setOpen(false);
       toast.success("Signed out");
-      router.replace("/auth/login");
+      navigateStatic("/auth/login");
     } catch {
       toast.error("Unable to sign out. Please try again.");
     }

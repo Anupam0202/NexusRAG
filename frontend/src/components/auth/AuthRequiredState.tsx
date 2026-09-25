@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import Link from "@/components/layout/StaticLink";
 import { Loader2, ShieldCheck } from "lucide-react";
 import type { AuthMode } from "@/hooks/useStore";
 import { cn } from "@/lib/utils";

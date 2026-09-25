@@ -263,3 +263,196 @@ test("storage deletion rejects an unrelated 400 verification response", async ()
     globalThis.fetch = originalFetch;
   }
 });
+
+
+test("authenticated system status reports real data-API reachability without leaking provider secrets", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url, init = {}) => {
+    const target = String(url);
+    if (target.endsWith("/auth/v1/user")) {
+      assert.equal(init.headers.authorization, "Bearer synthetic-user-token");
+      return new Response(JSON.stringify({ id: "11111111-1111-4111-8111-111111111111" }), { status: 200, headers: { "content-type": "application/json" } });
+    }
+    if (target.includes("/rest/v1/workspaces?select=id&limit=1")) {
+      return new Response("[]", { status: 200, headers: { "content-type": "application/json" } });
+    }
+    throw new Error(`Unexpected status probe: ${target}`);
+  };
+  try {
+    const response = await handle(request("/api/v1/status", { headers: { authorization: "Bearer synthetic-user-token" } }), configured);
+    const body = await response.json();
+    assert.equal(response.status, 200);
+    assert.equal(body.status, "READY");
+    assert.equal(body.settings.supabase_configured, true);
+    assert.equal(body.settings.supabase_auth_configured, true);
+    assert.equal(body.settings.supabase_data_api_reachable, true);
+    assert.equal(body.settings.memory_constrained, true);
+    assert.equal("use_lightweight_embeddings" in body.settings, false, "Gemini embeddings must not be mislabeled lightweight");
+    assert.equal(body.settings.enable_qdrant, false, "configured provider must not be represented as policy-approved");
+    assert.equal(body.metered_operations, "REVIEW_REQUIRED");
+    assert.equal(body.paid_fallback, false);
+    assert.equal(body.product_readiness, "NOT_VERIFIED");
+    assert.equal(body.total_documents, 0);
+    assert.equal(body.total_chunks, 0);
+    assert.doesNotMatch(JSON.stringify(body), /synthetic-(?:service|qdrant|google)-secret/);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("authenticated system status degrades when Supabase data API is unreachable", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url) => {
+    if (String(url).endsWith("/auth/v1/user")) {
+      return new Response(JSON.stringify({ id: "22222222-2222-4222-8222-222222222222" }), { status: 200, headers: { "content-type": "application/json" } });
+    }
+    return new Response("unavailable", { status: 503 });
+  };
+  try {
+    const response = await handle(request("/api/v1/status", { headers: { authorization: "Bearer synthetic-user-token" } }), configured);
+    const body = await response.json();
+    assert.equal(response.status, 200);
+    assert.equal(body.status, "DEGRADED");
+    assert.equal(body.settings.supabase_data_api_reachable, false);
+    assert.equal(body.settings.supabase_data_api_status, "unavailable");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("system status counts only a workspace the authenticated user belongs to", async () => {
+  const originalFetch = globalThis.fetch;
+  const workspace = "33333333-3333-4333-8333-333333333333";
+  const user = "44444444-4444-4444-8444-444444444444";
+  const observed = [];
+  globalThis.fetch = async (url, init = {}) => {
+    const target = String(url);
+    observed.push({ target, method: init.method || "GET" });
+    if (target.endsWith("/auth/v1/user")) {
+      return new Response(JSON.stringify({ id: user }), { status: 200, headers: { "content-type": "application/json" } });
+    }
+    if (target.includes("/rest/v1/workspaces?select=id&limit=1")) return new Response("[]", { status: 200 });
+    if (target.includes(`/rest/v1/workspace_members?workspace_id=eq.${workspace}&user_id=eq.${user}`)) {
+      return new Response(JSON.stringify([{ workspace_id: workspace, user_id: user, role: "owner" }]), { status: 200 });
+    }
+    if (target.includes(`/rest/v1/documents?workspace_id=eq.${workspace}`)) {
+      return new Response(null, { status: 200, headers: { "content-range": "0-6/7" } });
+    }
+    if (target.includes(`/rest/v1/document_chunks?workspace_id=eq.${workspace}`)) {
+      return new Response(null, { status: 200, headers: { "content-range": "0-10/11" } });
+    }
+    throw new Error(`Unexpected workspace status request: ${target}`);
+  };
+  try {
+    const response = await handle(request("/api/v1/status", {
+      headers: { authorization: "Bearer synthetic-user-token", "X-Nexus-Workspace-Id": workspace },
+    }), configured);
+    const body = await response.json();
+    assert.equal(response.status, 200);
+    assert.equal(body.total_documents, 7);
+    assert.equal(body.total_chunks, 11);
+    const countQueries = observed.filter(({ method }) => method === "HEAD");
+    assert.equal(countQueries.length, 2);
+    assert.ok(countQueries.every(({ target }) => target.includes(`workspace_id=eq.${workspace}`)));
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("system status denies an unowned workspace before issuing tenant count queries", async () => {
+  const originalFetch = globalThis.fetch;
+  const workspace = "55555555-5555-4555-8555-555555555555";
+  const user = "66666666-6666-4666-8666-666666666666";
+  const observed = [];
+  globalThis.fetch = async (url) => {
+    const target = String(url);
+    observed.push(target);
+    if (target.endsWith("/auth/v1/user")) {
+      return new Response(JSON.stringify({ id: user }), { status: 200, headers: { "content-type": "application/json" } });
+    }
+    if (target.includes("/rest/v1/workspaces?select=id&limit=1")) return new Response("[]", { status: 200 });
+    if (target.includes(`/rest/v1/workspace_members?workspace_id=eq.${workspace}&user_id=eq.${user}`)) return new Response("[]", { status: 200 });
+    throw new Error(`Unexpected foreign-workspace query: ${target}`);
+  };
+  try {
+    const response = await handle(request("/api/v1/status", {
+      headers: { authorization: "Bearer synthetic-user-token", "X-Nexus-Workspace-Id": workspace },
+    }), configured);
+    const body = await response.json();
+    assert.equal(response.status, 403);
+    assert.equal(body.error.code, "FORBIDDEN");
+    assert.equal(observed.some((target) => target.includes("/rest/v1/documents?") || target.includes("/rest/v1/document_chunks?")), false);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("system status remains authenticated", async () => {
+  const response = await handle(request("/api/v1/status"), configured);
+  assert.equal(response.status, 401);
+  assert.equal((await response.json()).error.code, "AUTH_REQUIRED");
+});
+
+
+test("billing usage is workspace-authorized and does not flatten unknown cost to zero", async () => {
+  const originalFetch = globalThis.fetch;
+  const workspace = "77777777-7777-4777-8777-777777777777";
+  const user = "88888888-8888-4888-8888-888888888888";
+  let usageQueryCount = 0;
+  globalThis.fetch = async (url) => {
+    const target = String(url);
+    if (target.endsWith("/auth/v1/user")) return new Response(JSON.stringify({ id: user }), { status: 200 });
+    if (target.includes(`/rest/v1/workspace_members?workspace_id=eq.${workspace}&user_id=eq.${user}`)) {
+      return new Response(JSON.stringify([{ workspace_id: workspace, user_id: user, role: "owner" }]), { status: 200 });
+    }
+    if (target.includes(`/rest/v1/workspace_usage_daily?workspace_id=eq.${workspace}`)) {
+      usageQueryCount += 1;
+      return new Response(JSON.stringify([
+        { usage_date: "2026-09-25", query_count: 2, input_tokens: 10, output_tokens: 8, total_tokens: 18, successful_calls: 2, failed_calls: 0, estimated_cost_microusd: null, reconciled_at: "2026-09-25T12:00:00Z" },
+        { usage_date: "2026-09-24", query_count: 1, input_tokens: 4, output_tokens: 5, total_tokens: 9, successful_calls: 1, failed_calls: 0, estimated_cost_microusd: 12, reconciled_at: "2026-09-24T12:00:00Z" },
+      ]), { status: 200 });
+    }
+    throw new Error(`Unexpected usage query: ${target}`);
+  };
+  try {
+    const response = await handle(request("/api/v1/billing/usage", {
+      headers: { authorization: "Bearer synthetic-user-token", "X-Nexus-Workspace-Id": workspace },
+    }), configured);
+    const body = await response.json();
+    assert.equal(response.status, 200);
+    assert.equal(body.storage, "supabase");
+    assert.equal(body.daily.length, 2);
+    assert.equal(body.totals.query_count, 3);
+    assert.equal(body.totals.total_tokens, 27);
+    assert.equal(body.totals.estimated_cost_microusd, null);
+    assert.equal(usageQueryCount, 1);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("billing usage denies non-admin workspace members before reading ledger rows", async () => {
+  const originalFetch = globalThis.fetch;
+  const workspace = "99999999-9999-4999-8999-999999999999";
+  const user = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+  let usageQueryCount = 0;
+  globalThis.fetch = async (url) => {
+    const target = String(url);
+    if (target.endsWith("/auth/v1/user")) return new Response(JSON.stringify({ id: user }), { status: 200 });
+    if (target.includes(`/rest/v1/workspace_members?workspace_id=eq.${workspace}&user_id=eq.${user}`)) {
+      return new Response(JSON.stringify([{ workspace_id: workspace, user_id: user, role: "viewer" }]), { status: 200 });
+    }
+    if (target.includes("/rest/v1/workspace_usage_daily?")) usageQueryCount += 1;
+    throw new Error(`Unexpected viewer usage query: ${target}`);
+  };
+  try {
+    const response = await handle(request("/api/v1/billing/usage", {
+      headers: { authorization: "Bearer synthetic-user-token", "X-Nexus-Workspace-Id": workspace },
+    }), configured);
+    assert.equal(response.status, 403);
+    assert.equal((await response.json()).error.code, "FORBIDDEN");
+    assert.equal(usageQueryCount, 0);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});

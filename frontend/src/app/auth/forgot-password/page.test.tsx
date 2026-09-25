@@ -1,17 +1,19 @@
+import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-
-const { redirect } = vi.hoisted(() => ({
-  redirect: vi.fn(),
-}));
-
-vi.mock("next/navigation", () => ({ redirect }));
+import { navigateStatic } from "@/lib/static-navigation";
 
 import ForgotPasswordPage from "./page";
 
-describe("ForgotPasswordPage", () => {
-  it("redirects the retired recovery flow to OAuth sign-in", () => {
-    ForgotPasswordPage();
+vi.mock("@/lib/static-navigation", () => ({ navigateStatic: vi.fn() }));
 
-    expect(redirect).toHaveBeenCalledWith("/auth/login");
+describe("ForgotPasswordPage", () => {
+  it("renders a static sign-in redirect and a usable fallback link", () => {
+    render(<ForgotPasswordPage />);
+
+    expect(screen.getByRole("link", { name: "continue" })).toHaveAttribute(
+      "href",
+      "/auth/login"
+    );
+    expect(navigateStatic).toHaveBeenCalledWith("/auth/login");
   });
 });

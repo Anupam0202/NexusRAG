@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import Link from "@/components/layout/StaticLink";
 import type { DocumentMetadata } from "@/types";
 import { motion } from "framer-motion";
 import { ExternalLink, Eye, RefreshCw, Trash2, FileText } from "lucide-react";

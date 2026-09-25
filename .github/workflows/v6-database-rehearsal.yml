@@ -5,8 +5,18 @@ on:
   pull_request:
     paths:
       - supabase/baseline/**
+      - supabase/migrations/026_allow_reindex_original_reuse.sql
+      - supabase/migrations/027_metered_operation_admission.sql
+      - supabase/migrations/028_resumable_chunk_staging.sql
+      - supabase/migrations/029_durable_extraction_staging.sql
+      - supabase/migrations/030_non_sensitive_gemini_policy_gate.sql
+      - supabase/migrations/031_harden_extraction_storage_privileges.sql
+      - supabase/migrations/032_account_trial_and_user_gemini_keys.sql
+      - supabase/migrations/033_explicit_deny_account_trial_tables.sql
+      - supabase/migrations/034_explicit_byok_cost_consent_and_unknown_costs.sql
       - scripts/build_clean_baseline.py
       - scripts/verify_v6_migrations.py
+      - tests/postgres/**
       - .github/workflows/v6-database-rehearsal.yml
 
 permissions:
@@ -18,68 +28,73 @@ concurrency:
 
 jobs:
   clean-baseline-rehearsal:
-    name: Clean Supabase baseline rehearsal
-    runs-on: ubuntu-latest
+    name: PostgreSQL 17 migration and concurrency rehearsal
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v5
-      - uses: supabase/setup-cli@v1
-        with:
-          # Pin the reviewed release so CI does not depend on an unauthenticated
-          # "latest release" lookup that can fail under GitHub API rate limits.
-          version: 2.117.0
       - name: Verify immutable candidate identity
         run: |
           set -euo pipefail
           python3 scripts/build_clean_baseline.py --check
           python3 scripts/verify_v6_migrations.py
-      - name: Build isolated local Supabase project
+      - name: Install PostgreSQL 17 and pgvector from public APT
         run: |
           set -euo pipefail
-          root="$RUNNER_TEMP/nexusrag-clean-rehearsal"
-          rm -rf "$root"
-          mkdir -p "$root"
-          cd "$root"
-          supabase init
-          mkdir -p supabase/migrations
-          cp "$GITHUB_WORKSPACE/supabase/baseline/001_v6_zero_cost_baseline.sql" supabase/migrations/202609200001_v6_zero_cost_baseline.sql
-      - name: Start local Supabase database and apply migration-001
+          sudo apt-get update
+          sudo apt-get install -y postgresql-common ca-certificates
+          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+          sudo apt-get update
+          sudo apt-get install -y postgresql-17 postgresql-17-pgvector
+      - name: Replay clean baseline and candidate migrations
         run: |
-          set -uo pipefail
-          cd "$RUNNER_TEMP/nexusrag-clean-rehearsal"
-          set +e
-          supabase db start > "$RUNNER_TEMP/db-start.log" 2>&1
-          status=$?
-          set -e
-          if [ "$status" -ne 0 ]; then
-            grep -Ei 'error|failed|fatal|syntax|does not exist|permission denied|cannot|invalid|duplicate|conflict' "$RUNNER_TEMP/db-start.log" \
-              | grep -Eiv 'password|secret|token|api.?key|jwt' \
-              | tail -n 8 \
-              | sed -E 's#(postgres(ql)?://)[^ ]+#\1[redacted]#g; s#eyJ[A-Za-z0-9._-]{20,}#[redacted]#g; s#sb_[A-Za-z0-9_-]{10,}#[redacted]#g' \
-              | while IFS= read -r line; do
-                  line=${line//'%'/'%25'}
-                  line=${line//$'\r'/'%0D'}
-                  line=${line//$'\n'/'%0A'}
-                  echo "::error title=Sanitized Supabase rehearsal failure::$line"
-                done
-            exit "$status"
+          set -euo pipefail
+          if ! pg_lsclusters --no-header | awk '$1 == "17" && $2 == "main" { found = 1 } END { exit !found }'; then
+            sudo pg_createcluster --port 55432 17 main
           fi
-      - name: Replay migration-001 from a clean database
-        run: |
-          set -euo pipefail
-          cd "$RUNNER_TEMP/nexusrag-clean-rehearsal"
-          supabase db reset --local
-      - name: Lint rehearsed database
-        run: |
-          set -euo pipefail
-          cd "$RUNNER_TEMP/nexusrag-clean-rehearsal"
-          supabase db lint --local --level error
-      - name: Generate types from rehearsed database
-        run: |
-          set -euo pipefail
-          cd "$RUNNER_TEMP/nexusrag-clean-rehearsal"
-          supabase gen types typescript --local > "$RUNNER_TEMP/database.types.ts"
-          test -s "$RUNNER_TEMP/database.types.ts"
+          sudo pg_ctlcluster 17 main start
+          port="$(pg_lsclusters --no-header | awk '$1 == "17" && $2 == "main" { print $3; exit }')"
+          test -n "$port"
+          db=nexusrag_candidate_rehearsal
+          log="$RUNNER_TEMP/postgres-rehearsal.log"
+          source_dir="$(mktemp -d /tmp/nexusrag-pg-rehearsal.XXXXXX)"
+          mkdir -p "$source_dir/tests" "$source_dir/supabase/baseline" "$source_dir/supabase/migrations"
+          cp -R "$GITHUB_WORKSPACE/tests/postgres" "$source_dir/tests/"
+          cp "$GITHUB_WORKSPACE/supabase/baseline/001_v6_zero_cost_baseline.sql" "$source_dir/supabase/baseline/"
+          cp "$GITHUB_WORKSPACE/supabase/migrations/026_allow_reindex_original_reuse.sql" "$source_dir/supabase/migrations/"
+          cp "$GITHUB_WORKSPACE/supabase/migrations/027_metered_operation_admission.sql" "$source_dir/supabase/migrations/"
+          cp "$GITHUB_WORKSPACE/supabase/migrations/028_resumable_chunk_staging.sql" "$source_dir/supabase/migrations/"
+          cp "$GITHUB_WORKSPACE/supabase/migrations/029_durable_extraction_staging.sql" "$source_dir/supabase/migrations/"
+          cp "$GITHUB_WORKSPACE/supabase/migrations/030_non_sensitive_gemini_policy_gate.sql" "$source_dir/supabase/migrations/"
+          cp "$GITHUB_WORKSPACE/supabase/migrations/031_harden_extraction_storage_privileges.sql" "$source_dir/supabase/migrations/"
+          cp "$GITHUB_WORKSPACE/supabase/migrations/032_account_trial_and_user_gemini_keys.sql" "$source_dir/supabase/migrations/"
+          cp "$GITHUB_WORKSPACE/supabase/migrations/033_explicit_deny_account_trial_tables.sql" "$source_dir/supabase/migrations/"
+          cp "$GITHUB_WORKSPACE/supabase/migrations/034_explicit_byok_cost_consent_and_unknown_costs.sql" "$source_dir/supabase/migrations/"
+          chmod -R a+rX "$source_dir"
+          cleanup() {
+            sudo -u postgres dropdb --if-exists -h /var/run/postgresql -p "$port" "$db" >/dev/null 2>&1 || true
+            sudo pg_ctlcluster 17 main stop >/dev/null 2>&1 || true
+            rm -rf "$source_dir"
+          }
+          trap cleanup EXIT
+          sudo -u postgres createdb -h /var/run/postgresql -p "$port" "$db"
+          if sudo -u postgres env \
+            PGHOST=/var/run/postgresql \
+            PGPORT="$port" \
+            PGUSER=postgres \
+            PGDATABASE="$db" \
+            bash "$source_dir/tests/postgres/local-rehearsal.sh" >"$log" 2>&1; then
+            sudo -u postgres env \
+              PGHOST=/var/run/postgresql \
+              PGPORT="$port" \
+              PGUSER=postgres \
+              PGDATABASE="$db" \
+              bash "$source_dir/tests/postgres/backup-restore.sh" >>"$log" 2>&1
+            grep -E 'postgres_durable_extraction_stage_pass|concurrent_reservation_settlement_pass|concurrent_account_trial_limit_pass|account_trial_byok_assertions_pass|account_trial_rollback_pass|storage_rls_two_identity_pass|reindex_original_storage_reuse_pass|LOCAL_POSTGRES_REHEARSAL_PASS|POSTGRES_BACKUP_RESTORE_PASS' "$log"
+          else
+            tail -n 80 "$log"
+            exit 1
+          fi
       - name: Preserve non-sensitive rehearsal evidence
         if: always()
         run: |
@@ -88,6 +103,7 @@ jobs:
             echo "status=${{ job.status }}"
             echo "baseline_sha256=4b26456c8a9887979e6dba8e66dba6032b5a929c33a276ece4430dd24ae0f10c"
             echo "production_applied=false"
+            echo "hosted_supabase_created=false"
             echo "paid_resource_created=false"
           } > "$RUNNER_TEMP/v6-database-rehearsal.txt"
       - uses: actions/upload-artifact@v4
@@ -96,6 +112,14 @@ jobs:
           name: v6-database-rehearsal-evidence
           path: |
             ${{ runner.temp }}/v6-database-rehearsal.txt
-            ${{ runner.temp }}/database.types.ts
+            ${{ runner.temp }}/postgres-rehearsal.log
           if-no-files-found: warn
           retention-days: 14
+
+  required-clean-supabase-summary:
+    name: Clean Supabase baseline rehearsal
+    needs: clean-baseline-rehearsal
+    runs-on: ubuntu-latest
+    steps:
+      - name: Confirm clean baseline and recovery rehearsal passed
+        run: echo "Clean Supabase baseline, migration, concurrency, backup, and restore rehearsal passed."

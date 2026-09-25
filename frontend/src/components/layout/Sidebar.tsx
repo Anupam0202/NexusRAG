@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import Link from "next/link";
+import Link from "@/components/layout/StaticLink";
 import {
   MessageSquare, FileText, BarChart3, Settings, ChevronLeft,
   ChevronRight, Sparkles, Menu, X, ClipboardCheck, Building2,
@@ -103,11 +103,12 @@ export function Sidebar() {
               <Link
                 key={item.href}
                 href={item.href}
+                aria-current={active ? "page" : undefined}
                 className={cn(
                   "group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200",
                   collapsed && "justify-center px-2",
                   active
-                    ? "bg-gradient-to-r from-brand-500/10 to-purple-500/10 text-brand-600 dark:text-brand-400"
+                    ? "bg-indigo-50 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300"
                     : "text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
                 )}
               >

@@ -1,22 +1,24 @@
-import type { Metadata } from "next";
-import { redirect } from "next/navigation";
-import { sanitizeAuthNextPath } from "@/lib/auth-redirect";
+"use client";
 
-export const metadata: Metadata = {
-  referrer: "no-referrer",
-};
+import { useEffect } from "react";
+import { buildAuthLoginRedirect } from "@/components/auth/StaticAuthRedirect";
+import { navigateStatic } from "@/lib/static-navigation";
 
-interface AuthConfirmPageProps {
-  searchParams: Promise<{
-    next?: string;
-  }>;
-}
+export default function AuthConfirmPage() {
+  useEffect(() => {
+    navigateStatic(buildAuthLoginRedirect(window.location.search));
+  }, []);
 
-export default async function AuthConfirmPage({
-  searchParams,
-}: AuthConfirmPageProps) {
-  const params = await searchParams;
-  const nextPath = sanitizeAuthNextPath(params.next, "/documents");
-
-  redirect(`/auth/login?next=${encodeURIComponent(nextPath)}`);
+  return (
+    <main className="mx-auto flex min-h-full max-w-xl flex-col items-center justify-center px-4 text-center">
+      <h1 className="text-lg font-semibold">Opening sign-in</h1>
+      <p className="mt-2 text-sm text-[var(--text-muted)]">
+        If you are not redirected,{" "}
+        <a className="underline underline-offset-4" href="/auth/login?next=%2Fdocuments">
+          continue
+        </a>
+        .
+      </p>
+    </main>
+  );
 }

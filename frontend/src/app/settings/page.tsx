@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
+import Link from "@/components/layout/StaticLink";
 import { getSettings, getSystemStatus, updateSettings } from "@/lib/api";
 import { AuthRequiredState } from "@/components/auth/AuthRequiredState";
 import { useWorkspaceApiAccess } from "@/hooks/useAuthGate";
@@ -20,6 +20,7 @@ import {
   UsersRound,
 } from "lucide-react";
 import { useStore } from "@/hooks/useStore";
+import { reloadStatic } from "@/lib/static-navigation";
 
 export default function SettingsPage() {
   const { authMode, canAccessWorkspaceApi } = useWorkspaceApiAccess();
@@ -65,7 +66,11 @@ export default function SettingsPage() {
     if (!canAccessWorkspaceApi) return;
     setSaving(true);
     try {
-      const updated = await updateSettings(draft);
+      const updated = await updateSettings({
+        llm_temperature: draft.llm_temperature,
+        retrieval_top_k: draft.retrieval_top_k,
+        hybrid_search_alpha: draft.hybrid_search_alpha,
+      });
       setSettings(updated);
       getSystemStatus().then(setSystemStatus).catch(() => {});
       toast.success("Settings saved successfully");
@@ -102,7 +107,7 @@ export default function SettingsPage() {
               <div className="mt-4 flex flex-wrap gap-2">
                 <button
                   type="button"
-                  onClick={() => window.location.reload()}
+                  onClick={reloadStatic}
                   className="rounded-lg bg-red-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-red-500"
                 >
                   Retry
@@ -141,7 +146,7 @@ export default function SettingsPage() {
 
         {memoryConstrained && (
           <div className="rounded-xl border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 px-4 py-3 text-sm text-amber-800 dark:text-amber-200">
-            Render constrained profile is active. Memory-heavy retrieval options stay locked off.
+            The zero-cost Worker profile is active. Unsupported memory-heavy options stay locked off, and prior chat messages are not sent to Gemini.
           </div>
         )}
 
@@ -278,17 +283,17 @@ export default function SettingsPage() {
             value={draft.llm_temperature ?? settings.llm_temperature} min={0} max={1} step={0.05}
             onChange={(v) => setDraft((d) => ({ ...d, llm_temperature: v }))} />
 
-          <Slider label="Retrieval Top K" desc="Chunks retrieved per query"
-            value={draft.retrieval_top_k ?? settings.retrieval_top_k} min={1} max={50} step={1}
+          <Slider label="Retrieval Top K" desc="Chunks retrieved per query (Worker maximum 12)"
+            value={draft.retrieval_top_k ?? settings.retrieval_top_k} min={1} max={12} step={1}
             onChange={(v) => setDraft((d) => ({ ...d, retrieval_top_k: v }))} />
 
           <Slider label="Hybrid Alpha" desc="0 = keyword, 1 = semantic"
             value={draft.hybrid_search_alpha ?? settings.hybrid_search_alpha} min={0} max={1} step={0.05}
             onChange={(v) => setDraft((d) => ({ ...d, hybrid_search_alpha: v }))} />
 
-          <Slider label="Context Window" desc="Recent messages sent to LLM"
-            value={draft.context_window_messages ?? settings.context_window_messages} min={1} max={30} step={1}
-            onChange={(v) => setDraft((d) => ({ ...d, context_window_messages: v }))} />
+          <Slider label="Context Window" desc="Prior messages are not sent in this privacy-first Worker profile"
+            value={1} min={1} max={1} step={1} disabled
+            onChange={() => {}} />
 
           <Toggle
             label="Re-ranking"
@@ -352,8 +357,8 @@ export default function SettingsPage() {
   );
 }
 
-function Slider({ label, desc, value, min, max, step, onChange }: {
-  label: string; desc: string; value: number; min: number; max: number; step: number; onChange: (v: number) => void;
+function Slider({ label, desc, value, min, max, step, onChange, disabled = false }: {
+  label: string; desc: string; value: number; min: number; max: number; step: number; onChange: (v: number) => void; disabled?: boolean;
 }) {
   return (
     <div>
@@ -366,9 +371,9 @@ function Slider({ label, desc, value, min, max, step, onChange }: {
           {Number.isInteger(step) ? value : value.toFixed(2)}
         </span>
       </div>
-      <input type="range" min={min} max={max} step={step} value={value}
+      <input type="range" aria-label={label} disabled={disabled} min={min} max={max} step={step} value={value}
         onChange={(e) => onChange(parseFloat(e.target.value))}
-        className="w-full h-1.5 rounded-full appearance-none bg-gray-200 dark:bg-gray-700 accent-brand-500 cursor-pointer" />
+        className={`w-full h-1.5 rounded-full appearance-none bg-gray-200 dark:bg-gray-700 accent-brand-500 ${disabled ? "cursor-not-allowed opacity-50" : "cursor-pointer"}`} />
     </div>
   );
 }
@@ -389,6 +394,7 @@ function Toggle({ label, desc, checked, disabled = false, onChange }: {
       <button
         type="button"
         role="switch"
+        aria-label={label}
         aria-checked={checked}
         disabled={disabled}
         onClick={() => onChange(!checked)}

@@ -93,6 +93,7 @@ export interface SourceChunk {
 
 export interface QueryRequest {
   question: string;
+  non_sensitive_attested?: boolean;
   session_id?: string;
   conversation_history?: ChatMessage[];
   top_k?: number;
@@ -255,13 +256,13 @@ export interface BillingUsageResponse {
     usage_date: string;
     query_count: number;
     total_tokens: number;
-    estimated_cost_microusd: number;
+    estimated_cost_microusd: number | null;
     reconciled_at: string;
   }>;
   totals: {
     query_count?: number;
     total_tokens?: number;
-    estimated_cost_microusd?: number;
+    estimated_cost_microusd?: number | null;
   };
 }
 

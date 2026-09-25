@@ -1,14 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useRef } from "react";
-import { createChatSocket } from "@/lib/websocket";
-import { chatQuery, getSessionMessages } from "@/lib/api";
+import { ApiRequestError, chatQuery, getSessionMessages } from "@/lib/api";
 import { useStore } from "@/hooks/useStore";
 import { canUseWorkspaceApi } from "@/hooks/useAuthGate";
-import type { QueryRequest, WSFrame, SourceChunk, UIMessage } from "@/types";
+import type { QueryRequest, UIMessage } from "@/types";
 import { generateId } from "@/lib/utils";
 
 export type ChatSendOptions = {
+  nonSensitiveAttested?: boolean;
   chatScope?: "workspace" | "documents";
   documentIds?: string[];
   fileTypes?: string[];
@@ -24,10 +24,6 @@ export type ChatSendOptions = {
 export function useChat() {
   const store = useStore();
   const canAccessWorkspaceApi = canUseWorkspaceApi(store.authMode);
-  const socketRef = useRef<ReturnType<typeof createChatSocket> | null>(null);
-  const currentAsstId = useRef<string | null>(null);
-  const sourcesBuffer = useRef<SourceChunk[]>([]);
-
   // Use ref to always have latest messages for history
   const messagesRef = useRef(store.messages);
   useEffect(() => { messagesRef.current = store.messages; }, [store.messages]);
@@ -72,59 +68,6 @@ export function useChat() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [store.sessionId, canAccessWorkspaceApi]);
 
-  const handleFrame = useCallback((frame: WSFrame) => {
-    const id = currentAsstId.current;
-    if (!id) return;
-    switch (frame.type) {
-      case "token":
-        store.appendToken(id, frame.content);
-        break;
-      case "sources":
-        sourcesBuffer.current = frame.sources;
-        break;
-      case "done":
-        store.finishAssistant(id, {
-          sources: sourcesBuffer.current,
-          queryType: frame.metadata?.query_type as string,
-          confidence: frame.metadata?.confidence as number,
-          responseTime: frame.metadata?.response_time_seconds as number,
-          metadata: frame.metadata,
-        });
-        currentAsstId.current = null;
-        sourcesBuffer.current = [];
-        break;
-      case "error": {
-        const raw = frame as unknown as Record<string, unknown>;
-        const errorCode = raw.error_code ?? "";
-        const isQuota =
-          errorCode === "QUOTA_EXCEEDED" ||
-          (typeof frame.content === "string" &&
-            /quota|rate.limit|429|resource.exhausted/i.test(frame.content));
-
-        if (isQuota) {
-          store.setError(id, "API quota exceeded — please provide your own Google API key.");
-          store.setIsQuotaBlocked(true);
-          store.setShowApiKeyModal(true);
-        } else {
-          store.setError(id, frame.content);
-        }
-        currentAsstId.current = null;
-        sourcesBuffer.current = [];
-        break;
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const handleQuotaError = useCallback((id: string) => {
-    store.setError(id, "API quota exceeded - please provide your own Google API key.");
-    store.setIsQuotaBlocked(true);
-    store.setShowApiKeyModal(true);
-    currentAsstId.current = null;
-    sourcesBuffer.current = [];
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
   const runRestFallback = useCallback(async (id: string, req: QueryRequest) => {
     try {
       const response = await chatQuery(req);
@@ -139,37 +82,35 @@ export function useChat() {
       store.setConnectionStatus("online");
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Failed to reach the backend";
-      if (/quota|rate.limit|429|resource.exhausted/i.test(message)) {
-        handleQuotaError(id);
-      } else {
-        store.setError(id, `Backend connection failed: ${message}`);
-        store.setConnectionStatus("offline");
+      if (err instanceof ApiRequestError && err.code === "BYOK_REQUIRED") {
+        store.setIsQuotaBlocked(true);
+        store.setShowApiKeyModal(true);
+        store.setError(id, "Your free trial is used. Add a Gemini API key from Google AI Studio to continue.");
+        store.setConnectionStatus("online");
+        return;
       }
-    } finally {
-      currentAsstId.current = null;
-      sourcesBuffer.current = [];
+      if (/quota|rate.limit|429|resource.exhausted/i.test(message)) {
+        store.setError(id, "The free-tier limit or workspace budget blocks this request. No paid fallback was used.");
+        store.setConnectionStatus("online");
+      } else {
+        store.setError(id, message);
+        store.setConnectionStatus(/connection was interrupted|Failed to reach the backend/i.test(message) ? "offline" : "online");
+      }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [handleQuotaError]);
+  }, [store]);
 
   useEffect(() => {
     if (!canAccessWorkspaceApi) {
-      socketRef.current?.close();
-      socketRef.current = null;
       store.setConnectionStatus(store.authMode === "loading" ? "checking" : "auth_setup_required");
       return;
     }
 
-    store.setConnectionStatus("checking");
-    socketRef.current = createChatSocket(
-      handleFrame,
-      () => store.setConnectionStatus("reconnecting"),
-      undefined,
-      (status) => store.setConnectionStatus(status)
-    );
-    return () => { socketRef.current?.close(); };
+    // The Cloudflare candidate exposes an authenticated REST gateway, not the
+    // legacy WebSocket backend. Keeping chat on REST ensures the same
+    // classification, rights, and quota gates protect every request.
+    store.setConnectionStatus("online");
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [handleFrame, canAccessWorkspaceApi, store.authMode]);
+  }, [canAccessWorkspaceApi, store.authMode]);
 
   const sendMessage = useCallback((text: string, options: ChatSendOptions = {}) => {
     if (!text.trim()) return;
@@ -178,7 +119,6 @@ export function useChat() {
     }
     store.addUserMessage(text);
     const asstId = generateId();
-    currentAsstId.current = asstId;
     store.addAssistantMessage(asstId);
 
     const history = messagesRef.current
@@ -187,6 +127,7 @@ export function useChat() {
 
     const request: QueryRequest = {
       question: text,
+      non_sensitive_attested: options.nonSensitiveAttested === true,
       session_id: store.sessionId,
       conversation_history: history,
       chat_scope: options.chatScope ?? "workspace",
@@ -204,11 +145,8 @@ export function useChat() {
     if (options.uploadedBefore) request.uploaded_before = options.uploadedBefore;
     if (options.metadataFilters) request.metadata_filters = options.metadataFilters;
 
-    const sent = socketRef.current?.send(request) ?? false;
-    if (!sent) {
-      store.setConnectionStatus("reconnecting");
-      void runRestFallback(asstId, request);
-    }
+    store.setConnectionStatus("reconnecting");
+    void runRestFallback(asstId, request);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [store.sessionId, runRestFallback, canAccessWorkspaceApi]);
 

@@ -1668,7 +1668,7 @@ export type Database = {
       }
       llm_usage_events: {
         Row: {
-          cost_microusd: number
+          cost_microusd: number | null
           created_at: string
           error_code: string | null
           id: string
@@ -1683,7 +1683,7 @@ export type Database = {
           workspace_id: string
         }
         Insert: {
-          cost_microusd?: number
+          cost_microusd?: number | null
           created_at?: string
           error_code?: string | null
           id?: string
@@ -1698,7 +1698,7 @@ export type Database = {
           workspace_id: string
         }
         Update: {
-          cost_microusd?: number
+          cost_microusd?: number | null
           created_at?: string
           error_code?: string | null
           id?: string
@@ -2848,7 +2848,7 @@ export type Database = {
       }
       workspace_usage_daily: {
         Row: {
-          estimated_cost_microusd: number
+          estimated_cost_microusd: number | null
           failed_calls: number
           input_tokens: number
           output_tokens: number
@@ -2860,7 +2860,7 @@ export type Database = {
           workspace_id: string
         }
         Insert: {
-          estimated_cost_microusd?: number
+          estimated_cost_microusd?: number | null
           failed_calls?: number
           input_tokens?: number
           output_tokens?: number
@@ -2872,7 +2872,7 @@ export type Database = {
           workspace_id: string
         }
         Update: {
-          estimated_cost_microusd?: number
+          estimated_cost_microusd?: number | null
           failed_calls?: number
           input_tokens?: number
           output_tokens?: number
@@ -3185,7 +3185,7 @@ export type Database = {
       reconcile_workspace_usage: {
         Args: { p_usage_date?: string; p_workspace_id: string }
         Returns: {
-          estimated_cost_microusd: number
+          estimated_cost_microusd: number | null
           failed_calls: number
           input_tokens: number
           output_tokens: number

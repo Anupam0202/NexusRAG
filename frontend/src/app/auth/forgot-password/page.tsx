@@ -1,5 +1,5 @@
-import { redirect } from "next/navigation";
+import { StaticAuthRedirect } from "@/components/auth/StaticAuthRedirect";
 
 export default function ForgotPasswordPage() {
-  redirect("/auth/login");
+  return <StaticAuthRedirect href="/auth/login" />;
 }

@@ -1,0 +1,24 @@
+{
+  // Standard workers.dev origins are derived by the protected Preview workflow.
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "nexusrag-v6-candidate-frontend",
+  "main": "src/worker.ts",
+  "compatibility_date": "2026-09-20",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS",
+    "html_handling": "auto-trailing-slash",
+    "run_worker_first": ["/documents/*"]
+  },
+  "services": [
+    {
+      "binding": "WORKER_SELF_REFERENCE",
+      "service": "nexusrag-v6-candidate-frontend"
+    }
+  ],
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 0.1
+  }
+}

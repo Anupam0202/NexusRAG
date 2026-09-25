@@ -142,4 +142,16 @@ describe("BillingOrUsagePage", () => {
     expect(getApiKeyStatus).toHaveBeenCalledWith({ workspaceId: "workspace-live" });
     expect(getBillingUsage).toHaveBeenCalledWith({ workspaceId: "workspace-live" });
   });
+
+  it("shows unknown instead of zero when provider charges have not been reconciled", async () => {
+    mockUsageResponses();
+    getBillingUsage.mockResolvedValue({
+      storage: "supabase",
+      daily: [{ usage_date: "2026-09-25", query_count: 1, total_tokens: 12, estimated_cost_microusd: null, reconciled_at: "2026-09-25T12:00:00Z" }],
+      totals: { query_count: 1, total_tokens: 12, estimated_cost_microusd: null },
+    });
+    render(<BillingOrUsagePage />);
+    await waitFor(() => expect(screen.getByText("Unknown", { exact: true })).toBeInTheDocument());
+    expect(screen.getByText(/BYOK\) calls are billed by Google/)).toBeInTheDocument();
+  });
 });

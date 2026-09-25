@@ -58,6 +58,7 @@ interface AppState {
 
   connectionStatus:
     | "checking"
+    | "auth_required"
     | "online"
     | "auth_setup_required"
     | "data_setup_required"

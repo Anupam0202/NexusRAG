@@ -26,7 +26,8 @@ const STATUS_STYLE: Record<string, string> = {
 
 export default function EvidenceOSPage() {
   return (
-    <main
+    <div
+      role="region"
       className="h-full overflow-y-auto"
       tabIndex={0}
       aria-label="Evidence Intelligence OS content"
@@ -100,7 +101,7 @@ export default function EvidenceOSPage() {
           </div>
         </section>
       </div>
-    </main>
+    </div>
   );
 }
 

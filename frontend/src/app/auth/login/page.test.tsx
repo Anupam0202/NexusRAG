@@ -1,17 +1,15 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { authState, configState, replace, signInWithOAuth, toastError } = vi.hoisted(() => ({
+const { authState, configState, navigateStatic, signInWithOAuth, toastError } = vi.hoisted(() => ({
   authState: { mode: "signed_out" },
   configState: { ready: true },
-  replace: vi.fn(),
+  navigateStatic: vi.fn(),
   signInWithOAuth: vi.fn(),
   toastError: vi.fn(),
 }));
 
-vi.mock("next/navigation", () => ({
-  useRouter: () => ({ replace }),
-}));
+vi.mock("@/lib/static-navigation", () => ({ navigateStatic }));
 vi.mock("@/hooks/useStore", () => ({
   useStore: (selector: (state: { authMode: string }) => unknown) =>
     selector({ authMode: authState.mode }),
@@ -30,7 +28,7 @@ describe("LoginPage", () => {
   beforeEach(() => {
     authState.mode = "signed_out";
     configState.ready = true;
-    replace.mockReset();
+    navigateStatic.mockReset();
     signInWithOAuth.mockReset();
     toastError.mockReset();
     signInWithOAuth.mockResolvedValue({ error: null });
@@ -39,12 +37,12 @@ describe("LoginPage", () => {
     window.history.replaceState({}, "", "/auth/login");
   });
 
-  it("defaults to the verified GitHub provider", () => {
+  it("defaults to Google and GitHub sign-in", () => {
     render(<LoginPage />);
 
     expect(
       screen.getAllByRole("button").map((button) => button.textContent?.trim())
-    ).toEqual(["Continue with GitHub"]);
+    ).toEqual(["Continue with Google", "Continue with GitHub"]);
   });
 
   it("renders Google before GitHub when both providers are enabled", () => {
@@ -165,7 +163,7 @@ describe("LoginPage", () => {
     authState.mode = "authenticated";
     render(<LoginPage />);
 
-    await waitFor(() => expect(replace).toHaveBeenCalledWith("/documents"));
+    await waitFor(() => expect(navigateStatic).toHaveBeenCalledWith("/documents"));
     expect(signInWithOAuth).not.toHaveBeenCalled();
   });
 });

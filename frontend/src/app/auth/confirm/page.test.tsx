@@ -1,33 +1,20 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
+import { buildAuthLoginRedirect } from "@/components/auth/StaticAuthRedirect";
 
-const { redirect } = vi.hoisted(() => ({
-  redirect: vi.fn(),
-}));
-
-vi.mock("next/navigation", () => ({ redirect }));
-
-import AuthConfirmPage from "./page";
-
-describe("AuthConfirmPage", () => {
-  beforeEach(() => {
-    redirect.mockReset();
-  });
-
+describe("buildAuthLoginRedirect", () => {
   it("preserves a safe requested destination", async () => {
-    await AuthConfirmPage({
-      searchParams: Promise.resolve({ next: "/chat" }),
-    });
-
-    expect(redirect).toHaveBeenCalledWith("/auth/login?next=%2Fchat");
+    expect(buildAuthLoginRedirect("?next=%2Fchat")).toBe("/auth/login?next=%2Fchat");
   });
 
   it("rejects an external requested destination", async () => {
-    await AuthConfirmPage({
-      searchParams: Promise.resolve({
-        next: "https://attacker.example/steal",
-      }),
-    });
+    expect(buildAuthLoginRedirect("?next=https%3A%2F%2Fattacker.example%2Fsteal")).toBe(
+      "/auth/login?next=%2Fdocuments"
+    );
+  });
 
-    expect(redirect).toHaveBeenCalledWith("/auth/login?next=%2Fdocuments");
+  it("uses the onboarding destination for signup by default", () => {
+    expect(buildAuthLoginRedirect("", "signup")).toBe(
+      "/auth/login?intent=signup&next=%2Fonboarding"
+    );
   });
 });

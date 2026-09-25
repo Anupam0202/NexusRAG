@@ -129,7 +129,7 @@ export default function EvaluationsPage() {
                   }}
                   className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
                     mode === item
-                      ? "bg-brand-500 text-white shadow-sm"
+                      ? "bg-brand-600 text-white shadow-sm"
                       : "text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"
                   }`}
                 >
@@ -154,7 +154,7 @@ export default function EvaluationsPage() {
               type="button"
               onClick={() => run()}
               disabled={loading}
-              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-brand-500 to-purple-600 px-4 py-2 text-xs font-semibold text-white shadow-md transition hover:shadow-lg disabled:opacity-60"
+              className="inline-flex items-center gap-2 rounded-xl bg-brand-700 px-4 py-2 text-xs font-semibold text-white shadow-md transition hover:shadow-lg disabled:opacity-60"
             >
               <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
               Run Gate

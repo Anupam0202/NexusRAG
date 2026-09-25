@@ -1,8 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
+import Link from "@/components/layout/StaticLink";
 import { Loader2, ShieldAlert, ShieldCheck } from "lucide-react";
 import { getCurrentWorkspace } from "@/lib/api";
 import {
@@ -11,6 +10,7 @@ import {
   sanitizeAuthNextPath,
 } from "@/lib/auth-redirect";
 import { createSupabaseBrowserClient, hasPublicSupabaseConfig } from "@/lib/supabase/client";
+import { navigateStatic } from "@/lib/static-navigation";
 import { useStore } from "@/hooks/useStore";
 
 type SupabaseBrowserClient = ReturnType<typeof createSupabaseBrowserClient>;
@@ -45,7 +45,6 @@ async function completeOAuthSession(supabase: SupabaseBrowserClient, code: strin
 }
 
 export default function AuthCallbackPage() {
-  const router = useRouter();
   const setAuthState = useStore((state) => state.setAuthState);
   const setWorkspaceId = useStore((state) => state.setWorkspaceId);
   const [error, setError] = useState<string | null>(null);
@@ -76,7 +75,7 @@ export default function AuthCallbackPage() {
         const user = data.session?.user;
 
         if (!user) {
-          router.replace(`/auth/login?next=${encodeURIComponent(nextPath)}`);
+          navigateStatic(`/auth/login?next=${encodeURIComponent(nextPath)}`);
           return;
         }
 
@@ -88,9 +87,9 @@ export default function AuthCallbackPage() {
         try {
           const workspace = await getCurrentWorkspace();
           setWorkspaceId(workspace.workspace_id);
-          router.replace(nextPath);
+          navigateStatic(nextPath);
         } catch {
-          router.replace("/onboarding");
+          navigateStatic("/onboarding");
         }
       } catch {
         if (!active) return;
@@ -103,7 +102,7 @@ export default function AuthCallbackPage() {
     return () => {
       active = false;
     };
-  }, [router, setAuthState, setWorkspaceId]);
+  }, [setAuthState, setWorkspaceId]);
 
   return (
     <div className="flex h-full items-center justify-center px-4">

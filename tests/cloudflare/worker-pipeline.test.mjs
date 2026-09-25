@@ -59,6 +59,13 @@ test("hybrid fusion combines dense and lexical evidence", () => {
   assert.ok(hits.every((hit) => hit.payload?.chunk_id));
 });
 
+test("hybrid alpha controls semantic-versus-keyword ranking", () => {
+  const dense = [{ id: "dense", score: 0.9, payload: { chunk_id: "dense", content: "semantic match" } }];
+  const lexical = [{ id: "lexical", document_id: "d", version_id: "v", chunk_index: 0, content: "alpha control evidence", metadata: { filename: "source.txt" } }];
+  assert.equal(hybridFuse("alpha control", dense, lexical, 2, 1)[0].id, "dense");
+  assert.equal(hybridFuse("alpha control", dense, lexical, 2, 0)[0].id, "lexical");
+});
+
 test("SHA-256 receipts are stable", async () => {
   assert.equal(await sha256("NexusRAG"), "78734a32eacf9d84da61c93b215c2bc8c1aa43f293f8bdec1f07b160827728e6");
 });

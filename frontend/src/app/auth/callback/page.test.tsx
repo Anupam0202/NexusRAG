@@ -1,15 +1,13 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { replace, setAuthState, setWorkspaceId } = vi.hoisted(() => ({
-  replace: vi.fn(),
+const { navigateStatic, setAuthState, setWorkspaceId } = vi.hoisted(() => ({
+  navigateStatic: vi.fn(),
   setAuthState: vi.fn(),
   setWorkspaceId: vi.fn(),
 }));
 
-vi.mock("next/navigation", () => ({
-  useRouter: () => ({ replace }),
-}));
+vi.mock("@/lib/static-navigation", () => ({ navigateStatic }));
 vi.mock("@/hooks/useStore", () => ({
   useStore: (
     selector: (state: {
@@ -35,7 +33,7 @@ describe("AuthCallbackPage", () => {
   const getSession = vi.fn();
 
   beforeEach(() => {
-    replace.mockReset();
+    navigateStatic.mockReset();
     setAuthState.mockReset();
     setWorkspaceId.mockReset();
     exchangeCodeForSession.mockReset();
@@ -92,7 +90,7 @@ describe("AuthCallbackPage", () => {
 
     render(<AuthCallbackPage />);
 
-    await waitFor(() => expect(replace).toHaveBeenCalledWith("/documents"));
+    await waitFor(() => expect(navigateStatic).toHaveBeenCalledWith("/documents"));
     expect(exchangeCodeForSession).toHaveBeenCalledWith("oauth-code");
     expect(setAuthState).toHaveBeenCalledWith("authenticated", {
       id: "user-1",
@@ -107,7 +105,7 @@ describe("AuthCallbackPage", () => {
 
     render(<AuthCallbackPage />);
 
-    await waitFor(() => expect(replace).toHaveBeenCalledWith("/documents"));
+    await waitFor(() => expect(navigateStatic).toHaveBeenCalledWith("/documents"));
     expect(exchangeCodeForSession).toHaveBeenCalledWith("stale-oauth-code");
     expect(screen.queryByText("Sign-in could not be completed")).not.toBeInTheDocument();
   });
@@ -118,7 +116,7 @@ describe("AuthCallbackPage", () => {
 
     render(<AuthCallbackPage />);
 
-    await waitFor(() => expect(replace).toHaveBeenCalledWith("/onboarding"));
+    await waitFor(() => expect(navigateStatic).toHaveBeenCalledWith("/onboarding"));
     expect(screen.queryByText("Sign-in could not be completed")).not.toBeInTheDocument();
   });
 });

@@ -1,15 +1,14 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { Building2, Check, Loader2, Plus, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { createWorkspace, listWorkspaces } from "@/lib/api";
 import { useStore } from "@/hooks/useStore";
+import { navigateStatic, reloadStatic } from "@/lib/static-navigation";
 import type { WorkspaceSummary } from "@/types";
 
 export default function WorkspacesPage() {
-  const router = useRouter();
   const authMode = useStore((state) => state.authMode);
   const workspaceId = useStore((state) => state.workspaceId);
   const setWorkspaceId = useStore((state) => state.setWorkspaceId);
@@ -38,7 +37,7 @@ export default function WorkspacesPage() {
   useEffect(() => {
     if (authMode === "loading") return;
     if (authMode === "signed_out") {
-      router.replace("/auth/login?next=/workspaces");
+      navigateStatic("/auth/login?next=%2Fworkspaces");
       return;
     }
     void load();
@@ -153,7 +152,7 @@ export default function WorkspacesPage() {
                   onClick={() => {
                     setWorkspaceId(workspace.id);
                     toast.success(`Workspace switched to ${workspace.name}`);
-                    router.refresh();
+                    reloadStatic();
                   }}
                   className="flex w-full items-center justify-between gap-3 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] px-4 py-3 text-left transition hover:bg-[var(--bg-hover)]"
                 >

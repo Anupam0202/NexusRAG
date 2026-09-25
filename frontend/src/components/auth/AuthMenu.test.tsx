@@ -1,16 +1,14 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { replace, setWorkspaceId, signOut, toastError } = vi.hoisted(() => ({
-  replace: vi.fn(),
+const { navigateStatic, setWorkspaceId, signOut, toastError } = vi.hoisted(() => ({
+  navigateStatic: vi.fn(),
   setWorkspaceId: vi.fn(),
   signOut: vi.fn(),
   toastError: vi.fn(),
 }));
 
-vi.mock("next/navigation", () => ({
-  useRouter: () => ({ replace }),
-}));
+vi.mock("@/lib/static-navigation", () => ({ navigateStatic, reloadStatic: vi.fn() }));
 vi.mock("@/hooks/useStore", () => ({
   useStore: (selector: (state: Record<string, unknown>) => unknown) =>
     selector({
@@ -30,7 +28,7 @@ import { AuthMenu } from "./AuthMenu";
 
 describe("AuthMenu", () => {
   beforeEach(() => {
-    replace.mockReset();
+    navigateStatic.mockReset();
     setWorkspaceId.mockReset();
     signOut.mockReset();
     toastError.mockReset();
@@ -45,7 +43,7 @@ describe("AuthMenu", () => {
 
     await waitFor(() => expect(signOut).toHaveBeenCalledWith({ scope: "local" }));
     expect(setWorkspaceId).toHaveBeenCalledWith(null);
-    expect(replace).toHaveBeenCalledWith("/auth/login");
+    expect(navigateStatic).toHaveBeenCalledWith("/auth/login");
   });
 
   it("does not expose raw provider errors when sign out fails", async () => {
@@ -59,6 +57,6 @@ describe("AuthMenu", () => {
       expect(toastError).toHaveBeenCalledWith("Unable to sign out. Please try again.")
     );
     expect(toastError).not.toHaveBeenCalledWith("sensitive provider detail");
-    expect(replace).not.toHaveBeenCalled();
+    expect(navigateStatic).not.toHaveBeenCalled();
   });
 });
