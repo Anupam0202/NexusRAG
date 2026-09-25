@@ -9,6 +9,7 @@ for (const target of pages) {
   test(`${target.name} visual baseline`, async ({ page }) => {
     await page.emulateMedia({ reducedMotion: "reduce" });
     await page.goto(target.path, { waitUntil: "networkidle" });
+<<<<<<< critical-gaps/v8-remote-validation
     if (target.name === "home") {
       await expect(
         page.getByRole("checkbox", {
@@ -16,6 +17,8 @@ for (const target of pages) {
         })
       ).toBeVisible();
     }
+=======
+>>>>>>> main
     await expect(page).toHaveScreenshot(`${target.name}.png`, {
       animations: "disabled",
       caret: "hide",
@@ -27,4 +30,8 @@ for (const target of pages) {
       scale: "css",
     });
   });
+<<<<<<< critical-gaps/v8-remote-validation
 }
+=======
+}
+>>>>>>> main

@@ -10,7 +10,11 @@
     "test": "vitest run",
     "test:e2e": "playwright test",
     "test:visual:prepare": "node scripts/materialize-visual-baselines.mjs",
+<<<<<<< critical-gaps/v8-remote-validation
     "cf:build": "opennextjs-cloudflare build && node scripts/copy-prerendered-routes.mjs",
+=======
+    "cf:build": "opennextjs-cloudflare build",
+>>>>>>> main
     "cf:preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
     "cf:deploy": "opennextjs-cloudflare deploy"
   },
