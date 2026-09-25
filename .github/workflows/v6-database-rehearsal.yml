@@ -84,7 +84,13 @@ jobs:
             PGUSER=postgres \
             PGDATABASE="$db" \
             bash "$source_dir/tests/postgres/local-rehearsal.sh" >"$log" 2>&1; then
-            grep -E 'postgres_durable_extraction_stage_pass|concurrent_reservation_settlement_pass|concurrent_account_trial_limit_pass|account_trial_byok_assertions_pass|account_trial_rollback_pass|storage_rls_two_identity_pass|reindex_original_storage_reuse_pass|LOCAL_POSTGRES_REHEARSAL_PASS' "$log"
+            sudo -u postgres env \
+              PGHOST=/var/run/postgresql \
+              PGPORT="$port" \
+              PGUSER=postgres \
+              PGDATABASE="$db" \
+              bash "$source_dir/tests/postgres/backup-restore.sh" >>"$log" 2>&1
+            grep -E 'postgres_durable_extraction_stage_pass|concurrent_reservation_settlement_pass|concurrent_account_trial_limit_pass|account_trial_byok_assertions_pass|account_trial_rollback_pass|storage_rls_two_identity_pass|reindex_original_storage_reuse_pass|LOCAL_POSTGRES_REHEARSAL_PASS|POSTGRES_BACKUP_RESTORE_PASS' "$log"
           else
             tail -n 80 "$log"
             exit 1

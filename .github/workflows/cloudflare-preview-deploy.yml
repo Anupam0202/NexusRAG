@@ -19,7 +19,9 @@ on:
       - apps/gateway/**
       - packages/**
       - tests/scripts/**
+      - tests/postgres/**
       - .github/workflows/cloudflare-preview-deploy.yml
+      - .github/workflows/v6-database-rehearsal.yml
 
 permissions:
   contents: read

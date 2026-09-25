@@ -1,6 +1,8 @@
 # Local PostgreSQL rehearsal
 
-This suite applies the clean NexusRAG baseline plus candidate migrations 027–033 to a **fresh disposable PostgreSQL 17 database** with the real `pgcrypto` and `pgvector` extensions. It uses independent `psql` connections to exercise locking, reservation races, same-key idempotency, settlement replay, account trial limits, and rollback-safe transactional state. It also verifies durable extraction staging/replay/lease scoping and purge-on-terminal publication, synthetic Storage policy stand-ins, explicit denial of sensitive/unknown Gemini classifications unless provider and workspace review evidence is present, and service-role-only access to the user-key vault.
+This suite applies the clean NexusRAG baseline plus candidate migrations 027–034 to a **fresh disposable PostgreSQL 17 database** with the real `pgcrypto` and `pgvector` extensions. It uses independent `psql` connections to exercise locking, reservation races, same-key idempotency, settlement replay, account trial limits, and rollback-safe transactional state. It also verifies durable extraction staging/replay/lease scoping and purge-on-terminal publication, synthetic Storage policy stand-ins, explicit denial of sensitive/unknown Gemini classifications unless provider and workspace review evidence is present, and service-role-only access to the user-key vault.
+
+The CI rehearsal creates a custom-format `pg_dump` from that disposable database, restores it into a separate disposable database, then compares row digests for every table in `public`, `auth`, and `storage`, plus extension versions and function counts. Both databases and the backup artifact are removed at job cleanup. This is a real logical backup/restore rehearsal for the synthetic PostgreSQL schema, not a Supabase-managed backup, production restore, or proof of provider-specific managed Auth/Storage behavior.
 
 Example (local only):
 
