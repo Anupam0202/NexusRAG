@@ -299,3 +299,12 @@ After the audit-only commit `797d032e18a79b3dff0ffca9d10aef3d3054a17e`, all eigh
 ## Exact-head CI reconciliation — 2026-09-24
 
 On PR #3 head `48589236dff269cddf69c1e5361baacc68f67683`, all nine reported checks completed successfully: Required foundation summary, backend isolated regressions, dependency review, evaluation inventory, SBOM/licence inventory, migration integrity, Cloudflare compatibility, frontend lint/unit/typecheck/build, and PostgreSQL 17 migration/concurrency rehearsal. These are code/CI checks only. The deployment workflow did not rerun because this was documentation-only; the last candidate deploy still has the one unresolved mobile visual-regression failure. The PR remains draft and the merge blockers above remain open.
+
+
+## Mobile visual regression reconciled; isolated deployment green — 2026-09-25
+
+Downloaded and reviewed the exact failed CI artifact from run #39. The 4% / 12,202-pixel delta was not random rendering: the actual mobile page correctly displayed the newly added sensitive-data/Gemini approval disclosure, which the old expected baseline lacked; the remaining layout shift followed from that disclosure. Updated the mobile baseline to the reviewed actual image and strengthened `visual-regression.spec.ts` to assert that the privacy-consent checkbox is accessible and visible on the home/Chat route. The screenshot tolerance (`maxDiffPixelRatio: 0.03`) was not relaxed.
+
+Pushed as code commit `ce4ece160155d8745765df87cd6c15d4c876fd3d` (baseline) and `bf51aec6c727431d4d696723c99ee6f08029ddc0` (semantic assertion + isolated deploy opt-in). Candidate deployment workflow run #41 completed successfully: gateway deployment and frontend build/deployment passed, the public smoke checks passed, and the configured desktop/mobile Playwright suite passed. All 11 reported PR #3 check runs on head `bf51aec6c727431d4d696723c99ee6f08029ddc0` completed successfully. Candidate frontend remains isolated; no production resource was modified and no provider call/data ingestion was performed.
+
+This closes the candidate mobile visual-regression/deployment blocker only. It does not satisfy main's separate `Preview Required` protected deployment gate or prove authenticated two-identity upload-to-answer. The PR remains `PARTIAL_NOT_COMPLETE`, draft and unmerged; the remaining migration, OAuth/E2E, provider spend, data rights, semantic quality, accessibility contrast, vertical workflow, rollback and restore gates remain open.
