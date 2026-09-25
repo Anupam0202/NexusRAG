@@ -46,6 +46,11 @@ jobs:
       QDRANT_API_KEY: ${{ secrets.QDRANT_API_KEY }}
     steps:
       - uses: actions/checkout@v5
+      - name: Verify deployment source is the exact event commit
+        run: |
+          set -euo pipefail
+          actual="$(git rev-parse HEAD)"
+          test "$actual" = "$GITHUB_SHA" || { echo "::error::Checked out $actual, expected event commit $GITHUB_SHA"; exit 1; }
       - uses: actions/setup-node@v5
         with: {node-version: "24"}
       - name: Enforce isolated candidate-only gateway target
@@ -137,6 +142,11 @@ jobs:
         working-directory: frontend
     steps:
       - uses: actions/checkout@v5
+      - name: Verify deployment source is the exact event commit
+        run: |
+          set -euo pipefail
+          actual="$(git rev-parse HEAD)"
+          test "$actual" = "$GITHUB_SHA" || { echo "::error::Checked out $actual, expected event commit $GITHUB_SHA"; exit 1; }
       - uses: actions/setup-node@v5
         with:
           node-version: "24"
