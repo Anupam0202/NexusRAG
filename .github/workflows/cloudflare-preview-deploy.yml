@@ -121,11 +121,12 @@ jobs:
             --var "SUPABASE_URL:$SUPABASE_URL" \
             --var "SUPABASE_PUBLISHABLE_KEY:$SUPABASE_PUBLISHABLE_KEY" \
             --var "QDRANT_COLLECTION:nexusrag-v6-candidate" \
-            --var "FRONTEND_ORIGIN:$FRONTEND_ORIGIN"
+            --var "FRONTEND_ORIGIN:$FRONTEND_ORIGIN" \
+            --var "RUNTIME_SERVICE_NAME:nexusrag-v6-candidate-gateway"
       - name: Verify fail-closed authenticated gateway
         run: |
           set -euo pipefail
-          curl --fail --silent --show-error "$GATEWAY_ORIGIN/health" | jq -e '.status == "READY" and .authenticated_api == true and .paid_fallback == false and .providers.gemini == "CONFIGURED" and .providers.qdrant == "CONFIGURED"'
+          curl --fail --silent --show-error "$GATEWAY_ORIGIN/health" | jq -e '.service == "nexusrag-v6-candidate-gateway" and .status == "READY" and .authenticated_api == true and .paid_fallback == false and .providers.gemini == "CONFIGURED" and .providers.qdrant == "CONFIGURED"'
           test "$(curl --silent --output /dev/null --write-out '%{http_code}' "$GATEWAY_ORIGIN/api/v2/capabilities")" = 401
 
   frontend:
