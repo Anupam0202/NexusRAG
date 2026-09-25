@@ -308,3 +308,12 @@ Downloaded and reviewed the exact failed CI artifact from run #39. The 4% / 12,2
 Pushed as code commit `ce4ece160155d8745765df87cd6c15d4c876fd3d` (baseline) and `bf51aec6c727431d4d696723c99ee6f08029ddc0` (semantic assertion + isolated deploy opt-in). Candidate deployment workflow run #41 completed successfully: gateway deployment and frontend build/deployment passed, the public smoke checks passed, and the configured desktop/mobile Playwright suite passed. All 11 reported PR #3 check runs on head `bf51aec6c727431d4d696723c99ee6f08029ddc0` completed successfully. Candidate frontend remains isolated; no production resource was modified and no provider call/data ingestion was performed.
 
 This closes the candidate mobile visual-regression/deployment blocker only. It does not satisfy main's separate `Preview Required` protected deployment gate or prove authenticated two-identity upload-to-answer. The PR remains `PARTIAL_NOT_COMPLETE`, draft and unmerged; the remaining migration, OAuth/E2E, provider spend, data rights, semantic quality, accessibility contrast, vertical workflow, rollback and restore gates remain open.
+
+
+## OAuth fixture cleanup reconciliation — 2026-09-25
+
+Read-only counts on the isolated `nexusrag-zero-cost-rehearsal` project after the Google callback show one Auth user, zero workspaces, zero documents and zero Storage objects. The OAuth browser session was signed out. Given the rehearsal project was previously verified with zero Auth users, the new Auth row is the OAuth test fixture; its identity was not read or repeated in this report. It was not deleted because the browser-held identity was not owner-designated. No product content or uploaded data remains, but explicit owner direction is needed to retain or remove that Auth identity before claiming fixture cleanup complete.
+
+The latest docs-only head is `dba41e31ccdd8b98b7bd36ede1fd61de250e0ce5`; all nine checks on that head passed. The last code head with candidate deployment is `bf51aec6c727431d4d696723c99ee6f08029ddc0`; candidate run #41 and its 11 reported checks passed, including desktop/mobile Playwright. The audit-only follow-up did not change application code and did not re-run deployment.
+
+**No production write, app data creation, Storage write, vector insertion, or Gemini call occurred.** The single rehearsal Auth user is the only remaining cleanup artifact identified by this OAuth test.
