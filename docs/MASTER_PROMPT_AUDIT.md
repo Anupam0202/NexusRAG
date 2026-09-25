@@ -317,3 +317,12 @@ Read-only counts on the isolated `nexusrag-zero-cost-rehearsal` project after th
 The latest docs-only head is `dba41e31ccdd8b98b7bd36ede1fd61de250e0ce5`; all nine checks on that head passed. The last code head with candidate deployment is `bf51aec6c727431d4d696723c99ee6f08029ddc0`; candidate run #41 and its 11 reported checks passed, including desktop/mobile Playwright. The audit-only follow-up did not change application code and did not re-run deployment.
 
 **No production write, app data creation, Storage write, vector insertion, or Gemini call occurred.** The single rehearsal Auth user is the only remaining cleanup artifact identified by this OAuth test.
+
+
+## Unauthenticated health badge corrected and redeployed — 2026-09-25
+
+The signed-out candidate UI was observed showing `Backend offline` even though the gateway correctly returned HTTP 401 with error code `AUTH_REQUIRED` for `/api/v1/status`. Updated frontend state handling to map that explicit response to `Sign in required` (reachable/amber), while network/other failures still show offline. Added a Header regression test. No API authorization checks were weakened.
+
+Code commit `211ed551f313c182b284cac6f4cd66353652200f` was candidate-deployed in run #42. All 11 reported checks passed, including frontend lint/unit/typecheck/build, PostgreSQL 17 rehearsal, gateway deployment, frontend deployment and desktop/mobile Playwright. A live signed-out candidate browser inspection showed the expected `Sign in required` text, with chat/upload controls gated until sign-in. The browser session was signed out; read-only rehearsal counts remain one Auth user and zero workspaces/documents/Storage objects. No provider call or app data was created.
+
+PR #3 code head `211ed551f313c182b284cac6f4cd66353652200f` is GitHub-mergeable but remains draft; this does not close the substantive migration, zero-spend, two-identity authenticated E2E, Auth-fixture cleanup, semantic quality, contrast/accessibility, or release/recovery gates. PR #2 remains blocked by the protected mainline `Preview Required` deployment and required branch conditions. Do not merge or deploy production while those blockers remain.
