@@ -129,7 +129,7 @@ export default function EvaluationsPage() {
                   }}
                   className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
                     mode === item
-                      ? "bg-brand-500 text-white shadow-sm"
+                      ? "bg-brand-600 text-white shadow-sm"
                       : "text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"
                   }`}
                 >

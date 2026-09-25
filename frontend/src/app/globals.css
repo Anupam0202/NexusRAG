@@ -78,6 +78,13 @@
   *:focus-visible { @apply outline-2 outline-offset-2 outline-brand-500/50; }
 }
 
+/* Rich Sonner error toasts default to a red that misses WCAG AA on its pale
+   error background. Keep the alert styling while making its text readable. */
+[data-sonner-toast][data-type="error"] [data-title],
+[data-sonner-toast][data-type="error"] [data-description] {
+  color: #b91c1c !important;
+}
+
 /* ── Chat markdown prose ──────────────────────────────────────── */
 .chat-prose h1, .chat-prose h2, .chat-prose h3 { @apply font-bold mt-4 mb-2; }
 .chat-prose h1 { @apply text-lg; }
