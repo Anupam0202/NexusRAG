@@ -41,7 +41,6 @@ jobs:
       QDRANT_URL: ${{ secrets.QDRANT_URL || vars.QDRANT_URL }}
       QDRANT_API_KEY: ${{ secrets.QDRANT_API_KEY }}
       QDRANT_COLLECTION_PREFIX: ${{ vars.QDRANT_COLLECTION_PREFIX || 'nexusrag-ci' }}
-      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
       GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
       GEMINI_MODEL: gemini-2.5-flash
       VALIDATION_REPORT: artifacts/live-provider-${{ matrix.provider }}-validation.json
@@ -59,7 +58,7 @@ jobs:
             test -n "$QDRANT_URL" || { echo "::error::QDRANT_URL is missing"; exit 1; }
             test -n "$QDRANT_API_KEY" || { echo "::error::QDRANT_API_KEY is missing"; exit 1; }
           else
-            test -n "${GEMINI_API_KEY:-${GOOGLE_API_KEY:-}}" || { echo "::error::GEMINI_API_KEY or GOOGLE_API_KEY is missing"; exit 1; }
+            test -n "$GOOGLE_API_KEY" || { echo "::error::GOOGLE_API_KEY is missing"; exit 1; }
           fi
       - name: Run bounded disposable validation
         run: python3 scripts/live_provider_validation.py
