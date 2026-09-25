@@ -9,6 +9,13 @@ for (const target of pages) {
   test(`${target.name} visual baseline`, async ({ page }) => {
     await page.emulateMedia({ reducedMotion: "reduce" });
     await page.goto(target.path, { waitUntil: "networkidle" });
+    if (target.name === "home") {
+      await expect(
+        page.getByRole("checkbox", {
+          name: /This question contains no personal, confidential, regulated, or other sensitive information/i,
+        })
+      ).toBeVisible();
+    }
     await expect(page).toHaveScreenshot(`${target.name}.png`, {
       animations: "disabled",
       caret: "hide",
