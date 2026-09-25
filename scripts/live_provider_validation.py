@@ -11,6 +11,7 @@ import json
 import os
 from pathlib import Path
 import re
+import signal
 import sys
 from urllib import error, parse, request
 
@@ -20,6 +21,10 @@ class ProviderHttpError(RuntimeError):
         super().__init__(f"provider request failed with HTTP {status}")
         self.status = status
         self.retry_after = retry_after
+
+
+def _unwind_on_sigterm(signum: int, _frame: object) -> None:
+    raise SystemExit(128 + signum)
 
 
 def _required(name: str, *aliases: str) -> str:
@@ -65,7 +70,9 @@ def validate_qdrant() -> dict:
     collection = f"{prefix}-{run_id}-{attempt}"[:180]
     endpoint = f"{base}/collections/{parse.quote(collection, safe='-_')}"
     headers = {"api-key": api_key}
-    created = False
+    # Mark it for cleanup before the request: a transport timeout may happen
+    # after Qdrant accepted the create but before the client received a reply.
+    cleanup_needed = True
     try:
         _json_request(
             "PUT",
@@ -73,7 +80,6 @@ def validate_qdrant() -> dict:
             headers=headers,
             body={"vectors": {"size": 4, "distance": "Cosine"}},
         )
-        created = True
         for field_name in ("workspace_id", "version_id", "index_generation"):
             _json_request(
                 "PUT",
@@ -136,8 +142,14 @@ def validate_qdrant() -> dict:
     except Exception as exc:
         raise RuntimeError(f"QDRANT_VALIDATION_FAILED:{exc}") from None
     finally:
-        if created:
-            _json_request("DELETE", endpoint, headers=headers)
+        if cleanup_needed:
+            try:
+                # Keep the cleanup request within the runner's cancellation
+                # grace period and treat "not found" as already-clean.
+                _json_request("DELETE", endpoint, headers=headers, timeout=5)
+            except ProviderHttpError as exc:
+                if exc.status != 404:
+                    raise
 
 
 def validate_gemini() -> dict:
@@ -145,12 +157,13 @@ def validate_gemini() -> dict:
     model = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash").strip()
     url = (
         f"https://generativelanguage.googleapis.com/v1beta/models/"
-        f"{parse.quote(model, safe='.-_')}:generateContent?key={parse.quote(api_key, safe='')}"
+        f"{parse.quote(model, safe='.-_')}:generateContent"
     )
     try:
         _, result = _json_request(
             "POST",
             url,
+            headers={"x-goog-api-key": api_key},
             body={
                 "contents": [
                     {
@@ -205,6 +218,9 @@ def validate_gemini() -> dict:
 
 
 def main() -> int:
+    # Convert runner cancellation into normal unwinding so validate_qdrant's
+    # finally block gets a chance to delete its isolated collection.
+    signal.signal(signal.SIGTERM, _unwind_on_sigterm)
     if os.environ.get("LIVE_EXTERNAL_VALIDATION") != "true":
         raise RuntimeError("BLOCKED: LIVE_EXTERNAL_VALIDATION=true is required")
     provider = os.environ.get("PROVIDER_UNDER_TEST", "all").strip().lower()
