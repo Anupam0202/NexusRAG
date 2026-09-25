@@ -123,6 +123,74 @@ async function membership(env, userId, workspaceId) {
   if (!rows?.[0]) throw Object.assign(new Error("The workspace is unavailable to this user."), { status: 403, code: "FORBIDDEN" });
   return rows[0];
 }
+const SETTINGS_SELECT = "retrieval_top_k,hybrid_search_alpha,llm_temperature,updated_at";
+const SETTINGS_DEFAULTS = Object.freeze({
+  retrieval_top_k: 10,
+  hybrid_search_alpha: 0.6,
+  llm_temperature: 0.1,
+});
+const SETTINGS_PATCH_FIELDS = new Set(Object.keys(SETTINGS_DEFAULTS));
+function persistedSetting(row, key, { min, max, integer = false }) {
+  const value = row?.[key];
+  if (
+    typeof value !== "number"
+    || !Number.isFinite(value)
+    || value < min
+    || value > max
+    || (integer && !Number.isInteger(value))
+  ) {
+    return SETTINGS_DEFAULTS[key];
+  }
+  return value;
+}
+async function readWorkspaceSettings(env, workspaceId) {
+  const rows = await serviceRequest(
+    env,
+    `workspace_settings?workspace_id=eq.${encodeURIComponent(workspaceId)}&select=${SETTINGS_SELECT}&limit=1`,
+  );
+  const row = rows?.[0] || SETTINGS_DEFAULTS;
+  return {
+    // These values describe the actual Worker runtime; provider secrets are never returned.
+    llm_model_name: env.GEMINI_MODEL || "gemini-2.5-flash",
+    llm_temperature: persistedSetting(row, "llm_temperature", { min: 0, max: 1 }),
+    retrieval_top_k: persistedSetting(row, "retrieval_top_k", { min: 1, max: 12, integer: true }),
+    enable_reranking: false,
+    hybrid_search_alpha: persistedSetting(row, "hybrid_search_alpha", { min: 0, max: 1 }),
+    // This Worker intentionally sends only the current question, not prior chat history.
+    context_window_messages: 1,
+    chunk_size: 1600,
+    chunk_overlap: 240,
+    enable_semantic_chunking: false,
+    enable_contextual_enrichment: false,
+    embedding_model: env.GEMINI_EMBEDDING_MODEL || "gemini-embedding-001",
+    updated_at: row.updated_at || null,
+  };
+}
+function validateSettingsPatch(body) {
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    throw Object.assign(new Error("Settings must be a JSON object."), { status: 400, code: "INVALID_SETTINGS" });
+  }
+  const entries = Object.entries(body);
+  if (!entries.length || entries.some(([key]) => !SETTINGS_PATCH_FIELDS.has(key))) {
+    throw Object.assign(new Error("Only temperature, retrieval top K, and hybrid search alpha can be changed on this Worker profile."), { status: 422, code: "UNSUPPORTED_SETTING" });
+  }
+  const patch = {};
+  for (const [key, value] of entries) {
+    if (typeof value !== "number" || !Number.isFinite(value)) {
+      throw Object.assign(new Error(`Setting ${key} must be a finite number.`), { status: 422, code: "INVALID_SETTINGS" });
+    }
+    const valid = key === "llm_temperature"
+      ? value >= 0 && value <= 1
+      : key === "retrieval_top_k"
+        ? Number.isInteger(value) && value >= 1 && value <= 12
+        : value >= 0 && value <= 1;
+    if (!valid) {
+      throw Object.assign(new Error(`Setting ${key} is outside the supported zero-cost Worker range.`), { status: 422, code: "INVALID_SETTINGS" });
+    }
+    patch[key] = value;
+  }
+  return patch;
+}
 function workspaceId(request) {
   const value = request.headers.get("x-nexus-workspace-id") || request.headers.get("x-workspace-id") || "";
   if (!/^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(value)) throw Object.assign(new Error("A valid workspace binding is required."), { status: 400, code: "WORKSPACE_UNAVAILABLE" });
@@ -271,7 +339,7 @@ async function chat(request, env, user, workspace, member) {
 async function handle(request, env = {}) {
   const url = new URL(request.url);
   if (request.method === "OPTIONS") {
-    return json(request, env, null, 204, { "access-control-allow-methods": "GET,HEAD,POST,OPTIONS", "access-control-allow-headers": "Authorization,Content-Type,Idempotency-Key,X-Nexus-Workspace-Id,X-Workspace-ID", "access-control-max-age": "600" });
+    return json(request, env, null, 204, { "access-control-allow-methods": "GET,HEAD,POST,PATCH,OPTIONS", "access-control-allow-headers": "Authorization,Content-Type,Idempotency-Key,X-Nexus-Workspace-Id,X-Workspace-ID", "access-control-max-age": "600" });
   }
   if (url.pathname === "/" || url.pathname === "/health") {
     return json(request, env, { service: "nexusrag-v6-preview-gateway", profile: "ZERO_COST_LOW_TRAFFIC", status: configured(env) ? "READY" : "DEGRADED", authenticated_api: configured(env), production_verified: false, authorities: { business_records: "supabase", vectors: "qdrant" }, providers: { qdrant: env.QDRANT_URL && env.QDRANT_API_KEY ? "CONFIGURED" : "BLOCKED", gemini: env.GOOGLE_API_KEY ? "CONFIGURED" : "BLOCKED" }, paid_fallback: false });
@@ -316,6 +384,27 @@ async function handle(request, env = {}) {
       const id = workspaceId(request); const member = await membership(env, user.id, id);
       const rows = await serviceRequest(env, `workspaces?id=eq.${id}&select=id,name,slug,plan,lifecycle_state,created_at&limit=1`);
       return json(request, env, { ...(rows[0] || {}), workspace_id: id, role: member.role });
+    }
+
+    if (url.pathname === "/api/v1/settings" && (request.method === "GET" || request.method === "HEAD")) {
+      const id = workspaceId(request);
+      await membership(env, user.id, id);
+      return json(request, env, await readWorkspaceSettings(env, id));
+    }
+    if (url.pathname === "/api/v1/settings" && request.method === "PATCH") {
+      const id = workspaceId(request);
+      const member = await membership(env, user.id, id);
+      if (!["owner", "admin"].includes(member.role)) {
+        throw Object.assign(new Error("Only workspace admins and owners can change runtime settings."), { status: 403, code: "FORBIDDEN" });
+      }
+      const patch = validateSettingsPatch(await request.json());
+      await serviceRequest(env, "workspace_settings?on_conflict=workspace_id", {
+        method: "POST",
+        headers: { prefer: "resolution=merge-duplicates,return=representation" },
+        body: JSON.stringify([{ workspace_id: id, ...patch }]),
+      });
+      await audit(env, request, user.id, id, "settings.update", "workspace_settings");
+      return json(request, env, await readWorkspaceSettings(env, id));
     }
 
     if (url.pathname === "/api/v1/documents/upload" && request.method === "POST") {
