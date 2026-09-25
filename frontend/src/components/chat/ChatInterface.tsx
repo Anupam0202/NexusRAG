@@ -624,7 +624,7 @@ function EmptyState({
       {authMode === "signed_out" && (
         <Link
           href="/auth/login?next=/chat"
-          className="mb-8 inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-brand-500 to-purple-600 text-white px-5 py-2.5 text-sm font-semibold shadow-md hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all"
+          className="mb-8 inline-flex items-center gap-2 rounded-xl bg-indigo-700 hover:bg-indigo-800 text-white px-5 py-2.5 text-sm font-semibold shadow-md hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all"
         >
           Sign in
         </Link>
@@ -633,7 +633,7 @@ function EmptyState({
       {!error && !loading && !needsAuth && docCount === 0 && (
         <Link
           href="/documents"
-          className="mb-8 inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-brand-500 to-purple-600 text-white px-5 py-2.5 text-sm font-semibold shadow-md hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all"
+          className="mb-8 inline-flex items-center gap-2 rounded-xl bg-indigo-700 hover:bg-indigo-800 text-white px-5 py-2.5 text-sm font-semibold shadow-md hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all"
         >
           <Upload size={16} />
           Upload Documents

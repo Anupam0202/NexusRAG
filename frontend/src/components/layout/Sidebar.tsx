@@ -107,7 +107,7 @@ export function Sidebar() {
                   "group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200",
                   collapsed && "justify-center px-2",
                   active
-                    ? "bg-gradient-to-r from-brand-500/10 to-purple-500/10 text-brand-600 dark:text-brand-400"
+                    ? "bg-indigo-50 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300"
                     : "text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
                 )}
               >
