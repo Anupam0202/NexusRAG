@@ -131,7 +131,8 @@ jobs:
             --var "SUPABASE_URL:$SUPABASE_URL" \
             --var "SUPABASE_PUBLISHABLE_KEY:$SUPABASE_PUBLISHABLE_KEY" \
             --var "QDRANT_COLLECTION:$QDRANT_COLLECTION" \
-            --var "FRONTEND_ORIGIN:$FRONTEND_ORIGIN"
+            --var "FRONTEND_ORIGIN:$FRONTEND_ORIGIN" \
+            --var "RUNTIME_SERVICE_NAME:$GATEWAY_WORKER"
       - name: Verify fail-closed authenticated gateway
         run: |
           set -euo pipefail

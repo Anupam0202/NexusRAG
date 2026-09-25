@@ -11,12 +11,14 @@ const configured = {
   QDRANT_URL: "https://qdrant.invalid",
   QDRANT_API_KEY: "synthetic-qdrant-secret",
   GOOGLE_API_KEY: "synthetic-google-secret",
+  RUNTIME_SERVICE_NAME: "nexusrag-test-gateway",
 };
 
 test("preview health is honest, authenticated-api ready, and zero-cost", async () => {
   const response = await handle(request(), configured);
   const body = await response.json();
   assert.equal(response.status, 200);
+  assert.equal(body.service, "nexusrag-test-gateway");
   assert.equal(body.profile, "ZERO_COST_LOW_TRAFFIC");
   assert.equal(body.status, "READY");
   assert.equal(body.authenticated_api, true);

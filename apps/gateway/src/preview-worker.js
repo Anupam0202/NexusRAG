@@ -417,7 +417,7 @@ async function handle(request, env = {}) {
     return json(request, env, null, 204, { "access-control-allow-methods": "GET,HEAD,POST,PATCH,OPTIONS", "access-control-allow-headers": "Authorization,Content-Type,Idempotency-Key,X-Nexus-Workspace-Id,X-Workspace-ID", "access-control-max-age": "600" });
   }
   if (url.pathname === "/" || url.pathname === "/health") {
-    return json(request, env, { service: "nexusrag-v6-preview-gateway", profile: "ZERO_COST_LOW_TRAFFIC", status: configured(env) ? "READY" : "DEGRADED", authenticated_api: configured(env), production_verified: false, authorities: { business_records: "supabase", vectors: "qdrant" }, providers: { qdrant: env.QDRANT_URL && env.QDRANT_API_KEY ? "CONFIGURED" : "BLOCKED", gemini: env.GOOGLE_API_KEY ? "CONFIGURED" : "BLOCKED" }, paid_fallback: false, metered_operations: "REVIEW_REQUIRED", product_readiness: "NOT_VERIFIED" });
+    return json(request, env, { service: env.RUNTIME_SERVICE_NAME || "nexusrag-v6-preview-gateway", profile: "ZERO_COST_LOW_TRAFFIC", status: configured(env) ? "READY" : "DEGRADED", authenticated_api: configured(env), production_verified: false, authorities: { business_records: "supabase", vectors: "qdrant" }, providers: { qdrant: env.QDRANT_URL && env.QDRANT_API_KEY ? "CONFIGURED" : "BLOCKED", gemini: env.GOOGLE_API_KEY ? "CONFIGURED" : "BLOCKED" }, paid_fallback: false, metered_operations: "REVIEW_REQUIRED", product_readiness: "NOT_VERIFIED" });
   }
   if (!configured(env)) return fail(request, env, "CONFIGURATION_ERROR", "The authenticated gateway is not configured.", 503);
   try {
