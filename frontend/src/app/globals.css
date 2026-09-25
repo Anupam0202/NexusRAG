@@ -138,7 +138,7 @@
 
 /* ── Gradient text ────────────────────────────────────────────── */
 .gradient-text {
-  @apply bg-gradient-to-r from-brand-500 via-purple-500 to-pink-500 bg-clip-text text-transparent;
+  @apply text-indigo-700 dark:text-indigo-300;
 }
 
 /* ── Sidebar ──────────────────────────────────────────────────── */
