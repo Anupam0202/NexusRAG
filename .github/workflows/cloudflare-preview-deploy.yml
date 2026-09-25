@@ -21,8 +21,11 @@ on:
       - frontend/**
       - apps/gateway/**
       - packages/**
+      - scripts/preview_target.py
       - tests/scripts/**
+      - tests/postgres/**
       - .github/workflows/cloudflare-preview-deploy.yml
+      - .github/workflows/v6-database-rehearsal.yml
 
 permissions:
   contents: read
@@ -53,6 +56,15 @@ jobs:
       - uses: actions/checkout@v5
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Resolve isolated candidate target for this branch
+        working-directory: .
+        run: |
+          set -euo pipefail
+          target_ref="$GITHUB_REF"
+          if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
+            target_ref="refs/heads/$GITHUB_HEAD_REF"
+          fi
+          python3 scripts/preview_target.py "$target_ref" >> "$GITHUB_ENV"
       - name: Verify deployment source is the exact event commit
         run: |
           set -euo pipefail
@@ -63,9 +75,15 @@ jobs:
       - name: Enforce isolated candidate-only gateway target
         run: |
           set -euo pipefail
-          grep -Eq '^\{"name":"nexusrag-v6-candidate-gateway"' apps/gateway/wrangler.preview.jsonc
-          grep -q '"queue":"nexusrag-v6-candidate-ingestion"' apps/gateway/wrangler.preview.jsonc
-          grep -q '"dead_letter_queue":"nexusrag-v6-candidate-ingestion-dlq"' apps/gateway/wrangler.preview.jsonc
+          jq -e \
+            --arg worker "$GATEWAY_WORKER" \
+            --arg queue "$INGESTION_QUEUE" \
+            --arg dlq "$INGESTION_DLQ" \
+            '.name == $worker
+             and .queues.producers[0].queue == $queue
+             and .queues.consumers[0].queue == $queue
+             and .queues.consumers[0].dead_letter_queue == $dlq' \
+            "$GATEWAY_CONFIG"
       - name: Require authenticated gateway inputs
         run: |
           set -euo pipefail
@@ -79,8 +97,8 @@ jobs:
             "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/subdomain")"
           subdomain="$(jq -er '.result.subdomain' <<<"$response")"
           {
-            echo "GATEWAY_ORIGIN=https://nexusrag-v6-candidate-gateway.${subdomain}.workers.dev"
-            echo "FRONTEND_ORIGIN=https://nexusrag-v6-candidate-frontend.${subdomain}.workers.dev"
+            echo "GATEWAY_ORIGIN=https://${GATEWAY_WORKER}.${subdomain}.workers.dev"
+            echo "FRONTEND_ORIGIN=https://${FRONTEND_WORKER}.${subdomain}.workers.dev"
           } >> "$GITHUB_ENV"
       - name: Require isolated zero-cost rehearsal backend
         run: |
@@ -98,7 +116,8 @@ jobs:
       - name: Ensure dedicated candidate queues exist
         run: |
           set -euo pipefail
-          for queue in nexusrag-v6-candidate-ingestion nexusrag-v6-candidate-ingestion-dlq; do
+          # Workers Free Queue retention is 24 hours; override Wrangler's 4-day default.
+          for queue in "$INGESTION_QUEUE" "$INGESTION_DLQ"; do
             if ! npx --yes wrangler@4.37.1 queues info "$queue" >/dev/null 2>&1; then
               npx --yes wrangler@4.37.1 queues create "$queue" --message-retention-period-secs 86400
             fi
@@ -106,28 +125,38 @@ jobs:
       - name: Deploy authenticated gateway
         run: |
           npx --yes wrangler@4.37.1 deploy \
-            --config apps/gateway/wrangler.preview.jsonc \
+            --config "$GATEWAY_CONFIG" \
             --keep-vars \
             --var "SUPABASE_URL:$SUPABASE_URL" \
             --var "SUPABASE_PUBLISHABLE_KEY:$SUPABASE_PUBLISHABLE_KEY" \
-            --var "QDRANT_COLLECTION:nexusrag-v6-candidate" \
+            --var "QDRANT_COLLECTION:$QDRANT_COLLECTION" \
             --var "FRONTEND_ORIGIN:$FRONTEND_ORIGIN" \
-            --var "RUNTIME_SERVICE_NAME:nexusrag-v6-candidate-gateway"
+            --var "RUNTIME_SERVICE_NAME:$GATEWAY_WORKER"
       - name: Install Supabase service credential as a Worker secret
-        run: printf '%s' "$SUPABASE_SERVICE_ROLE_KEY" | npx --yes wrangler@4.37.1 secret put SUPABASE_SERVICE_ROLE_KEY --name nexusrag-v6-candidate-gateway
+        run: printf '%s' "$SUPABASE_SERVICE_ROLE_KEY" | npx --yes wrangler@4.37.1 secret put SUPABASE_SERVICE_ROLE_KEY --name "$GATEWAY_WORKER"
       - name: Install account-key encryption secret
-        run: printf '%s' "$GEMINI_USER_KEY_ENCRYPTION_SECRET" | npx --yes wrangler@4.37.1 secret put GEMINI_USER_KEY_ENCRYPTION_SECRET --name nexusrag-v6-candidate-gateway
+        run: printf '%s' "$GEMINI_USER_KEY_ENCRYPTION_SECRET" | npx --yes wrangler@4.37.1 secret put GEMINI_USER_KEY_ENCRYPTION_SECRET --name "$GATEWAY_WORKER"
       - name: Install free-tier provider credentials as candidate Worker secrets
         run: |
           set -euo pipefail
-          printf '%s' "$GOOGLE_API_KEY" | npx --yes wrangler@4.37.1 secret put GOOGLE_API_KEY --name nexusrag-v6-candidate-gateway
-          printf '%s' "$QDRANT_URL" | npx --yes wrangler@4.37.1 secret put QDRANT_URL --name nexusrag-v6-candidate-gateway
-          printf '%s' "$QDRANT_API_KEY" | npx --yes wrangler@4.37.1 secret put QDRANT_API_KEY --name nexusrag-v6-candidate-gateway
+          printf '%s' "$GOOGLE_API_KEY" | npx --yes wrangler@4.37.1 secret put GOOGLE_API_KEY --name "$GATEWAY_WORKER"
+          printf '%s' "$QDRANT_URL" | npx --yes wrangler@4.37.1 secret put QDRANT_URL --name "$GATEWAY_WORKER"
+          printf '%s' "$QDRANT_API_KEY" | npx --yes wrangler@4.37.1 secret put QDRANT_API_KEY --name "$GATEWAY_WORKER"
       - name: Verify fail-closed authenticated gateway
         run: |
           set -euo pipefail
-          curl --fail --silent --show-error "$GATEWAY_ORIGIN/health" | jq -e '.service == "nexusrag-v6-candidate-gateway" and .status == "READY" and .authenticated_api == true and .paid_fallback == false and .providers.gemini == "CONFIGURED" and .providers.qdrant == "CONFIGURED"'
-          test "$(curl --silent --output /dev/null --write-out '%{http_code}' "$GATEWAY_ORIGIN/api/v2/capabilities")" = 401
+          health=""
+          for attempt in 1 2 3 4 5; do
+            health="$(curl --fail --silent --show-error --connect-timeout 10 --max-time 30 "$GATEWAY_ORIGIN/health")" && break
+            if [ "$attempt" -eq 5 ]; then exit 1; fi
+            sleep $((attempt * 2))
+          done
+          printf '%s' "$health" | jq -e --arg service "$GATEWAY_WORKER" '.service == $service and .status == "READY" and .authenticated_api == true and .paid_fallback == false and .providers.gemini == "CONFIGURED" and .providers.qdrant == "CONFIGURED"'
+          for attempt in 1 2 3 4 5; do
+            if code="$(curl --silent --show-error --connect-timeout 10 --max-time 30 --output /dev/null --write-out '%{http_code}' "$GATEWAY_ORIGIN/api/v2/capabilities")" && [ "$code" = "401" ]; then break; fi
+            if [ "$attempt" -eq 5 ]; then echo 'Unauthenticated gateway did not fail closed.' >&2; exit 1; fi
+            sleep $((attempt * 2))
+          done
 
   frontend:
     if: ${{ (github.event_name == 'workflow_dispatch' && inputs.deploy_candidate_preview) || (github.event_name == 'push' && (github.ref == 'refs/heads/v6-zero-cost-foundations-clean' || github.ref == 'refs/heads/critical-gaps/v8-remote-validation') && contains(github.event.head_commit.message, '[deploy-candidate-preview]')) || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.base.ref == 'v6-zero-cost-foundations-clean' && github.event.pull_request.head.ref == 'critical-gaps/v8-remote-validation') }}
@@ -153,6 +182,15 @@ jobs:
       - uses: actions/checkout@v5
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Resolve isolated candidate target for this branch
+        working-directory: .
+        run: |
+          set -euo pipefail
+          target_ref="$GITHUB_REF"
+          if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
+            target_ref="refs/heads/$GITHUB_HEAD_REF"
+          fi
+          python3 scripts/preview_target.py "$target_ref" >> "$GITHUB_ENV"
       - name: Verify deployment source is the exact event commit
         run: |
           set -euo pipefail
@@ -166,15 +204,9 @@ jobs:
       - name: Enforce isolated candidate-only frontend target
         run: |
           set -euo pipefail
-          source_ref="${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}}"
-          case "$source_ref" in
-            v6-zero-cost-foundations-clean) config="wrangler.jsonc" ;;
-            critical-gaps/v8-remote-validation) config="wrangler.candidate.jsonc" ;;
-            *) echo "::error::Candidate deployment is not permitted from this ref."; exit 1 ;;
-          esac
-          test -f "$config" || { echo "::error::Candidate Worker config is missing."; exit 1; }
-          grep -Eq '"name"[[:space:]]*:[[:space:]]*"nexusrag-v6-candidate-frontend"' "$config"
-          grep -Eq '"service"[[:space:]]*:[[:space:]]*"nexusrag-v6-candidate-frontend"' "$config"
+          test -f "$FRONTEND_CONFIG" || { echo "::error::Candidate Worker config is missing."; exit 1; }
+          grep -Eq "\"name\"[[:space:]]*:[[:space:]]*\"${FRONTEND_WORKER}\"" "$FRONTEND_CONFIG"
+          grep -Eq "\"service\"[[:space:]]*:[[:space:]]*\"${FRONTEND_WORKER}\"" "$FRONTEND_CONFIG"
       - name: Resolve canonical Cloudflare worker origins
         working-directory: .
         run: |
@@ -188,11 +220,11 @@ jobs:
             "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/subdomain")"
           subdomain="$(jq -er '.result.subdomain' <<<"$response")"
           {
-            echo "NEXT_PUBLIC_API_URL=https://nexusrag-v6-candidate-gateway.${subdomain}.workers.dev"
-            echo "NEXT_PUBLIC_SITE_URL=https://nexusrag-v6-candidate-frontend.${subdomain}.workers.dev"
+            echo "NEXT_PUBLIC_API_URL=https://${GATEWAY_WORKER}.${subdomain}.workers.dev"
+            echo "NEXT_PUBLIC_SITE_URL=https://${FRONTEND_WORKER}.${subdomain}.workers.dev"
           } >> "$GITHUB_ENV"
-          grep -Eq '^NEXT_PUBLIC_API_URL=https://nexusrag-v6-candidate-gateway\.' "$GITHUB_ENV"
-          grep -Eq '^NEXT_PUBLIC_SITE_URL=https://nexusrag-v6-candidate-frontend\.' "$GITHUB_ENV"
+          grep -Fq "NEXT_PUBLIC_API_URL=https://${GATEWAY_WORKER}.${subdomain}.workers.dev" "$GITHUB_ENV"
+          grep -Fq "NEXT_PUBLIC_SITE_URL=https://${FRONTEND_WORKER}.${subdomain}.workers.dev" "$GITHUB_ENV"
       - name: Require public application configuration
         run: |
           set -euo pipefail
@@ -213,7 +245,7 @@ jobs:
       - run: npm run lint
       - run: npm test
       - run: npm run cf:build
-      - run: npm run cf:deploy
+      - run: npm run cf:deploy -- --config "$FRONTEND_CONFIG"
       - name: Verify deployed frontend and gateway
         working-directory: .
         run: |
