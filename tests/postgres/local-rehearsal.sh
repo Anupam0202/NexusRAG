@@ -10,6 +10,8 @@ TESTS="$ROOT/tests/postgres"
 PSQL=(psql -X -v ON_ERROR_STOP=1 -d "$PGDATABASE")
 "${PSQL[@]}" -f "$TESTS/bootstrap.sql"
 "${PSQL[@]}" -f "$ROOT/supabase/baseline/001_v6_zero_cost_baseline.sql" >/dev/null
+# Reproduce the production schema after intentional reindex support in migration 026.
+"${PSQL[@]}" -f "$ROOT/supabase/migrations/026_allow_reindex_original_reuse.sql"
 "${PSQL[@]}" -f "$ROOT/supabase/migrations/027_metered_operation_admission.sql"
 "${PSQL[@]}" -f "$ROOT/supabase/migrations/028_resumable_chunk_staging.sql"
 "${PSQL[@]}" -f "$ROOT/supabase/migrations/029_durable_extraction_staging.sql"
