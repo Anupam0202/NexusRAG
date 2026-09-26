@@ -1,0 +1,211 @@
+name: Production Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_sha:
+        description: Exact main commit to deploy
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nexusrag-production-deployment
+  cancel-in-progress: false
+
+jobs:
+  gateway:
+    name: Deploy production gateway
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: Production
+    env:
+      RELEASE_SHA: ${{ inputs.release_sha }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+      SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL }}
+      SUPABASE_PUBLISHABLE_KEY: ${{ vars.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      GEMINI_USER_KEY_ENCRYPTION_SECRET: ${{ secrets.GEMINI_USER_KEY_ENCRYPTION_SECRET }}
+      GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+      QDRANT_URL: ${{ secrets.QDRANT_URL }}
+      QDRANT_API_KEY: ${{ secrets.QDRANT_API_KEY }}
+      GATEWAY_WORKER: nexusrag-v6-gateway
+      FRONTEND_WORKER: nexusrag-v6-frontend
+      INGESTION_QUEUE: nexusrag-v6-ingestion
+      INGESTION_DLQ: nexusrag-v6-ingestion-dlq
+      QDRANT_COLLECTION: nexusrag-v6-production
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.release_sha }}
+      - name: Verify exact protected-main source
+        run: |
+          set -euo pipefail
+          git fetch origin main --depth=1
+          actual="$(git rev-parse HEAD)"
+          main="$(git rev-parse origin/main)"
+          test "$actual" = "$RELEASE_SHA"
+          test "$actual" = "$main" || { echo "::error::Production deploys only the current main commit."; exit 1; }
+      - uses: actions/setup-node@v5
+        with: {node-version: "24"}
+      - name: Validate production configuration
+        run: |
+          set -euo pipefail
+          for name in CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID SUPABASE_URL SUPABASE_PUBLISHABLE_KEY SUPABASE_SERVICE_ROLE_KEY GEMINI_USER_KEY_ENCRYPTION_SECRET GOOGLE_API_KEY QDRANT_URL QDRANT_API_KEY; do
+            test -n "${!name:-}" || { echo "::error::$name is missing from Production"; exit 1; }
+          done
+          test "$SUPABASE_URL" = "https://fcjaomiceajcdownarel.supabase.co"
+          python3 -c 'import base64,os; assert len(base64.b64decode(os.environ["GEMINI_USER_KEY_ENCRYPTION_SECRET"],validate=True))==32'
+          jq -e --arg worker "$GATEWAY_WORKER" --arg queue "$INGESTION_QUEUE" --arg dlq "$INGESTION_DLQ" \
+            '.name == $worker and .queues.producers[0].queue == $queue and .queues.consumers[0].queue == $queue and .queues.consumers[0].dead_letter_queue == $dlq' \
+            apps/gateway/wrangler.production.jsonc
+          curl --fail --silent --show-error --output /dev/null -H "apikey: $SUPABASE_PUBLISHABLE_KEY" "$SUPABASE_URL/auth/v1/settings"
+          code="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' \
+            -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
+            "$SUPABASE_URL/auth/v1/admin/users?per_page=1")"
+          test "$code" = "200"
+          response="$(curl --fail --silent --show-error -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+            "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/subdomain")"
+          subdomain="$(jq -er '.result.subdomain' <<<"$response")"
+          {
+            echo "GATEWAY_ORIGIN=https://${GATEWAY_WORKER}.${subdomain}.workers.dev"
+            echo "FRONTEND_ORIGIN=https://${FRONTEND_WORKER}.${subdomain}.workers.dev"
+          } >> "$GITHUB_ENV"
+      - name: Ensure bounded free-tier queues
+        run: |
+          set -euo pipefail
+          for queue in "$INGESTION_QUEUE" "$INGESTION_DLQ"; do
+            if ! npx --yes wrangler@4.37.1 queues info "$queue" >/dev/null 2>&1; then
+              npx --yes wrangler@4.37.1 queues create "$queue" --message-retention-period-secs 86400
+            fi
+          done
+      - name: Deploy gateway
+        run: |
+          npx --yes wrangler@4.37.1 deploy \
+            --config apps/gateway/wrangler.production.jsonc \
+            --keep-vars \
+            --var "SUPABASE_URL:$SUPABASE_URL" \
+            --var "SUPABASE_PUBLISHABLE_KEY:$SUPABASE_PUBLISHABLE_KEY" \
+            --var "QDRANT_COLLECTION:$QDRANT_COLLECTION" \
+            --var "FRONTEND_ORIGIN:$FRONTEND_ORIGIN" \
+            --var "RUNTIME_SERVICE_NAME:$GATEWAY_WORKER" \
+            --var "RELEASE_SHA:$RELEASE_SHA"
+      - name: Install production secrets
+        run: |
+          set -euo pipefail
+          printf '%s' "$SUPABASE_SERVICE_ROLE_KEY" | npx --yes wrangler@4.37.1 secret put SUPABASE_SERVICE_ROLE_KEY --name "$GATEWAY_WORKER"
+          printf '%s' "$GEMINI_USER_KEY_ENCRYPTION_SECRET" | npx --yes wrangler@4.37.1 secret put GEMINI_USER_KEY_ENCRYPTION_SECRET --name "$GATEWAY_WORKER"
+          printf '%s' "$GOOGLE_API_KEY" | npx --yes wrangler@4.37.1 secret put GOOGLE_API_KEY --name "$GATEWAY_WORKER"
+          printf '%s' "$QDRANT_URL" | npx --yes wrangler@4.37.1 secret put QDRANT_URL --name "$GATEWAY_WORKER"
+          printf '%s' "$QDRANT_API_KEY" | npx --yes wrangler@4.37.1 secret put QDRANT_API_KEY --name "$GATEWAY_WORKER"
+      - name: Verify production gateway
+        run: |
+          set -euo pipefail
+          for attempt in 1 2 3 4 5; do
+            health="$(curl --fail --silent --show-error --connect-timeout 10 --max-time 30 "$GATEWAY_ORIGIN/health")" && break
+            test "$attempt" -lt 5
+            sleep $((attempt * 2))
+          done
+          printf '%s' "$health" | jq -e --arg service "$GATEWAY_WORKER" \
+            '.service == $service and .status == "READY" and .authenticated_api == true and .paid_fallback == false and .providers.gemini == "CONFIGURED" and .providers.qdrant == "CONFIGURED"'
+          code="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' "$GATEWAY_ORIGIN/api/v2/capabilities")"
+          test "$code" = "401"
+
+  frontend:
+    name: Deploy production frontend
+    needs: gateway
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    environment: Production
+    env:
+      RELEASE_SHA: ${{ inputs.release_sha }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+      NEXT_PUBLIC_SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ vars.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
+      NEXT_PUBLIC_OAUTH_PROVIDERS: ${{ vars.NEXT_PUBLIC_OAUTH_PROVIDERS }}
+      GATEWAY_WORKER: nexusrag-v6-gateway
+      FRONTEND_WORKER: nexusrag-v6-frontend
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.release_sha }}
+      - name: Verify exact protected-main source
+        working-directory: .
+        run: |
+          set -euo pipefail
+          git fetch origin main --depth=1
+          actual="$(git rev-parse HEAD)"
+          main="$(git rev-parse origin/main)"
+          test "$actual" = "$RELEASE_SHA"
+          test "$actual" = "$main"
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Resolve canonical production origins
+        working-directory: .
+        run: |
+          set -euo pipefail
+          response="$(curl --fail --silent --show-error -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+            "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/subdomain")"
+          subdomain="$(jq -er '.result.subdomain' <<<"$response")"
+          {
+            echo "NEXT_PUBLIC_API_URL=https://${GATEWAY_WORKER}.${subdomain}.workers.dev"
+            echo "NEXT_PUBLIC_SITE_URL=https://${FRONTEND_WORKER}.${subdomain}.workers.dev"
+          } >> "$GITHUB_ENV"
+      - name: Validate public configuration
+        run: |
+          set -euo pipefail
+          test "$NEXT_PUBLIC_SUPABASE_URL" = "https://fcjaomiceajcdownarel.supabase.co"
+          test -n "$NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"
+          test -n "$NEXT_PUBLIC_OAUTH_PROVIDERS"
+          grep -Eq "\"name\"[[:space:]]*:[[:space:]]*\"${FRONTEND_WORKER}\"" wrangler.production.jsonc
+          grep -Eq "\"service\"[[:space:]]*:[[:space:]]*\"${FRONTEND_WORKER}\"" wrangler.production.jsonc
+      - run: npm ci --ignore-scripts
+      - run: npm run lint
+      - run: npm test
+      - run: npm run cf:build
+      - run: npm run cf:deploy -- --config wrangler.production.jsonc
+      - name: Verify production frontend and gateway
+        working-directory: .
+        run: |
+          set -euo pipefail
+          probe() {
+            for attempt in 1 2 3 4 5; do
+              output="$(curl --fail --silent --show-error --location --connect-timeout 10 --max-time 30 "$1")" && {
+                printf '%s' "$output" | grep -q "$2"
+                return 0
+              }
+              sleep $((attempt * 2))
+            done
+            return 1
+          }
+          probe "$NEXT_PUBLIC_SITE_URL/" "NexusRAG"
+          probe "$NEXT_PUBLIC_SITE_URL/evidence-os" "Evidence"
+          probe "$NEXT_PUBLIC_API_URL/health" "ZERO_COST_LOW_TRAFFIC"
+      - name: Production browser smoke
+        run: |
+          npx playwright install --with-deps chromium
+          npm run test:visual:prepare
+          E2E_BASE_URL="$NEXT_PUBLIC_SITE_URL" E2E_OAUTH_PROVIDERS="$NEXT_PUBLIC_OAUTH_PROVIDERS" \
+            npx playwright test src/e2e/public-smoke.spec.ts src/e2e/visual-regression.spec.ts \
+              --project=chromium --project=mobile-chrome
+      - name: Publish deployment summary
+        working-directory: .
+        run: |
+          {
+            echo "## NexusRAG production"
+            echo
+            echo "- Frontend: $NEXT_PUBLIC_SITE_URL"
+            echo "- Gateway: $NEXT_PUBLIC_API_URL"
+            echo "- Commit: \`$RELEASE_SHA\`"
+            echo "- Environment: \`Production\`"
+          } >> "$GITHUB_STEP_SUMMARY"

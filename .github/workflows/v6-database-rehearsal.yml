@@ -123,3 +123,5 @@ jobs:
     steps:
       - name: Confirm clean baseline and recovery rehearsal passed
         run: echo "Clean Supabase baseline, migration, concurrency, backup, and restore rehearsal passed."
+
+# Production release branches run the same isolated recovery rehearsal before merge.
