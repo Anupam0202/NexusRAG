@@ -7,6 +7,10 @@ on:
         description: Exact main commit to deploy
         required: true
         type: string
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/production-deploy.yml
 
 permissions:
   contents: read
@@ -17,12 +21,13 @@ concurrency:
 
 jobs:
   gateway:
+    if: ${{ github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[deploy-production]') }}
     name: Deploy production gateway
     runs-on: ubuntu-latest
     timeout-minutes: 15
     environment: Production
     env:
-      RELEASE_SHA: ${{ inputs.release_sha }}
+      RELEASE_SHA: ${{ inputs.release_sha || github.sha }}
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
       SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL }}
@@ -40,7 +45,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
         with:
-          ref: ${{ inputs.release_sha }}
+          ref: ${{ inputs.release_sha || github.sha }}
       - name: Verify exact protected-main source
         run: |
           set -euo pipefail
@@ -121,7 +126,7 @@ jobs:
     timeout-minutes: 25
     environment: Production
     env:
-      RELEASE_SHA: ${{ inputs.release_sha }}
+      RELEASE_SHA: ${{ inputs.release_sha || github.sha }}
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
       NEXT_PUBLIC_SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL }}
@@ -135,7 +140,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
         with:
-          ref: ${{ inputs.release_sha }}
+          ref: ${{ inputs.release_sha || github.sha }}
       - name: Verify exact protected-main source
         working-directory: .
         run: |
