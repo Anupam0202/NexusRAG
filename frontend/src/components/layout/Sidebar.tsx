@@ -7,10 +7,10 @@ import {
   ChevronRight, Sparkles, Menu, X, ClipboardCheck, Building2,
   Network,
 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { useStore } from "@/hooks/useStore";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 
 const NAV = [
   { href: "/evidence-os", label: "Evidence OS", icon: Network },
@@ -24,21 +24,66 @@ const NAV = [
 
 export function Sidebar() {
   const pathname = usePathname();
-  const store = useStore();
+  const docCount = useStore(state => state.documents?.length ?? 0);
+  const sidebarRef = useRef<HTMLElement>(null);
+  const menuRef = useRef<HTMLButtonElement>(null);
+  const backdropRef = useRef<HTMLButtonElement>(null);
+  const reduceMotion = useReducedMotion();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const docCount = store.documents?.length ?? 0;
+  const isCollapsed = collapsed && !mobileOpen;
 
   // Close mobile on route change
   useEffect(() => { setMobileOpen(false); }, [pathname]);
+
+  useEffect(() => {
+    if (!mobileOpen) return;
+    const sidebar = sidebarRef.current;
+    if (!sidebar) return;
+    const previousOverflow = document.body.style.overflow;
+    const siblings = Array.from(sidebar.parentElement?.children || [])
+      .filter((node): node is HTMLElement => node instanceof HTMLElement && node !== sidebar && node !== backdropRef.current)
+      .map(element => ({ element, inert: element.inert }));
+    siblings.forEach(({ element }) => { element.inert = true; });
+    document.body.style.overflow = "hidden";
+    const focusable = () => Array.from(sidebar.querySelectorAll<HTMLElement>(
+      'a[href],button:not([disabled]),[tabindex]:not([tabindex="-1"])'
+    )).filter(element => element.getClientRects().length > 0);
+    const frame = requestAnimationFrame(() => (focusable()[0] || sidebar).focus());
+    function handleKey(event: KeyboardEvent) {
+      if (event.key === "Escape") { event.preventDefault(); setMobileOpen(false); return; }
+      if (event.key !== "Tab") return;
+      const nodes = focusable();
+      if (!nodes.length) { event.preventDefault(); sidebar?.focus(); return; }
+      const active = document.activeElement;
+      if (event.shiftKey && (active === nodes[0] || !sidebar?.contains(active))) {
+        event.preventDefault(); nodes[nodes.length - 1].focus();
+      } else if (!event.shiftKey && (active === nodes[nodes.length - 1] || !sidebar?.contains(active))) {
+        event.preventDefault(); nodes[0].focus();
+      }
+    }
+    function handleResize() { if (window.innerWidth >= 1024) setMobileOpen(false); }
+    document.addEventListener("keydown", handleKey);
+    window.addEventListener("resize", handleResize);
+    return () => {
+      cancelAnimationFrame(frame);
+      document.removeEventListener("keydown", handleKey);
+      window.removeEventListener("resize", handleResize);
+      document.body.style.overflow = previousOverflow;
+      siblings.forEach(({ element, inert }) => { element.inert = inert; });
+      if (menuRef.current?.getClientRects().length) menuRef.current.focus();
+    };
+  }, [mobileOpen]);
 
   return (
     <>
       {/* Mobile menu button */}
       <button
+        ref={menuRef}
         onClick={() => setMobileOpen(true)}
         aria-label="Open navigation menu"
         aria-expanded={mobileOpen}
+        aria-controls="nexus-navigation"
         className="lg:hidden fixed top-3 left-3 z-50 flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--bg-card)] border border-[var(--border)] shadow-md text-[var(--text-secondary)] hover:text-brand-500 transition"
       >
         <Menu size={18} />
@@ -47,7 +92,9 @@ export function Sidebar() {
       {/* Mobile overlay */}
       {mobileOpen && (
         <button
+          ref={backdropRef}
           type="button"
+          tabIndex={-1}
           aria-label="Close navigation menu"
           className="sidebar-backdrop lg:hidden"
           onClick={() => setMobileOpen(false)}
@@ -56,11 +103,17 @@ export function Sidebar() {
 
       {/* Sidebar */}
       <aside
+        ref={sidebarRef}
+        id="nexus-navigation"
+        role={mobileOpen ? "dialog" : undefined}
+        aria-modal={mobileOpen ? true : undefined}
+        aria-label={mobileOpen ? "Navigation menu" : undefined}
+        tabIndex={mobileOpen ? -1 : undefined}
         className={cn(
           "flex flex-col border-r border-[var(--border)] bg-[var(--bg-secondary)] transition-all duration-300 ease-in-out z-50 shrink-0",
           /* Desktop */
           "hidden lg:flex",
-          collapsed ? "w-[68px]" : "w-[240px]",
+          isCollapsed ? "w-[68px]" : "w-[240px]",
           /* Mobile override (absolute) */
           mobileOpen && "!flex fixed inset-y-0 left-0 w-[260px] shadow-2xl"
         )}
@@ -68,18 +121,18 @@ export function Sidebar() {
         {/* Brand header */}
         <div className={cn(
           "flex items-center gap-3 border-b border-[var(--border)] px-4 h-14 shrink-0",
-          collapsed && "justify-center px-2"
+          isCollapsed && "justify-center px-2"
         )}>
           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-linear-to-br/srgb from-brand-500 via-purple-500 to-pink-500 shadow-md">
             <Sparkles size={16} className="text-white" />
           </div>
           <AnimatePresence>
-            {!collapsed && (
+            {!isCollapsed && (
               <motion.div
                 initial={false}
                 animate={{ opacity: 1, width: "auto" }}
                 exit={{ opacity: 0, width: 0 }}
-                transition={{ duration: 0.2 }}
+                transition={{ duration: reduceMotion ? 0 : 0.2 }}
                 className="overflow-hidden"
               >
                 <p className="text-sm font-bold leading-tight gradient-text">NexusRAG</p>
@@ -90,7 +143,7 @@ export function Sidebar() {
 
           {/* Mobile close */}
           {mobileOpen && (
-            <button onClick={() => setMobileOpen(false)} className="ml-auto lg:hidden rounded-lg p-1.5 hover:bg-[var(--bg-hover)] transition">
+            <button aria-label="Dismiss navigation menu" onClick={() => setMobileOpen(false)} className="ml-auto lg:hidden rounded-lg p-1.5 hover:bg-[var(--bg-hover)] transition">
               <X size={16} />
             </button>
           )}
@@ -106,9 +159,10 @@ export function Sidebar() {
                 key={item.href}
                 href={item.href}
                 aria-current={active ? "page" : undefined}
+                aria-label={item.label}
                 className={cn(
                   "group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200",
-                  collapsed && "justify-center px-2",
+                  isCollapsed && "justify-center px-2",
                   active
                     ? "bg-indigo-50 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300"
                     : "text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
@@ -126,16 +180,16 @@ export function Sidebar() {
                     active ? "text-brand-500" : "group-hover:scale-110"
                   )}
                 />
-                {!collapsed && <span>{item.label}</span>}
+                {!isCollapsed && <span>{item.label}</span>}
 
                 {/* Active dot for collapsed mode */}
-                {collapsed && active && (
+                {isCollapsed && active && (
                   <span className="absolute -right-0.5 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-brand-500" />
                 )}
 
                 {/* Tooltip for collapsed */}
-                {collapsed && (
-                  <span className="absolute left-full ml-3 px-2.5 py-1 rounded-lg bg-gray-900 text-white text-xs font-medium whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity shadow-lg z-50">
+                {isCollapsed && (
+                  <span className="absolute left-full ml-3 px-2.5 py-1 rounded-lg bg-gray-900 text-white text-xs font-medium whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 group-focus-visible:opacity-100 transition-opacity shadow-lg z-50">
                     {item.label}
                   </span>
                 )}
@@ -147,10 +201,10 @@ export function Sidebar() {
         {/* Footer */}
         <div className={cn(
           "border-t border-[var(--border)] px-3 py-3 shrink-0 space-y-2",
-          collapsed && "px-2"
+          isCollapsed && "px-2"
         )}>
           {/* Doc count badge */}
-          {docCount > 0 && !collapsed && (
+          {docCount > 0 && !isCollapsed && (
             <div className="flex items-center gap-2 rounded-xl bg-linear-to-r/srgb from-brand-500/10 to-purple-500/10 px-3 py-2 animate-fade-in">
               <span className="relative flex h-2 w-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
@@ -164,10 +218,12 @@ export function Sidebar() {
 
           {/* Collapse toggle (desktop only) */}
           <button
+            aria-label={isCollapsed ? "Expand navigation sidebar" : "Collapse navigation sidebar"}
+            aria-expanded={!collapsed}
             onClick={() => setCollapsed(!collapsed)}
             className="hidden lg:flex w-full items-center justify-center gap-2 rounded-xl py-2 text-[var(--text-muted)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] transition text-xs"
           >
-            {collapsed ? <ChevronRight size={14} /> : <><ChevronLeft size={14} /> Collapse</>}
+            {isCollapsed ? <ChevronRight size={14} /> : <><ChevronLeft size={14} /> Collapse</>}
           </button>
         </div>
       </aside>
