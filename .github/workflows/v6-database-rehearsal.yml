@@ -16,7 +16,7 @@ concurrency:
 
 jobs:
   clean-baseline-rehearsal:
-    name: Clean Supabase baseline rehearsal
+    name: PostgreSQL 17 migration and concurrency rehearsal
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
@@ -105,11 +105,17 @@ jobs:
           retention-days: 14
 
   required-clean-supabase-summary:
+    if: always()
     name: Clean Supabase baseline rehearsal
     needs: clean-baseline-rehearsal
     runs-on: ubuntu-latest
     steps:
       - name: Confirm clean baseline and recovery rehearsal passed
-        run: echo "Clean Supabase baseline, migration, concurrency, backup, and restore rehearsal passed."
+        env:
+          REHEARSAL_RESULT: ${{ needs.clean-baseline-rehearsal.result }}
+        run: |
+          set -euo pipefail
+          test "$REHEARSAL_RESULT" = success
+          echo "Clean Supabase baseline, migration, concurrency, backup, and restore rehearsal passed."
 
 # Production release branches run the same isolated recovery rehearsal before merge.

@@ -26,6 +26,14 @@ class PreviewTargetIsolationTests(unittest.TestCase):
         self.assertIn("  pull_request:\n    branches: [main]", workflow)
         self.assertEqual(workflow.count("inputs.deploy_candidate_preview && github.ref == 'refs/heads/main'"), 2)
 
+    def test_database_required_summary_fails_closed(self):
+        repository = Path(__file__).resolve().parents[2]
+        workflow = (repository / ".github/workflows/v6-database-rehearsal.yml").read_text()
+        self.assertIn("  required-clean-supabase-summary:\n    if: always()", workflow)
+        self.assertIn("REHEARSAL_RESULT: ${{ needs.clean-baseline-rehearsal.result }}", workflow)
+        self.assertIn('test "$REHEARSAL_RESULT" = success', workflow)
+        self.assertEqual(workflow.count("name: Clean Supabase baseline rehearsal"), 1)
+
     def test_queue_creation_uses_free_plan_retention_limit(self):
         repository = Path(__file__).resolve().parents[2]
         workflow = (repository / ".github/workflows/cloudflare-preview-deploy.yml").read_text()
