@@ -1,6 +1,6 @@
 # Comprehensive application audit
 
-Status: **PATCH_VALIDATED_LOCALLY — CLEANUP_INTEGRATION_PENDING — NOT_PRODUCTION_VERIFIED**
+Status: **SOURCE_VALIDATED — NOT_PRODUCTION_VERIFIED**
 
 This receipt supersedes historical status claims only where it records a fresh observation. It does not certify a complete product, production release, provider rights, or absence of all defects.
 
@@ -79,7 +79,7 @@ Browser regression evidence and exact commands are retained with the local audit
 
 ## Repository cleanup
 
-Four obsolete branches were backed up in a verified external git bundle before deletion: the tree-identical release branch, the squash-integrated PR 2 and PR 3 branches, and the abandoned PR 1 legacy branch. The external backup is not committed to the application repository. Candidate deployment now accepts only an explicit manual dispatch on main and remains restricted to the isolated rehearsal backend; retired branch triggers have been removed. An unreferenced legacy frontend Worker wrapper and its unused alternate configuration were removed; the active OpenNext candidate/PR3/production configurations remain. Required database rehearsal context now matches branch protection and runs on every PR, instead of leaving unrelated changes permanently pending. Live preview Workers and database resources were not deleted. Historical migration and audit evidence is retained rather than misclassified as application clutter.
+Four obsolete branches were backed up in a verified external git bundle before deletion: the tree-identical release branch, the squash-integrated PR 2 and PR 3 branches, and the abandoned PR 1 legacy branch. The external backup is not committed to the application repository. Candidate deployment now accepts only an explicit manual dispatch on main and remains restricted to the isolated rehearsal backend; retired branch triggers have been removed. An unreferenced legacy frontend Worker wrapper, its unused alternate configuration, and its obsolete type shim were removed; the active OpenNext candidate/PR3/production configurations remain. Required database rehearsal context now matches branch protection and runs on every PR, instead of leaving unrelated changes permanently pending. Live preview Workers and database resources were not deleted. Historical migration and audit evidence is retained rather than misclassified as application clutter.
 
 ## Publication boundary
 
