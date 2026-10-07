@@ -34,6 +34,19 @@ jobs:
         working-directory: backend
       - run: python3 scripts/run_isolated.py
         working-directory: backend
+  backend-full:
+    name: Backend complete offline suite
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: backend/requirements-test.txt
+      - run: python3 -m pip install -r backend/requirements-test.txt
+      - run: python3 backend/scripts/run_full_tests.py
   evaluation-inventory:
     name: Evaluation inventory
     runs-on: ubuntu-latest
@@ -103,7 +116,30 @@ jobs:
         working-directory: frontend
       - run: npm run build
         working-directory: frontend
-        env: {NEXT_TELEMETRY_DISABLED: "1"}
+        env:
+          NEXT_TELEMETRY_DISABLED: "1"
+          NEXT_PUBLIC_SUPABASE_URL: https://supabase.invalid
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: synthetic-public-browser-test-key
+          NEXT_PUBLIC_API_URL: http://localhost:8000
+      - name: Public desktop/mobile and visual browser regressions
+        working-directory: frontend
+        run: |
+          set -euo pipefail
+          npm exec playwright -- install --with-deps chromium
+          npm run test:visual:prepare
+          npm run start -- --port 3002 > /tmp/nexusrag-browser-server.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          ready=false
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://localhost:3002/auth/login >/dev/null; then
+              ready=true
+              break
+            fi
+            sleep 1
+          done
+          test "$ready" = true || { cat /tmp/nexusrag-browser-server.log; exit 1; }
+          npm exec playwright -- test public-smoke.spec.ts visual-regression.spec.ts --workers=2
   dependency-review:
     name: Dependency review (lockfiles)
     runs-on: ubuntu-latest
@@ -152,13 +188,14 @@ jobs:
   required-summary:
     name: Required foundation summary
     if: always()
-    needs: [migration-integrity,backend-isolated,evaluation-inventory,cloudflare-foundation,frontend,dependency-review,supply-chain]
+    needs: [migration-integrity,backend-isolated,backend-full,evaluation-inventory,cloudflare-foundation,frontend,dependency-review,supply-chain]
     runs-on: ubuntu-latest
     steps:
       - name: Fail unless required jobs passed
         env:
           MIGRATION_RESULT: ${{ needs.migration-integrity.result }}
           BACKEND_RESULT: ${{ needs.backend-isolated.result }}
+          BACKEND_FULL_RESULT: ${{ needs.backend-full.result }}
           EVALUATION_RESULT: ${{ needs.evaluation-inventory.result }}
           CLOUDFLARE_RESULT: ${{ needs.cloudflare-foundation.result }}
           FRONTEND_RESULT: ${{ needs.frontend.result }}
@@ -169,6 +206,7 @@ jobs:
           printf 'migration=%s backend=%s evaluation=%s cloudflare=%s frontend=%s dependency=%s supply_chain=%s\n' "$MIGRATION_RESULT" "$BACKEND_RESULT" "$EVALUATION_RESULT" "$CLOUDFLARE_RESULT" "$FRONTEND_RESULT" "$DEPENDENCY_RESULT" "$SUPPLY_CHAIN_RESULT"
           test "$MIGRATION_RESULT" = success
           test "$BACKEND_RESULT" = success
+          test "$BACKEND_FULL_RESULT" = success
           test "$EVALUATION_RESULT" = success
           test "$CLOUDFLARE_RESULT" = success
           test "$FRONTEND_RESULT" = success

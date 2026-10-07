@@ -102,7 +102,7 @@ function localAppFixture() {
       }
       if (table === "document_versions") {
         if (method === "POST") { for (const row of body) versions.set(row.id, { ...row }); return json(body.map((row) => versions.get(row.id)), 201); }
-        if (method === "GET") { const id = url.searchParams.get("id")?.replace(/^eq\./, ""); if (id) return json(versions.has(id) ? [structuredClone(versions.get(id))] : []); return json([...versions.values()].filter((row) => row.workspace_id === workspace && row.publication_state === "ready" && row.data_classification === "non_sensitive").map((row) => ({ id: row.id, document_id: row.document_id }))); }
+        if (method === "GET") { const id = url.searchParams.get("id")?.replace(/^eq\./, ""); if (id) return json(versions.has(id) ? [structuredClone(versions.get(id))] : []); return json([...versions.values()].filter((row) => row.workspace_id === workspace && row.publication_state === "ready" && row.data_classification === "non_sensitive").map((row) => ({ id: row.id, document_id: row.document_id, index_generation: row.index_generation }))); }
       }
       if (table === "ingestion_jobs") {
         if (method === "POST") { for (const row of body) jobs.set(row.id, { ...row, lease_generation: 0, max_attempts: row.max_attempts || 3, cancellation_requested_at: null }); return json(body.map((row) => jobs.get(row.id)), 201); }

@@ -20,7 +20,7 @@
     "clsx": "^2.1.1",
     "framer-motion": "^11.2.0",
     "lucide-react": "^0.400.0",
-    "next": "^16.3.5",
+    "next": "^16.3.8",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
     "react-dropzone": "^14.2.3",
@@ -31,7 +31,7 @@
     "zustand": "^4.5.0"
   },
   "devDependencies": {
-    "@opennextjs/cloudflare": "^1.20.6",
+    "@opennextjs/cloudflare": "^1.20.9",
     "@playwright/test": "^1.60.0",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
@@ -42,25 +42,23 @@
     "autoprefixer": "^10.4.0",
     "esbuild": "^0.28.1",
     "eslint": "^9.39.4",
-    "eslint-config-next": "^16.3.5",
+    "eslint-config-next": "^16.3.8",
     "jsdom": "^29.1.1",
     "playwright": "^1.60.0",
     "postcss": "^8.5.28",
     "tailwindcss": "^3.4.0",
     "typescript": "^5.5.0",
-    "vitest": "^4.1.8",
-    "wrangler": "^4.135.0"
+    "vitest": "^4.1.11",
+    "wrangler": "^4.148.0"
   },
   "overrides": {
     "@babel/core": "^7.29.7",
     "js-yaml": "4.3.2",
-    "undici": "7.29.0",
+    "undici": "7.30.0",
     "postcss": "^8.5.28",
-    "sharp": "0.35.4",
+    "sharp": "0.35.5",
     "nanoid": "3.3.18",
     "browserslist": "4.28.9",
-    "brace-expansion@1.1.14": "1.1.18",
-    "brace-expansion@>=3.0.0 <=5.0.8": "5.0.9",
     "tinyglobby": {
       "picomatch": "^4.0.4"
     },
@@ -72,6 +70,10 @@
     },
     "readdirp": {
       "picomatch": "^2.3.2"
-    }
+    },
+    "postcss-selector-parser": "7.1.6",
+    "brace-expansion@1": "1.1.21",
+    "brace-expansion@>=3": "5.0.12",
+    "source-map-js": "1.2.2"
   }
 }

@@ -4,6 +4,7 @@ const providerLabels: Record<string, string> = {
   github: "GitHub",
   google: "Google",
 };
+const providerOrder = ["google", "github"] as const;
 
 const routes = [
   { path: "/auth/login", heading: "Sign in to NexusRAG" },
@@ -35,9 +36,15 @@ for (const route of routes) {
 test("OAuth gateway presents exactly the configured providers", async ({ page }) => {
   await page.goto("/auth/login");
 
-  const expectedProviders = (
-    process.env.E2E_OAUTH_PROVIDERS || "github"
-  ).split(",").map((provider) => provider.trim()).filter(Boolean);
+  const configuredProviders = new Set(
+    (process.env.E2E_OAUTH_PROVIDERS || "google,github")
+      .split(",")
+      .map((provider) => provider.trim().toLowerCase())
+      .filter(Boolean)
+  );
+  const expectedProviders = providerOrder.filter((provider) =>
+    configuredProviders.has(provider)
+  );
   const providerButtons = page.locator("main").getByRole("button");
   await expect(providerButtons).toHaveCount(expectedProviders.length);
   for (const [index, provider] of expectedProviders.entries()) {

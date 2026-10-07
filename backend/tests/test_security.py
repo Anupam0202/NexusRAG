@@ -191,7 +191,7 @@ def test_legacy_hosting_blueprints_are_retired() -> None:
     deploy = (root / ".github/workflows/cloudflare-preview-deploy.yml").read_text(
         encoding="utf-8"
     )
-    assert "environment: Preview" in deploy
+    assert "environment: NexusRAG-Candidate-Preview" in deploy
     assert "CLOUDFLARE_API_TOKEN" in deploy
     assert "NEXT_PUBLIC_SUPABASE_URL" in deploy
     assert "SUPABASE_PUBLISHABLE_KEY" in deploy

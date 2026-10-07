@@ -9,8 +9,6 @@ import type { DocumentUploadResponse } from "@/types";
 
 const ACCEPTED: Record<string, string[]> = {
   "application/pdf": [".pdf"],
-  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [".xlsx"],
-  "application/vnd.ms-excel": [".xls"],
   "text/csv": [".csv"],
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document": [".docx"],
   "text/plain": [".txt"],
@@ -18,17 +16,17 @@ const ACCEPTED: Record<string, string[]> = {
   "application/json": [".json"],
   "image/png": [".png"],
   "image/jpeg": [".jpg", ".jpeg"],
-  "image/gif": [".gif"],
   "image/webp": [".webp"],
-  "image/bmp": [".bmp"],
+  "application/zip": [".zip"],
   "image/tiff": [".tif", ".tiff"],
 };
 
-const ACCEPTED_SUMMARY = "PDF, DOCX, XLSX, CSV, TXT, MD, JSON, PNG/JPG/TIFF";
+const ACCEPTED_SUMMARY = "PDF, DOCX, ZIP, CSV, TXT, MD, JSON, PNG/JPG/WebP/TIFF";
 const MAX_FILES_PER_DROP = 8;
 
 export interface UploadLimits {
   maxUploadMb: number;
+  maxUploadBytes?: number;
   maxPdfPages: number;
   maxPdfOcrPages: number;
   maxImageMegapixels: number;
@@ -37,7 +35,8 @@ export interface UploadLimits {
 }
 
 export const DEFAULT_UPLOAD_LIMITS: UploadLimits = {
-  maxUploadMb: 100,
+  maxUploadMb: 10,
+  maxUploadBytes: 10_000_000,
   maxPdfPages: 40,
   maxPdfOcrPages: 12,
   maxImageMegapixels: 25,
@@ -110,7 +109,7 @@ export function UploadZone({ onUpload, uploading, limits, disabledReason }: Prop
     onDropRejected,
     accept: ACCEPTED,
     maxFiles: MAX_FILES_PER_DROP,
-    maxSize: limits.maxUploadMb * 1024 * 1024,
+    maxSize: limits.maxUploadBytes ?? limits.maxUploadMb * 1_000_000,
     multiple: true,
     disabled,
     useFsAccessApi: false,
@@ -174,8 +173,7 @@ export function UploadZone({ onUpload, uploading, limits, disabledReason }: Prop
             {ACCEPTED_SUMMARY} - up to {limits.maxUploadMb} MB each; {MAX_FILES_PER_DROP} per batch.
           </p>
           <p className="mt-1 max-w-md text-center text-[11px] leading-4 text-[var(--text-muted)]">
-            PDFs up to {limits.maxPdfPages} pages; scanned PDFs up to{" "}
-            {limits.maxPdfOcrPages} OCR pages; images up to {limits.maxImageMegapixels} MP.
+            Processing is bounded by extraction and indexing capacity. Large or complex documents may be rejected; spreadsheet files must first be exported as CSV.
           </p>
           {(!limits.pdfEmbeddedImageOcr || !limits.docxEmbeddedImageOcr) && (
             <p className="mt-1 max-w-md text-center text-[11px] leading-4 text-[var(--text-muted)]">

@@ -73,6 +73,8 @@ htmlcov/
 output/
 frontend/test-results/
 frontend/playwright-report/
+frontend/src/e2e/visual-regression.spec.ts-snapshots/
+*.tsbuildinfo
 
 # ─── Logs ────────────────────────────────────────────────────
 *.log
@@ -98,5 +100,6 @@ docker-compose.override.yml
 *.tmp
 *.temp
 .cache/
+artifacts/
 repo.xml
 .worktrees/
