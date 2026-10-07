@@ -125,6 +125,12 @@ jobs:
         working-directory: frontend
         run: |
           set -euo pipefail
+          # Avoid the HTTP Azure mirror timing out before Playwright can start.
+          for apt_source in /etc/apt/apt-mirrors.txt /etc/apt/sources.list /etc/apt/sources.list.d/ubuntu.sources; do
+            if [ -f "$apt_source" ]; then
+              sudo sed -i 's|http://azure.archive.ubuntu.com/ubuntu|https://archive.ubuntu.com/ubuntu|g' "$apt_source"
+            fi
+          done
           npm exec playwright -- install --with-deps chromium
           npm run test:visual:prepare
           npm run start -- --port 3002 > /tmp/nexusrag-browser-server.log 2>&1 &

@@ -258,7 +258,14 @@ jobs:
           probe "$NEXT_PUBLIC_SITE_URL/evidence-os" "Evidence"
           probe "$NEXT_PUBLIC_API_URL/health" "ZERO_COST_LOW_TRAFFIC"
       - name: Install browser for desktop and mobile E2E
-        run: npx playwright install --with-deps chromium
+        run: |
+          # Avoid the HTTP Azure mirror timing out before Playwright can start.
+          for apt_source in /etc/apt/apt-mirrors.txt /etc/apt/sources.list /etc/apt/sources.list.d/ubuntu.sources; do
+            if [ -f "$apt_source" ]; then
+              sudo sed -i 's|http://azure.archive.ubuntu.com/ubuntu|https://archive.ubuntu.com/ubuntu|g' "$apt_source"
+            fi
+          done
+          npx playwright install --with-deps chromium
       - name: Run deployed desktop and mobile E2E
         run: |
           npm run test:visual:prepare
