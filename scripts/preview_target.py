@@ -45,6 +45,8 @@ def validate_targets() -> None:
         gateway = json.loads(gateway_path.read_text(encoding="utf-8"))
         if gateway.get("name") != target["GATEWAY_WORKER"]:
             raise ValueError(f"Gateway config name mismatch: {gateway_path}")
+        if gateway.get("observability", {}).get("redact_query_string") is not True:
+            raise ValueError(f"Candidate gateway must redact sensitive query strings: {gateway_path}")
         queues = gateway.get("queues", {})
         producers = queues.get("producers", [])
         consumers = queues.get("consumers", [])
@@ -57,6 +59,8 @@ def validate_targets() -> None:
 
         frontend_path = ROOT / "frontend" / target["FRONTEND_CONFIG"]
         frontend_text = frontend_path.read_text(encoding="utf-8")
+        if '"redact_query_string": true' not in frontend_text:
+            raise ValueError(f"Candidate frontend must redact sensitive query strings: {frontend_path}")
         for expected in (
             f'"name": "{target["FRONTEND_WORKER"]}"',
             f'"main": ".open-next/worker.js"',
