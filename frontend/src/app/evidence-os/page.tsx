@@ -3,23 +3,24 @@ import {
   Calculator, CloudCog, Code2, FileSearch, Landmark, Network,
   PackageCheck, Scale, ShieldCheck,
 } from "lucide-react";
+import Link from "@/components/layout/StaticLink";
 
 const PRODUCTS = [
-  { name: "Evidence Workbench", description: "Evidence-first research with claim status, citations, comparisons, timelines, and contradiction analysis.", icon: FileSearch, state: "FOUNDATION_READY" },
-  { name: "API Terms & Quota Radar", description: "Material-change detection for provider terms, quotas, pricing, schemas, and deprecations.", icon: Activity, state: "FOUNDATION_READY" },
-  { name: "Regulatory Obligation Compiler", description: "Review-first obligations linked to authoritative text, jurisdiction, actors, dates, and supersession.", icon: Scale, state: "FOUNDATION_READY" },
+  { name: "Evidence Workbench", description: "Evidence-first research with claim status, citations, comparisons, timelines, and contradiction analysis.", icon: FileSearch, state: "FOUNDATION_ONLY" },
+  { name: "API Terms & Quota Radar", description: "Material-change detection for provider terms, quotas, pricing, schemas, and deprecations.", icon: Activity, state: "FOUNDATION_ONLY" },
+  { name: "Regulatory Obligation Compiler", description: "Review-first obligations linked to authoritative text, jurisdiction, actors, dates, and supersession.", icon: Scale, state: "FOUNDATION_ONLY" },
   { name: "Procurement Intelligence Graph", description: "Evidence-linked notices, buyers, suppliers, lots, awards, amendments, and identifiers.", icon: Landmark, state: "PROVIDER_REVIEW" },
-  { name: "Counterparty Evidence Graph", description: "Temporal entity resolution that keeps assertions, uncertainty, and verified joins distinct.", icon: Building2, state: "FOUNDATION_READY" },
-  { name: "Product Evidence Passport", description: "Portable software evidence claims with deterministic JSON-LD receipts and SBOM-ready provenance.", icon: PackageCheck, state: "FOUNDATION_READY" },
+  { name: "Counterparty Evidence Graph", description: "Temporal entity resolution that keeps assertions, uncertainty, and verified joins distinct.", icon: Building2, state: "FOUNDATION_ONLY" },
+  { name: "Product Evidence Passport", description: "Portable software evidence claims with deterministic JSON-LD receipts and SBOM-ready provenance.", icon: PackageCheck, state: "FOUNDATION_ONLY" },
   { name: "Scientific Evidence Workbench", description: "Paper, registry, dataset, and authority evidence with versioned extraction and review.", icon: Beaker, state: "CONNECTORS_PENDING" },
   { name: "Open-Source Assurance Graph", description: "OSV, KEV, SPDX, VEX, and SLSA evidence without flattening uncertainty.", icon: Code2, state: "PROVIDER_REVIEW" },
   { name: "Infrastructure & Public Risk", description: "Watchlist-driven monitoring of authoritative public-risk sources within bounded quotas.", icon: CloudCog, state: "PROVIDER_REVIEW" },
-  { name: "Evidence API & MCP", description: "Capability-scoped evidence operations with tenant, rights, version, and budget enforcement.", icon: Network, state: "CONTRACT_READY" },
+  { name: "Evidence API & MCP", description: "Capability-scoped evidence operations with tenant, rights, version, and budget enforcement.", icon: Network, state: "DECLARATION_ONLY" },
 ] as const;
 
 const STATUS_STYLE: Record<string, string> = {
-  FOUNDATION_READY: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
-  CONTRACT_READY: "bg-blue-500/10 text-blue-700 dark:text-blue-300",
+  FOUNDATION_ONLY: "bg-slate-500/10 text-slate-700 dark:text-slate-300",
+  DECLARATION_ONLY: "bg-blue-500/10 text-blue-700 dark:text-blue-300",
   PROVIDER_REVIEW: "bg-amber-500/10 text-amber-700 dark:text-amber-300",
   CONNECTORS_PENDING: "bg-slate-500/10 text-slate-700 dark:text-slate-300",
 };
@@ -48,6 +49,11 @@ export default function EvidenceOSPage() {
                 <span key={item} className="rounded-lg bg-white/10 px-3 py-2">{item}</span>
               ))}
             </div>
+            <div className="mt-6 flex flex-wrap gap-3">
+              <Link href="/findings" className="rounded-xl bg-white px-4 py-2 text-sm font-semibold text-indigo-950">Open findings & reviews</Link>
+              <Link href="/documents" className="rounded-xl border border-white/30 px-4 py-2 text-sm font-semibold">Open document library</Link>
+            </div>
+            <p className="mt-4 text-xs leading-5 text-indigo-100">Create, share, review and export private findings in the workbench. Some product workflows and connectors below are incomplete; their readiness has not been verified.</p>
           </div>
         </section>
 
@@ -88,10 +94,10 @@ export default function EvidenceOSPage() {
           <p className="mt-1 text-xs text-[var(--text-muted)]">Live services stay disabled until their identity, rights, budget, and isolation gates are verified.</p>
           <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
             {[
-              ["Cloudflare gateway", "PREVIEW FOUNDATION"],
-              ["Supabase authority", "SCHEMA VERIFIED"],
-              ["Qdrant retrieval", "CREDENTIAL REQUIRED"],
-              ["Gemini gateway", "CREDENTIAL REQUIRED"],
+              ["Cloudflare gateway", "LIVE STATUS NOT VERIFIED"],
+              ["Supabase authority", "CHECK WORKSPACE ACCESS"],
+              ["Qdrant retrieval", "AVAILABILITY NOT VERIFIED"],
+              ["Gemini gateway", "RIGHTS & BUDGET REQUIRED"],
             ].map(([label, state]) => (
               <div key={label} className="rounded-xl border border-[var(--border)] bg-[var(--bg-card)] p-3">
                 <div className="text-xs font-semibold">{label}</div>

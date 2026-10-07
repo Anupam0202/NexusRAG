@@ -1,8 +1,10 @@
 # Requirement traceability
 
-Status: `DEFINED_AND_LOCALLY_TESTED_WITH_LEGACY_SOURCE_BLOCKERS`
+Status: `PARTIAL_NOT_COMPLETE_WITH_ACCEPTED_NORMATIVE_BASELINE`
 
-The supplied V6 prompt defines `Z01–Z32` and instructs the project to add `S`, `G`, and `P`. This file defines those three new families and maps them to implementation evidence. The prompt asks to preserve `R`, `CF`, and `A`, but does not provide their normative definitions; those 96 legacy entries remain `BLOCKED_SOURCE_DEFINITION_MISSING` rather than being invented.
+The V6 prompt defines `Z01–Z32` and adds `S`, `G`, and `P`. The accepted owner-directed `LEGACY_REPLACEMENT_BASELINE.md` defines `R`, `CF`, and `A`; missing historical wording is no longer an unresolved source blocker. This does not establish complete-product acceptance.
+
+The mappings below retain historical source/test evidence. A filename, synthetic fixture, or older preview receipt does not prove the current UI-to-runtime workflow. The current acceptance boundary and unresolved implementation work are maintained in `docs/audits/COMPREHENSIVE_APPLICATION_AUDIT.md`.
 
 ## S register
 

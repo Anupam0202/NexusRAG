@@ -4,9 +4,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const { getSystemStatus } = vi.hoisted(() => ({
   getSystemStatus: vi.fn(),
 }));
+const route = vi.hoisted(() => ({ value: "/documents" }));
 
 vi.mock("next/navigation", () => ({
-  usePathname: () => "/documents",
+  usePathname: () => route.value,
 }));
 vi.mock("@/components/auth/AuthMenu", () => ({
   AuthMenu: () => <div data-testid="auth-menu" />,
@@ -20,8 +21,16 @@ import { Header } from "./Header";
 
 describe("Header", () => {
   beforeEach(() => {
-    useStore.setState({ connectionStatus: "checking" });
+    useStore.setState({ connectionStatus: "checking", authMode: "authenticated", authUser: { id: "synthetic-user", email: null }, workspaceId: "synthetic-workspace" });
     getSystemStatus.mockReset();
+    route.value = "/documents";
+  });
+  it("uses the actual Evidence OS route title instead of Chat", async () => {
+    route.value = "/evidence-os";
+    getSystemStatus.mockRejectedValue(new Error("Offline fixture"));
+    render(<Header />);
+    expect(screen.getByRole("heading", { name: "Evidence OS" })).toBeInTheDocument();
+    await waitFor(() => expect(useStore.getState().connectionStatus).toBe("offline"));
   });
 
   it("does not show Backend live when Supabase persistence is unauthorized", async () => {

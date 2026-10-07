@@ -12,7 +12,8 @@
     "test:visual:prepare": "node scripts/materialize-visual-baselines.mjs",
     "cf:build": "opennextjs-cloudflare build && node scripts/copy-prerendered-routes.mjs",
     "cf:preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
-    "cf:deploy": "opennextjs-cloudflare deploy"
+    "cf:deploy": "opennextjs-cloudflare deploy",
+    "test:e2e:authenticated": "node scripts/run-authenticated-e2e.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.10.3",

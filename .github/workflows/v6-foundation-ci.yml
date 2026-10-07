@@ -45,6 +45,7 @@ jobs:
           python-version: "3.13"
           cache: pip
           cache-dependency-path: backend/requirements-test.txt
+      - run: python3 -m pip install --upgrade "pip>=26.2"
       - run: python3 -m pip install -r backend/requirements-test.txt
       - run: python3 backend/scripts/run_full_tests.py
   evaluation-inventory:
@@ -131,7 +132,7 @@ jobs:
               sudo sed -i 's|http://azure.archive.ubuntu.com/ubuntu|https://archive.ubuntu.com/ubuntu|g' "$apt_source"
             fi
           done
-          npm exec playwright -- install --with-deps chromium
+          npm exec playwright -- install --with-deps chromium firefox webkit
           npm run test:visual:prepare
           npm run start -- --port 3002 > /tmp/nexusrag-browser-server.log 2>&1 &
           server_pid=$!
@@ -146,6 +147,7 @@ jobs:
           done
           test "$ready" = true || { cat /tmp/nexusrag-browser-server.log; exit 1; }
           npm exec playwright -- test public-smoke.spec.ts visual-regression.spec.ts --workers=2
+          npm exec playwright -- test --config=playwright.cross-browser.config.ts --workers=2
   dependency-review:
     name: Dependency review (lockfiles)
     runs-on: ubuntu-latest

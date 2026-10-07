@@ -18,7 +18,7 @@ Status: `PARTIAL_NOT_COMPLETE_WITH_PUBLISHED_EVIDENCE`
 | 12 | Terms and quota report | provider registry and rights register | REVIEWED_FAIL_CLOSED |
 | 13 | Standards mapping | `backend/src/domain/standards_mapping.py` and traceability report | LOCALLY_TESTED |
 | 14 | Evidence graph schema | Supabase baseline graph tables | LOCALLY_TESTED |
-| 15 | Obligation schema | `backend/src/domain/regulatory_obligations.py` | LOCALLY_TESTED |
+| 15 | Obligation schema | `backend/src/domain/obligations.py` | LOCALLY_TESTED |
 | 16 | Procurement schema | `backend/src/domain/evidence_verticals.py` | LOCALLY_TESTED |
 | 17 | Counterparty schema | `backend/src/domain/evidence_verticals.py` | LOCALLY_TESTED |
 | 18 | Product Passport schema | `backend/src/domain/product_passport.py` | LOCALLY_TESTED |

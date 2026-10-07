@@ -1,10 +1,64 @@
 # Comprehensive application audit
 
-Status: **SOURCE_VALIDATED — NOT_PRODUCTION_VERIFIED**
+Status: **PARTIAL_NOT_COMPLETE — locally tested implementation; not production verified**
 
 This receipt supersedes historical status claims only where it records a fresh observation. It does not certify a complete product, production release, provider rights, or absence of all defects.
 
-## Scope and evidence
+## Current completion execution — authoritative scope
+
+Starting main identity: `f508abb7ebcef6b8b1992ae27c898f08256dc78a`. Full history and the complete tracked-file byte/import inventory were inspected; focused executable review covered authorization, ingestion/retrieval/lifecycle, SQL, UI state and deployment paths. An inventory is not a claim that every line received manual review.
+
+### Implemented and traced workflows
+
+| Workflow | UI → API → durable authority | Acceptance evidence / boundary |
+| --- | --- | --- |
+| Private finding create/edit/read | `/findings` → `/api/v2/findings` → service-only `nexus_finding`, existing private-record authorization, immutable revisions | Gateway tests; UI regression tests; local PostgreSQL two-identity stand-ins. No real OAuth isolation claim. |
+| Explicit sharing / revocation / independent review | Member picker and read/contribute selection → finding share/unshare/review → participants and revision-bound review | Owner-only sharing, revoked-read denial, self-review denial, stale revision and fresh role checks. |
+| Portable authored-note export | Workbench JSON-LD download → export endpoint → hashed durable export receipt | Exact current record/review comparison and tampered-hash denial. Source-backed export stays rights-blocked. This is not standards or legal certification. |
+| Workspace creation | Name-only creation → actor-scoped deterministic slug/idempotency → atomic workspace/member/settings/audit | Payload replay/conflict and Unicode key regressions. |
+| Existing-account member management | Members settings → service-only `nexus_manage_member` → fresh role checks and capability-revision trigger | Owner/admin invariants; demotion fences; last-owner protection; confirmed Auth identity only. Invitations remain unimplemented. |
+| Identity transitions | Auth/workspace keyed pages and captured request context → late-response fences | Findings, privacy and member pages do not reuse prior-identity private state. |
+| Honest document inventory | Document list → keyset pagination → authorized active workspace | No sampled list labeled an exact inventory; duplicate/non-progress page failures stay visible. |
+| Honest readiness and advertised API | Correct route titles / sign-in state; private-record MCP reads | CONFIGURED/NOT_PROBED is not READY. Unsupported product aliases fail rather than returning unrelated records. |
+| Deletion safety | Existing tombstone → explicitly blocked cleanup | Removed fabricated derived-data/remote-write receipts. Verified complete document cleanup is still required implementation, not a passed gate. |
+
+### Database and deployment boundary
+
+Forward migrations 035 and 036 were replayed against a disposable local PostgreSQL 17 database, then applied only to the existing isolated rehearsal project `ukgjygzfhyvnrsecdcuu`. Production project `fcjaomiceajcdownarel` was not modified. The clean baseline and historical migrations were not rewritten. Migration 035's applied SHA256 remains `23828d242284731128359122fdaaba247dd272c65822c32a5d6552a90658375f`.
+
+036 fixes the initially detected profile-email authority defect using a narrow service-only, fixed-search-path resolver of confirmed `auth.users` identities. Hosted metadata confirmed version 036 and denied anon/authenticated execution of that resolver. Local Auth/Storage tables are explicitly stand-ins, not hosted OAuth/Storage implementations.
+
+Candidate mapping was revalidated: dedicated candidate frontend/gateway Workers, candidate ingestion queue and rehearsal Supabase project. Existing candidate deployment/version IDs were retained externally for rollback; no live Worker, queue, database, object or production record was deleted. At this source publication boundary, live Workers still predate the changes and observed log redaction is false. Deployment is not yet claimed.
+
+Sensitive candidate credential headers are passed through a shell-owned curl configuration descriptor rather than process arguments. The isolated preview workflow now fails unless schema 036 is present, publishes non-secret exact-source identity in gateway health and a generated frontend asset, checks both deployed identities, and runs public Chromium/mobile-emulation plus Firefox/WebKit functional acceptance. Generated build metadata is ignored, not committed. Production cutover still needs explicit owner approval and its genuine acceptance gates.
+
+### Fresh verification
+
+- Gateway: 102 passed; no skips.
+- Frontend: 106 unit tests in 25 files; ESLint and TypeScript passed.
+- Public Chromium desktop / Pixel 7 emulation: 42 smoke and visual checks passed, including keyboard, overflow and reduced motion.
+- Real Firefox engine: 19 public functional checks passed. WebKit cannot launch on this Amazon Linux host because compatible system libraries are missing; Ubuntu CI now runs that engine fail closed. No WebKit pass is claimed here.
+- Only the two Evidence OS screenshot baselines were updated after inspecting the received desktop/mobile images: new functional workbench/library links, correct route title, honest sign-in and incomplete-readiness states. Original home baselines and all screenshot tolerances remain unchanged.
+- Complete network-denied backend suite: 275 passed plus 10 subtests. Isolated backend suite: 57 passed.
+- Local PostgreSQL: private-finding authorization/revocation, role races, confirmed identity/spoofed profile tests, concurrent quota/account admission, extraction and Storage-policy stand-ins passed. Backup/restore passed with 59 local tables and 87 public functions (three tables are Auth/Storage stand-ins).
+- Immutable baseline and migration-integrity checks passed; whitespace and workflow YAML checks passed.
+- The isolated installed Python test environment audit reported no known vulnerabilities after upgrading vulnerable pip itself. This is not a heavyweight production-image audit.
+- GitHub secret scanning is unavailable because Advanced Security is not enabled. A free local `detect-secrets` changed-source scan flagged three candidates: a runtime variable assignment and two explicit synthetic test keys, reviewed as non-secrets. No suppressions or paid feature were enabled.
+- Docker source now fails model-prefetch errors, excludes secrets/runtime files and drops root privileges, but no Docker engine/image build or complete heavyweight dependency audit has been performed. The image is not an active Cloudflare runtime.
+
+Fresh `npm ci --ignore-scripts`, ESLint, 106 unit tests, TypeScript, Next.js production build and OpenNext Cloudflare build passed; 25 required prerendered HTML assets were published locally. The full locked npm audit reports zero info/low/moderate/high/critical findings. Exact-head CI must independently repeat these gates. Passing source checks is not deployment or product acceptance.
+
+### Required work still incomplete — not optional future phases
+
+The ten connected Evidence Intelligence products remain partial foundations, not ten finished user workflows. Durable research orchestration, deployed connector activation/rights, obligations/procurement/counterparty/passport/science/software/risk workflows, graph/review/monitor productivity, source-backed exports, true progressive generation, parity-safe advanced filters, retention/legal hold/workspace erasure, verified document/remote-write cleanup and representative held-out quality evaluation remain required implementation/acceptance work.
+
+Specific external prerequisites: two distinct authorized OAuth identities/test sessions for live browser isolation; workspace-owner/provider processing and rights/budget approval before synthetic metered acceptance; rights/access decisions for connectors that lack approval; production authorization and approved release policy before production cutover. No customer document is authorized as a provider-availability fixture. Synthetic fixture inventory does not satisfy the 400 labeled / 125 held-out source-entailment quality gates.
+
+The historic integrated audit below remains evidence of its earlier snapshot only. Its test counts and absent-member-management statements are superseded by this section where explicitly stated; it must not be treated as the current deployed identity.
+
+## Earlier integrated audit — historical evidence
+
+### Scope and evidence
 
 - Full, non-shallow repository history fetched from GitHub, including remote branches; the working tree started from PR #5 (`release/production-dispatch`, `c2dd89e`). Prior local frontend fixes were retained.
 - Read the frontend API/auth/session paths, gateway ingestion/retrieval/lifecycle paths, Python API and test configuration, deployment workflows, migration inventory, and outstanding implementation documents.

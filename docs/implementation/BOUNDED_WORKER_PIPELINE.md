@@ -2,7 +2,7 @@
 
 ## Status
 
-`LOCALLY_TESTED` — the implementation is committed to the Preview branch. It must not be represented as `PREVIEW_VERIFIED` until the exact-head deployment and authenticated end-to-end probes pass.
+`PARTIAL_NOT_COMPLETE` — source/runtime acceptance must be checked against the exact reviewed commit. Historical preview deployments do not prove current source is live. The comprehensive application audit is the authoritative current status.
 
 ## Implemented scope
 
@@ -10,8 +10,8 @@
 - `GET /api/v1/documents`
 - `POST /api/v1/chat`
 - authenticated workspace and capability enforcement
-- bounded uploads up to 1,000,000 bytes
-- UTF-8 text, Markdown, CSV, and JSON inputs
+- bounded uploads up to 10,000,000 bytes
+- UTF-8 text, Markdown, CSV and JSON; bounded DOCX XML/ZIP extraction; approved non-sensitive PDF/image extraction through Gemini
 - filename normalization, SHA-256 receipts, deterministic overlapping chunks
 - private Supabase Storage originals and authoritative document/version/chunk rows
 - Gemini embeddings and grounded generation
@@ -19,19 +19,20 @@
 - evidence citations and abstention when retrieval returns no evidence
 - retrieved text treated as untrusted evidence, not instructions
 - usage and audit writes with no hidden paid fallback
+- durable batched ingestion, status/chunk/reindex/cancel/retry controls and generation fences
+- scoped private chat history; bounded lexical/dense fusion, not cross-encoder reranking
+- paginated document inventory, atomic workspace/member operations and private findings/reviews after migration 035
 
 ## Explicitly outstanding
 
-- PDF, DOCX, OCR, archive and large-file processing
+- page-accurate extraction fidelity, native heavy/spreadsheet processing and larger-than-bound workloads
 - malware/unsafe-file strategy beyond the bounded MIME allowlist
-- durable asynchronous jobs, cancellation, retries and stale-worker fencing
-- document status/chunk/reindex/delete routes
-- deletion receipts covering Supabase, Storage and Qdrant
-- chat-session persistence and history controls
-- hybrid retrieval and reranking
+- complete verified derived-data and outstanding-remote-write deletion, retention enforcement and workspace erasure
+- true progressive generation streaming, representative lexical recall and reranking
+- invitation delivery/acceptance and complete connected product workflows
 - two-real-user browser isolation
 - representative production-quality evaluation
 
 ## Acceptance boundary
 
-The branch remains `PARTIAL_NOT_COMPLETE` and `NOT_PRODUCTION_VERIFIED`. Merge, production readiness, SLA, legal-rights, and complete Master Prompt claims remain prohibited until their documented gates pass.
+The application remains `PARTIAL_NOT_COMPLETE` and `NOT_PRODUCTION_VERIFIED`. Reviewable source may be integrated through protected checks without claiming product completion. Production deployment, rights activation and production-readiness claims require their separate owner-approved gates.

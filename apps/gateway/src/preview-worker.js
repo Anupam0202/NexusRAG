@@ -11,6 +11,7 @@ import {
 import { deleteQdrantDocument, hybridFuse } from "./worker-lifecycle.js";
 import { handleQueue, sweepJobs } from "./worker-jobs.js";
 import { assessAnswer } from "./answer-evidence.js";
+import { handleWorkbench, listFindings } from "./workbench.js";
 import {
   deleteUserGeminiKey,
   getUserGeminiKeyRecord,
@@ -131,8 +132,31 @@ async function serviceRequest(env, tablePath, init = {}) {
   });
   if (!response.ok) {
     const detail = await response.text();
+    const storageError = (() => { try { return JSON.parse(detail); } catch { return {}; } })();
+    const code = String(storageError.message || "").match(/NR:([A-Z_]+)/)?.[1];
+    if (code) {
+      const status = code === "FORBIDDEN" ? 403 : code === "AUTH_REQUIRED" ? 401
+        : code === "VERSION_CONFLICT" ? 409 : code === "INVALID_SCOPE" ? 422 : 503;
+      throw Object.assign(new Error(status === 409 ? "The record changed. Reload and retry."
+        : status === 403 ? "This record or operation is not available to you."
+          : "Authoritative storage rejected the operation."), { status, code });
+    }
+    if (storageError.code === "P0002") throw Object.assign(new Error("Record not found."), { status: 404, code: "NOT_FOUND" });
     throw Object.assign(new Error("Authoritative storage rejected the request."), { status: 503, code: "PERSISTENCE_UNAVAILABLE", detail });
   }
+  const text = await response.text();
+  return text ? JSON.parse(text) : null;
+}
+// Retain database record-level authority: membership is not permission to read
+// another member's private findings, conversations, or exports.
+async function userRequest(request, env, tablePath, init = {}) {
+  const response = await apiFetch(`${env.SUPABASE_URL}/rest/v1/${tablePath}`, {
+    ...init,
+    headers: { apikey: env.SUPABASE_PUBLISHABLE_KEY,
+      authorization: request.headers.get("authorization"), "content-type": "application/json", ...(init.headers || {}) },
+  });
+  if (!response.ok) throw Object.assign(new Error("The authorized data request was rejected."),
+    { status: response.status === 403 ? 403 : 503, code: response.status === 403 ? "FORBIDDEN" : "PERSISTENCE_UNAVAILABLE" });
   const text = await response.text();
   return text ? JSON.parse(text) : null;
 }
@@ -152,7 +176,7 @@ async function countWorkspaceRows(env, table, workspace, filters = "") {
 }
 
 async function membership(env, userId, workspaceId) {
-  const rows = await serviceRequest(env, `workspace_members?workspace_id=eq.${encodeURIComponent(workspaceId)}&user_id=eq.${encodeURIComponent(userId)}&select=workspace_id,user_id,role&limit=1`);
+  const rows = await serviceRequest(env, `workspace_members?workspace_id=eq.${encodeURIComponent(workspaceId)}&user_id=eq.${encodeURIComponent(userId)}&select=workspace_id,user_id,role,workspaces!inner(lifecycle_state)&workspaces.lifecycle_state=eq.active&limit=1`);
   if (!rows?.[0]) throw Object.assign(new Error("The workspace is unavailable to this user."), { status: 403, code: "FORBIDDEN" });
   return rows[0];
 }
@@ -236,22 +260,14 @@ async function audit(env, request, userId, workspace, action, resourceType) {
 }
 async function createWorkspace(request, env, user) {
   const key = request.headers.get("idempotency-key");
-  if (!key || key.length > 200) throw Object.assign(new Error("Idempotency-Key is required."), { status: 400, code: "INVALID_SCOPE" });
+  if (!key || key.length > 128) throw Object.assign(new Error("Idempotency-Key is required (maximum 128 characters)."), { status: 400, code: "INVALID_SCOPE" });
   const body = await readJsonBody(request);
   const name = String(body?.name || "").trim();
-  const slug = String(body?.slug || "").trim().toLowerCase();
+  const slug = body?.slug ? String(body.slug).trim().toLowerCase()
+    : `${name.normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 18).replace(/-$/g, "") || "workspace"}-${user.id.replace(/-/g, "")}-${(await sha256(name)).slice(0, 8)}`;
   if (name.length < 2 || name.length > 100 || !/^[a-z0-9][a-z0-9-]{1,62}[a-z0-9]$/.test(slug)) throw Object.assign(new Error("Workspace name or slug is invalid."), { status: 422, code: "INVALID_SCOPE" });
-  const id = crypto.randomUUID();
-  await serviceRequest(env, "workspaces", { method: "POST", body: JSON.stringify([{ id, name, slug, owner_id: user.id, plan: "free" }]) });
-  try {
-    await serviceRequest(env, "workspace_members", { method: "POST", body: JSON.stringify([{ workspace_id: id, user_id: user.id, role: "owner" }]) });
-    await serviceRequest(env, "workspace_settings", { method: "POST", body: JSON.stringify([{ workspace_id: id }]) });
-  } catch (error) {
-    await serviceRequest(env, `workspaces?id=eq.${id}`, { method: "DELETE" }).catch(() => {});
-    throw error;
-  }
-  await audit(env, request, user.id, id, "workspace.create", "workspace");
-  return { id, workspace_id: id, name, slug, role: "owner", plan: "free" };
+  return serviceRequest(env, "rpc/nexus_create_workspace", { method: "POST",
+    body: JSON.stringify({ p_actor: user.id, p_name: name, p_slug: slug, p_key: key }) });
 }
 
 function requireCapability(member, capability) {
@@ -399,9 +415,14 @@ async function deleteDocument(request, env, user, workspace, member, documentId)
   await serviceRequest(env,`deletion_operations?id=eq.${operationId}`,{method:"PATCH",body:JSON.stringify({state:"cleaning"})}); const targets=await serviceRequest(env,`deletion_targets?workspace_id=eq.${workspace}&operation_id=eq.${operationId}&select=*&order=kind.asc`); const pendingTargets=targets.filter(target=>!target.verified_at);
   const receipt=async(target,provider)=>{const verifiedAt=new Date().toISOString();const receiptHash=await sha256(JSON.stringify({workspace,operation_id:operationId,target_id:target.id,provider,verified_at:verifiedAt}));await serviceRequest(env,"deletion_receipts",{method:"POST",body:JSON.stringify([{workspace_id:workspace,operation_id:operationId,target_id:target.id,provider,receipt_hash:receiptHash,verified_at:verifiedAt}])});await serviceRequest(env,`deletion_targets?id=eq.${target.id}`,{method:"PATCH",body:JSON.stringify({attempts:Number(target.attempts||0)+1,verified_at:verifiedAt,failure_code:null})});};
   try {
+    // Do not mint receipts for unimplemented database/derived-data/remote-write
+    // cleanup. The tombstone already denies retrieval; originals remain until
+    // an authoritative cleanup implementation can verify every required target.
+    if (pendingTargets.some(target => !["original", "version_index"].includes(target.kind)))
+      throw Object.assign(new Error("Deletion is tombstoned but requires verified derived-data and outstanding-write cleanup. No completion receipt was fabricated."),
+        { status: 409, code: "DELETE_REVIEW_REQUIRED" });
     const indexes=pendingTargets.filter(t=>t.kind==="version_index"); if(indexes.length){await deleteQdrantDocument(env,workspace,documentId);for(const target of indexes)await receipt(target,"qdrant");}
     for(const target of pendingTargets.filter(t=>t.kind==="original")){await storageDelete(env,target.object_key);await receipt(target,"supabase_storage");}
-    for(const target of pendingTargets.filter(t=>!["original","version_index"].includes(t.kind)))await receipt(target,"supabase");
     await serviceRequest(env,`documents?workspace_id=eq.${workspace}&id=eq.${documentId}`,{method:"DELETE"}); const remaining=await serviceRequest(env,`documents?workspace_id=eq.${workspace}&id=eq.${documentId}&select=id`); if(remaining.length)throw Object.assign(new Error("Supabase document deletion could not be verified."),{status:503,code:"SUPABASE_DELETE_UNVERIFIED"});
     await serviceRequest(env,`deletion_operations?id=eq.${operationId}`,{method:"PATCH",body:JSON.stringify({state:"verified",verified_at:new Date().toISOString()})}); await audit(env,request,user.id,workspace,"document.delete","document"); return{success:true,message:`${document.filename} deleted with verified provider receipts`,operation_id:operationId,receipts:targets.length};
   }catch(error){await serviceRequest(env,`deletion_operations?id=eq.${operationId}`,{method:"PATCH",body:JSON.stringify({state:"blocked"})}).catch(()=>null);throw Object.assign(error,{status:error.status||503,code:error.code||"DELETE_PARTIAL_FAILURE"});}
@@ -441,7 +462,7 @@ async function handle(request, env = {}) {
     return json(request, env, null, 204, { "access-control-allow-methods": "GET,HEAD,POST,PATCH,DELETE,OPTIONS", "access-control-allow-headers": "Authorization,Content-Type,Idempotency-Key,X-Nexus-Workspace-Id,X-Workspace-ID", "access-control-max-age": "600" });
   }
   if (url.pathname === "/" || url.pathname === "/health") {
-    return json(request, env, { service: env.RUNTIME_SERVICE_NAME || "nexusrag-v6-preview-gateway", profile: "ZERO_COST_LOW_TRAFFIC", status: configured(env) ? "READY" : "DEGRADED", authenticated_api: configured(env), production_verified: false, authorities: { business_records: "supabase", vectors: "qdrant" }, providers: { qdrant: env.QDRANT_URL && env.QDRANT_API_KEY ? "CONFIGURED" : "BLOCKED", gemini: env.GOOGLE_API_KEY ? "CONFIGURED" : "BLOCKED" }, paid_fallback: false });
+    return json(request, env, { service: env.RUNTIME_SERVICE_NAME || "nexusrag-v6-preview-gateway", profile: "ZERO_COST_LOW_TRAFFIC", source_commit: /^[a-f0-9]{40}$/.test(env.SOURCE_COMMIT || "") ? env.SOURCE_COMMIT : null, status: configured(env) ? "CONFIGURED" : "DEGRADED", readiness: "NOT_PROBED", authenticated_api: configured(env), production_verified: false, authorities: { business_records: "supabase", vectors: "qdrant" }, providers: { qdrant: env.QDRANT_URL && env.QDRANT_API_KEY ? "CONFIGURED" : "BLOCKED", gemini: env.GOOGLE_API_KEY ? "CONFIGURED" : "BLOCKED" }, paid_fallback: false });
   }
   if (!configured(env)) return fail(request, env, "CONFIGURATION_ERROR", "The authenticated gateway is not configured.", 503);
   try {
@@ -458,7 +479,11 @@ async function handle(request, env = {}) {
     if (url.pathname === "/api/v2/mcp/operations" && (request.method === "GET" || request.method === "HEAD")) {
       const id = workspaceId(request); const member = await membership(env, user.id, id);
       const granted = new Set(ROLE_CAPABILITIES[member.role] || []);
-      return json(request, env, { protocol: "nexusrag-evidence-mcp/1", destructive_operations: false, operations: Object.entries(MCP_OPERATIONS).filter(([, spec]) => granted.has(spec.capability)).map(([name, spec]) => ({ name, capability: spec.capability, result_limit: 50, deadline_ms: 8000, read_only: true })) });
+      return json(request, env, { protocol: "nexusrag-evidence-mcp/1", destructive_operations: false,
+        operations: Object.entries(MCP_OPERATIONS).filter(([name, spec]) =>
+          ["finding_retrieval", "claim_retrieval"].includes(name) && granted.has(spec.capability))
+          .map(([name, spec]) => ({ name, capability: spec.capability, result_limit: 50, deadline_ms: 8000, read_only: true })),
+        unavailable_operations: Object.keys(MCP_OPERATIONS).filter(name => !["finding_retrieval", "claim_retrieval"].includes(name)) });
     }
     if (url.pathname === "/api/v2/mcp/execute" && request.method === "POST") {
       const id = workspaceId(request); const member = await membership(env, user.id, id);
@@ -466,9 +491,18 @@ async function handle(request, env = {}) {
       if (!spec) throw Object.assign(new Error("The MCP operation is not available."), { status: 404, code: "INVALID_SCOPE" });
       if (!(ROLE_CAPABILITIES[member.role] || []).includes(spec.capability)) throw Object.assign(new Error("The required capability is not granted."), { status: 403, code: "FORBIDDEN" });
       const limit = Math.min(Math.max(Number.parseInt(String(body?.limit || 20), 10) || 20, 1), 50);
-      const rows = await serviceRequest(env, `${spec.table}?workspace_id=eq.${id}&select=*&limit=${limit}`);
+      if (["obligation_lookup", "procurement_lookup", "passport_retrieval"].includes(operation))
+        return fail(request, env, "CAPABILITY_UNAVAILABLE", "This product operation is not implemented.", 501);
+      const rows = spec.table === "findings"
+        ? (await listFindings({ request, env, user, workspace: id, member, serviceRequest, json }, limit)).items
+        : await userRequest(request, env, `${spec.table}?workspace_id=eq.${id}&select=*&limit=${limit}`);
       await audit(env, request, user.id, id, `mcp.${operation}`, spec.table);
       return json(request, env, { protocol: "nexusrag-evidence-mcp/1", operation, items: rows, limit, workspace_id: id });
+    }
+    if (url.pathname === "/api/v2/findings" || url.pathname.startsWith("/api/v2/findings/")) {
+      const id = workspaceId(request); const member = await membership(env, user.id, id);
+      return await handleWorkbench({ request, env, user, workspace: id, member, serviceRequest, json })
+        || fail(request, env, "NOT_FOUND", "Finding route not found.", 404);
     }
 
     if (url.pathname === "/api/v1/workspaces" && request.method === "POST") return json(request, env, await createWorkspace(request, env, user), 201);
@@ -491,8 +525,28 @@ async function handle(request, env = {}) {
 
     if (url.pathname === "/api/v1/workspaces/current/members" && (request.method === "GET" || request.method === "HEAD")) {
       const id = workspaceId(request); await membership(env, user.id, id);
-      const members = await serviceRequest(env, `workspace_members?workspace_id=eq.${id}&select=user_id,role,created_at&order=created_at.asc&limit=100`);
-      return json(request, env, { workspace_id: id, members, total: members.length, management_supported: false });
+      const records = await serviceRequest(env, `workspace_members?workspace_id=eq.${id}&select=user_id,role,created_at,profiles(display_name)&order=created_at.asc&limit=100`);
+      const members = records.map(({ profiles, ...record }) => ({ ...record, display_name: profiles?.display_name || null }));
+      const schema = await serviceRequest(env, "rpc/nexus_management_version", { method: "POST", body: "{}" }).catch(() => null);
+      return json(request, env, { workspace_id: id, members, total: members.length, management_supported: schema?.version === "036",
+        invitation_supported: false, add_requires_existing_account: true });
+    }
+    const memberRoute = url.pathname.match(/^\/api\/v1\/workspaces\/current\/members(?:\/([0-9a-f-]{36}))?$/i);
+    if (memberRoute && ["POST", "PATCH", "DELETE"].includes(request.method)) {
+      const id = workspaceId(request); const member = await membership(env, user.id, id);
+      if (!["owner", "admin"].includes(member.role)) throw Object.assign(new Error("Member management requires an owner or administrator."), { status: 403, code: "FORBIDDEN" });
+      const body = request.method === "DELETE" ? {} : await readJsonBody(request);
+      const operation = request.method === "POST" && !memberRoute[1] ? "add"
+        : request.method === "PATCH" && memberRoute[1] ? "update"
+          : request.method === "DELETE" && memberRoute[1] ? "remove" : null;
+      if (!operation) return fail(request, env, "INVALID_SCOPE", "Invalid member operation.", 422);
+      if (operation !== "remove" && !["admin", "editor", "viewer"].includes(body?.role))
+        return fail(request, env, "INVALID_SCOPE", "Choose a supported member role.", 422);
+      const result = await serviceRequest(env, "rpc/nexus_manage_member", { method: "POST", body: JSON.stringify({
+        p_workspace: id, p_actor: user.id, p_operation: operation,
+        p_target: memberRoute[1] || String(body?.email_or_user_id || "").trim(), p_role: body?.role || null,
+      }) });
+      return json(request, env, result, operation === "add" ? 201 : 200);
     }
     if (url.pathname === "/api/v1/privacy/settings" && (request.method === "GET" || request.method === "HEAD")) {
       const id = workspaceId(request); await membership(env, user.id, id);
@@ -554,8 +608,13 @@ async function handle(request, env = {}) {
     }
     if (url.pathname === "/api/v1/documents" && (request.method === "GET" || request.method === "HEAD")) {
       const id = workspaceId(request); await membership(env, user.id, id);
-      const rows = await serviceRequest(env, `documents?workspace_id=eq.${id}&lifecycle_state=eq.active&select=*&order=created_at.desc&limit=100`);
-      return json(request, env, { documents: rows.map(documentView), total: rows.length });
+      const after = url.searchParams.get("after");
+      if (after && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(after))
+        return fail(request, env, "INVALID_SCOPE", "The document cursor is invalid.", 422);
+      const rows = await serviceRequest(env, `documents?workspace_id=eq.${id}&lifecycle_state=eq.active${after ? `&id=gt.${after}` : ""}&select=*&order=id.asc&limit=101`);
+      const more = rows.length > 100, visible = rows.slice(0, 100);
+      return json(request, env, { documents: visible.map(documentView), total: visible.length,
+        total_is_exact: !after && !more, next_after: more ? visible.at(-1).id : null });
     }
     const jobRoute = url.pathname.match(/^\/api\/v1\/documents\/jobs\/([0-9a-f-]{36})(?:\/(retry|cancel))?$/i);
     if (jobRoute) {
@@ -721,7 +780,13 @@ async function handle(request, env = {}) {
       const id = workspaceId(request); const member = await membership(env, user.id, id);
       if (!(ROLE_CAPABILITIES[member.role] || []).includes(route.capability)) throw Object.assign(new Error("The required capability is not granted."), { status: 403, code: "FORBIDDEN" });
       const limit = Math.min(Math.max(Number.parseInt(url.searchParams.get("limit") || "20", 10) || 20, 1), 50);
-      const rows = await serviceRequest(env, `${route.table}?workspace_id=eq.${id}&select=*&limit=${limit}`);
+      if (["/api/v2/claims", "/api/v2/findings"].includes(url.pathname)) {
+        return await handleWorkbench({ request, env, user, workspace: id, member, serviceRequest, json });
+      }
+      if (["/api/v2/obligations", "/api/v2/procurement", "/api/v2/passports"].includes(url.pathname)) {
+        return fail(request, env, "CAPABILITY_UNAVAILABLE", "This product lookup is not implemented in this runtime.", 501);
+      }
+      const rows = await userRequest(request, env, `${route.table}?workspace_id=eq.${id}&select=*&limit=${limit}`);
       await audit(env, request, user.id, id, `${route.capability}.list`, route.table);
       return json(request, env, { items: rows, limit, workspace_id: id, capability: route.capability });
     }
