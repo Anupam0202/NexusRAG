@@ -25,7 +25,7 @@ export default function ApiKeysError({
       </p>
       <button
         onClick={reset}
-        className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-brand-500 to-purple-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md transition-all hover:scale-[1.02] hover:shadow-lg active:scale-[0.98]"
+        className="inline-flex items-center gap-2 rounded-xl bg-linear-to-r/srgb from-brand-500 to-purple-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md transition-all hover:scale-[1.02] hover:shadow-lg active:scale-[0.98]"
       >
         <RefreshCw size={15} />
         Try Again

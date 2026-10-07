@@ -347,7 +347,7 @@ export default function SettingsPage() {
         <button
           onClick={save}
           disabled={saving}
-          className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-brand-500 to-purple-600 text-white px-5 py-2.5 text-sm font-semibold shadow-md hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 w-full sm:w-auto justify-center"
+          className="flex items-center gap-2 rounded-xl bg-linear-to-r/srgb from-brand-500 to-purple-600 text-white px-5 py-2.5 text-sm font-semibold shadow-md hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 w-full sm:w-auto justify-center"
         >
           {saving ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />}
           {saving ? "Saving…" : "Save Settings"}

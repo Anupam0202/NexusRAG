@@ -1,6 +1,6 @@
 # Comprehensive application audit
 
-Status: **PATCH_VALIDATED_LOCALLY — NOT_PRODUCTION_VERIFIED**
+Status: **PATCH_VALIDATED_LOCALLY — CLEANUP_INTEGRATION_PENDING — NOT_PRODUCTION_VERIFIED**
 
 This receipt supersedes historical status claims only where it records a fresh observation. It does not certify a complete product, production release, provider rights, or absence of all defects.
 
@@ -47,7 +47,7 @@ This receipt supersedes historical status claims only where it records a fresh o
 | Migration/source foundation verification | Passed |
 | Workflow YAML and git whitespace checks | Passed |
 | npm production-only audit | Zero reported findings |
-| Full npm audit | Seven high findings remain in one shared brace/glob tooling chain |
+| Full npm audit | Zero reported findings after validated tooling migration |
 | Isolated installed Python dependency audit after upgrading the test environment's pip | Zero known findings; not a full heavyweight production-image audit |
 
 Browser regression evidence and exact commands are retained with the local audit logs. Two-real-user isolation is **not** claimed: only one OAuth identity was used. No actual provider-backed upload/chat, destructive retention, workspace erasure, paid service, DNS change, or production deployment was performed in this audit.
@@ -56,7 +56,7 @@ Browser regression evidence and exact commands are retained with the local audit
 
 ### P0 / security gate
 
-- The published npm `braces` version is still 3.0.3 and is affected by GHSA-vfj7-8cjw-p6xm. Seven high audit entries propagate through Tailwind 3, chokidar, micromatch, fast-glob, and the Next ESLint plugin/config. Blindly accepting npm's suggested Next ESLint downgrade is not compatible with this application. Required dependency-review CI must stay blocking. Resolve through an upstream fixed package or a separately validated replacement/migration of both affected tooling paths; do not add an advisory ignore to produce a green badge.
+- **Resolved tooling gate:** Tailwind 4 with its maintained PostCSS plugin and compatible class-merging utility replaces the affected Tailwind 3 watcher chain. An explicit maintained ESLint stack retains TypeScript, React, hooks, and accessibility checks without the affected Next plugin fast-glob dependency. Legacy colors, shadows, radii, and sRGB gradient behavior are preserved; the original desktop/mobile visual baselines pass unchanged. The fresh full npm audit has zero findings. No advisory ignores or fictitious patched versions were added.
 - Production GitHub environment inspection showed required reviewers disabled, administrator bypass enabled, and deployment branches set to `No restriction`. Establish an explicit operator approval policy and restrict deployments to protected main before release. No repository protection setting was changed during this audit.
 - Query-log redaction is currently false on the observed live Workers; the new config must be deployed and checked before claiming mitigation. GitHub/Supabase OAuth callback codes must not be retained in request URL logs.
 
@@ -77,6 +77,10 @@ Browser regression evidence and exact commands are retained with the local audit
 - Custom-domain launch requires a Cloudflare zone; none is currently available.
 - Disabled leaked-password protection remains an advisor warning. Evaluate its relevance to OAuth-only authentication and plan availability; do not enable password authentication or paid services merely to eliminate the warning.
 
+## Repository cleanup
+
+Four obsolete branches were backed up in a verified external git bundle before deletion: the tree-identical release branch, the squash-integrated PR 2 and PR 3 branches, and the abandoned PR 1 legacy branch. The external backup is not committed to the application repository. Candidate deployment now accepts only an explicit manual dispatch on main and remains restricted to the isolated rehearsal backend; retired branch triggers have been removed. An unreferenced legacy frontend Worker wrapper and its unused alternate configuration were removed; the active OpenNext candidate/PR3/production configurations remain. Required database rehearsal context now matches branch protection and runs on every PR, instead of leaving unrelated changes permanently pending. Live preview Workers and database resources were not deleted. Historical migration and audit evidence is retained rather than misclassified as application clutter.
+
 ## Publication boundary
 
-Publish this increment as a reviewable, non-production change. Do not merge or trigger production dispatch while these blockers remain. Secrets, browser session files, runtime artifacts, and audit snapshots containing account/session data must not be committed.
+The user authorized integration of reviewed code and redundant branch cleanup. Merge only after exact-head required checks pass; do not trigger production dispatch or weaken protections to complete repository cleanup. Remaining application and operational blockers above still prevent a production-readiness claim. Secrets, browser session files, runtime artifacts, and audit snapshots containing account/session data must not be committed.

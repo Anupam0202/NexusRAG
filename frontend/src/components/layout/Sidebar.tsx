@@ -46,7 +46,9 @@ export function Sidebar() {
 
       {/* Mobile overlay */}
       {mobileOpen && (
-        <div
+        <button
+          type="button"
+          aria-label="Close navigation menu"
           className="sidebar-backdrop lg:hidden"
           onClick={() => setMobileOpen(false)}
         />
@@ -68,7 +70,7 @@ export function Sidebar() {
           "flex items-center gap-3 border-b border-[var(--border)] px-4 h-14 shrink-0",
           collapsed && "justify-center px-2"
         )}>
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-brand-500 via-purple-500 to-pink-500 shadow-md">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-linear-to-br/srgb from-brand-500 via-purple-500 to-pink-500 shadow-md">
             <Sparkles size={16} className="text-white" />
           </div>
           <AnimatePresence>
@@ -114,7 +116,7 @@ export function Sidebar() {
               >
                 {/* Active indicator */}
                 {active && (
-                  <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-r-full bg-gradient-to-b from-brand-500 to-purple-500" />
+                  <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-r-full bg-linear-to-b/srgb from-brand-500 to-purple-500" />
                 )}
 
                 <Icon
@@ -149,7 +151,7 @@ export function Sidebar() {
         )}>
           {/* Doc count badge */}
           {docCount > 0 && !collapsed && (
-            <div className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-brand-500/10 to-purple-500/10 px-3 py-2 animate-fade-in">
+            <div className="flex items-center gap-2 rounded-xl bg-linear-to-r/srgb from-brand-500/10 to-purple-500/10 px-3 py-2 animate-fade-in">
               <span className="relative flex h-2 w-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500" />

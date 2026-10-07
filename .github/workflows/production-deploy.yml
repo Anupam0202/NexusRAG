@@ -83,13 +83,13 @@ jobs:
         run: |
           set -euo pipefail
           for queue in "$INGESTION_QUEUE" "$INGESTION_DLQ"; do
-            if ! npx --yes wrangler@4.37.1 queues info "$queue" >/dev/null 2>&1; then
-              npx --yes wrangler@4.37.1 queues create "$queue" --message-retention-period-secs 86400
+            if ! npx --yes wrangler@4.148.0 queues info "$queue" >/dev/null 2>&1; then
+              npx --yes wrangler@4.148.0 queues create "$queue" --message-retention-period-secs 86400
             fi
           done
       - name: Deploy gateway
         run: |
-          npx --yes wrangler@4.37.1 deploy \
+          npx --yes wrangler@4.148.0 deploy \
             --config apps/gateway/wrangler.production.jsonc \
             --keep-vars \
             --var "SUPABASE_URL:$SUPABASE_URL" \
@@ -101,11 +101,11 @@ jobs:
       - name: Install production secrets
         run: |
           set -euo pipefail
-          printf '%s' "$SUPABASE_SERVICE_ROLE_KEY" | npx --yes wrangler@4.37.1 secret put SUPABASE_SERVICE_ROLE_KEY --name "$GATEWAY_WORKER"
-          printf '%s' "$GEMINI_USER_KEY_ENCRYPTION_SECRET" | npx --yes wrangler@4.37.1 secret put GEMINI_USER_KEY_ENCRYPTION_SECRET --name "$GATEWAY_WORKER"
-          printf '%s' "$GOOGLE_API_KEY" | npx --yes wrangler@4.37.1 secret put GOOGLE_API_KEY --name "$GATEWAY_WORKER"
-          printf '%s' "$QDRANT_URL" | npx --yes wrangler@4.37.1 secret put QDRANT_URL --name "$GATEWAY_WORKER"
-          printf '%s' "$QDRANT_API_KEY" | npx --yes wrangler@4.37.1 secret put QDRANT_API_KEY --name "$GATEWAY_WORKER"
+          printf '%s' "$SUPABASE_SERVICE_ROLE_KEY" | npx --yes wrangler@4.148.0 secret put SUPABASE_SERVICE_ROLE_KEY --name "$GATEWAY_WORKER"
+          printf '%s' "$GEMINI_USER_KEY_ENCRYPTION_SECRET" | npx --yes wrangler@4.148.0 secret put GEMINI_USER_KEY_ENCRYPTION_SECRET --name "$GATEWAY_WORKER"
+          printf '%s' "$GOOGLE_API_KEY" | npx --yes wrangler@4.148.0 secret put GOOGLE_API_KEY --name "$GATEWAY_WORKER"
+          printf '%s' "$QDRANT_URL" | npx --yes wrangler@4.148.0 secret put QDRANT_URL --name "$GATEWAY_WORKER"
+          printf '%s' "$QDRANT_API_KEY" | npx --yes wrangler@4.148.0 secret put QDRANT_API_KEY --name "$GATEWAY_WORKER"
       - name: Verify production gateway
         run: |
           set -euo pipefail

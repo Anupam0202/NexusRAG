@@ -2,22 +2,10 @@ name: V6 Database Rehearsal
 
 on:
   workflow_dispatch:
+  # Required merge gate: path filters would leave its status pending on other PRs.
   pull_request:
-    paths:
-      - supabase/baseline/**
-      - supabase/migrations/026_allow_reindex_original_reuse.sql
-      - supabase/migrations/027_metered_operation_admission.sql
-      - supabase/migrations/028_resumable_chunk_staging.sql
-      - supabase/migrations/029_durable_extraction_staging.sql
-      - supabase/migrations/030_non_sensitive_gemini_policy_gate.sql
-      - supabase/migrations/031_harden_extraction_storage_privileges.sql
-      - supabase/migrations/032_account_trial_and_user_gemini_keys.sql
-      - supabase/migrations/033_explicit_deny_account_trial_tables.sql
-      - supabase/migrations/034_explicit_byok_cost_consent_and_unknown_costs.sql
-      - scripts/build_clean_baseline.py
-      - scripts/verify_v6_migrations.py
-      - tests/postgres/**
-      - .github/workflows/v6-database-rehearsal.yml
+  push:
+    branches: [main]
 
 permissions:
   contents: read
@@ -28,7 +16,7 @@ concurrency:
 
 jobs:
   clean-baseline-rehearsal:
-    name: PostgreSQL 17 migration and concurrency rehearsal
+    name: Clean Supabase baseline rehearsal
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:

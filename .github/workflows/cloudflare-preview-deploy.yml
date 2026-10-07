@@ -12,20 +12,10 @@ on:
         required: true
         default: false
         type: boolean
+  # Preserve the required check context without automatic deployments.
   pull_request:
-    branches: [v6-zero-cost-foundations-clean, main]
+    branches: [main]
     types: [opened, synchronize, reopened, ready_for_review]
-  push:
-    branches: [v6-zero-cost-foundations-clean, critical-gaps/v8-remote-validation]
-    paths:
-      - frontend/**
-      - apps/gateway/**
-      - packages/**
-      - scripts/preview_target.py
-      - tests/scripts/**
-      - tests/postgres/**
-      - .github/workflows/cloudflare-preview-deploy.yml
-      - .github/workflows/v6-database-rehearsal.yml
 
 permissions:
   contents: read
@@ -36,7 +26,7 @@ concurrency:
 
 jobs:
   gateway:
-    if: ${{ (github.event_name == 'workflow_dispatch' && inputs.deploy_candidate_preview) || (github.event_name == 'push' && (github.ref == 'refs/heads/v6-zero-cost-foundations-clean' || github.ref == 'refs/heads/critical-gaps/v8-remote-validation') && contains(github.event.head_commit.message, '[deploy-candidate-preview]')) || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && (github.event.pull_request.base.ref == 'v6-zero-cost-foundations-clean' || github.event.pull_request.base.ref == 'main') && github.event.pull_request.head.ref == 'critical-gaps/v8-remote-validation') }}
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.deploy_candidate_preview && github.ref == 'refs/heads/main' }}
     name: Deploy authenticated Evidence API gateway
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -118,13 +108,13 @@ jobs:
           set -euo pipefail
           # Workers Free Queue retention is 24 hours; override Wrangler's 4-day default.
           for queue in "$INGESTION_QUEUE" "$INGESTION_DLQ"; do
-            if ! npx --yes wrangler@4.37.1 queues info "$queue" >/dev/null 2>&1; then
-              npx --yes wrangler@4.37.1 queues create "$queue" --message-retention-period-secs 86400
+            if ! npx --yes wrangler@4.148.0 queues info "$queue" >/dev/null 2>&1; then
+              npx --yes wrangler@4.148.0 queues create "$queue" --message-retention-period-secs 86400
             fi
           done
       - name: Deploy authenticated gateway
         run: |
-          npx --yes wrangler@4.37.1 deploy \
+          npx --yes wrangler@4.148.0 deploy \
             --config "$GATEWAY_CONFIG" \
             --keep-vars \
             --var "SUPABASE_URL:$SUPABASE_URL" \
@@ -133,15 +123,15 @@ jobs:
             --var "FRONTEND_ORIGIN:$FRONTEND_ORIGIN" \
             --var "RUNTIME_SERVICE_NAME:$GATEWAY_WORKER"
       - name: Install Supabase service credential as a Worker secret
-        run: printf '%s' "$SUPABASE_SERVICE_ROLE_KEY" | npx --yes wrangler@4.37.1 secret put SUPABASE_SERVICE_ROLE_KEY --name "$GATEWAY_WORKER"
+        run: printf '%s' "$SUPABASE_SERVICE_ROLE_KEY" | npx --yes wrangler@4.148.0 secret put SUPABASE_SERVICE_ROLE_KEY --name "$GATEWAY_WORKER"
       - name: Install account-key encryption secret
-        run: printf '%s' "$GEMINI_USER_KEY_ENCRYPTION_SECRET" | npx --yes wrangler@4.37.1 secret put GEMINI_USER_KEY_ENCRYPTION_SECRET --name "$GATEWAY_WORKER"
+        run: printf '%s' "$GEMINI_USER_KEY_ENCRYPTION_SECRET" | npx --yes wrangler@4.148.0 secret put GEMINI_USER_KEY_ENCRYPTION_SECRET --name "$GATEWAY_WORKER"
       - name: Install free-tier provider credentials as candidate Worker secrets
         run: |
           set -euo pipefail
-          printf '%s' "$GOOGLE_API_KEY" | npx --yes wrangler@4.37.1 secret put GOOGLE_API_KEY --name "$GATEWAY_WORKER"
-          printf '%s' "$QDRANT_URL" | npx --yes wrangler@4.37.1 secret put QDRANT_URL --name "$GATEWAY_WORKER"
-          printf '%s' "$QDRANT_API_KEY" | npx --yes wrangler@4.37.1 secret put QDRANT_API_KEY --name "$GATEWAY_WORKER"
+          printf '%s' "$GOOGLE_API_KEY" | npx --yes wrangler@4.148.0 secret put GOOGLE_API_KEY --name "$GATEWAY_WORKER"
+          printf '%s' "$QDRANT_URL" | npx --yes wrangler@4.148.0 secret put QDRANT_URL --name "$GATEWAY_WORKER"
+          printf '%s' "$QDRANT_API_KEY" | npx --yes wrangler@4.148.0 secret put QDRANT_API_KEY --name "$GATEWAY_WORKER"
       - name: Verify fail-closed authenticated gateway
         run: |
           set -euo pipefail
@@ -159,7 +149,7 @@ jobs:
           done
 
   frontend:
-    if: ${{ (github.event_name == 'workflow_dispatch' && inputs.deploy_candidate_preview) || (github.event_name == 'push' && (github.ref == 'refs/heads/v6-zero-cost-foundations-clean' || github.ref == 'refs/heads/critical-gaps/v8-remote-validation') && contains(github.event.head_commit.message, '[deploy-candidate-preview]')) || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && (github.event.pull_request.base.ref == 'v6-zero-cost-foundations-clean' || github.event.pull_request.base.ref == 'main') && github.event.pull_request.head.ref == 'critical-gaps/v8-remote-validation') }}
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.deploy_candidate_preview && github.ref == 'refs/heads/main' }}
     needs: gateway
     name: Build and deploy OpenNext frontend
     runs-on: ubuntu-latest
