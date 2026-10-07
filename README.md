@@ -10,11 +10,21 @@
 
 # NexusRAG — Enterprise Document Intelligence Platform
 
-A production-grade **Retrieval-Augmented Generation** platform that lets enterprises upload documents and ask AI-powered questions grounded in their own content. Built with **FastAPI**, **Next.js 16**, and a configurable **Google Gemini failover chain**.
+A **Retrieval-Augmented Generation** platform under active validation that lets enterprises upload documents and ask AI-powered questions grounded in their own content. Built with **FastAPI**, **Next.js 16**, and a configurable **Google Gemini failover chain**.
 
 > **What makes it "Nexus"?** Every chunk is enriched with LLM-generated document context before embedding — dramatically improving retrieval accuracy for ambiguous passages ([Anthropic's Contextual Retrieval](https://www.anthropic.com/news/contextual-retrieval)). NexusRAG connects your documents, retrieval, and generation into a single intelligent nexus.
 
 ---
+
+## Runtime scope and release status
+
+The deployed Cloudflare gateway is the bounded, tenant-scoped runtime; the Python backend also contains richer local/research implementations. The feature inventory below describes repository capabilities, **not a guarantee that every feature is enabled in the deployed gateway**.
+
+- Gateway uploads accept PDF, DOCX, TXT, Markdown, JSON, PNG, JPEG, WebP, and TIFF, up to **10 MB**. Spreadsheet, CSV, GIF, and BMP uploads are not enabled in that runtime.
+- Unsupported advanced retrieval filters, member mutations, retention enforcement, and workspace erasure fail closed rather than silently succeeding.
+- Consult [the comprehensive audit](docs/audits/COMPREHENSIVE_APPLICATION_AUDIT.md) for validated checks and remaining release blockers. Production readiness and defect-free operation are not claimed.
+- Qdrant Free clusters can suspend after inactivity. Check cluster health before diagnosing a gateway failure; reactivation does not establish a production availability SLA.
+- `main` is the canonical source branch. Candidate deployment is manual, main-only, and restricted to the isolated rehearsal backend. Production deployment remains separately guarded; merging code does not deploy production.
 
 ## Key Features
 

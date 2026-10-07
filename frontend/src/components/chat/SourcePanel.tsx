@@ -69,7 +69,7 @@ export function SourcePanel({ sources, onClose }: Props) {
                 <div className="flex items-center gap-2 mb-2">
                   <div className="h-1.5 flex-1 rounded-full bg-gray-200 dark:bg-gray-700 overflow-hidden">
                     <div
-                      className="h-full rounded-full bg-gradient-to-r from-green-400 to-emerald-500 transition-all duration-500"
+                      className="h-full rounded-full bg-linear-to-r/srgb from-green-400 to-emerald-500 transition-all duration-500"
                       style={{ width: `${Math.min(src.relevance_score * 100, 100)}%` }}
                     />
                   </div>

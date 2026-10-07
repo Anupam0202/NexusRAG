@@ -33,7 +33,7 @@ export default function EvidenceOSPage() {
       aria-label="Evidence Intelligence OS content"
     >
       <div className="mx-auto max-w-6xl space-y-6 px-4 py-6 md:px-8 md:py-8">
-        <section className="relative overflow-hidden rounded-3xl border border-brand-400/20 bg-gradient-to-br from-slate-950 via-indigo-950 to-purple-950 p-6 text-white shadow-2xl md:p-9">
+        <section className="relative overflow-hidden rounded-3xl border border-brand-400/20 bg-linear-to-br/srgb from-slate-950 via-indigo-950 to-purple-950 p-6 text-white shadow-2xl md:p-9">
           <div className="absolute -right-20 -top-20 h-64 w-64 rounded-full bg-purple-500/20 blur-3xl" />
           <div className="relative max-w-3xl">
             <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-semibold tracking-wide">
@@ -63,7 +63,7 @@ export default function EvidenceOSPage() {
             {PRODUCTS.map(({ name, description, icon: Icon, state }) => (
               <article key={name} className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
                 <div className="flex items-start gap-3">
-                  <div className="rounded-xl bg-gradient-to-br from-brand-500/15 to-purple-500/15 p-2.5 text-brand-600 dark:text-brand-300"><Icon size={20} /></div>
+                  <div className="rounded-xl bg-linear-to-br/srgb from-brand-500/15 to-purple-500/15 p-2.5 text-brand-600 dark:text-brand-300"><Icon size={20} /></div>
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <h3 className="font-semibold">{name}</h3>

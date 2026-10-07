@@ -69,8 +69,15 @@ export function useChat() {
   }, [store.sessionId, canAccessWorkspaceApi]);
 
   const runRestFallback = useCallback(async (id: string, req: QueryRequest) => {
+    const userId = store.authUser?.id;
+    const workspaceId = store.workspaceId;
+    const isCurrentContext = () => {
+      const current = useStore.getState();
+      return current.authUser?.id === userId && current.workspaceId === workspaceId && current.sessionId === req.session_id;
+    };
     try {
       const response = await chatQuery(req);
+      if (!isCurrentContext()) return;
       store.appendToken(id, response.answer);
       store.finishAssistant(id, {
         sources: response.sources,
@@ -81,6 +88,7 @@ export function useChat() {
       });
       store.setConnectionStatus("online");
     } catch (err: unknown) {
+      if (!isCurrentContext()) return;
       const message = err instanceof Error ? err.message : "Failed to reach the backend";
       if (err instanceof ApiRequestError && err.code === "BYOK_REQUIRED") {
         store.setIsQuotaBlocked(true);

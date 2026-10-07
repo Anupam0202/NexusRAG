@@ -25,7 +25,7 @@ export default function GlobalError({
       </p>
       <button
         onClick={reset}
-        className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-brand-500 to-purple-600 text-white px-5 py-2.5 text-sm font-semibold shadow-md hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all"
+        className="inline-flex items-center gap-2 rounded-xl bg-linear-to-r/srgb from-brand-500 to-purple-600 text-white px-5 py-2.5 text-sm font-semibold shadow-md hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all"
       >
         <RefreshCw size={15} />
         Try Again

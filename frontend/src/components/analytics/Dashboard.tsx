@@ -101,7 +101,7 @@ export function Dashboard() {
       </div>
 
       {/* Status banner */}
-      <div className="rounded-xl bg-gradient-to-r from-brand-500 to-purple-600 p-4 text-white shadow-lg">
+      <div className="rounded-xl bg-linear-to-r/srgb from-brand-500 to-purple-600 p-4 text-white shadow-lg">
         <div className="flex items-center gap-2 text-sm font-medium">
           <Activity size={16} />
           {health?.status === "healthy"
@@ -116,7 +116,7 @@ export function Dashboard() {
           <div
             key={m.label}
             className={cn(
-              "rounded-xl bg-gradient-to-br p-4 text-white shadow-md animate-fade-in",
+              "rounded-xl bg-linear-to-br/srgb p-4 text-white shadow-md animate-fade-in",
               m.color
             )}
           >

@@ -54,8 +54,8 @@ export function MessageBubble({ message, onShowSources }: Props) {
         className={cn(
           "flex h-7 w-7 sm:h-8 sm:w-8 shrink-0 items-center justify-center rounded-full text-white text-xs font-bold mt-0.5",
           isUser
-            ? "bg-gradient-to-br from-brand-500 to-purple-600"
-            : "bg-gradient-to-br from-emerald-500 to-teal-600"
+            ? "bg-linear-to-br/srgb from-brand-500 to-purple-600"
+            : "bg-linear-to-br/srgb from-emerald-500 to-teal-600"
         )}
       >
         {isUser ? <User size={13} /> : <Bot size={13} />}
@@ -64,7 +64,7 @@ export function MessageBubble({ message, onShowSources }: Props) {
       {/* Bubble */}
       <div className={cn("flex-1 min-w-0", isUser ? "max-w-[85%] lg:max-w-[70%] ml-auto" : "")}>
         {isUser ? (
-          <div className="rounded-2xl rounded-tr-md bg-gradient-to-r from-brand-500 to-purple-600 text-white px-3.5 sm:px-4 py-2.5 sm:py-3 shadow-sm">
+          <div className="rounded-2xl rounded-tr-md bg-linear-to-r/srgb from-brand-500 to-purple-600 text-white px-3.5 sm:px-4 py-2.5 sm:py-3 shadow-sm">
             <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">{message.content}</p>
           </div>
         ) : (

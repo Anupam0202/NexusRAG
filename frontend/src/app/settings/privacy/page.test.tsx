@@ -86,6 +86,21 @@ describe("PrivacyPage", () => {
     });
   });
 
+  it("does not offer mutations the bounded gateway cannot execute", async () => {
+    getPrivacySettings.mockResolvedValue({
+      retention_enabled: false,
+      retention_days: 0,
+      retention_mutation_supported: false,
+      workspace_deletion_supported: false,
+    });
+    render(<PrivacyPage />);
+    expect(await screen.findByText(/Retention configuration and execution are not yet available/)).toBeVisible();
+    expect(await screen.findByText(/Workspace erasure is not yet available/)).toBeVisible();
+    expect(screen.queryByLabelText("Confirm workspace deletion")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Save" })).not.toBeInTheDocument();
+    expect(deleteCurrentWorkspace).not.toHaveBeenCalled();
+  });
+
   it("submits workspace deletion through a guarded form", async () => {
     deleteCurrentWorkspace.mockImplementation(() => new Promise(() => {}));
 

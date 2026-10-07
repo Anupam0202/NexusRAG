@@ -236,6 +236,7 @@ export interface WorkspaceMember {
 }
 
 export interface WorkspaceMembersResponse {
+  management_supported?: boolean;
   workspace_id: string;
   members: WorkspaceMember[];
   total: number;
@@ -267,6 +268,8 @@ export interface BillingUsageResponse {
 }
 
 export interface PrivacySettingsResponse {
+  retention_mutation_supported?: boolean;
+  workspace_deletion_supported?: boolean;
   retention_enabled: boolean;
   retention_days: number;
   last_retention_at?: string | null;

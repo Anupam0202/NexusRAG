@@ -9,7 +9,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 
 PREVIEW_TARGETS = {
-    "refs/heads/v6-zero-cost-foundations-clean": {
+    "refs/heads/main": {
         "GATEWAY_CONFIG": "apps/gateway/wrangler.preview.jsonc",
         "GATEWAY_WORKER": "nexusrag-v6-candidate-gateway",
         "INGESTION_QUEUE": "nexusrag-v6-candidate-ingestion",
@@ -18,15 +18,7 @@ PREVIEW_TARGETS = {
         "FRONTEND_WORKER": "nexusrag-v6-candidate-frontend",
         "QDRANT_COLLECTION": "nexusrag-v6-candidate",
     },
-    "refs/heads/critical-gaps/v8-remote-validation": {
-        "GATEWAY_CONFIG": "apps/gateway/wrangler.pr3-preview.jsonc",
-        "GATEWAY_WORKER": "nexusrag-v6-pr3-gateway",
-        "INGESTION_QUEUE": "nexusrag-v6-pr3-ingestion",
-        "INGESTION_DLQ": "nexusrag-v6-pr3-ingestion-dlq",
-        "FRONTEND_CONFIG": "wrangler.pr3.jsonc",
-        "FRONTEND_WORKER": "nexusrag-v6-pr3-frontend",
-        "QDRANT_COLLECTION": "nexusrag-v6-pr3",
-    },
+
 }
 
 
@@ -40,7 +32,7 @@ def resolve_target(ref: str) -> dict[str, str]:
 
 
 def validate_targets() -> None:
-    """Ensure each branch's config agrees with its unique resources."""
+    """Ensure the canonical candidate config agrees with its unique resources."""
     resource_keys = (
         "GATEWAY_WORKER",
         "INGESTION_QUEUE",
