@@ -23,6 +23,7 @@ The deployed Cloudflare gateway is the bounded, tenant-scoped runtime; the Pytho
 - Gateway uploads accept PDF, DOCX, TXT, Markdown, JSON, PNG, JPEG, WebP, and TIFF, up to **10 MB**. Spreadsheet, CSV, GIF, and BMP uploads are not enabled in that runtime.
 - Unsupported advanced retrieval filters, member mutations, retention enforcement, and workspace erasure fail closed rather than silently succeeding.
 - Consult [the comprehensive audit](docs/audits/COMPREHENSIVE_APPLICATION_AUDIT.md) for validated checks and remaining release blockers. Production readiness and defect-free operation are not claimed.
+- Qdrant Free clusters can suspend after inactivity. Check cluster health before diagnosing a gateway failure; reactivation does not establish a production availability SLA.
 - `main` is the canonical source branch. Candidate deployment is manual, main-only, and restricted to the isolated rehearsal backend. Production deployment remains separately guarded; merging code does not deploy production.
 
 ## Key Features

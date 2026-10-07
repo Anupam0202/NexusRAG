@@ -6,7 +6,8 @@ name: V6 Live Provider Validation
 on:
   workflow_dispatch:
   push:
-    branches: [main]
+    # Trusted release pushes publish the required pre-merge provider context.
+    branches: [main, 'release/production-*']
     paths:
       - apps/gateway/**
       - scripts/live_provider_validation.py
