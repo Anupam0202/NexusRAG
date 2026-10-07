@@ -23,6 +23,8 @@ export interface DocumentMetadata {
 export interface DocumentListResponse {
   documents: DocumentMetadata[];
   total: number;
+  total_is_exact?: boolean;
+  next_after?: string | null;
 }
 
 export type IngestionJobStatus =

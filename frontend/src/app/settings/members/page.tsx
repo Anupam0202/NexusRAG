@@ -26,8 +26,14 @@ import type { WorkspaceMember, WorkspaceRole } from "@/types";
 type ManageableRole = Exclude<WorkspaceRole, "owner">;
 
 export default function MembersPage() {
+  const identity = useStore(state => `${state.authUser?.id}:${state.workspaceId}`);
+  return <MembersWorkbench key={identity} />;
+}
+function MembersWorkbench() {
   const authMode = useStore((state) => state.authMode);
   const authUser = useStore((state) => state.authUser);
+  const boundWorkspaceId = useStore((state) => state.workspaceId);
+  const context = { workspaceId: boundWorkspaceId };
   const [members, setMembers] = useState<WorkspaceMember[]>([]);
   const [workspaceId, setWorkspaceId] = useState<string | null>(null);
   const [currentRole, setCurrentRole] = useState<WorkspaceRole>("viewer");
@@ -45,8 +51,8 @@ export default function MembersPage() {
     setLoading(true);
     try {
       const [response, workspace] = await Promise.all([
-        listCurrentWorkspaceMembers(),
-        getCurrentWorkspace(),
+        listCurrentWorkspaceMembers({ workspaceId: boundWorkspaceId }),
+        getCurrentWorkspace({ workspaceId: boundWorkspaceId }),
       ]);
       setWorkspaceId(response.workspace_id);
       setMembers(response.members);
@@ -58,7 +64,7 @@ export default function MembersPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [boundWorkspaceId]);
 
   useEffect(() => {
     if (authMode === "loading") return;
@@ -76,7 +82,7 @@ export default function MembersPage() {
       const member = await addCurrentWorkspaceMember({
         email_or_user_id: emailOrUserId.trim(),
         role: newRole,
-      });
+      }, context);
       setMembers((current) => [
         ...current.filter((item) => item.user_id !== member.user_id),
         member,
@@ -93,7 +99,7 @@ export default function MembersPage() {
   const updateRole = async (member: WorkspaceMember, role: ManageableRole) => {
     setSavingUserId(member.user_id);
     try {
-      const updated = await updateCurrentWorkspaceMember(member.user_id, { role });
+      const updated = await updateCurrentWorkspaceMember(member.user_id, { role }, context);
       setMembers((current) =>
         current.map((item) => (item.user_id === updated.user_id ? { ...item, ...updated } : item))
       );
@@ -110,7 +116,7 @@ export default function MembersPage() {
     if (!window.confirm(`Remove ${label} from this workspace?`)) return;
     setSavingUserId(member.user_id);
     try {
-      await removeCurrentWorkspaceMember(member.user_id);
+      await removeCurrentWorkspaceMember(member.user_id, context);
       setMembers((current) => current.filter((item) => item.user_id !== member.user_id));
       toast.success("Workspace member removed");
     } catch (err) {

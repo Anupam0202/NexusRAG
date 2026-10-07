@@ -26,10 +26,12 @@ export function AuthProvider() {
 
     const supabase = createSupabaseBrowserClient();
     let active = true;
+    let generation = 0;
 
     const syncSession = async () => {
+      const initiatingGeneration = ++generation;
       const { data } = await supabase.auth.getSession();
-      if (!active) return;
+      if (!active || generation !== initiatingGeneration) return;
 
       const session = data.session;
       if (!session?.user) {
@@ -45,7 +47,7 @@ export function AuthProvider() {
       if (!getStoredWorkspaceId()) {
         try {
           const workspace = await getCurrentWorkspace();
-          if (active) setWorkspaceId(workspace.workspace_id);
+          if (active && generation === initiatingGeneration) setWorkspaceId(workspace.workspace_id);
         } catch {
           // The user may be authenticated before being added to a workspace.
         }
@@ -60,6 +62,7 @@ export function AuthProvider() {
 
     return () => {
       active = false;
+      generation += 1;
       subscription.subscription.unsubscribe();
     };
   }, [setAuthState, setWorkspaceId]);

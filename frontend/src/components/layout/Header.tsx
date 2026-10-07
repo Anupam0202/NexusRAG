@@ -8,6 +8,8 @@ import { getSystemStatus } from "@/lib/api";
 import { AuthMenu } from "@/components/auth/AuthMenu";
 
 const PAGE_TITLES: Record<string, string> = {
+  "/evidence-os": "Evidence OS",
+  "/findings": "Findings & Reviews",
   "/chat": "Chat",
   "/documents": "Documents",
   "/workspaces": "Workspaces",
@@ -29,7 +31,7 @@ export function Header() {
   const store = useStore();
   const title = pathname.startsWith("/documents/")
     ? "Document Detail"
-    : PAGE_TITLES[pathname] ?? "Chat";
+    : PAGE_TITLES[pathname] ?? "NexusRAG";
   const [browserOnline, setBrowserOnline] = useState(true);
 
   useEffect(() => {
@@ -46,6 +48,11 @@ export function Header() {
   useEffect(() => {
     let cancelled = false;
     const checkBackend = async () => {
+      if (store.authMode === "loading") return;
+      if (store.authMode === "signed_out") {
+        store.setConnectionStatus("auth_required");
+        return;
+      }
       if (!navigator.onLine) {
         store.setConnectionStatus("offline");
         return;
@@ -86,12 +93,12 @@ export function Header() {
       window.clearInterval(timer);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [store.authMode, store.authUser?.id, store.workspaceId]);
 
   const connectionLabel = !browserOnline
     ? "Offline"
     : store.connectionStatus === "online"
-      ? "Backend live"
+      ? "Gateway reachable"
       : store.connectionStatus === "auth_setup_required"
         ? "Auth setup required"
         : store.connectionStatus === "data_setup_required"

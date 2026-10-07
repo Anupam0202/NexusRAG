@@ -151,16 +151,30 @@ export async function uploadDocument(
   return res.json();
 }
 
-export async function listDocuments(): Promise<DocumentListResponse> {
-  return request("/api/v1/documents");
+export async function listDocuments(context: ApiRequestContext = {}): Promise<DocumentListResponse> {
+  const documents: DocumentListResponse["documents"] = [];
+  const seen = new Set<string>();
+  let after: string | null = null;
+  for (let page = 0; page < 10; page++) {
+    const response: DocumentListResponse = await request(
+      `/api/v1/documents${after ? `?after=${encodeURIComponent(after)}` : ""}`, undefined, context);
+    for (const document of response.documents) {
+      if (seen.has(document.document_id)) throw new Error("Document inventory changed while loading. Refresh and retry.");
+      seen.add(document.document_id); documents.push(document);
+    }
+    if (!response.next_after) return { documents, total: documents.length, total_is_exact: true, next_after: null };
+    if (response.next_after === after) throw new Error("Document pagination did not advance. Refresh and retry.");
+    after = response.next_after;
+  }
+  throw new Error("Workspace inventory exceeds this bounded view. No documents were silently omitted; use a narrower inventory view.");
 }
 
 export async function deleteDocument(
-  documentIdentifier: string
+  documentIdentifier: string, context: ApiRequestContext = {}
 ): Promise<{ success: boolean; message: string }> {
   return request(`/api/v1/documents/${encodeURIComponent(documentIdentifier)}/delete`, {
     method: "POST",
-  });
+  }, context);
 }
 
 export async function getIngestionJob(
@@ -213,11 +227,11 @@ export async function chatQuery(body: QueryRequest): Promise<QueryResponse> {
 }
 
 export async function clearSession(
-  sessionId: string
+  sessionId: string, context: ApiRequestContext = {}
 ): Promise<{ success: boolean; durable_messages_deleted?: number }> {
   return request(`/api/v1/chat/sessions/${sessionId}/clear`, {
     method: "POST",
-  });
+  }, context);
 }
 
 export async function getSessionMessages(
@@ -255,29 +269,29 @@ export async function getBillingUsage(
   return request("/api/v1/billing/usage", undefined, context);
 }
 
-export async function getPrivacySettings(): Promise<PrivacySettingsResponse> {
-  return request("/api/v1/privacy/settings");
+export async function getPrivacySettings(context: ApiRequestContext = {}): Promise<PrivacySettingsResponse> {
+  return request("/api/v1/privacy/settings", undefined, context);
 }
 
 export async function updatePrivacySettings(body: {
   retention_enabled: boolean;
   retention_days: number;
-}): Promise<PrivacySettingsResponse> {
+}, context: ApiRequestContext = {}): Promise<PrivacySettingsResponse> {
   return request("/api/v1/privacy/settings", {
     method: "PATCH",
     body: JSON.stringify(body),
-  });
+  }, context);
 }
 
-export async function runRetention(): Promise<WorkspaceLifecycleResponse> {
-  return request("/api/v1/privacy/retention/run", { method: "POST" });
+export async function runRetention(context: ApiRequestContext = {}): Promise<WorkspaceLifecycleResponse> {
+  return request("/api/v1/privacy/retention/run", { method: "POST" }, context);
 }
 
-export async function deleteCurrentWorkspace(): Promise<WorkspaceLifecycleResponse> {
+export async function deleteCurrentWorkspace(context: ApiRequestContext = {}): Promise<WorkspaceLifecycleResponse> {
   return request("/api/v1/workspaces/current/delete", {
     method: "POST",
     body: JSON.stringify({ confirmation: "DELETE WORKSPACE" }),
-  });
+  }, context);
 }
 
 export async function getAuditEvents(limit = 20): Promise<AuditEventListResponse> {
@@ -341,12 +355,79 @@ export async function getCurrentUser(): Promise<{
   return request("/api/v1/auth/me");
 }
 
-export async function getCurrentWorkspace(): Promise<{
+export async function getCurrentWorkspace(context: ApiRequestContext = {}): Promise<{
   workspace_id: string;
   role: "owner" | "admin" | "editor" | "viewer";
   user_id: string;
 }> {
-  return request("/api/v1/workspaces/current");
+  return request("/api/v1/workspaces/current", undefined, context);
+}
+
+export interface FindingSummary {
+  id: string;
+  workspace_id: string;
+  owner_id: string;
+  title: string;
+  revision: number;
+  source_run_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface FindingDetail extends FindingSummary {
+  author_id: string | null;
+  permission: "owner" | "read" | "contribute";
+  authored_markdown: string;
+  generated_markdown: string | null;
+  source_unavailable: boolean;
+  evidence: Array<{ id: string; document_id: string; version_id: string; original_text?: string; available: boolean; freshness: string }>;
+  reviews: Array<{ reviewer_id: string; revision: number; decision: string; comment: string }>;
+  participants: Array<{ user_id: string; permission: "read" | "contribute" }>;
+}
+
+export function listFindings(context: ApiRequestContext, after?: string) {
+  return request<{ items: FindingSummary[]; next_after: string | null }>(
+    `/api/v2/findings?limit=20${after ? `&after=${encodeURIComponent(after)}` : ""}`, undefined, context);
+}
+
+export function readFinding(id: string, context: ApiRequestContext) {
+  return request<FindingDetail>(`/api/v2/findings/${encodeURIComponent(id)}`, undefined, context);
+}
+
+export function createFinding(
+  body: { title: string; authored_markdown: string }, key: string, context: ApiRequestContext
+) {
+  return request<FindingSummary>("/api/v2/findings",
+    { method: "POST", headers: { "Idempotency-Key": key }, body: JSON.stringify(body) }, context);
+}
+
+export function editFinding(id: string, body: { title: string; authored_markdown: string; revision: number }, context: ApiRequestContext) {
+  return request<FindingSummary>(`/api/v2/findings/${encodeURIComponent(id)}`,
+    { method: "PATCH", body: JSON.stringify(body) }, context);
+}
+
+export function reviewFinding(id: string, body: { revision: number; decision: "approved" | "changes_requested"; comment: string }, context: ApiRequestContext) {
+  return request<FindingDetail>(`/api/v2/findings/${encodeURIComponent(id)}/review`,
+    { method: "POST", body: JSON.stringify(body) }, context);
+}
+
+export function shareFinding(id: string, body: { user_id: string; permission: "read" | "contribute" }, context: ApiRequestContext) {
+  return request<FindingDetail>(`/api/v2/findings/${encodeURIComponent(id)}/share`,
+    { method: "POST", body: JSON.stringify(body) }, context);
+}
+
+export function unshareFinding(id: string, userId: string, context: ApiRequestContext) {
+  return request<FindingDetail>(`/api/v2/findings/${encodeURIComponent(id)}/unshare`,
+    { method: "POST", body: JSON.stringify({ user_id: userId }) }, context);
+}
+
+export function removeFinding(id: string, context: ApiRequestContext) {
+  return request<{ id: string; state: string }>(`/api/v2/findings/${encodeURIComponent(id)}`, { method: "DELETE" }, context);
+}
+
+export function exportFinding(id: string, context: ApiRequestContext) {
+  return request<{ receipt: { id: string }; manifest: unknown; manifest_hash: string }>(
+    `/api/v2/findings/${encodeURIComponent(id)}/export`, { method: "POST" }, context);
 }
 
 export async function listWorkspaces(): Promise<WorkspaceListResponse> {
@@ -356,40 +437,45 @@ export async function listWorkspaces(): Promise<WorkspaceListResponse> {
 export async function createWorkspace(
   body: WorkspaceCreateRequest
 ): Promise<WorkspaceSummary> {
+  const normalized = { ...body, name: body.name.trim() };
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(JSON.stringify(normalized)));
+  const key = [...new Uint8Array(digest)].map(value => value.toString(16).padStart(2, "0")).join("");
   return request("/api/v1/workspaces", {
     method: "POST",
-    headers: { "Idempotency-Key": `workspace-create:${body.slug}` },
-    body: JSON.stringify(body),
+    headers: { "Idempotency-Key": `workspace-create:${key}` },
+    body: JSON.stringify(normalized),
   });
 }
 
-export async function listCurrentWorkspaceMembers(): Promise<WorkspaceMembersResponse> {
-  return request("/api/v1/workspaces/current/members");
+export async function listCurrentWorkspaceMembers(context: ApiRequestContext = {}): Promise<WorkspaceMembersResponse> {
+  return request("/api/v1/workspaces/current/members", undefined, context);
 }
 
 export async function addCurrentWorkspaceMember(
-  body: WorkspaceMemberCreateRequest
+  body: WorkspaceMemberCreateRequest,
+  context: ApiRequestContext = {}
 ): Promise<WorkspaceMember> {
   return request("/api/v1/workspaces/current/members", {
     method: "POST",
     body: JSON.stringify(body),
-  });
+  }, context);
 }
 
 export async function updateCurrentWorkspaceMember(
   userId: string,
-  body: WorkspaceMemberUpdateRequest
+  body: WorkspaceMemberUpdateRequest,
+  context: ApiRequestContext = {}
 ): Promise<WorkspaceMember> {
   return request(`/api/v1/workspaces/current/members/${encodeURIComponent(userId)}`, {
     method: "PATCH",
     body: JSON.stringify(body),
-  });
+  }, context);
 }
 
 export async function removeCurrentWorkspaceMember(
-  userId: string
+  userId: string, context: ApiRequestContext = {}
 ): Promise<{ success: boolean; removed: number; user_id: string }> {
   return request(`/api/v1/workspaces/current/members/${encodeURIComponent(userId)}`, {
     method: "DELETE",
-  });
+  }, context);
 }

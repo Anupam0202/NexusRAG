@@ -1,6 +1,6 @@
 "use client";
 
-import { type FormEvent, type MouseEvent, useEffect, useState } from "react";
+import { type FormEvent, type MouseEvent, useEffect, useRef, useState } from "react";
 import Link from "@/components/layout/StaticLink";
 import { ArrowLeft, CalendarClock, Eraser, Loader2, Play, Save, ShieldCheck, Trash2 } from "lucide-react";
 import { toast } from "sonner";
@@ -26,8 +26,20 @@ const DELETE_CONFIRMATION = "DELETE DOCUMENTS";
 const DELETE_WORKSPACE_CONFIRMATION = "DELETE WORKSPACE";
 
 export default function PrivacyPage() {
+  const identity = useStore(state => `${state.authUser?.id}:${state.workspaceId}`);
+  return <PrivacyWorkbench key={identity} />;
+}
+function PrivacyWorkbench() {
   const { authMode, canAccessWorkspaceApi } = useWorkspaceApiAccess();
   const sessionId = useStore((state) => state.sessionId);
+  const workspaceId = useStore((state) => state.workspaceId);
+  const userId = useStore((state) => state.authUser?.id);
+  const alive = useRef(true);
+  const context = { workspaceId };
+  useEffect(() => {
+    alive.current = true;
+    return () => { alive.current = false; };
+  }, []);
   const clearMessages = useStore((state) => state.clearMessages);
   const setDocuments = useStore((state) => state.setDocuments);
   const [role, setRole] = useState<WorkspaceRole>("viewer");
@@ -50,7 +62,8 @@ export default function PrivacyPage() {
     if (!canAccessWorkspaceApi) return;
     let active = true;
     setWorkspaceDataState("loading");
-    Promise.all([getCurrentWorkspace(), listDocuments(), getPrivacySettings()])
+    setRole("viewer"); setDocumentCount(0); setRetentionSupported(false); setWorkspaceDeletionSupported(false);
+    Promise.all([getCurrentWorkspace({ workspaceId }), listDocuments({ workspaceId }), getPrivacySettings({ workspaceId })])
       .then(([workspace, documents, privacy]) => {
         if (!active) return;
         setRole(workspace.role);
@@ -70,7 +83,7 @@ export default function PrivacyPage() {
     return () => {
       active = false;
     };
-  }, [canAccessWorkspaceApi]);
+  }, [canAccessWorkspaceApi, workspaceId, userId]);
 
   if (!canAccessWorkspaceApi) {
     return (
@@ -90,7 +103,8 @@ export default function PrivacyPage() {
   const clearCurrentChat = async () => {
     setWorking("chat");
     try {
-      await clearSession(sessionId);
+      await clearSession(sessionId, context);
+      if (!alive.current) return;
       clearMessages();
       toast.success("Current chat history cleared");
     } catch (error) {
@@ -104,11 +118,13 @@ export default function PrivacyPage() {
     if (confirmation !== DELETE_CONFIRMATION) return;
     setWorking("documents");
     try {
-      const response = await listDocuments();
+      const response = await listDocuments(context);
+      if (!alive.current) return;
       const result = await deleteDocumentsBestEffort(
         response.documents.map((document) => document.document_id),
-        deleteDocument
+        id => deleteDocument(id, context)
       );
+      if (!alive.current) return;
       const remaining = response.documents.filter(
         (document) => !result.deletedIds.includes(document.document_id)
       );
@@ -155,7 +171,8 @@ export default function PrivacyPage() {
     setWorking("retention");
     try {
       const payload = normalizeRetentionSchedule(retentionEnabled, retentionDays);
-      const saved = await updatePrivacySettings(payload);
+      const saved = await updatePrivacySettings(payload, context);
+      if (!alive.current) return;
       setRetentionEnabled(saved.retention_enabled);
       setRetentionDays(saved.retention_days || 30);
       setLastRetentionAt(saved.last_retention_at ?? null);
@@ -170,8 +187,10 @@ export default function PrivacyPage() {
   const runRetentionNow = async () => {
     setWorking("retention-run");
     try {
-      const result = await runRetention();
-      const documents = await listDocuments();
+      const result = await runRetention(context);
+      if (!alive.current) return;
+      const documents = await listDocuments(context);
+      if (!alive.current) return;
       setDocuments(documents.documents);
       setDocumentCount(documents.total);
       setLastRetentionAt(new Date().toISOString());
@@ -191,7 +210,8 @@ export default function PrivacyPage() {
     if (workspaceConfirmation !== DELETE_WORKSPACE_CONFIRMATION) return;
     setWorking("workspace");
     try {
-      await deleteCurrentWorkspace();
+      await deleteCurrentWorkspace(context);
+      if (!alive.current) return;
       setStoredWorkspaceId(null);
       // A hard navigation clears stale workspace-scoped client state after deletion.
       navigateStatic("/workspaces");

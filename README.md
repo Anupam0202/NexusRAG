@@ -10,9 +10,9 @@
 
 # NexusRAG — Enterprise Document Intelligence Platform
 
-A **Retrieval-Augmented Generation** platform under active validation that lets enterprises upload documents and ask AI-powered questions grounded in their own content. Built with **FastAPI**, **Next.js 16**, and a configurable **Google Gemini failover chain**.
+A **Retrieval-Augmented Generation** platform under active validation for workspace-scoped document research and reviewable findings. The bounded runtime uses **Cloudflare**, **Supabase**, **Qdrant**, **Gemini**, and **Next.js 16**; **FastAPI** contains additional local/research implementations.
 
-> **What makes it "Nexus"?** Every chunk is enriched with LLM-generated document context before embedding — dramatically improving retrieval accuracy for ambiguous passages ([Anthropic's Contextual Retrieval](https://www.anthropic.com/news/contextual-retrieval)). NexusRAG connects your documents, retrieval, and generation into a single intelligent nexus.
+> NexusRAG connects documents, retrieval, and reviewable findings. Optional contextual enrichment exists in the Python research path; it is not enabled in the bounded gateway, and improved answer quality is not established merely by implementing it.
 
 ---
 
@@ -20,13 +20,17 @@ A **Retrieval-Augmented Generation** platform under active validation that lets 
 
 The deployed Cloudflare gateway is the bounded, tenant-scoped runtime; the Python backend also contains richer local/research implementations. The feature inventory below describes repository capabilities, **not a guarantee that every feature is enabled in the deployed gateway**.
 
-- Gateway uploads accept PDF, DOCX, TXT, Markdown, JSON, PNG, JPEG, WebP, and TIFF, up to **10 MB**. Spreadsheet, CSV, GIF, and BMP uploads are not enabled in that runtime.
-- Unsupported advanced retrieval filters, member mutations, retention enforcement, and workspace erasure fail closed rather than silently succeeding.
+- Gateway source accepts bounded PDF, DOCX, TXT, Markdown, CSV, JSON, ZIP, PNG, JPEG, WebP, and TIFF, up to **10,000,000 bytes**. Binary Gemini extraction requires approved non-sensitive processing, rights and budgets. Excel, GIF and BMP are not supported by this runtime. Verify the deployed revision before assuming source behavior is live.
+- Migrations 035/036 add atomic workspace creation, confirmed-Auth existing-account member management, private versioned findings, independent review and manual-note export receipts. `/findings` is the corresponding workbench. Invitations and complete ten-product workflows are not established by these features.
+- Unsupported advanced retrieval filters, retention enforcement, and workspace erasure fail closed. Deletions needing unimplemented derived-content or outstanding-write verification remain tombstoned/blocked; no successful receipt is fabricated.
+- Document inventory follows bounded keyset pages rather than presenting the first 100 records as the entire workspace.
 - Consult [the comprehensive audit](docs/audits/COMPREHENSIVE_APPLICATION_AUDIT.md) for validated checks and remaining release blockers. Production readiness and defect-free operation are not claimed.
 - Qdrant Free clusters can suspend after inactivity. Check cluster health before diagnosing a gateway failure; reactivation does not establish a production availability SLA.
 - `main` is the canonical source branch. Candidate deployment is manual, main-only, and restricted to the isolated rehearsal backend. Production deployment remains separately guarded; merging code does not deploy production.
 
-## Key Features
+## Local/research feature inventory
+
+The following features describe optional Python implementations, not production acceptance or the bounded gateway's capabilities. See the current audit and runtime capability responses before enabling them.
 
 ### Multi-Format Document Ingestion
 - **PDF** — native text extraction + OCR for scanned documents
@@ -38,7 +42,7 @@ The deployed Cloudflare gateway is the bounded, tenant-scoped runtime; the Pytho
 - Upload preflight returns clear limits for large PDFs, scanned PDFs, and high-resolution images before processing starts
 
 ### Advanced RAG Pipeline
-- **Hybrid Retrieval** — BM25 keyword + Qdrant vector semantic search in production, with local FAISS fallback for development
+- **Hybrid Retrieval** — BM25 and Qdrant in the Python path; the bounded gateway has its own lexical/dense fusion. Neither is production-quality verified solely by synthetic tests.
 - **Cross-Encoder Re-ranking** — `ms-marco-MiniLM-L-6-v2` for precision
 - **Smart Chunking** — recursive, semantic (embedding-based breakpoints), and hierarchical strategies
 - **Contextual Enrichment** — LLM-generated context prepended to each chunk (Anthropic-style)
@@ -60,7 +64,7 @@ The deployed Cloudflare gateway is the bounded, tenant-scoped runtime; the Pytho
 - Table extraction via Gemini Vision
 - Figure detection with contour analysis + OCR
 - Embedded image extraction via PyMuPDF
-- Automatically falls back to the standard PDF loader on memory-constrained Render instances
+- Can fall back to the standard PDF loader in memory-constrained local/research environments; Render is not an active deployment target.
 
 ### Real-Time Streaming Chat
 - WebSocket-based token streaming with typed JSON frames
@@ -70,12 +74,12 @@ The deployed Cloudflare gateway is the bounded, tenant-scoped runtime; the Pytho
 - Confidence scoring based on actual retrieval scores
 
 ### API Key Management
-- Ships with a default Gemini API key for quick start
+- The repository ships no usable provider key. An operator may configure a server key behind explicit rights and budget gates.
 - Auto-prompted modal when quota is exceeded
 - Users can enter their own Google API key to continue
-- Workspace BYOK status is managed from `/settings/api-keys`
+- Account-scoped encrypted BYOK status is managed from `/settings/api-keys`; the user's Google project may be billed.
 - Raw keys are never returned to the browser and can be removed without mutating global server settings
-- Key validation runs server-side using a free `list_models()` call
+- Key validation runs server-side using a bounded provider model-list request; do not infer cost or quota rights merely from a successful validation.
 
 ### Runtime Settings
 - Tunable temperature, top-k, hybrid alpha, context window
