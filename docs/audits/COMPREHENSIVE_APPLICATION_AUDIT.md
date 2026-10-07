@@ -28,6 +28,8 @@ Forward migrations 035 and 036 were replayed against a disposable local PostgreS
 
 036 fixes the initially detected profile-email authority defect using a narrow service-only, fixed-search-path resolver of confirmed `auth.users` identities. Hosted metadata confirmed version 036 and denied anon/authenticated execution of that resolver. Local Auth/Storage tables are explicitly stand-ins, not hosted OAuth/Storage implementations.
 
+The protected provider workflow had path filters that omitted docs/visual-only candidate heads. Those filters were removed while retaining trusted-branch-only secret access and non-cancellable disposable cleanup; a regression test prevents missing exact-head provider contexts.
+
 Candidate mapping was revalidated: dedicated candidate frontend/gateway Workers, candidate ingestion queue and rehearsal Supabase project. Existing candidate deployment/version IDs were retained externally for rollback; no live Worker, queue, database, object or production record was deleted. At this source publication boundary, live Workers still predate the changes and observed log redaction is false. Deployment is not yet claimed.
 
 Sensitive candidate credential headers are passed through a shell-owned curl configuration descriptor rather than process arguments. The isolated preview workflow now fails unless schema 036 is present, publishes non-secret exact-source identity in gateway health and a generated frontend asset, checks both deployed identities, and runs public Chromium/mobile-emulation plus Firefox/WebKit functional acceptance. Generated build metadata is ignored, not committed. Production cutover still needs explicit owner approval and its genuine acceptance gates.

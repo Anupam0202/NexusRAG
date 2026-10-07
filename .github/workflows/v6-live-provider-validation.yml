@@ -8,14 +8,8 @@ on:
   push:
     # Trusted release pushes publish the required pre-merge provider context.
     branches: [main, 'release/production-*']
-    paths:
-      - apps/gateway/**
-      - scripts/live_provider_validation.py
-      - scripts/preview_target.py
-      - backend/src/vectorstores/qdrant_store.py
-      - backend/src/generation/**
-      - .github/workflows/v6-live-provider-validation.yml
-      - tests/scripts/**
+    # Required exact-head contexts must also report for docs/visual-only pushes.
+    # Scope remains trusted main/release branches; untrusted PRs get no secrets.
 
 permissions:
   contents: read
