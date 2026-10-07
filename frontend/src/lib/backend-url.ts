@@ -37,6 +37,13 @@ function validateBackendUrl(rawUrl: string): string {
   if (!["http:", "https:"].includes(url.protocol)) {
     throw new Error("Backend URL must start with http:// or https://.");
   }
+  const loopback = ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname);
+  if (url.protocol !== "https:" && !loopback) {
+    throw new Error("Backend URL must use HTTPS outside local development.");
+  }
+  if (url.username || url.password || url.search || url.hash) {
+    throw new Error("Backend URL must not contain credentials, query parameters, or fragments.");
+  }
 
   if (isRetiredPlatformHost(url.hostname)) {
     throw new Error(

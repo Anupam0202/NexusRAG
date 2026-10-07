@@ -1,8 +1,12 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+@config "../../tailwind.config.ts";
 
 @layer base {
+  /* Preserve the established border default during the v4 migration. */
+  *, ::before, ::after, ::backdrop, ::file-selector-button {
+    border-color: var(--color-gray-200, currentColor);
+  }
+
   :root {
     --bg-primary: #ffffff;
     --bg-secondary: #f8fafc;
@@ -110,7 +114,7 @@
   @apply w-full border-collapse text-sm my-3 overflow-hidden rounded-xl shadow-sm;
 }
 .chat-prose th {
-  @apply bg-gradient-to-r from-brand-600 to-purple-600 text-white px-3 py-2.5 text-left text-xs uppercase tracking-wider font-semibold;
+  @apply bg-linear-to-r/srgb from-brand-600 to-purple-600 text-white px-3 py-2.5 text-left text-xs uppercase tracking-wider font-semibold;
 }
 .chat-prose td {
   @apply px-3 py-2 border-b border-[var(--border)];
@@ -241,9 +245,9 @@
 }
 
 /* ── Document stat card variations ───────────────────────────── */
-.stat-card-docs { @apply bg-gradient-to-br from-brand-500 via-indigo-500 to-purple-600; }
-.stat-card-chunks { @apply bg-gradient-to-br from-emerald-500 via-teal-500 to-cyan-600; }
-.stat-card-size { @apply bg-gradient-to-br from-purple-500 via-fuchsia-500 to-pink-600; }
+.stat-card-docs { @apply bg-linear-to-br/srgb from-brand-500 via-indigo-500 to-purple-600; }
+.stat-card-chunks { @apply bg-linear-to-br/srgb from-emerald-500 via-teal-500 to-cyan-600; }
+.stat-card-size { @apply bg-linear-to-br/srgb from-purple-500 via-fuchsia-500 to-pink-600; }
 
 /* ── Settings card micro-interaction ─────────────────────────── */
 .settings-card {

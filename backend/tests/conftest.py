@@ -4,7 +4,6 @@ Shared pytest fixtures for the entire test suite.
 
 from __future__ import annotations
 
-import os
 from unittest.mock import MagicMock
 
 import pytest
@@ -18,6 +17,7 @@ def _set_test_env(monkeypatch, tmp_path):
     from config.settings import get_settings
     from src.api.dependencies import get_rag_chain, get_vector_store
     from src.infrastructure.supabase_client import get_supabase_client
+    from src.ingestion.embedder import get_embedder
     from src.telemetry.events import get_telemetry_recorder
     from src.utils.layered_cache import get_layered_cache
 
@@ -27,7 +27,11 @@ def _set_test_env(monkeypatch, tmp_path):
     get_supabase_client.cache_clear()
     get_telemetry_recorder.cache_clear()
     get_layered_cache.cache_clear()
-    monkeypatch.setenv("GOOGLE_API_KEY", os.getenv("GOOGLE_API_KEY", "test-key-placeholder"))
+    get_embedder.cache_clear()
+    monkeypatch.setenv("GOOGLE_API_KEY", "test-key-placeholder")
+    monkeypatch.setenv("ENABLE_LIGHTWEIGHT_EMBEDDINGS", "true")
+    monkeypatch.setenv("HF_HUB_OFFLINE", "1")
+    monkeypatch.setenv("TRANSFORMERS_OFFLINE", "1")
     monkeypatch.setenv("LOG_FORMAT", "console")
     monkeypatch.setenv("LOG_LEVEL", "WARNING")
     monkeypatch.setenv("ENABLE_CACHE", "false")
@@ -42,6 +46,7 @@ def _set_test_env(monkeypatch, tmp_path):
     get_supabase_client.cache_clear()
     get_telemetry_recorder.cache_clear()
     get_layered_cache.cache_clear()
+    get_embedder.cache_clear()
 
 
 @pytest.fixture

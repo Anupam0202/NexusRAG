@@ -544,7 +544,7 @@ export default function ChatInterface() {
                   className={cn(
                     "flex h-9 w-9 items-center justify-center rounded-xl transition-all duration-200",
                     canSend
-                      ? "bg-gradient-to-r from-brand-500 to-purple-600 text-white shadow-md hover:shadow-lg hover:scale-105 active:scale-95"
+                      ? "bg-linear-to-r/srgb from-brand-500 to-purple-600 text-white shadow-md hover:shadow-lg hover:scale-105 active:scale-95"
                       : "bg-[var(--bg-secondary)] text-[var(--text-muted)] cursor-not-allowed"
                   )}
                 >
@@ -598,10 +598,10 @@ function EmptyState({
     <div className="flex h-full w-full max-w-lg flex-col items-center justify-center mx-auto text-center px-4 animate-fade-in">
       {/* Logo */}
       <div className="relative mb-6">
-        <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-500 via-purple-500 to-pink-500 shadow-lg">
+        <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-linear-to-br/srgb from-brand-500 via-purple-500 to-pink-500 shadow-lg">
           <Sparkles size={28} className="text-white" />
         </div>
-        <div className="absolute -inset-1 rounded-2xl bg-gradient-to-br from-brand-500/20 to-purple-500/20 blur-xl -z-10" />
+        <div className="absolute -inset-1 rounded-2xl bg-linear-to-br/srgb from-brand-500/20 to-purple-500/20 blur-xl -z-10" />
       </div>
 
       <h2 className="text-xl sm:text-2xl font-bold mb-2">

@@ -37,6 +37,8 @@ export default function PrivacyPage() {
   const [retentionEnabled, setRetentionEnabled] = useState(false);
   const [retentionDays, setRetentionDays] = useState(30);
   const [lastRetentionAt, setLastRetentionAt] = useState<string | null>(null);
+  const [retentionSupported, setRetentionSupported] = useState(true);
+  const [workspaceDeletionSupported, setWorkspaceDeletionSupported] = useState(true);
   const [workspaceDataState, setWorkspaceDataState] = useState<"loading" | "ready" | "error">(
     "loading"
   );
@@ -56,6 +58,8 @@ export default function PrivacyPage() {
         setRetentionEnabled(privacy.retention_enabled);
         setRetentionDays(privacy.retention_days || 30);
         setLastRetentionAt(privacy.last_retention_at ?? null);
+        setRetentionSupported(privacy.retention_mutation_supported !== false);
+        setWorkspaceDeletionSupported(privacy.workspace_deletion_supported !== false);
         setWorkspaceDataState("ready");
       })
       .catch((error) => {
@@ -140,8 +144,8 @@ export default function PrivacyPage() {
 
   const workspaceDataReady = workspaceDataState === "ready";
   const canDeleteDocuments = workspaceDataReady && (role === "owner" || role === "admin");
-  const canManageRetention = authMode === "authenticated" && canDeleteDocuments;
-  const canDeleteWorkspace = authMode === "authenticated" && workspaceDataReady && role === "owner";
+  const canManageRetention = retentionSupported && authMode === "authenticated" && canDeleteDocuments;
+  const canDeleteWorkspace = workspaceDeletionSupported && authMode === "authenticated" && workspaceDataReady && role === "owner";
   const workspaceDataMessage =
     workspaceDataState === "loading"
       ? "Loading secure workspace data..."
@@ -308,7 +312,9 @@ export default function PrivacyPage() {
                   </div>
                 ) : workspaceDataReady ? (
                   <p className="mt-3 text-xs font-semibold text-[var(--text-muted)]">
-                    Durable retention is available to authenticated workspace owners and administrators.
+                    {retentionSupported
+                      ? "Durable retention is available to authenticated workspace owners and administrators."
+                      : "Retention configuration and execution are not yet available on this bounded Worker."}
                   </p>
                 ) : null}
               </div>
@@ -400,7 +406,9 @@ export default function PrivacyPage() {
                   </form>
                 ) : workspaceDataReady ? (
                   <p className="mt-3 text-xs font-semibold text-red-800 dark:text-red-200">
-                    Only an authenticated workspace owner can delete the workspace.
+                    {workspaceDeletionSupported
+                      ? "Only an authenticated workspace owner can delete the workspace."
+                      : "Workspace erasure is not yet available on this bounded Worker. Individual document deletion remains available."}
                   </p>
                 ) : null}
               </div>

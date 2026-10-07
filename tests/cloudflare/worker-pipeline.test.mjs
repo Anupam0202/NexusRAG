@@ -69,3 +69,10 @@ test("hybrid alpha controls semantic-versus-keyword ranking", () => {
 test("SHA-256 receipts are stable", async () => {
   assert.equal(await sha256("NexusRAG"), "78734a32eacf9d84da61c93b215c2bc8c1aa43f293f8bdec1f07b160827728e6");
 });
+
+test('retrieval fences the published index generation and preserves workspace scope above 25 documents',()=>{
+ const ids=Array.from({length:40},(_,i)=>`doc-${i}`);
+ const filter=qdrantFilter('workspace-a',ids,['version-a'],['generation-a']);
+ assert.equal(filter.must[1].match.any.length,40);
+ assert.deepEqual(filter.must[3],{key:'index_generation',match:{any:['generation-a']}});
+});

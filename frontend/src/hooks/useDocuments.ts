@@ -43,12 +43,19 @@ export function useDocuments() {
     }
 
     setLoading(true);
+    const context = useStore.getState();
+    const isCurrentContext = () => {
+      const current = useStore.getState();
+      return current.authUser?.id === context.authUser?.id && current.workspaceId === context.workspaceId && current.authMode === context.authMode;
+    };
     try {
       const resp = await listDocuments();
+      if (!isCurrentContext()) return null;
       setDocuments(resp.documents);
       setError(null);
       return resp;
     } catch (err: unknown) {
+      if (!isCurrentContext()) return null;
       if (!options.suppressError) {
         setError(getErrorMessage(err, "Failed to load documents"));
       }

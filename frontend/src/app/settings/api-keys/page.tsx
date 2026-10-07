@@ -264,7 +264,7 @@ export default function ApiKeysPage() {
               <button
                 type="submit"
                 disabled={saving || apiKey.trim().length < 10 || !costConsentAccepted}
-                className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-brand-500 to-purple-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md transition hover:shadow-lg disabled:opacity-60 sm:w-auto"
+                className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-linear-to-r/srgb from-brand-500 to-purple-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md transition hover:shadow-lg disabled:opacity-60 sm:w-auto"
               >
                 {saving ? <Loader2 size={15} className="animate-spin" /> : <CheckCircle2 size={15} />}
                 {saving ? "Validating" : hasWorkspaceKey ? "Replace Key" : "Activate Key"}

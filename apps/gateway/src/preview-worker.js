@@ -69,6 +69,11 @@ const ROLE_CAPABILITIES = Object.freeze({
 const buckets = new Map();
 function allowRequest(key, now = Date.now()) {
   const windowStart = now - 60_000;
+  // Bound isolate-local memory even when many distinct users hit this Worker.
+  for (const [id, timestamps] of buckets) {
+    if (timestamps.at(-1) < windowStart) buckets.delete(id);
+  }
+  if (!buckets.has(key) && buckets.size >= 10_000) return false;
   const recent = (buckets.get(key) || []).filter((value) => value >= windowStart);
   if (recent.length >= 60) return false;
   recent.push(now); buckets.set(key, recent); return true;
@@ -95,6 +100,11 @@ function fail(request, env, code, message, status, retryable = false) {
 }
 function configured(env) {
   return Boolean(env.SUPABASE_URL && env.SUPABASE_PUBLISHABLE_KEY && env.SUPABASE_SERVICE_ROLE_KEY);
+}
+async function readJsonBody(request) {
+  try { return await request.json(); } catch {
+    throw Object.assign(new Error("The request body must contain valid JSON."), { status: 400, code: "INVALID_REQUEST" });
+  }
 }
 async function apiFetch(url, init = {}, timeout = 8_000) {
   return fetch(url, { ...init, signal: AbortSignal.timeout(timeout) });
@@ -126,8 +136,8 @@ async function serviceRequest(env, tablePath, init = {}) {
   const text = await response.text();
   return text ? JSON.parse(text) : null;
 }
-async function countWorkspaceRows(env, table, workspace) {
-  const response = await apiFetch(`${env.SUPABASE_URL}/rest/v1/${table}?workspace_id=eq.${encodeURIComponent(workspace)}&select=id`, {
+async function countWorkspaceRows(env, table, workspace, filters = "") {
+  const response = await apiFetch(`${env.SUPABASE_URL}/rest/v1/${table}?workspace_id=eq.${encodeURIComponent(workspace)}&select=id${filters}`, {
     method: "HEAD",
     headers: {
       apikey: env.SUPABASE_SERVICE_ROLE_KEY,
@@ -227,7 +237,7 @@ async function audit(env, request, userId, workspace, action, resourceType) {
 async function createWorkspace(request, env, user) {
   const key = request.headers.get("idempotency-key");
   if (!key || key.length > 200) throw Object.assign(new Error("Idempotency-Key is required."), { status: 400, code: "INVALID_SCOPE" });
-  const body = await request.json();
+  const body = await readJsonBody(request);
   const name = String(body?.name || "").trim();
   const slug = String(body?.slug || "").trim().toLowerCase();
   if (name.length < 2 || name.length > 100 || !/^[a-z0-9][a-z0-9-]{1,62}[a-z0-9]$/.test(slug)) throw Object.assign(new Error("Workspace name or slug is invalid."), { status: 422, code: "INVALID_SCOPE" });
@@ -398,14 +408,28 @@ async function deleteDocument(request, env, user, workspace, member, documentId)
 }
 
 async function chat(request, env, user, workspace, member) {
-  requireCapability(member,"research:run"); const started=Date.now(); const body=await request.json(); const question=String(body?.question||"").trim(); if(!question||question.length>10000)throw Object.assign(new Error("Question must contain 1 to 10,000 characters."),{status:422,code:"INVALID_SCOPE"});
+  requireCapability(member,"research:run"); const started=Date.now(); const body=await readJsonBody(request); const question=String(body?.question||"").trim(); if(!question||question.length>10000)throw Object.assign(new Error("Question must contain 1 to 10,000 characters."),{status:422,code:"INVALID_SCOPE"});
+  // Never silently widen a scope that this bounded runtime cannot implement.
+  const unsupportedFilters = ["file_types", "filename", "uploaded_by", "min_page", "max_page", "uploaded_after", "uploaded_before", "metadata_filters"];
+  if (unsupportedFilters.some(key => body[key] !== undefined && body[key] !== null && body[key] !== "" && (!Array.isArray(body[key]) || body[key].length))) {
+    throw Object.assign(new Error("This Worker supports document-ID scope only. Advanced retrieval filters are not yet available; remove them or select specific documents."), { status: 422, code: "UNSUPPORTED_FILTER" });
+  }
+  if (body.chat_scope !== undefined && !["workspace", "documents"].includes(body.chat_scope)) {
+    throw Object.assign(new Error("Chat scope must be workspace or documents."), { status: 422, code: "INVALID_SCOPE" });
+  }
+  if (body.document_ids !== undefined && (!Array.isArray(body.document_ids) || body.document_ids.length > 25 || body.document_ids.some(id => typeof id !== "string" || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)))) {
+    throw Object.assign(new Error("Document scope must contain at most 25 valid document IDs."), { status: 422, code: "INVALID_SCOPE" });
+  }
+  if (body.chat_scope === "documents" && !body.document_ids?.length) {
+    throw Object.assign(new Error("Select at least one document for document-scoped chat."), { status: 422, code: "INVALID_SCOPE" });
+  }
   if(body?.non_sensitive_attested!==true)throw Object.assign(new Error("Chat blocked: confirm the question contains no personal, confidential, regulated, or other sensitive information."),{status:403,code:"RIGHTS_BLOCKED"});
   const admission=await accountAdmission(request,env,user,"chat");
   const settings=await readWorkspaceSettings(env,workspace);
   const documentIds=Array.isArray(body?.document_ids)?body.document_ids.filter(v=>/^[0-9a-f-]{36}$/i.test(v)).slice(0,25):[]; const sessionId=/^[0-9a-f-]{36}$/i.test(String(body?.session_id||""))?body.session_id:crypto.randomUUID();
   let sessions=await serviceRequest(env,`chat_sessions?workspace_id=eq.${workspace}&id=eq.${sessionId}&user_id=eq.${user.id}&deleted_at=is.null&select=*&limit=1`); if(!sessions?.[0])sessions=await serviceRequest(env,"chat_sessions",{method:"POST",body:JSON.stringify([{id:sessionId,workspace_id:workspace,user_id:user.id,title:question.slice(0,120),visibility:"private"}])});
   await serviceRequest(env,"chat_messages",{method:"POST",body:JSON.stringify([{workspace_id:workspace,session_id:sessionId,role:"user",content:question,sources:[],metadata:{query_type:"general"}}])});
-  const requestedFilter=documentIds.length?`&id=in.(${documentIds.join(",")})`:"";const activeDocuments=await serviceRequest(env,`documents?workspace_id=eq.${workspace}&lifecycle_state=eq.active&active_version_id=not.is.null${requestedFilter}&select=id,active_version_id&limit=100`);const versions=activeDocuments.length?await serviceRequest(env,`document_versions?workspace_id=eq.${workspace}&publication_state=eq.ready&data_classification=eq.non_sensitive&select=id,document_id&limit=100`):[];const eligibleVersionIds=new Set(versions.map(item=>item.id));const eligibleDocuments=activeDocuments.filter(item=>eligibleVersionIds.has(item.active_version_id));const activeDocumentIds=eligibleDocuments.map(item=>item.id),activeVersionIds=eligibleDocuments.map(item=>item.active_version_id),topK=settings.retrieval_top_k;const vectorHits=activeVersionIds.length?await searchChunks(env,{workspaceId:workspace,question,documentIds:activeDocumentIds,versionIds:activeVersionIds,limit:topK,dataClassification:"non_sensitive",userApiKey:admission.userApiKey,credentialMode:admission.credentialMode}):[];const lexical=activeVersionIds.length?await serviceRequest(env,`document_chunks?workspace_id=eq.${workspace}&version_id=in.(${activeVersionIds.join(",")})&select=id,document_id,version_id,chunk_index,page_number,content,metadata&limit=200`):[];const hits=hybridFuse(question,vectorHits,lexical,topK,settings.hybrid_search_alpha);
+  const requestedFilter=documentIds.length?`&id=in.(${documentIds.join(",")})`:"";const activeDocuments=await serviceRequest(env,`documents?workspace_id=eq.${workspace}&lifecycle_state=eq.active&active_version_id=not.is.null${requestedFilter}&select=id,active_version_id&limit=100`);const versions=activeDocuments.length?await serviceRequest(env,`document_versions?workspace_id=eq.${workspace}&publication_state=eq.ready&data_classification=eq.non_sensitive&select=id,document_id,index_generation&limit=100`):[];const eligibleVersionIds=new Set(versions.map(item=>item.id));const eligibleDocuments=activeDocuments.filter(item=>eligibleVersionIds.has(item.active_version_id));const activeDocumentIds=eligibleDocuments.map(item=>item.id),activeVersionIds=eligibleDocuments.map(item=>item.active_version_id),topK=settings.retrieval_top_k;const vectorHits=activeVersionIds.length?await searchChunks(env,{workspaceId:workspace,question,documentIds:activeDocumentIds,versionIds:activeVersionIds,indexGenerations:versions.filter(item=>activeVersionIds.includes(item.id)).map(item=>item.index_generation).filter(Boolean),limit:topK,dataClassification:"non_sensitive",userApiKey:admission.userApiKey,credentialMode:admission.credentialMode}):[];const lexical=activeVersionIds.length?await serviceRequest(env,`document_chunks?workspace_id=eq.${workspace}&version_id=in.(${activeVersionIds.join(",")})&select=id,document_id,version_id,chunk_index,page_number,content,metadata&limit=200`):[];const hits=hybridFuse(question,vectorHits,lexical,topK,settings.hybrid_search_alpha);
   const sources=hits.map(hit=>({content:String(hit.payload?.content||""),filename:String(hit.payload?.filename||"document"),page_number:Number(hit.payload?.page_number||0),chunk_index:Number(hit.payload?.chunk_index||0),relevance_score:Number(hit.score||hit.lexical_score||0),document_type:"text",metadata:{document_id:hit.payload?.document_id,version_id:hit.payload?.version_id,chunk_id:hit.payload?.chunk_id,hybrid_rrf:hit.rrf}}));let response;
   if(!sources.length)response={answer:"I could not find sufficient evidence in the selected non-sensitive workspace documents, so I cannot answer reliably.",sources:[],query_type:"general",confidence:0,response_time_seconds:(Date.now()-started)/1000,metadata:{claim_state:"UNSUPPORTED",abstained:true,session_id:sessionId}};else{const generated=await generateAnswer(env,groundedPrompt(question,hits),{workspaceId:workspace,priority:"interactive",dataClassification:"non_sensitive",userApiKey:admission.userApiKey,credentialMode:admission.credentialMode,temperature:settings.llm_temperature});const checked=assessAnswer(generated.answer,sources);const byok=admission.credentialMode==="user_byok";response={answer:checked.answer,sources,query_type:"hybrid",confidence:0,response_time_seconds:(Date.now()-started)/1000,metadata:{claim_state:checked.claim_state,abstained:checked.abstained,validated_citation_ids:checked.citations,citation_required:true,model:generated.model,paid_fallback:false,retrieval:"rrf_dense_lexical",session_id:sessionId,provider_cost_status:"UNKNOWN",provider_cost_owner:byok?"USER_GOOGLE_PROJECT":"CONFIGURED_GOOGLE_PROJECT"}};await serviceRequest(env,"llm_usage_events",{method:"POST",body:JSON.stringify([{workspace_id:workspace,user_id:user.id,provider:"gemini",model:generated.model,operation:byok?"grounded_chat_byok":"grounded_chat_platform",input_tokens:generated.usage.promptTokenCount||null,output_tokens:generated.usage.candidatesTokenCount||null,success:true,cost_microusd:null}])}).catch(()=>null);}
   response.metadata.account_usage={free_chat_queries_used:admission.credentialMode==="platform_trial"?admission.used:5,free_chat_queries_limit:5,credential_mode:admission.credentialMode};
@@ -414,7 +438,7 @@ async function chat(request, env, user, workspace, member) {
 async function handle(request, env = {}) {
   const url = new URL(request.url);
   if (request.method === "OPTIONS") {
-    return json(request, env, null, 204, { "access-control-allow-methods": "GET,HEAD,POST,PATCH,OPTIONS", "access-control-allow-headers": "Authorization,Content-Type,Idempotency-Key,X-Nexus-Workspace-Id,X-Workspace-ID", "access-control-max-age": "600" });
+    return json(request, env, null, 204, { "access-control-allow-methods": "GET,HEAD,POST,PATCH,DELETE,OPTIONS", "access-control-allow-headers": "Authorization,Content-Type,Idempotency-Key,X-Nexus-Workspace-Id,X-Workspace-ID", "access-control-max-age": "600" });
   }
   if (url.pathname === "/" || url.pathname === "/health") {
     return json(request, env, { service: env.RUNTIME_SERVICE_NAME || "nexusrag-v6-preview-gateway", profile: "ZERO_COST_LOW_TRAFFIC", status: configured(env) ? "READY" : "DEGRADED", authenticated_api: configured(env), production_verified: false, authorities: { business_records: "supabase", vectors: "qdrant" }, providers: { qdrant: env.QDRANT_URL && env.QDRANT_API_KEY ? "CONFIGURED" : "BLOCKED", gemini: env.GOOGLE_API_KEY ? "CONFIGURED" : "BLOCKED" }, paid_fallback: false });
@@ -438,7 +462,7 @@ async function handle(request, env = {}) {
     }
     if (url.pathname === "/api/v2/mcp/execute" && request.method === "POST") {
       const id = workspaceId(request); const member = await membership(env, user.id, id);
-      const body = await request.json(); const operation = String(body?.operation || ""); const spec = MCP_OPERATIONS[operation];
+      const body = await readJsonBody(request); const operation = String(body?.operation || ""); const spec = MCP_OPERATIONS[operation];
       if (!spec) throw Object.assign(new Error("The MCP operation is not available."), { status: 404, code: "INVALID_SCOPE" });
       if (!(ROLE_CAPABILITIES[member.role] || []).includes(spec.capability)) throw Object.assign(new Error("The required capability is not granted."), { status: 403, code: "FORBIDDEN" });
       const limit = Math.min(Math.max(Number.parseInt(String(body?.limit || 20), 10) || 20, 1), 50);
@@ -456,9 +480,51 @@ async function handle(request, env = {}) {
       return json(request, env, { workspaces: workspaces.map((item) => ({ ...item, workspace_id: item.id, role: roles[item.id] })) });
     }
     if (url.pathname === "/api/v1/workspaces/current" && (request.method === "GET" || request.method === "HEAD")) {
-      const id = workspaceId(request); const member = await membership(env, user.id, id);
+      const bound = request.headers.get("x-nexus-workspace-id") || request.headers.get("x-workspace-id");
+      const memberships = bound ? null : await serviceRequest(env, `workspace_members?user_id=eq.${encodeURIComponent(user.id)}&select=workspace_id,role&order=workspace_id.asc&limit=1`);
+      const id = bound ? workspaceId(request) : memberships?.[0]?.workspace_id;
+      if (!id) throw Object.assign(new Error("Create a workspace to continue."), { status: 404, code: "WORKSPACE_NOT_FOUND" });
+      const member = await membership(env, user.id, id);
       const rows = await serviceRequest(env, `workspaces?id=eq.${id}&select=id,name,slug,plan,lifecycle_state,created_at&limit=1`);
       return json(request, env, { ...(rows[0] || {}), workspace_id: id, role: member.role });
+    }
+
+    if (url.pathname === "/api/v1/workspaces/current/members" && (request.method === "GET" || request.method === "HEAD")) {
+      const id = workspaceId(request); await membership(env, user.id, id);
+      const members = await serviceRequest(env, `workspace_members?workspace_id=eq.${id}&select=user_id,role,created_at&order=created_at.asc&limit=100`);
+      return json(request, env, { workspace_id: id, members, total: members.length, management_supported: false });
+    }
+    if (url.pathname === "/api/v1/privacy/settings" && (request.method === "GET" || request.method === "HEAD")) {
+      const id = workspaceId(request); await membership(env, user.id, id);
+      const rows = await serviceRequest(env, `workspace_settings?workspace_id=eq.${id}&select=retention_enabled,retention_days,last_retention_at,next_retention_at&limit=1`);
+      return json(request, env, {
+        ...(rows[0] || { retention_enabled: false, retention_days: 0, last_retention_at: null, next_retention_at: null }),
+        retention_mutation_supported: false, workspace_deletion_supported: false,
+      });
+    }
+    if (url.pathname === "/api/v1/audit" && (request.method === "GET" || request.method === "HEAD")) {
+      const id = workspaceId(request); const member = await membership(env, user.id, id);
+      requireCapability(member, "admin:usage");
+      const limit = Math.min(Math.max(Number.parseInt(url.searchParams.get("limit") || "20", 10) || 20, 1), 100);
+      const events = await serviceRequest(env, `audit_events?workspace_id=eq.${id}&select=id,workspace_id,user_id,action,resource_type,resource_id,metadata,created_at&order=created_at.desc&limit=${limit}`);
+      return json(request, env, { events, total: events.length, storage: "supabase" });
+    }
+    if (url.pathname === "/api/v1/analytics/summary" && (request.method === "GET" || request.method === "HEAD")) {
+      const id = workspaceId(request); await membership(env, user.id, id);
+      const today = new Date().toISOString().slice(0, 10);
+      const [documents, chunks, queries, queriesToday] = await Promise.all([
+        countWorkspaceRows(env, "documents", id, "&lifecycle_state=eq.active"),
+        countWorkspaceRows(env, "document_chunks", id),
+        countWorkspaceRows(env, "chat_messages", id, "&role=eq.user"),
+        countWorkspaceRows(env, "chat_messages", id, `&role=eq.user&created_at=gte.${today}T00:00:00Z`),
+      ]);
+      return json(request, env, {
+        total_documents: documents, total_chunks: chunks, total_queries: queries, queries_today: queriesToday,
+        avg_response_time: 0, avg_confidence: 0, cache_hits: 0, cache_misses: 0, cache_entries: 0,
+        llm_model_name: env.GEMINI_MODEL || "gemini-2.5-flash",
+        embedding_model: env.GEMINI_EMBEDDING_MODEL || "gemini-embedding-001",
+        measurement_states: { avg_response_time: "NOT_MEASURED", avg_confidence: "NOT_MEASURED", cache: "DISABLED" },
+      });
     }
 
     if (url.pathname === "/api/v1/settings" && (request.method === "GET" || request.method === "HEAD")) {
@@ -472,7 +538,7 @@ async function handle(request, env = {}) {
       if (!["owner", "admin"].includes(member.role)) {
         throw Object.assign(new Error("Only workspace admins and owners can change runtime settings."), { status: 403, code: "FORBIDDEN" });
       }
-      const patch = validateSettingsPatch(await request.json());
+      const patch = validateSettingsPatch(await readJsonBody(request));
       await serviceRequest(env, "workspace_settings?on_conflict=workspace_id", {
         method: "POST",
         headers: { prefer: "resolution=merge-duplicates,return=representation" },
@@ -605,7 +671,7 @@ async function handle(request, env = {}) {
       });
     }
     if (url.pathname === "/api/v1/apikey" && request.method === "POST") {
-      const body = await request.json();
+      const body = await readJsonBody(request);
       const apiKey = typeof body?.api_key === "string" ? body.api_key.trim() : "";
       if (apiKey.length < 20 || apiKey.length > 512 || /[\r\n\u0000]/.test(apiKey)) {
         throw Object.assign(new Error("Enter a valid Gemini API key."), { status: 422, code: "INVALID_API_KEY" });

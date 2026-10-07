@@ -91,12 +91,11 @@ export function ApiKeyModal() {
           >
             <div
               className="relative w-full max-w-md rounded-2xl bg-[var(--bg-primary)] border border-[var(--border)] shadow-2xl overflow-hidden"
-              onClick={(e) => e.stopPropagation()}
             >
               {/* Top accent bar — red when quota-blocked, amber otherwise */}
               <div className={`absolute top-0 left-0 right-0 h-1 ${isQuotaBlocked
-                  ? "bg-gradient-to-r from-red-500 via-rose-500 to-orange-500"
-                  : "bg-gradient-to-r from-amber-500 via-orange-500 to-red-500"
+                  ? "bg-linear-to-r/srgb from-red-500 via-rose-500 to-orange-500"
+                  : "bg-linear-to-r/srgb from-amber-500 via-orange-500 to-red-500"
                 }`} />
 
               {/* Close button — hidden when quota-blocked */}
@@ -216,7 +215,7 @@ export function ApiKeyModal() {
                   <button
                     onClick={handleSubmit}
                     disabled={loading || key.trim().length < 10 || !costConsentAccepted}
-                    className={`flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-brand-500 to-purple-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 ${isQuotaBlocked ? "w-full" : "flex-1"
+                    className={`flex items-center justify-center gap-2 rounded-xl bg-linear-to-r/srgb from-brand-500 to-purple-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 ${isQuotaBlocked ? "w-full" : "flex-1"
                       }`}
                   >
                     {loading ? (

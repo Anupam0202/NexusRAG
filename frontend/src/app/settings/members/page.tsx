@@ -31,6 +31,7 @@ export default function MembersPage() {
   const [members, setMembers] = useState<WorkspaceMember[]>([]);
   const [workspaceId, setWorkspaceId] = useState<string | null>(null);
   const [currentRole, setCurrentRole] = useState<WorkspaceRole>("viewer");
+  const [managementSupported, setManagementSupported] = useState(true);
   const [loading, setLoading] = useState(true);
   const [savingUserId, setSavingUserId] = useState<string | null>(null);
   const [emailOrUserId, setEmailOrUserId] = useState("");
@@ -38,7 +39,7 @@ export default function MembersPage() {
   const [error, setError] = useState<string | null>(null);
 
   const canManage =
-    authMode === "authenticated" && (currentRole === "owner" || currentRole === "admin");
+    managementSupported && authMode === "authenticated" && (currentRole === "owner" || currentRole === "admin");
 
   const loadMembers = useCallback(async () => {
     setLoading(true);
@@ -50,6 +51,7 @@ export default function MembersPage() {
       setWorkspaceId(response.workspace_id);
       setMembers(response.members);
       setCurrentRole(workspace.role);
+      setManagementSupported(response.management_supported !== false);
       setError(null);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Unable to load members");
@@ -150,6 +152,11 @@ export default function MembersPage() {
           </div>
         </div>
 
+        {!managementSupported && (
+          <p className="mb-4 rounded-xl border border-[var(--border)] p-4 text-sm text-[var(--text-muted)]">
+            Membership is read-only on this bounded Worker. Adding, changing, and removing members is not yet available.
+          </p>
+        )}
         {error && (
           <div className="mb-4 rounded-xl border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/30 dark:text-red-300">
             {error}

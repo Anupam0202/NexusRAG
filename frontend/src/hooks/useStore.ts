@@ -1,10 +1,21 @@
 import { create } from "zustand";
 import type { UIMessage, DocumentMetadata, SourceChunk } from "@/types";
-import { setStoredWorkspaceId } from "@/lib/api-context";
+import { getStoredWorkspaceId, setStoredWorkspaceId } from "@/lib/api-context";
 import { generateId } from "@/lib/utils";
 
 export type AuthMode = "loading" | "demo" | "signed_out" | "authenticated";
 const SESSION_STORAGE_KEY = "nexusrag_chat_session_id";
+const SESSION_SCOPE_KEY = "nexusrag_chat_session_scope";
+
+function bindSession(userId: string | null, workspaceId: string | null, currentId: string) {
+  const scope = JSON.stringify([userId, workspaceId]);
+  if (typeof window === "undefined") return currentId;
+  if (window.localStorage.getItem(SESSION_SCOPE_KEY) === scope) return currentId;
+  const next = generateId();
+  window.localStorage.setItem(SESSION_STORAGE_KEY, next);
+  window.localStorage.setItem(SESSION_SCOPE_KEY, scope);
+  return next;
+}
 
 function getInitialSessionId() {
   if (typeof window === "undefined") return generateId();
@@ -154,10 +165,28 @@ export const useStore = create<AppState>((set) => ({
 
   authMode: "loading",
   authUser: null,
-  setAuthState: (mode, user = null) => set({ authMode: mode, authUser: user }),
-  workspaceId: null,
+  setAuthState: (mode, user = null) => set((state) => {
+    const signedOut = mode === "signed_out";
+    const identityChanged = state.authUser?.id !== user?.id;
+    if (signedOut || (identityChanged && state.authUser)) setStoredWorkspaceId(null);
+    const workspaceId = signedOut || (identityChanged && state.authUser) ? null : state.workspaceId;
+    const sessionId = mode === "loading" ? state.sessionId : bindSession(user?.id ?? null, workspaceId, state.sessionId);
+    const reset = signedOut || identityChanged || sessionId !== state.sessionId;
+    return {
+      authMode: mode, authUser: user, workspaceId, sessionId,
+      ...(reset ? { messages: [], documents: [], userApiKey: null, isQuotaBlocked: false, showApiKeyModal: false } : {}),
+    };
+  }),
+  workspaceId: getStoredWorkspaceId(),
   setWorkspaceId: (workspaceId) => {
     setStoredWorkspaceId(workspaceId);
-    set({ workspaceId });
+    set((state) => {
+      if (state.workspaceId === workspaceId) return { workspaceId };
+      return {
+        workspaceId,
+        sessionId: bindSession(state.authUser?.id ?? null, workspaceId, state.sessionId),
+        messages: [], documents: [], userApiKey: null, isQuotaBlocked: false, showApiKeyModal: false,
+      };
+    });
   },
 }));

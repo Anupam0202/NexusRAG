@@ -34,6 +34,9 @@ export default function DocumentsPage() {
         const settings = status.settings;
         setLimits({
           maxUploadMb: Number(settings.max_upload_size_mb) || DEFAULT_UPLOAD_LIMITS.maxUploadMb,
+          maxUploadBytes: Number(settings.max_upload_size_mb) > 0
+            ? Number(settings.max_upload_size_mb) * 1_000_000
+            : DEFAULT_UPLOAD_LIMITS.maxUploadBytes,
           maxPdfPages: Number(settings.max_pdf_pages) || DEFAULT_UPLOAD_LIMITS.maxPdfPages,
           maxPdfOcrPages:
             Number(settings.max_pdf_ocr_pages) || DEFAULT_UPLOAD_LIMITS.maxPdfOcrPages,
@@ -51,7 +54,7 @@ export default function DocumentsPage() {
         });
       })
       .catch(() => setLimits(DEFAULT_UPLOAD_LIMITS));
-  }, []);
+  }, [authMode, canAccessWorkspaceApi]);
 
   return (
     <div className="h-full overflow-y-auto">
