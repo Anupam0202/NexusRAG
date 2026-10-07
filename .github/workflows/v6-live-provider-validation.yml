@@ -5,8 +5,6 @@ name: V6 Live Provider Validation
 
 on:
   workflow_dispatch:
-  pull_request:
-    branches: [main]
   push:
     branches: [main]
     paths:
@@ -28,7 +26,6 @@ concurrency:
 
 jobs:
   bounded-provider-validation:
-    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
     name: Bounded ${{ matrix.provider }} validation
     runs-on: ubuntu-latest
     timeout-minutes: 8
