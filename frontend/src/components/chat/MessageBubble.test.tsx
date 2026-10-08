@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { MessageBubble, safeHref } from "./MessageBubble";
 import type { UIMessage } from "@/types";
@@ -19,6 +19,31 @@ describe("safeHref", () => {
 });
 
 describe("MessageBubble", () => {
+  it("preserves citation markers and code whitespace without inventing calibrated confidence", () => {
+    render(<MessageBubble message={{ id: "proof", role: "assistant",
+      content: "Review [Source 1, Page 4] and [S1].\n\n```text\nalpha  beta\n    indented\n```",
+      confidence: 0.95, metadata: { claim_state: "REVIEW_REQUIRED" } }} />);
+    expect(screen.getByText(/Review \[Source 1, Page 4\] and \[S1\]/)).toBeInTheDocument();
+    expect(document.querySelector("pre code")?.textContent).toBe("alpha  beta\n    indented\n");
+    expect(screen.queryByText("95%")).not.toBeInTheDocument();
+    expect(screen.getByText("Answer confidence not calibrated")).toBeInTheDocument();
+    expect(screen.getByText(/support for each claim has not been verified/)).toBeInTheDocument();
+  });
+
+  it("names the expandable source region and excludes invalid measurement badges", () => {
+    render(<MessageBubble message={{ id: "sources", role: "assistant", content: "Evidence [S1]",
+      responseTime: Infinity, metadata: { source_quote_coverage: 2 },
+      sources: [{ content: "Evidence", filename: "proof.txt", page_number: 1, chunk_index: 0,
+        relevance_score: 0.1, document_type: "text", metadata: {} }] }} />);
+    const toggle = screen.getByRole("button", { name: /1 sources/ });
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
+    fireEvent.click(toggle);
+    expect(toggle).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByRole("region", { name: "Response sources" }).id).toBe(toggle.getAttribute("aria-controls"));
+    expect(screen.queryByText("200% quotes")).not.toBeInTheDocument();
+    expect(screen.queryByText("Infinitys")).not.toBeInTheDocument();
+  });
+
   it("renders low-confidence metadata from the backend", () => {
     const message: UIMessage = {
       id: "assistant-1",

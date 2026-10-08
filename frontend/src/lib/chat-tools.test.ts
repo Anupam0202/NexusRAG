@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildChatRequestFilters, exportChatMarkdown } from "./chat-tools";
+import { buildChatRequestFilters, exportChatJson, exportChatMarkdown } from "./chat-tools";
 import type { UIMessage } from "@/types";
 
 describe("buildChatRequestFilters", () => {
@@ -78,6 +78,24 @@ describe("buildChatRequestFilters", () => {
         metadataValue: "hidden",
       })
     ).toThrow("Metadata keys may contain only letters, numbers, dots, underscores, and dashes.");
+  });
+});
+
+describe("exportChatJson", () => {
+  it("preserves exact source identity and review state without arbitrary private metadata", () => {
+    const exported = JSON.parse(exportChatJson([{ id: "answer", role: "assistant",
+      content: "Evidence [S1]", confidence: 0,
+      metadata: { claim_state: "REVIEW_REQUIRED", validated_citation_ids: [1], private: "not-for-export" },
+      sources: [{ content: "Evidence", filename: "proof.txt", page_number: 2, chunk_index: 3,
+        relevance_score: 0.8, document_type: "text", metadata: { document_id: "document",
+          version_id: "version", chunk_id: "chunk", original_content_hash: "hash",
+          location: { page: 2 }, authority: "SUPABASE_HASH_VERIFIED", private: "not-for-export" } }] }]));
+    expect(exported[0].metadata).toEqual({ claim_state: "REVIEW_REQUIRED", validated_citation_ids: [1] });
+    expect(exported[0].confidence_state).toBe("UNCALIBRATED");
+    expect(exported[0].sources[0].metadata).toEqual({ document_id: "document", version_id: "version",
+      chunk_id: "chunk", original_content_hash: "hash", location: { page: 2 }, authority: "SUPABASE_HASH_VERIFIED" });
+    expect(exported[0].sources[0].relevance_score_meaning).toBe("RANKING_ONLY_NOT_CLAIM_SUPPORT");
+    expect(JSON.stringify(exported)).not.toContain("not-for-export");
   });
 });
 

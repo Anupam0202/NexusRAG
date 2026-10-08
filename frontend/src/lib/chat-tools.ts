@@ -103,22 +103,34 @@ export function exportChatMarkdown(messages: UIMessage[], title = "NexusRAG chat
 }
 
 export function exportChatJson(messages: UIMessage[]) {
+  // Preserve evidence identity without copying arbitrary document metadata or
+  // unrelated runtime fields into portable exports.
+  const pick = (metadata: Record<string, unknown> | undefined, fields: string[]) =>
+    Object.fromEntries(fields.filter(key => metadata && Object.hasOwn(metadata, key))
+      .map(key => [key, metadata![key]]));
   return JSON.stringify(
-    messages.map(({ role, content, timestamp, sources, confidence, queryType, responseTime }) => ({
+    messages.map(({ role, content, timestamp, sources, confidence, queryType, responseTime, metadata }) => ({
       role,
       content,
       timestamp,
       confidence,
+      confidence_state: "UNCALIBRATED",
       query_type: queryType,
       response_time_seconds: responseTime,
+      metadata: pick(metadata, ["claim_state", "abstained", "validated_citation_ids", "citation_required",
+        "answerability", "low_confidence", "source_quote_coverage", "model", "retrieval",
+        "session_id", "provider_cost_status", "provider_cost_owner"]),
       sources: (sources ?? []).map(
-        ({ content: quote, filename, page_number, chunk_index, relevance_score, document_type }) => ({
+        ({ content: quote, filename, page_number, chunk_index, relevance_score, document_type, metadata }) => ({
           quote,
           filename,
           page_number,
           chunk_index,
           relevance_score,
+          relevance_score_meaning: "RANKING_ONLY_NOT_CLAIM_SUPPORT",
           document_type,
+          metadata: pick(metadata, ["document_id", "version_id", "chunk_id", "index_generation",
+            "original_content_hash", "location", "authority", "source_url", "retrieved_at"]),
         })
       ),
     })),
