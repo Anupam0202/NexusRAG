@@ -20,6 +20,7 @@ import { navigateStatic } from "@/lib/static-navigation";
 import { useStore } from "@/hooks/useStore";
 import { setStoredWorkspaceId } from "@/lib/api-context";
 import { deleteDocumentsBestEffort, normalizeRetentionSchedule } from "@/lib/workspace-controls";
+import { ProcessingPolicyPanel } from "@/components/settings/ProcessingPolicyPanel";
 import type { WorkspaceRole } from "@/types";
 
 const DELETE_CONFIRMATION = "DELETE DOCUMENTS";
@@ -269,6 +270,7 @@ function PrivacyWorkbench() {
         ) : null}
 
         <div className="space-y-4">
+          {workspaceDataReady && <ProcessingPolicyPanel context={context} />}
           <section className="rounded-xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>

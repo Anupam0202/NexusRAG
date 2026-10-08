@@ -143,7 +143,7 @@ async function serviceRequest(env, tablePath, init = {}) {
           : "Authoritative storage rejected the operation."), { status, code });
     }
     if (storageError.code === "P0002") throw Object.assign(new Error("Record not found."), { status: 404, code: "NOT_FOUND" });
-    throw Object.assign(new Error("Authoritative storage rejected the request."), { status: 503, code: "PERSISTENCE_UNAVAILABLE", detail });
+    throw Object.assign(new Error("Authoritative storage rejected the request."), { status: 503, code: "PERSISTENCE_UNAVAILABLE", storageCode: storageError.code, detail });
   }
   const text = await response.text();
   return text ? JSON.parse(text) : null;
@@ -650,6 +650,28 @@ async function handle(request, env = {}) {
         p_target: memberRoute[1] || String(body?.email_or_user_id || "").trim(), p_role: body?.role || null,
       }) });
       return json(request, env, result, operation === "add" ? 201 : 200);
+    }
+    if (url.pathname === "/api/v1/privacy/processing-policy" && ["GET", "HEAD", "PATCH"].includes(request.method)) {
+      const id = workspaceId(request); const member = await membership(env, user.id, id);
+      const body = request.method === "PATCH" ? await readJsonBody(request) : null;
+      if (body && (!body || typeof body !== "object" || Array.isArray(body) ||
+        Object.keys(body).some(key => !["operation", "terms_hash", "policy_version", "acknowledged_non_sensitive_only"].includes(key)) ||
+        !["approve", "revoke"].includes(body.operation) || !Number.isSafeInteger(body.policy_version) || body.policy_version < 0 ||
+        (body.operation === "approve" && (body.acknowledged_non_sensitive_only !== true || !/^[0-9a-f]{64}$/.test(body.terms_hash || "")))))
+        return fail(request, env, "INVALID_SCOPE", "Choose a valid terms-bound owner decision.", 422);
+      if (request.method === "PATCH" && (!body || member.role !== "owner"))
+        return fail(request, env, member.role !== "owner" ? "FORBIDDEN" : "INVALID_SCOPE", "Only a current workspace owner can record this decision.", member.role !== "owner" ? 403 : 422);
+      try {
+        const policy = await serviceRequest(env, "rpc/nexus_workspace_processing_policy", { method: "POST", body: JSON.stringify({
+          p_workspace: id, p_actor: user.id, p_operation: body?.operation || "read",
+          p_terms_hash: body?.terms_hash || null, p_policy_version: body?.policy_version ?? null,
+        }) });
+        if (policy?.schema_version !== "038") return fail(request, env, "MIGRATION_REQUIRED", "Terms-bound policy controls require migration 038.", 503);
+        return json(request, env, policy);
+      } catch (error) {
+        if (error?.code === "PERSISTENCE_UNAVAILABLE" && ["PGRST202", "42883"].includes(error.storageCode)) return fail(request, env, "MIGRATION_REQUIRED", "Policy storage is unavailable. Verify migration 038 before approving processing.", 503);
+        throw error;
+      }
     }
     if (url.pathname === "/api/v1/privacy/settings" && (request.method === "GET" || request.method === "HEAD")) {
       const id = workspaceId(request); await membership(env, user.id, id);

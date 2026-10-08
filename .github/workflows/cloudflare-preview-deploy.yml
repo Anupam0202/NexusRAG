@@ -94,6 +94,12 @@ jobs:
             "$SUPABASE_URL/rest/v1/rpc/nexus_authorize_byok_processing")"
           jq -e '.state == "RIGHTS_BLOCKED"' <<<"$byok_authority" >/dev/null \
             || { echo "::error::Candidate BYOK authority migration 037 is not verified"; exit 1; }
+          processing_policy="$(curl --fail --silent --show-error --connect-timeout 10 --max-time 30 \
+            --config <(printf 'header = "apikey: %s"\nheader = "Authorization: Bearer %s"\n' "$SUPABASE_SERVICE_ROLE_KEY" "$SUPABASE_SERVICE_ROLE_KEY") \
+            -H "Content-Type: application/json" -d '{}' \
+            "$SUPABASE_URL/rest/v1/rpc/nexus_processing_policy_version")"
+          jq -e '.version == "038" and .terms_bound_owner_decisions and .service_only' <<<"$processing_policy" >/dev/null \
+            || { echo "::error::Candidate terms-bound policy migration 038 is not verified"; exit 1; }
           python3 -c 'import base64,os; assert len(base64.b64decode(os.environ["GEMINI_USER_KEY_ENCRYPTION_SECRET"],validate=True))==32, "encryption secret must be base64-encoded 32-byte key material"'
           response="$(curl --fail --silent --show-error \
             --connect-timeout 10 --max-time 30 \

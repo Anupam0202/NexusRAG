@@ -100,6 +100,8 @@ class PreviewTargetIsolationTests(unittest.TestCase):
         self.assertEqual(workflow.count("inputs.deploy_candidate_preview && github.ref == 'refs/heads/main'"), 2)
         self.assertIn('/rpc/nexus_authorize_byok_processing', workflow)
         self.assertIn('Candidate BYOK authority migration 037 is not verified', workflow)
+        self.assertIn('/rpc/nexus_processing_policy_version', workflow)
+        self.assertIn('Candidate terms-bound policy migration 038 is not verified', workflow)
 
     def test_database_required_summary_fails_closed(self):
         repository = Path(__file__).resolve().parents[2]

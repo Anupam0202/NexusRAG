@@ -492,3 +492,12 @@ export async function removeCurrentWorkspaceMember(
     method: "DELETE",
   }, context);
 }
+
+// Workspace-owner review is separate from provider rights, trial quota and BYOK consent.
+export async function getProcessingPolicy(context: ApiRequestContext = {}): Promise<import("./processing-policy").ProcessingPolicy> {
+  return request("/api/v1/privacy/processing-policy", undefined, context);
+}
+export async function updateProcessingPolicy(body: import("./processing-policy").ProcessingPolicyDecision,
+  context: ApiRequestContext = {}): Promise<import("./processing-policy").ProcessingPolicy> {
+  return request("/api/v1/privacy/processing-policy", { method: "PATCH", body: JSON.stringify(body) }, context);
+}

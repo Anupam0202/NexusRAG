@@ -55,6 +55,8 @@ vi.mock("@/lib/api", () => ({
   updatePrivacySettings: vi.fn(),
 }));
 
+vi.mock("@/components/settings/ProcessingPolicyPanel", () => ({ ProcessingPolicyPanel: () => <div>Processing policy controls</div> }));
+
 vi.mock("sonner", () => ({
   toast: {
     error: vi.fn(),
