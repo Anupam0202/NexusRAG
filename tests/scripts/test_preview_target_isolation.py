@@ -28,6 +28,7 @@ class PreviewTargetIsolationTests(unittest.TestCase):
             frontend.parent.mkdir(parents=True)
             shutil.copyfile(repository / target["GATEWAY_CONFIG"], gateway)
             shutil.copyfile(repository / "frontend" / target["FRONTEND_CONFIG"], frontend)
+            shutil.copyfile(repository / "frontend" / "worker.js", root / "frontend" / "worker.js")
             with patch("scripts.preview_target.ROOT", root):
                 validate_targets()
                 config = json.loads(gateway.read_text())
@@ -40,6 +41,50 @@ class PreviewTargetIsolationTests(unittest.TestCase):
                 frontend.write_text(frontend.read_text().replace('"redact_query_string": true', '"redact_query_string": false'))
                 with self.assertRaisesRegex(ValueError, "frontend must redact"):
                     validate_targets()
+
+    def test_document_wrapper_and_worker_first_routing_are_required(self):
+        repository = Path(__file__).resolve().parents[2]
+        target = resolve_target("refs/heads/main")
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            gateway = root / target["GATEWAY_CONFIG"]
+            frontend = root / "frontend" / target["FRONTEND_CONFIG"]
+            entrypoint = root / "frontend" / "worker.js"
+            gateway.parent.mkdir(parents=True)
+            frontend.parent.mkdir(parents=True)
+            shutil.copyfile(repository / target["GATEWAY_CONFIG"], gateway)
+            shutil.copyfile(repository / "frontend" / target["FRONTEND_CONFIG"], frontend)
+            shutil.copyfile(repository / "frontend" / "worker.js", entrypoint)
+            original = frontend.read_text()
+            wrapper = entrypoint.read_text()
+            with patch("scripts.preview_target.ROOT", root):
+                validate_targets()
+                for fragment in ('"main": "worker.js"', '"binding": "ASSETS"', '"run_worker_first": ["/documents/*"]'):
+                    with self.subTest(config=fragment):
+                        frontend.write_text(original.replace(fragment, ""))
+                        with self.assertRaisesRegex(ValueError, "Frontend config does not bind"):
+                            validate_targets()
+                frontend.write_text(original)
+                entrypoint.unlink()
+                with self.assertRaisesRegex(ValueError, "wrapper is missing"):
+                    validate_targets()
+                for fragment in (
+                    'import nextWorker from "./.open-next/worker.js"',
+                    'from "./src/lib/static-document-worker"',
+                    'export * from "./.open-next/worker.js"',
+                    "export default createDocumentStaticWorker(nextWorker)",
+                ):
+                    with self.subTest(wrapper=fragment):
+                        entrypoint.write_text(wrapper.replace(fragment, ""))
+                        with self.assertRaisesRegex(ValueError, "wrapper does not preserve"):
+                            validate_targets()
+
+    def test_ci_exercises_document_routes_against_the_worker(self):
+        repository = Path(__file__).resolve().parents[2]
+        workflow = (repository / ".github/workflows/v6-foundation-ci.yml").read_text()
+        self.assertIn("npm run cf:build", workflow)
+        self.assertIn("npm exec wrangler -- dev --local --port 3003", workflow)
+        self.assertIn("E2E_BASE_URL=http://localhost:3003 npm exec playwright -- test worker-routing.spec.ts", workflow)
 
     def test_unsupported_refs_fail_closed(self):
         for ref in ("refs/heads/v6-zero-cost-foundations-clean", "refs/heads/critical-gaps/v8-remote-validation", "refs/heads/feature", "refs/pull/3/merge"):

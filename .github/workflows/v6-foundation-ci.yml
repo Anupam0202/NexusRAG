@@ -101,7 +101,7 @@ jobs:
   frontend:
     name: Frontend lint, unit, typecheck, build
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -150,6 +150,30 @@ jobs:
           test "$ready" = true || { cat /tmp/nexusrag-browser-server.log; exit 1; }
           npm exec playwright -- test public-smoke.spec.ts visual-regression.spec.ts --workers=2
           npm exec playwright -- test --config=playwright.cross-browser.config.ts --workers=2
+      - name: Actual Cloudflare Worker document routing regressions
+        working-directory: frontend
+        env:
+          NEXT_TELEMETRY_DISABLED: "1"
+          NEXT_PUBLIC_SUPABASE_URL: https://supabase.invalid
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: synthetic-public-browser-test-key
+          NEXT_PUBLIC_API_URL: http://localhost:8000
+          WRANGLER_SEND_METRICS: "false"
+        run: |
+          set -euo pipefail
+          npm run cf:build
+          npm exec wrangler -- dev --local --port 3003 > /tmp/nexusrag-worker-server.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          ready=false
+          for attempt in $(seq 1 60); do
+            if curl --fail --silent http://localhost:3003/auth/login >/dev/null; then
+              ready=true
+              break
+            fi
+            sleep 1
+          done
+          test "$ready" = true || { cat /tmp/nexusrag-worker-server.log; exit 1; }
+          E2E_BASE_URL=http://localhost:3003 npm exec playwright -- test worker-routing.spec.ts --workers=2
   dependency-review:
     name: Dependency review (lockfiles)
     runs-on: ubuntu-latest

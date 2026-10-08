@@ -63,11 +63,26 @@ def validate_targets() -> None:
             raise ValueError(f"Candidate frontend must redact sensitive query strings: {frontend_path}")
         for expected in (
             f'"name": "{target["FRONTEND_WORKER"]}"',
-            f'"main": ".open-next/worker.js"',
+            '"main": "worker.js"',
             f'"service": "{target["FRONTEND_WORKER"]}"',
+            '"binding": "ASSETS"',
+            '"run_worker_first": ["/documents/*"]',
         ):
             if expected not in frontend_text:
                 raise ValueError(f"Frontend config does not bind {expected}: {frontend_path}")
+
+        entrypoint = ROOT / "frontend" / "worker.js"
+        if not entrypoint.is_file():
+            raise ValueError("Candidate frontend routing wrapper is missing.")
+        wrapper = entrypoint.read_text(encoding="utf-8")
+        for expected in (
+            'import nextWorker from "./.open-next/worker.js"',
+            'from "./src/lib/static-document-worker"',
+            'export * from "./.open-next/worker.js"',
+            "export default createDocumentStaticWorker(nextWorker)",
+        ):
+            if expected not in wrapper:
+                raise ValueError(f"Candidate frontend wrapper does not preserve {expected}.")
 
     for key in resource_keys:
         values = [target[key] for target in PREVIEW_TARGETS.values()]
