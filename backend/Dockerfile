@@ -24,6 +24,8 @@ RUN pip install --no-cache-dir .
 FROM python:3.13-slim
 
 WORKDIR /app
+ARG SOURCE_COMMIT=unverified
+LABEL org.opencontainers.image.revision=$SOURCE_COMMIT
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libglib2.0-0 \
@@ -40,8 +42,10 @@ COPY . .
 
 RUN mkdir -p /app/data/vector_store /app/data/uploads /app/data/scientific_output
 
+ENV EMBEDDING_REVISION=1110a243fdf4706b3f48f1d95db1a4f5529b4d41
+
 # Pre-download the embedding model at build time (avoids runtime OOM from download spikes)
-RUN python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')"
+RUN python -c "import os; from sentence_transformers import SentenceTransformer; SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2', revision=os.environ['EMBEDDING_REVISION'], trust_remote_code=False)"
 
 # Keep the approved public model cache readable after privilege reduction.
 ENV HF_HOME=/opt/nexusrag-models

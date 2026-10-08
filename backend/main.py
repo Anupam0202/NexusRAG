@@ -64,7 +64,7 @@ app = FastAPI(
 app.add_middleware(RequestLoggingMiddleware)
 app.add_middleware(cast(Any, RateLimitMiddleware), rpm=120)
 
-# CORS — settings.cors_origins auto-includes RENDER_EXTERNAL_URL when set
+# CORS — explicit configured origins; legacy deployment compatibility remains bounded
 logger.info("cors_origins_configured", origins=settings.cors_origins)
 
 app.add_middleware(
@@ -79,7 +79,7 @@ app.add_middleware(
 
 register_exception_handlers(app)
 
-# ── Root (Render health probe hits / with HEAD first) ────────────────────
+# ── Root (lightweight liveness for local/self-managed probes) ────────────────────
 
 
 @app.api_route("/", methods=["GET", "HEAD"], tags=["system"], include_in_schema=False)
@@ -92,14 +92,9 @@ async def root() -> dict:
 
 @app.get("/health", tags=["system"])
 async def health() -> dict:
-    from src.api.dependencies import get_vector_store
-
-    vs = get_vector_store()
-    return {
-        "status": "healthy",
-        "version": "1.0.0",
-        "total_chunks": vs.total_chunks,
-    }
+    # Process liveness is not tenant inventory or provider readiness. Never
+    # initialize models or expose a cross-workspace count to an anonymous probe.
+    return {"status": "healthy", "probe": "liveness", "readiness": "NOT_PROBED", "version": "1.0.0"}
 
 
 # ── Mount Routers ─────────────────────────────────────────────────────────

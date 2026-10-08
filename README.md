@@ -185,14 +185,18 @@ npm run dev
 
 Open **http://localhost:3000** and start uploading documents!
 
-### Docker (Alternative)
+### Docker (optional local/self-managed runtime)
 
 ```bash
 # Copy and configure backend env
 cp backend/.env.example backend/.env
-# Edit backend/.env and add your GOOGLE_API_KEY
-
-docker-compose up --build
+# Use an approved isolated Auth/data project in backend/.env.
+# Private backend/provider credentials stay in that runtime env file.
+# Export only public client configuration before building the frontend:
+export NEXT_PUBLIC_SUPABASE_URL="https://YOUR-ISOLATED-PROJECT.supabase.co"
+export NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY="YOUR-PUBLIC-PUBLISHABLE-KEY"
+# Browser-facing API defaults to http://localhost:8000; it is not Docker DNS.
+docker compose up --build
 ```
 
 ---

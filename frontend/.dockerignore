@@ -1,0 +1,16 @@
+node_modules
+.next
+.open-next
+.env
+.env.*
+**/.env
+**/.env.*
+*.log
+*.pem
+*.key
+*.p12
+*.pfx
+test-results
+playwright-report
+artifacts
+.git

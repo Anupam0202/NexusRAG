@@ -1,0 +1,37 @@
+name: Self-managed container verification
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: container-verification-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  runtime:
+    name: Full self-managed runtime images
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Verify public standard-runner budget boundary
+        env:
+          REPOSITORY_VISIBILITY: ${{ github.event.repository.visibility }}
+        run: test "$REPOSITORY_VISIBILITY" = public
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Build and inspect real runtime images, neural model and dependencies
+        run: bash scripts/containers/verify-runtime.sh
+      - name: Record acceptance boundary
+        if: always()
+        env:
+          JOB_STATUS: ${{ job.status }}
+          SOURCE_COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          printf '## Optional self-managed image verification\n\nSource: `%s`\n\nResult: %s\n\nNo image push, cloud artifacts, paid runner, provider credentials or customer data. This does not establish live Cloudflare acceptance, OS vulnerability clearance or commercial dependency rights.\n' "$SOURCE_COMMIT" "$JOB_STATUS" >> "$GITHUB_STEP_SUMMARY"
