@@ -10,7 +10,7 @@ declare
 begin
  if has_function_privilege('anon','public.nexus_processing_policy_version()','execute')
  or has_function_privilege('authenticated','public.nexus_processing_policy_version()','execute')
- or public.nexus_processing_policy_version()->>'version'<>'038' then raise exception 'Policy metadata grants unsafe'; end if;
+ or public.nexus_processing_policy_version()->>'version'<>'039' then raise exception 'Policy metadata grants unsafe'; end if;
  if has_function_privilege('anon','public.nexus_workspace_processing_policy(uuid,uuid,text,text,bigint)','execute')
  or has_function_privilege('authenticated','public.nexus_workspace_processing_policy(uuid,uuid,text,text,bigint)','execute')
  or not has_function_privilege('service_role','public.nexus_workspace_processing_policy(uuid,uuid,text,text,bigint)','execute') then
