@@ -24,6 +24,7 @@ import {
   ApiRequestError,
   deleteDocument,
   getDocumentIngestionStatus,
+  getCurrentWorkspace,
   listDocuments,
   reindexDocument,
   retryIngestionJob,
@@ -105,6 +106,8 @@ function WorkspaceDocumentDetail() {
   const [refreshing, setRefreshing] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [reindexing, setReindexing] = useState(false);
+  const [mutationAccess, setMutationAccess] = useState<"checking" | "allowed" | "viewer" | "unavailable">("checking");
+  const canMutate = mutationAccess === "allowed";
 
   useEffect(() => {
     const idFromPath = decodeURIComponent(
@@ -126,6 +129,20 @@ function WorkspaceDocumentDetail() {
 
     setRefreshing(true);
     setError(null);
+    setMutationAccess("checking");
+    // Read-only inspection remains useful while permission discovery is
+    // pending/unavailable. Never reuse a role from another actor or workspace.
+    void getCurrentWorkspace({ workspaceId, expectedUserId }).then(authority => {
+      if (!valid()) return;
+      const matches = authMode === "demo" || (
+        authority.workspace_id === workspaceId && authority.user_id === expectedUserId
+      );
+      if (!matches || !["owner", "admin", "editor", "viewer"].includes(authority.role)) {
+        setMutationAccess("unavailable");
+      } else {
+        setMutationAccess(authority.role === "viewer" ? "viewer" : "allowed");
+      }
+    }).catch(() => { if (valid()) setMutationAccess("unavailable"); });
     try {
       let nextDocument: DocumentMetadata | null = null;
       let nextJob: IngestionJobStatusResponse | null = null;
@@ -178,7 +195,7 @@ function WorkspaceDocumentDetail() {
     } finally {
       if (valid()) setRefreshing(false);
     }
-  }, [canAccessWorkspaceApi, isWorkspaceLoading, workspaceId, expectedUserId, documentId, setDocuments]);
+  }, [canAccessWorkspaceApi, isWorkspaceLoading, workspaceId, expectedUserId, authMode, documentId, setDocuments]);
 
   useEffect(() => {
     if (canAccessWorkspaceApi) {
@@ -207,7 +224,7 @@ function WorkspaceDocumentDetail() {
   const progress = job?.progress ?? (document?.status === "ready" ? 100 : 0);
 
   const handleDelete = async () => {
-    if (!canAccessWorkspaceApi || isWorkspaceLoading || deleting || reindexing) return;
+    if (!canMutate || !canAccessWorkspaceApi || isWorkspaceLoading || deleting || reindexing) return;
     if (!document) return;
     setDeleting(true);
     setError(null);
@@ -225,7 +242,7 @@ function WorkspaceDocumentDetail() {
   };
 
   const handleReindex = async () => {
-    if (!canAccessWorkspaceApi || isWorkspaceLoading || deleting || reindexing || !document) return;
+    if (!canMutate || !canAccessWorkspaceApi || isWorkspaceLoading || deleting || reindexing || !document) return;
     setReindexing(true);
     setError(null);
     try {
@@ -242,7 +259,7 @@ function WorkspaceDocumentDetail() {
   };
 
   const handleRetry = async () => {
-    if (!canAccessWorkspaceApi || isWorkspaceLoading || deleting || reindexing || !job) return;
+    if (!canMutate || !canAccessWorkspaceApi || isWorkspaceLoading || deleting || reindexing || !job) return;
     setReindexing(true);
     setError(null);
     try {
@@ -349,7 +366,8 @@ function WorkspaceDocumentDetail() {
             <button
               type="button"
               onClick={() => void handleReindex()}
-              disabled={deleting || reindexing}
+              disabled={!canMutate || deleting || reindexing}
+              aria-describedby={!canMutate ? "document-mutation-permission" : undefined}
               className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] px-3 py-2 text-sm font-semibold text-[var(--text-secondary)] transition hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] disabled:opacity-50"
             >
               {reindexing ? <Loader2 size={15} className="animate-spin" /> : <RefreshCw size={15} />}
@@ -358,7 +376,8 @@ function WorkspaceDocumentDetail() {
             <button
               type="button"
               onClick={() => void handleDelete()}
-              disabled={deleting || reindexing}
+              disabled={!canMutate || deleting || reindexing}
+              aria-describedby={!canMutate ? "document-mutation-permission" : undefined}
               className="inline-flex items-center gap-2 rounded-xl border border-red-200 px-3 py-2 text-sm font-semibold text-red-600 transition hover:bg-red-50 disabled:opacity-50 dark:border-red-900/60 dark:text-red-300 dark:hover:bg-red-900/20"
             >
               {deleting ? <Loader2 size={15} className="animate-spin" /> : <Trash2 size={15} />}
@@ -366,6 +385,14 @@ function WorkspaceDocumentDetail() {
             </button>
           </div>
         </div>
+
+        {!canMutate && (
+          <p id="document-mutation-permission" role="status" className="text-sm text-[var(--text-muted)]">
+            {mutationAccess === "checking" ? "Checking document edit permissions…"
+              : mutationAccess === "viewer" ? "Viewer access: you can inspect this document. Re-indexing, retry and deletion require an editor, administrator or owner."
+              : "Edit permissions could not be verified. Document changes are disabled; refresh to retry. Read-only inspection remains available."}
+          </p>
+        )}
 
         {error && (
           <div className="rounded-xl border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-300">
@@ -474,7 +501,8 @@ function WorkspaceDocumentDetail() {
             <button
               type="button"
               onClick={() => void handleRetry()}
-              disabled={deleting || reindexing}
+              disabled={!canMutate || deleting || reindexing}
+              aria-describedby={!canMutate ? "document-mutation-permission" : undefined}
               className="mt-4 inline-flex items-center gap-2 rounded-xl bg-brand-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-500 disabled:opacity-50"
             >
               {reindexing ? <Loader2 size={15} className="animate-spin" /> : <RefreshCw size={15} />}

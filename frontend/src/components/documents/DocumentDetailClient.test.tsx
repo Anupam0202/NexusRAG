@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-const api = vi.hoisted(() => ({ listDocuments: vi.fn(), getDocumentIngestionStatus: vi.fn(), deleteDocument: vi.fn(), reindexDocument: vi.fn(), retryIngestionJob: vi.fn(), setDocuments: vi.fn(), removeDocument: vi.fn(), navigate: vi.fn() }));
+const api = vi.hoisted(() => ({ listDocuments: vi.fn(), getCurrentWorkspace: vi.fn(), getDocumentIngestionStatus: vi.fn(), deleteDocument: vi.fn(), reindexDocument: vi.fn(), retryIngestionJob: vi.fn(), setDocuments: vi.fn(), removeDocument: vi.fn(), navigate: vi.fn() }));
 vi.mock("@/lib/api", async importOriginal => ({ ...await importOriginal<object>(), ...api }));
 vi.mock("next/navigation", () => ({ useParams: () => ({ documentId: "doc-a" }) }));
 vi.mock("@/lib/static-navigation", () => ({ navigateStatic: api.navigate }));
@@ -11,6 +11,7 @@ const document = { document_id: "doc-a", filename: "Private synthetic document.t
 describe("document detail authority", () => {
   beforeEach(() => {
     Object.values(api).forEach(mock => mock.mockReset()); api.listDocuments.mockResolvedValue({ documents: [document], total: 1 });
+    api.getCurrentWorkspace.mockResolvedValue({ workspace_id: "workspace-a", user_id: "user-a", role: "owner" });
     useStore.setState({ authMode: "authenticated", authUser: { id: "user-a", email: null }, workspaceId: "workspace-a", setDocuments: api.setDocuments, removeDocument: api.removeDocument });
   });
   it("drops old-account private details and global inventory side effects", async () => {
@@ -31,5 +32,41 @@ describe("document detail authority", () => {
     api.listDocuments.mockRejectedValue(new Error("Inventory outage")); api.getDocumentIngestionStatus.mockRejectedValue(new Error("Status outage"));
     render(<DocumentDetail />); await screen.findByText("Unable to load document"); expect(screen.getByText("Status outage")).toBeInTheDocument();
     expect(screen.queryByText("Document not found")).not.toBeInTheDocument();
+  });
+  it("keeps viewer inspection available without enabling consequential controls", async () => {
+    api.getCurrentWorkspace.mockResolvedValue({ workspace_id: "workspace-a", user_id: "user-a", role: "viewer" });
+    render(<DocumentDetail />); await screen.findByText(document.filename);
+    await screen.findByText(/Viewer access:/);
+    expect(screen.getByRole("button", { name: "Delete" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Re-index" })).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+    fireEvent.click(screen.getByRole("button", { name: "Re-index" }));
+    expect(api.deleteDocument).not.toHaveBeenCalled(); expect(api.reindexDocument).not.toHaveBeenCalled();
+    expect(api.getCurrentWorkspace).toHaveBeenCalledWith({ workspaceId: "workspace-a", expectedUserId: "user-a" });
+  });
+  it("does not turn an unavailable role check into permission to mutate", async () => {
+    api.getCurrentWorkspace.mockRejectedValue(new Error("Synthetic role outage"));
+    render(<DocumentDetail />); await screen.findByText(document.filename);
+    await screen.findByText(/Edit permissions could not be verified/);
+    expect(screen.getByRole("button", { name: "Delete" })).toBeDisabled();
+    expect(screen.getByText("Chunk viewer fixture")).toBeInTheDocument();
+  });
+  it("rejects role metadata from a different actor or workspace", async () => {
+    api.getCurrentWorkspace.mockResolvedValue({ workspace_id: "foreign-workspace", user_id: "foreign-user", role: "owner" });
+    render(<DocumentDetail />); await screen.findByText(document.filename);
+    await screen.findByText(/Edit permissions could not be verified/);
+    expect(screen.getByRole("button", { name: "Re-index" })).toBeDisabled();
+  });
+  it("does not reuse late owner authority after switching to a viewer identity", async () => {
+    let finish!: (value: unknown) => void;
+    api.getCurrentWorkspace.mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+    render(<DocumentDetail />); await screen.findByText(document.filename);
+    expect(screen.getByRole("button", { name: "Delete" })).toBeDisabled();
+    api.getCurrentWorkspace.mockResolvedValue({ workspace_id: "workspace-a", user_id: "user-b", role: "viewer" });
+    act(() => useStore.setState({ authUser: { id: "user-b", email: null } }));
+    await screen.findByText(/Viewer access:/);
+    await act(async () => finish({ workspace_id: "workspace-a", user_id: "user-a", role: "owner" }));
+    expect(screen.getByRole("button", { name: "Delete" })).toBeDisabled();
+    expect(api.deleteDocument).not.toHaveBeenCalled();
   });
 });
