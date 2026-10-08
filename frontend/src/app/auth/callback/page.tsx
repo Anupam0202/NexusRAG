@@ -46,9 +46,14 @@ async function completeOAuthSession(supabase: SupabaseBrowserClient, code: strin
 
 export default function AuthCallbackPage() {
   const identity = useStore(state => JSON.stringify([state.authMode, state.authUser?.id]));
-  return <AccountAuthCallback key={identity} />;
+  // Retain only the provider-neutral failure across AuthProvider hydration.
+  // The URL is scrubbed below, so a keyed remount cannot reread that failure.
+  // Never retain raw provider details or the PKCE code in this shared state.
+  const [callbackError] = useState(() => typeof window === "undefined"
+    ? null : getAuthCallbackError(new URL(window.location.href)));
+  return <AccountAuthCallback key={identity} initialCallbackError={callbackError} />;
 }
-function AccountAuthCallback() {
+function AccountAuthCallback({ initialCallbackError }: { initialCallbackError: string | null }) {
   const setAuthState = useStore((state) => state.setAuthState);
   const setWorkspaceId = useStore((state) => state.setWorkspaceId);
   const [error, setError] = useState<string | null>(null);
@@ -58,7 +63,7 @@ function AccountAuthCallback() {
 
     const complete = async () => {
       const url = new URL(window.location.href);
-      const callbackError = getAuthCallbackError(url);
+      const callbackError = initialCallbackError ?? getAuthCallbackError(url);
       const nextPath = sanitizeAuthNextPath(url.searchParams.get("next"), "/documents");
       const code = url.searchParams.get("code");
       // Capture PKCE code locally, then remove OAuth parameters/provider errors
@@ -112,7 +117,7 @@ function AccountAuthCallback() {
     return () => {
       active = false;
     };
-  }, [setAuthState, setWorkspaceId]);
+  }, [setAuthState, setWorkspaceId, initialCallbackError]);
 
   return (
     <div className="flex h-full items-center justify-center px-4">

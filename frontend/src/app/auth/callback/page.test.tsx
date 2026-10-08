@@ -1,10 +1,11 @@
 import { act, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { navigateStatic, setAuthState, setWorkspaceId } = vi.hoisted(() => ({
+const { navigateStatic, setAuthState, setWorkspaceId, authIdentity } = vi.hoisted(() => ({
   navigateStatic: vi.fn(),
   setAuthState: vi.fn(),
   setWorkspaceId: vi.fn(),
+  authIdentity: { authMode: "loading", authUser: null as { id: string } | null },
 }));
 
 vi.mock("@/lib/static-navigation", () => ({ navigateStatic }));
@@ -13,8 +14,10 @@ vi.mock("@/hooks/useStore", () => ({
     selector: (state: {
       setAuthState: typeof setAuthState;
       setWorkspaceId: typeof setWorkspaceId;
+      authMode: string;
+      authUser: { id: string } | null;
     }) => unknown
-  ) => selector({ setAuthState, setWorkspaceId }),
+  ) => selector({ setAuthState, setWorkspaceId, ...authIdentity }),
 }));
 vi.mock("@/lib/api", () => ({
   getCurrentWorkspace: vi.fn(),
@@ -33,6 +36,8 @@ describe("AuthCallbackPage", () => {
   const getSession = vi.fn();
 
   beforeEach(() => {
+    authIdentity.authMode = "loading";
+    authIdentity.authUser = null;
     navigateStatic.mockReset();
     setAuthState.mockReset();
     setWorkspaceId.mockReset();
@@ -145,6 +150,18 @@ describe("AuthCallbackPage", () => {
     render(<AuthCallbackPage />);
     await screen.findByText(/workspace discovery is unavailable/);
     expect(navigateStatic).not.toHaveBeenCalledWith("/onboarding");
+  });
+  it("preserves a sanitized callback failure after hydration remounts and URL scrubbing", async () => {
+    window.history.replaceState({}, "", "/auth/callback?error_description=Sensitive+provider+details");
+    const view = render(<AuthCallbackPage />);
+    await screen.findByText("Authentication could not be completed. Return to sign in and try again.");
+    expect(window.location.search).not.toContain("error_description");
+    authIdentity.authMode = "signed_out";
+    view.rerender(<AuthCallbackPage />);
+    await screen.findByText("Authentication could not be completed. Return to sign in and try again.");
+    expect(screen.queryByText(/sensitive provider details/i)).not.toBeInTheDocument();
+    expect(exchangeCodeForSession).not.toHaveBeenCalled();
+    expect(navigateStatic).not.toHaveBeenCalled();
   });
 
 });

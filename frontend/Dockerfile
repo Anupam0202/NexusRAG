@@ -30,7 +30,7 @@ WORKDIR /app
 # with Node after removal. Keep APK metadata for truthful runtime scans.
 RUN apk upgrade --no-cache && \
     rm -rf /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/corepack /opt/yarn-* && \
-    rm -f /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack /usr/local/bin/yarn /usr/local/bin/yarnpkg && \
+    rm -f /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack /usr/local/bin/yarn /usr/local/bin/yarnpkg /usr/local/bin/docker-entrypoint.sh && \
     apk add --no-cache alpine-baselayout-data && \
     apk del alpine-baselayout busybox busybox-binsh ssl_client && \
     /usr/local/bin/node -e 'const fs=require("fs");fs.mkdirSync("/tmp",{recursive:true});fs.chmodSync("/tmp",0o1777);if(!fs.readFileSync("/etc/passwd","utf8").includes("node:"))throw Error("Runtime identity missing");for(const p of ["/bin/sh","/bin/busybox"])if(fs.existsSync(p))throw Error("Shell removal failed")'
@@ -40,4 +40,5 @@ COPY --from=builder --chown=node:node /app/.next/static ./.next/static
 COPY --from=builder --chown=node:node /app/public ./public/
 USER node
 EXPOSE 3000
-CMD ["node", "server.js"]
+ENTRYPOINT ["node"]
+CMD ["server.js"]

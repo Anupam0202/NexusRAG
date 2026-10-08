@@ -17,6 +17,9 @@ class ContainerVerificationTests(unittest.TestCase):
         self.assertLess(dockerfile.index('apk add --no-cache alpine-baselayout-data'),
                         dockerfile.index('apk del alpine-baselayout busybox'))
         self.assertIn('fs.chmodSync("/tmp",0o1777)', dockerfile)
+        self.assertIn('ENTRYPOINT ["node"]', dockerfile)
+        self.assertIn('CMD ["server.js"]', dockerfile)
+        self.assertIn('/usr/local/bin/docker-entrypoint.sh', dockerfile)
         self.assertNotIn('--force-broken-world', dockerfile)
         self.assertNotIn('rm -rf /lib/apk', dockerfile)
         self.assertIn('ARG NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY', dockerfile)
