@@ -2,7 +2,7 @@
   // A separate Worker keeps the stacked PR #3 preview independent of PR #2.
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "nexusrag-v6-pr3-frontend",
-  "main": ".open-next/worker.js",
+  "main": "worker.js",
   "compatibility_date": "2026-09-20",
   "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
   "assets": {
