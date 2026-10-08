@@ -337,6 +337,59 @@ async function loadBoundDocument(env, workspace, documentId) {
   return rows[0];
 }
 
+async function chunkPreviews(request, env, user, workspace, documentId) {
+  const url = new URL(request.url);
+  const limitText = url.searchParams.get("limit") || "100";
+  const afterText = url.searchParams.get("after");
+  const limit = Number(limitText), after = afterText === null ? null : Number(afterText);
+  const query = String(url.searchParams.get("search") || "").trim();
+  if (!/^\d+$/.test(limitText) || !Number.isSafeInteger(limit) || limit < 1 || limit > 200 ||
+      (afterText !== null && (!/^\d+$/.test(afterText) || !Number.isSafeInteger(after) || after < 0)) || query.length > 200)
+    throw Object.assign(new Error("Invalid bounded chunk search or cursor."), { status: 422, code: "INVALID_SCOPE" });
+  const document = await loadBoundDocument(env, workspace, documentId);
+  if (document.lifecycle_state !== "active" || document.status !== "ready" || !document.active_version_id)
+    throw Object.assign(new Error("This document has no current published chunk view."), { status: 409, code: "VERSION_CONFLICT" });
+  const expected = url.searchParams.get("version_id");
+  if ((after !== null && !expected) || (expected && expected !== document.active_version_id))
+    throw Object.assign(new Error("The document version changed. Refresh the chunk view."), { status: 409, code: "VERSION_CONFLICT" });
+  const versions = await serviceRequest(env, `document_versions?workspace_id=eq.${workspace}&document_id=eq.${documentId}&id=eq.${document.active_version_id}&select=id,workspace_id,document_id,publication_state,index_generation,lifecycle_epoch&limit=1`);
+  const version = versions?.[0];
+  if (!version || version.workspace_id !== workspace || version.document_id !== documentId || version.id !== document.active_version_id ||
+      version.publication_state !== "ready" || !version.index_generation || version.lifecycle_epoch !== document.lifecycle_epoch)
+    throw Object.assign(new Error("Current chunk publication authority is unavailable."), { status: 409, code: "VERSION_CONFLICT" });
+  // Full bounded inventory before filtering: never search just the first UI page.
+  const rows = await serviceRequest(env, `document_chunks?workspace_id=eq.${workspace}&document_id=eq.${documentId}&version_id=eq.${version.id}&select=id,workspace_id,document_id,version_id,chunk_index,original_text,original_content_hash,content,page_number,section_title,token_count,location,metadata&order=chunk_index.asc&limit=401`);
+  if (!Array.isArray(rows)) throw Object.assign(new Error("Chunk persistence returned no usable inventory."), { status: 503, code: "PERSISTENCE_UNAVAILABLE" });
+  if (rows.length > 400) throw Object.assign(new Error("This document exceeds the bounded 400-chunk view. No complete search result was claimed."), { status: 409, code: "CAPACITY_REACHED" });
+  if (!Number.isSafeInteger(document.chunk_count) || document.chunk_count < 1 || rows.length !== document.chunk_count)
+    throw Object.assign(new Error("Published chunk inventory is incomplete or inconsistent."), { status: 409, code: "EVIDENCE_UNVERIFIED" });
+  const seen = new Set(), verified = [];
+  for (const row of rows) {
+    const original = row.original_text ?? row.content;
+    if (row.workspace_id !== workspace || row.document_id !== documentId || row.version_id !== version.id ||
+        !Number.isSafeInteger(row.chunk_index) || row.chunk_index < 0 || seen.has(row.chunk_index) ||
+        typeof original !== "string" || !original.trim() || !/^[a-f0-9]{64}$/.test(row.original_content_hash || "") || await sha256(original) !== row.original_content_hash)
+      throw Object.assign(new Error("Chunk evidence integrity could not be verified. No unverified original was returned."), { status: 409, code: "EVIDENCE_UNVERIFIED" });
+    seen.add(row.chunk_index);
+    verified.push({ chunk_index: row.chunk_index, content: original, original_content_hash: row.original_content_hash,
+      page_number: row.page_number ?? 0, section_title: row.section_title ?? null,
+      token_count: row.token_count ?? null, location: row.location ?? null, metadata: row.metadata ?? {} });
+  }
+  await membership(env, user.id, workspace);
+  const fresh = await loadBoundDocument(env, workspace, documentId);
+  const current = await serviceRequest(env, `document_versions?workspace_id=eq.${workspace}&id=eq.${version.id}&select=publication_state,index_generation,lifecycle_epoch&limit=1`);
+  if (fresh.lifecycle_state !== "active" || fresh.active_version_id !== version.id || fresh.lifecycle_epoch !== document.lifecycle_epoch || fresh.chunk_count !== document.chunk_count ||
+      current?.[0]?.publication_state !== "ready" || current[0].index_generation !== version.index_generation || current[0].lifecycle_epoch !== version.lifecycle_epoch)
+    throw Object.assign(new Error("The document changed while loading. Refresh the chunk view."), { status: 409, code: "VERSION_CONFLICT" });
+  const matches = verified.filter(row => row.content.toLowerCase().includes(query.toLowerCase()));
+  const remaining = matches.filter(row => after === null || row.chunk_index > after);
+  const chunks = remaining.slice(0, limit);
+  return { document_id: documentId, filename: fresh.filename, version_id: version.id, chunks,
+    total: matches.length, total_is_exact: true, query: query || null,
+    next_after: remaining.length > limit ? chunks.at(-1).chunk_index : null,
+    authority: "SUPABASE_HASH_VERIFIED", coverage: { state: "COMPLETE_BOUNDED_DOCUMENT", maximum_chunks: 400 } };
+}
+
 async function enqueueJob(env,job){if(!env.INGESTION_QUEUE?.send)throw Object.assign(new Error("The durable ingestion queue is unavailable."),{status:503,code:"QUEUE_UNAVAILABLE",retryable:true});await env.INGESTION_QUEUE.send({job_id:job.id,workspace_id:job.workspace_id,document_id:job.document_id,version_id:job.version_id,lifecycle_epoch:Number(job.lifecycle_epoch||1)});}
 async function accountAdmission(request, env, user, operation) {
   const idempotencyKey = request.headers.get("idempotency-key") || "";
@@ -676,7 +729,7 @@ async function handle(request, env = {}) {
     const documentRoute=url.pathname.match(/^\/api\/v1\/documents\/([0-9a-f-]{36})\/(status|chunks|reindex|delete)$/i);
     if(documentRoute){const id=workspaceId(request);const member=await membership(env,user.id,id);const documentId=documentRoute[1];const action=documentRoute[2];
       if(action==="status"&&(request.method==="GET"||request.method==="HEAD")){const document=await loadBoundDocument(env,id,documentId);const jobs=await serviceRequest(env,`ingestion_jobs?workspace_id=eq.${id}&document_id=eq.${documentId}&select=*&order=created_at.desc&limit=1`);return json(request,env,jobs?.[0]?jobView(jobs[0],document):{job_id:"",document_id:documentId,filename:document.filename,status:document.status==="ready"?"completed":document.status==="error"?"failed":document.status,stage:document.status,progress:document.status==="ready"?100:0,message:`Document ${document.status}`,error_message:document.error_message,created_at:document.created_at,updated_at:document.updated_at,document:documentView(document)});}
-      if(action==="chunks"&&(request.method==="GET"||request.method==="HEAD")){const document=await loadBoundDocument(env,id,documentId);const limit=Math.min(Math.max(Number.parseInt(url.searchParams.get("limit")||"100",10)||100,1),200);const query=String(url.searchParams.get("search")||"").trim().toLowerCase();let chunks=document.active_version_id?await serviceRequest(env,`document_chunks?workspace_id=eq.${id}&document_id=eq.${documentId}&version_id=eq.${document.active_version_id}&select=chunk_index,content,page_number,section_title,token_count,metadata&order=chunk_index.asc&limit=${limit}`):[];if(query)chunks=chunks.filter(c=>String(c.content||"").toLowerCase().includes(query));return json(request,env,{document_id:documentId,filename:document.filename,chunks,total:chunks.length,query:query||null});}
+      if(action==="chunks"&&(request.method==="GET"||request.method==="HEAD"))return json(request,env,await chunkPreviews(request,env,user,id,documentId));
       if(action==="reindex"&&request.method==="POST")return json(request,env,await reindexDocument(request,env,user,id,member,documentId),202);
       if(action==="delete"&&request.method==="POST")return json(request,env,await deleteDocument(request,env,user,id,member,documentId));
     }

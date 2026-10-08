@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import { Building2, Check, Loader2, Plus, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { createWorkspace, listWorkspaces } from "@/lib/api";
@@ -9,6 +9,11 @@ import { navigateStatic, reloadStatic } from "@/lib/static-navigation";
 import type { WorkspaceSummary } from "@/types";
 
 export default function WorkspacesPage() {
+  const identity = useStore(state => JSON.stringify([state.authMode, state.authUser?.id]));
+  return <AccountWorkspaces key={identity} />;
+}
+function AccountWorkspaces() {
+  const userId = useStore(state => state.authUser?.id);
   const authMode = useStore((state) => state.authMode);
   const workspaceId = useStore((state) => state.workspaceId);
   const setWorkspaceId = useStore((state) => state.setWorkspaceId);
@@ -18,19 +23,26 @@ export default function WorkspacesPage() {
   const [name, setName] = useState("");
   const [error, setError] = useState<string | null>(null);
 
+  const alive = useRef(true);
+  const sequence = useRef(0);
+  useEffect(() => { alive.current = true; return () => { alive.current = false; sequence.current += 1; }; }, []);
+  const context = { workspaceId: null, expectedUserId: authMode === "authenticated" ? userId ?? null : undefined };
   const load = async () => {
+    const current = ++sequence.current;
     setLoading(true);
     setError(null);
     try {
-      const response = await listWorkspaces();
+      const response = await listWorkspaces(context);
+      if (!alive.current || current !== sequence.current) return;
       setWorkspaces(response.workspaces);
-      if (!workspaceId && response.workspaces[0]) {
+      if (!useStore.getState().workspaceId && response.workspaces[0]) {
         setWorkspaceId(response.workspaces[0].id);
       }
     } catch (err: unknown) {
+      if (!alive.current || current !== sequence.current) return;
       setError(err instanceof Error ? err.message : "Unable to load workspaces");
     } finally {
-      setLoading(false);
+      if (alive.current && current === sequence.current) setLoading(false);
     }
   };
 
@@ -46,20 +58,22 @@ export default function WorkspacesPage() {
 
   const create = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (authMode !== "authenticated") return;
+    if (authMode !== "authenticated" || !userId || creating) return;
     if (!name.trim()) return;
     setCreating(true);
     setError(null);
     try {
-      const workspace = await createWorkspace({ name: name.trim() });
+      const workspace = await createWorkspace({ name: name.trim() }, context);
+      if (!alive.current) return;
       setWorkspaces((current) => [...current, workspace]);
-      setWorkspaceId(workspace.id);
+      if (useStore.getState().workspaceId === workspaceId) setWorkspaceId(workspace.id);
       setName("");
       toast.success("Workspace created");
     } catch (err: unknown) {
+      if (!alive.current) return;
       setError(err instanceof Error ? err.message : "Unable to create workspace");
     } finally {
-      setCreating(false);
+      if (alive.current) setCreating(false);
     }
   };
 
@@ -150,7 +164,7 @@ export default function WorkspacesPage() {
                   key={workspace.id}
                   type="button"
                   onClick={() => {
-                    setWorkspaceId(workspace.id);
+                    if (useStore.getState().workspaceId === workspaceId) setWorkspaceId(workspace.id);
                     toast.success(`Workspace switched to ${workspace.name}`);
                     reloadStatic();
                   }}

@@ -20,7 +20,7 @@ export function setStoredWorkspaceId(workspaceId: string | null) {
 }
 
 export async function getApiHeaders(
-  options: { json?: boolean; workspaceId?: string | null } = {}
+  options: { json?: boolean; workspaceId?: string | null; expectedUserId?: string | null } = {}
 ): Promise<HeadersInit> {
   const headers: Record<string, string> = {};
 
@@ -34,15 +34,20 @@ export async function getApiHeaders(
     headers["X-Workspace-ID"] = workspaceId;
   }
 
+  const identityError = () => Object.assign(new Error("Your account context changed or is unavailable. Sign in and retry this action."), { code: "AUTH_CONTEXT_CHANGED" });
+  if (options.expectedUserId !== undefined && (!options.expectedUserId || !hasPublicSupabaseConfig())) throw identityError();
   if (hasPublicSupabaseConfig()) {
     try {
       const supabase = createSupabaseBrowserClient();
       const { data } = await supabase.auth.getSession();
+      if (options.expectedUserId !== undefined && data.session?.user?.id !== options.expectedUserId) throw identityError();
       const token = data.session?.access_token;
+      if (options.expectedUserId !== undefined && !token) throw identityError();
       if (token) {
         headers.Authorization = `Bearer ${token}`;
       }
     } catch {
+      if (options.expectedUserId !== undefined) throw identityError();
       // Keep demo-compatible calls working when auth is absent or still loading.
     }
   }

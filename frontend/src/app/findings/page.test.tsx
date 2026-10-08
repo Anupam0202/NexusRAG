@@ -38,7 +38,7 @@ describe("Findings workbench", () => {
     fireEvent.click(screen.getByRole("button", { name: "Save finding" }));
     await waitFor(() => expect(api.createFinding).toHaveBeenCalledTimes(2));
     expect(api.createFinding.mock.calls[0][1]).toBe(api.createFinding.mock.calls[1][1]);
-    expect(api.createFinding.mock.calls[0][2]).toEqual({ workspaceId: workspace });
+    expect(api.createFinding.mock.calls[0][2]).toEqual({ workspaceId: workspace, expectedUserId: "user-a" });
   });
   it("edits use the expected revision and conflicts remain visible", async () => {
     api.editFinding.mockRejectedValue(new Error("The record changed. Reload and retry."));
@@ -49,7 +49,7 @@ describe("Findings workbench", () => {
     fireEvent.click(screen.getByRole("button", { name: "Save finding" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("The record changed");
     expect(api.editFinding).toHaveBeenCalledWith(finding.id,
-      { title: "Updated note", authored_markdown: "Authored note", revision: 3 }, { workspaceId: workspace });
+      { title: "Updated note", authored_markdown: "Authored note", revision: 3 }, { workspaceId: workspace, expectedUserId: "user-a" });
   });
   it("shares with a real member selection and supports explicit revocation", async () => {
     api.shareFinding.mockResolvedValue({ ...finding, participants: [{ user_id: "user-b", permission: "read" }] });
@@ -61,9 +61,9 @@ describe("Findings workbench", () => {
     fireEvent.change(screen.getByLabelText("Finding permission"), { target: { value: "read" } });
     fireEvent.click(screen.getByRole("button", { name: "Share for review" }));
     await waitFor(() => expect(api.shareFinding).toHaveBeenCalledWith(finding.id,
-      { user_id: "user-b", permission: "read" }, { workspaceId: workspace }));
+      { user_id: "user-b", permission: "read" }, { workspaceId: workspace, expectedUserId: "user-a" }));
     fireEvent.click(await screen.findByRole("button", { name: "Revoke access" }));
-    await waitFor(() => expect(api.unshareFinding).toHaveBeenCalledWith(finding.id, "user-b", { workspaceId: workspace }));
+    await waitFor(() => expect(api.unshareFinding).toHaveBeenCalledWith(finding.id, "user-b", { workspaceId: workspace, expectedUserId: "user-a" }));
   });
   it("viewer controls cannot mutate or export", async () => {
     api.getCurrentWorkspace.mockResolvedValue({ workspace_id: workspace, role: "viewer" });

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "@/components/layout/StaticLink";
 import {
   ArrowLeft,
@@ -26,14 +26,18 @@ import type { WorkspaceMember, WorkspaceRole } from "@/types";
 type ManageableRole = Exclude<WorkspaceRole, "owner">;
 
 export default function MembersPage() {
-  const identity = useStore(state => `${state.authUser?.id}:${state.workspaceId}`);
+  const identity = useStore(state => JSON.stringify([state.authMode, state.authUser?.id, state.workspaceId]));
   return <MembersWorkbench key={identity} />;
 }
 function MembersWorkbench() {
   const authMode = useStore((state) => state.authMode);
   const authUser = useStore((state) => state.authUser);
   const boundWorkspaceId = useStore((state) => state.workspaceId);
-  const context = { workspaceId: boundWorkspaceId };
+  const expectedUserId = authMode === "authenticated" ? authUser?.id ?? null : undefined;
+  const context = { workspaceId: boundWorkspaceId, expectedUserId };
+  const alive = useRef(true);
+  const sequence = useRef(0);
+  useEffect(() => { const counter = sequence; alive.current = true; return () => { alive.current = false; counter.current++; }; }, []);
   const [members, setMembers] = useState<WorkspaceMember[]>([]);
   const [workspaceId, setWorkspaceId] = useState<string | null>(null);
   const [currentRole, setCurrentRole] = useState<WorkspaceRole>("viewer");
@@ -48,23 +52,27 @@ function MembersWorkbench() {
     managementSupported && authMode === "authenticated" && (currentRole === "owner" || currentRole === "admin");
 
   const loadMembers = useCallback(async () => {
+    if (authMode === "authenticated" && !boundWorkspaceId) return;
+    const current = ++sequence.current;
     setLoading(true);
     try {
       const [response, workspace] = await Promise.all([
-        listCurrentWorkspaceMembers({ workspaceId: boundWorkspaceId }),
-        getCurrentWorkspace({ workspaceId: boundWorkspaceId }),
+        listCurrentWorkspaceMembers({ workspaceId: boundWorkspaceId, expectedUserId }),
+        getCurrentWorkspace({ workspaceId: boundWorkspaceId, expectedUserId }),
       ]);
+      if (!alive.current || current !== sequence.current) return;
       setWorkspaceId(response.workspace_id);
       setMembers(response.members);
       setCurrentRole(workspace.role);
       setManagementSupported(response.management_supported !== false);
       setError(null);
     } catch (err: unknown) {
+      if (!alive.current || current !== sequence.current) return;
       setError(err instanceof Error ? err.message : "Unable to load members");
     } finally {
-      setLoading(false);
+      if (alive.current && current === sequence.current) setLoading(false);
     }
-  }, [boundWorkspaceId]);
+  }, [boundWorkspaceId, authMode, expectedUserId]);
 
   useEffect(() => {
     if (authMode === "loading") return;
@@ -76,13 +84,14 @@ function MembersWorkbench() {
   }, [authMode, loadMembers]);
 
   const addMember = async () => {
-    if (!emailOrUserId.trim()) return;
+    if (!canManage || savingUserId || !emailOrUserId.trim()) return;
     setSavingUserId("new");
     try {
       const member = await addCurrentWorkspaceMember({
         email_or_user_id: emailOrUserId.trim(),
         role: newRole,
       }, context);
+      if (!alive.current) return;
       setMembers((current) => [
         ...current.filter((item) => item.user_id !== member.user_id),
         member,
@@ -90,39 +99,46 @@ function MembersWorkbench() {
       setEmailOrUserId("");
       toast.success("Workspace member added");
     } catch (err) {
+      if (!alive.current) return;
       toast.error(err instanceof Error ? err.message : "Unable to add member");
     } finally {
-      setSavingUserId(null);
+      if (alive.current) setSavingUserId(null);
     }
   };
 
   const updateRole = async (member: WorkspaceMember, role: ManageableRole) => {
+    if (!canManage || savingUserId) return;
     setSavingUserId(member.user_id);
     try {
       const updated = await updateCurrentWorkspaceMember(member.user_id, { role }, context);
+      if (!alive.current) return;
       setMembers((current) =>
         current.map((item) => (item.user_id === updated.user_id ? { ...item, ...updated } : item))
       );
       toast.success("Member role updated");
     } catch (err) {
+      if (!alive.current) return;
       toast.error(err instanceof Error ? err.message : "Unable to update role");
     } finally {
-      setSavingUserId(null);
+      if (alive.current) setSavingUserId(null);
     }
   };
 
   const removeMember = async (member: WorkspaceMember) => {
+    if (!canManage || savingUserId) return;
     const label = member.display_name || member.email || member.user_id;
     if (!window.confirm(`Remove ${label} from this workspace?`)) return;
     setSavingUserId(member.user_id);
     try {
       await removeCurrentWorkspaceMember(member.user_id, context);
+      if (!alive.current) return;
       setMembers((current) => current.filter((item) => item.user_id !== member.user_id));
       toast.success("Workspace member removed");
     } catch (err) {
+      if (!alive.current) return;
       toast.error(err instanceof Error ? err.message : "Unable to remove member");
     } finally {
-      setSavingUserId(null);
+      if (alive.current) setSavingUserId(null);
     }
   };
 

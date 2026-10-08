@@ -26,16 +26,17 @@ const DELETE_CONFIRMATION = "DELETE DOCUMENTS";
 const DELETE_WORKSPACE_CONFIRMATION = "DELETE WORKSPACE";
 
 export default function PrivacyPage() {
-  const identity = useStore(state => `${state.authUser?.id}:${state.workspaceId}`);
+  const identity = useStore(state => JSON.stringify([state.authMode, state.authUser?.id, state.workspaceId]));
   return <PrivacyWorkbench key={identity} />;
 }
 function PrivacyWorkbench() {
-  const { authMode, canAccessWorkspaceApi } = useWorkspaceApiAccess();
+  const { authMode, isWorkspaceLoading, canAccessWorkspaceApi } = useWorkspaceApiAccess();
   const sessionId = useStore((state) => state.sessionId);
   const workspaceId = useStore((state) => state.workspaceId);
   const userId = useStore((state) => state.authUser?.id);
   const alive = useRef(true);
-  const context = { workspaceId };
+  const expectedUserId = authMode === "authenticated" ? userId ?? null : undefined;
+  const context = { workspaceId, expectedUserId };
   useEffect(() => {
     alive.current = true;
     return () => { alive.current = false; };
@@ -59,11 +60,11 @@ function PrivacyWorkbench() {
   >(null);
 
   useEffect(() => {
-    if (!canAccessWorkspaceApi) return;
+    if (!canAccessWorkspaceApi || isWorkspaceLoading) return;
     let active = true;
     setWorkspaceDataState("loading");
     setRole("viewer"); setDocumentCount(0); setRetentionSupported(false); setWorkspaceDeletionSupported(false);
-    Promise.all([getCurrentWorkspace({ workspaceId }), listDocuments({ workspaceId }), getPrivacySettings({ workspaceId })])
+    Promise.all([getCurrentWorkspace({ workspaceId, expectedUserId }), listDocuments({ workspaceId, expectedUserId }), getPrivacySettings({ workspaceId, expectedUserId })])
       .then(([workspace, documents, privacy]) => {
         if (!active) return;
         setRole(workspace.role);
@@ -83,7 +84,7 @@ function PrivacyWorkbench() {
     return () => {
       active = false;
     };
-  }, [canAccessWorkspaceApi, workspaceId, userId]);
+  }, [canAccessWorkspaceApi, isWorkspaceLoading, workspaceId, userId, expectedUserId]);
 
   if (!canAccessWorkspaceApi) {
     return (
@@ -101,6 +102,7 @@ function PrivacyWorkbench() {
   }
 
   const clearCurrentChat = async () => {
+    if (!workspaceDataReady || working) return;
     setWorking("chat");
     try {
       await clearSession(sessionId, context);
@@ -108,26 +110,27 @@ function PrivacyWorkbench() {
       clearMessages();
       toast.success("Current chat history cleared");
     } catch (error) {
+      if (!alive.current) return;
       toast.error(error instanceof Error ? error.message : "Unable to clear chat history");
     } finally {
-      setWorking(null);
+      if (alive.current) setWorking(null);
     }
   };
 
   const deleteAllDocuments = async () => {
-    if (confirmation !== DELETE_CONFIRMATION) return;
+    if (confirmation !== DELETE_CONFIRMATION || !canDeleteDocuments || working) return;
     setWorking("documents");
     try {
       const response = await listDocuments(context);
       if (!alive.current) return;
       const result = await deleteDocumentsBestEffort(
         response.documents.map((document) => document.document_id),
-        id => deleteDocument(id, context)
+        id => { if (!alive.current) throw new Error("Account context changed; cleanup stopped."); return deleteDocument(id, context); }
       );
       if (!alive.current) return;
-      const remaining = response.documents.filter(
-        (document) => !result.deletedIds.includes(document.document_id)
-      );
+      const refreshed = await listDocuments(context);
+      if (!alive.current) return;
+      const remaining = refreshed.documents;
       setDocuments(remaining);
       setDocumentCount(remaining.length);
       if (result.failures.length === 0) {
@@ -141,13 +144,14 @@ function PrivacyWorkbench() {
         );
       }
     } catch (error) {
+      if (!alive.current) return;
       toast.error(
         error instanceof Error
           ? `Document cleanup stopped: ${error.message}`
           : "Unable to delete workspace documents"
       );
     } finally {
-      setWorking(null);
+      if (alive.current) setWorking(null);
     }
   };
 
@@ -168,6 +172,7 @@ function PrivacyWorkbench() {
       : "Workspace data could not be loaded. Refresh and try again.";
 
   const saveRetention = async () => {
+    if (!canManageRetention || working) return;
     setWorking("retention");
     try {
       const payload = normalizeRetentionSchedule(retentionEnabled, retentionDays);
@@ -178,13 +183,15 @@ function PrivacyWorkbench() {
       setLastRetentionAt(saved.last_retention_at ?? null);
       toast.success(saved.retention_enabled ? "Retention schedule saved" : "Retention disabled");
     } catch (error) {
+      if (!alive.current) return;
       toast.error(error instanceof Error ? error.message : "Unable to save retention");
     } finally {
-      setWorking(null);
+      if (alive.current) setWorking(null);
     }
   };
 
   const runRetentionNow = async () => {
+    if (!canManageRetention || working) return;
     setWorking("retention-run");
     try {
       const result = await runRetention(context);
@@ -200,14 +207,15 @@ function PrivacyWorkbench() {
         toast.success(`${result.documents_deleted} expired documents removed`);
       }
     } catch (error) {
+      if (!alive.current) return;
       toast.error(error instanceof Error ? error.message : "Unable to run retention");
     } finally {
-      setWorking(null);
+      if (alive.current) setWorking(null);
     }
   };
 
   const deleteWorkspace = async () => {
-    if (workspaceConfirmation !== DELETE_WORKSPACE_CONFIRMATION) return;
+    if (workspaceConfirmation !== DELETE_WORKSPACE_CONFIRMATION || !canDeleteWorkspace || working) return;
     setWorking("workspace");
     try {
       await deleteCurrentWorkspace(context);
@@ -216,8 +224,9 @@ function PrivacyWorkbench() {
       // A hard navigation clears stale workspace-scoped client state after deletion.
       navigateStatic("/workspaces");
     } catch (error) {
+      if (!alive.current) return;
       toast.error(error instanceof Error ? error.message : "Unable to delete workspace");
-      setWorking(null);
+      if (alive.current) setWorking(null);
     }
   };
 
@@ -348,7 +357,7 @@ function PrivacyWorkbench() {
                 <p className="text-sm font-semibold text-red-800 dark:text-red-200">Danger zone</p>
                 <p className="mt-1 text-xs leading-5 text-red-700 dark:text-red-300">
                   {workspaceDataReady
-                    ? `Delete all ${documentCount} indexed workspace document${documentCount === 1 ? "" : "s"}. This removes document metadata, chunks, and vectors through the protected document API.`
+                    ? `Delete all ${documentCount} indexed workspace document${documentCount === 1 ? "" : "s"}. This requests removal through the protected document API. Tombstoning denies retrieval, but deletion is complete only after verified original, derived-data and vector cleanup; pending cleanup is reported as a failure, not a completion receipt.`
                     : "Workspace document inventory is loading."}
                 </p>
                 {workspaceDataReady && canDeleteDocuments ? (

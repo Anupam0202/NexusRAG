@@ -8,11 +8,16 @@ import {
 } from "@/components/documents/UploadZone";
 import { DocumentList } from "@/components/documents/DocumentList";
 import { DocumentDetailPanel } from "@/components/documents/DocumentDetailPanel";
+import { useStore } from "@/hooks/useStore";
 import { useDocuments } from "@/hooks/useDocuments";
 import { getSystemStatus } from "@/lib/api";
 import type { DocumentMetadata } from "@/types";
 
 export default function DocumentsPage() {
+  const identity = useStore(state => JSON.stringify([state.authMode, state.authUser?.id, state.workspaceId]));
+  return <WorkspaceDocuments key={identity} />;
+}
+function WorkspaceDocuments() {
   const {
     documents,
     loading,
@@ -29,8 +34,10 @@ export default function DocumentsPage() {
   const [selectedDocument, setSelectedDocument] = useState<DocumentMetadata | null>(null);
 
   useEffect(() => {
+    let active = true;
     getSystemStatus()
       .then((status) => {
+        if (!active) return;
         const settings = status.settings;
         setLimits({
           maxUploadMb: Number(settings.max_upload_size_mb) || DEFAULT_UPLOAD_LIMITS.maxUploadMb,
@@ -53,7 +60,8 @@ export default function DocumentsPage() {
               : DEFAULT_UPLOAD_LIMITS.docxEmbeddedImageOcr,
         });
       })
-      .catch(() => setLimits(DEFAULT_UPLOAD_LIMITS));
+      .catch(() => { if (active) setLimits(DEFAULT_UPLOAD_LIMITS); });
+    return () => { active = false; };
   }, [authMode, canAccessWorkspaceApi]);
 
   return (

@@ -37,6 +37,7 @@ import { getApiHeaders } from "@/lib/api-context";
 import { buildBackendUrl } from "@/lib/backend-url";
 
 export interface ApiRequestContext {
+  expectedUserId?: string | null;
   workspaceId?: string | null;
 }
 
@@ -100,13 +101,14 @@ async function request<T>(
 ): Promise<T> {
   let res: Response;
   try {
-    const headers = await getApiHeaders({ workspaceId: context.workspaceId });
+    const headers = await getApiHeaders({ workspaceId: context.workspaceId, expectedUserId: context.expectedUserId });
     res = await fetch(buildBackendUrl(path), {
       cache: init?.cache ?? "no-store",
       ...init,
       headers: { ...headers, ...init?.headers },
     });
-  } catch {
+  } catch (error) {
+    if (error && typeof error === "object" && "code" in error && error.code === "AUTH_CONTEXT_CHANGED") throw error;
     throw new Error("Backend connection was interrupted. Please retry after the service is live.");
   }
   if (!res.ok) {
@@ -120,7 +122,8 @@ async function request<T>(
 
 export async function uploadDocument(
   file: File,
-  classification: "non_sensitive"
+  classification: "non_sensitive",
+  context: ApiRequestContext = {}
 ): Promise<DocumentUploadResponse> {
   const form = new FormData();
   form.append("file", file);
@@ -129,18 +132,19 @@ export async function uploadDocument(
 
   let res: Response;
   try {
-    const headers = new Headers(await getApiHeaders({ json: false }));
+    const headers = new Headers(await getApiHeaders({ json: false, workspaceId: context.workspaceId, expectedUserId: context.expectedUserId }));
     headers.set("Idempotency-Key", crypto.randomUUID());
     res = await fetch(buildBackendUrl("/api/v1/documents/upload"), {
       method: "POST",
       headers,
       body: form,
     });
-  } catch {
+  } catch (error) {
+    if (error && typeof error === "object" && "code" in error && error.code === "AUTH_CONTEXT_CHANGED") throw error;
     throw new Error(
       "Upload connection was interrupted before the backend returned a response. " +
-        "This usually means the backend restarted or the file exceeded processing limits. " +
-        "Try again after the Backend live badge appears, or split large/scanned PDFs."
+        "The upload outcome is unknown; a same-named file does not prove this upload completed. " +
+        "Refresh the document library and inspect the ingestion state before retrying."
     );
   }
 
@@ -178,52 +182,55 @@ export async function deleteDocument(
 }
 
 export async function getIngestionJob(
-  jobId: string
+  jobId: string, context: ApiRequestContext = {}
 ): Promise<IngestionJobStatusResponse> {
-  return request(`/api/v1/documents/jobs/${encodeURIComponent(jobId)}`);
+  return request(`/api/v1/documents/jobs/${encodeURIComponent(jobId)}`, undefined, context);
 }
 
 export async function getDocumentIngestionStatus(
-  documentId: string
+  documentId: string, context: ApiRequestContext = {}
 ): Promise<IngestionJobStatusResponse> {
-  return request(`/api/v1/documents/${encodeURIComponent(documentId)}/status`);
+  return request(`/api/v1/documents/${encodeURIComponent(documentId)}/status`, undefined, context);
 }
 
 export async function reindexDocument(
-  documentId: string
+  documentId: string, context: ApiRequestContext = {}
 ): Promise<IngestionJobStatusResponse> {
   return request(`/api/v1/documents/${encodeURIComponent(documentId)}/reindex`, {
     method: "POST",
-  });
+  }, context);
 }
 
 export async function retryIngestionJob(
-  jobId: string
+  jobId: string, context: ApiRequestContext = {}
 ): Promise<IngestionJobStatusResponse> {
   return request(`/api/v1/documents/jobs/${encodeURIComponent(jobId)}/retry`, {
     method: "POST",
-  });
+  }, context);
 }
 
 export async function getDocumentChunks(
   documentId: string,
-  options: { search?: string; limit?: number } = {}
+  options: { search?: string; limit?: number; after?: number; versionId?: string } = {},
+  context: ApiRequestContext = {}
 ): Promise<DocumentChunkListResponse> {
   const params = new URLSearchParams();
   if (options.search?.trim()) params.set("search", options.search.trim());
   if (options.limit) params.set("limit", String(options.limit));
+  if (options.after !== undefined) params.set("after", String(options.after));
+  if (options.versionId) params.set("version_id", options.versionId);
   const suffix = params.toString() ? `?${params.toString()}` : "";
-  return request(`/api/v1/documents/${encodeURIComponent(documentId)}/chunks${suffix}`);
+  return request(`/api/v1/documents/${encodeURIComponent(documentId)}/chunks${suffix}`, undefined, context);
 }
 
 // Chat
 
-export async function chatQuery(body: QueryRequest): Promise<QueryResponse> {
+export async function chatQuery(body: QueryRequest, context: ApiRequestContext = {}): Promise<QueryResponse> {
   return request("/api/v1/chat", {
     method: "POST",
     body: JSON.stringify(body),
     headers: { "Idempotency-Key": crypto.randomUUID() },
-  });
+  }, context);
 }
 
 export async function clearSession(
@@ -235,24 +242,25 @@ export async function clearSession(
 }
 
 export async function getSessionMessages(
-  sessionId: string
+  sessionId: string, context: ApiRequestContext = {}
 ): Promise<ChatHistoryResponse> {
-  return request(`/api/v1/chat/sessions/${encodeURIComponent(sessionId)}/messages`);
+  return request(`/api/v1/chat/sessions/${encodeURIComponent(sessionId)}/messages`, undefined, context);
 }
 
 // Settings
 
-export async function getSettings(): Promise<AppSettings> {
-  return request("/api/v1/settings");
+export async function getSettings(context: ApiRequestContext = {}): Promise<AppSettings> {
+  return request("/api/v1/settings", undefined, context);
 }
 
 export async function updateSettings(
-  body: SettingsUpdate
+  body: SettingsUpdate,
+  context: ApiRequestContext = {}
 ): Promise<AppSettings> {
   return request("/api/v1/settings", {
     method: "PATCH",
     body: JSON.stringify(body),
-  });
+  }, context);
 }
 
 // Analytics
@@ -329,12 +337,13 @@ export async function healthCheck(): Promise<{
 
 export async function setApiKey(
   apiKey: string,
-  costConsentAccepted: boolean
+  costConsentAccepted: boolean,
+  context: ApiRequestContext = {}
 ): Promise<ApiKeyStatusResponse> {
   return request("/api/v1/apikey", {
     method: "POST",
     body: JSON.stringify({ api_key: apiKey, cost_consent: costConsentAccepted }),
-  });
+  }, context);
 }
 
 export async function getApiKeyStatus(
@@ -343,10 +352,10 @@ export async function getApiKeyStatus(
   return request("/api/v1/apikey", undefined, context);
 }
 
-export async function deleteApiKey(): Promise<ApiKeyStatusResponse> {
+export async function deleteApiKey(context: ApiRequestContext = {}): Promise<ApiKeyStatusResponse> {
   return request("/api/v1/apikey", {
     method: "DELETE",
-  });
+  }, context);
 }
 
 export async function getCurrentUser(): Promise<{
@@ -433,12 +442,13 @@ export function exportFinding(id: string, context: ApiRequestContext) {
     `/api/v2/findings/${encodeURIComponent(id)}/export`, { method: "POST" }, context);
 }
 
-export async function listWorkspaces(): Promise<WorkspaceListResponse> {
-  return request("/api/v1/workspaces");
+export async function listWorkspaces(context: ApiRequestContext = {}): Promise<WorkspaceListResponse> {
+  return request("/api/v1/workspaces", undefined, context);
 }
 
 export async function createWorkspace(
-  body: WorkspaceCreateRequest
+  body: WorkspaceCreateRequest,
+  context: ApiRequestContext = {}
 ): Promise<WorkspaceSummary> {
   const normalized = { ...body, name: body.name.trim() };
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(JSON.stringify(normalized)));
@@ -447,7 +457,7 @@ export async function createWorkspace(
     method: "POST",
     headers: { "Idempotency-Key": `workspace-create:${key}` },
     body: JSON.stringify(normalized),
-  });
+  }, context);
 }
 
 export async function listCurrentWorkspaceMembers(context: ApiRequestContext = {}): Promise<WorkspaceMembersResponse> {

@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import { Building2, Loader2, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { createWorkspace, getCurrentWorkspace } from "@/lib/api";
@@ -9,11 +9,20 @@ import { useStore } from "@/hooks/useStore";
 import { navigateStatic } from "@/lib/static-navigation";
 
 export default function OnboardingPage() {
+  const identity = useStore(state => JSON.stringify([state.authMode, state.authUser?.id]));
+  return <AccountOnboarding key={identity} />;
+}
+function AccountOnboarding() {
+  const userId = useStore(state => state.authUser?.id);
+  const authMode = useStore(state => state.authMode);
+  const alive = useRef(true);
+  useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
   const setAuthState = useStore((state) => state.setAuthState);
   const setWorkspaceId = useStore((state) => state.setWorkspaceId);
   const [name, setName] = useState("My Workspace");
   const [slug, setSlug] = useState("");
   const [loading, setLoading] = useState(true);
+  const [allowCreate, setAllowCreate] = useState(false);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -27,26 +36,39 @@ export default function OnboardingPage() {
         return;
       }
 
-      const supabase = createSupabaseBrowserClient();
-      const { data } = await supabase.auth.getSession();
-      const user = data.session?.user;
-      if (!user) {
-        navigateStatic("/auth/login?next=%2Fonboarding");
-        return;
-      }
-
-      setAuthState("authenticated", {
-        id: user.id,
-        email: user.email ?? null,
-      });
-
       try {
-        const workspace = await getCurrentWorkspace();
+        const supabase = createSupabaseBrowserClient();
+        const { data } = await supabase.auth.getSession();
         if (!active) return;
-        setWorkspaceId(workspace.workspace_id);
-        navigateStatic("/documents");
+        const user = data.session?.user;
+        if (!user) {
+          navigateStatic("/auth/login?next=%2Fonboarding");
+          return;
+        }
+
+        setAuthState("authenticated", {
+          id: user.id,
+          email: user.email ?? null,
+        });
+
+        try {
+          const workspace = await getCurrentWorkspace({ workspaceId: null, expectedUserId: user.id });
+          if (!active) return;
+          setWorkspaceId(workspace.workspace_id);
+          navigateStatic("/documents");
+        } catch (error: unknown) {
+          if (!active) return;
+          if (error && typeof error === "object" && "code" in error && error.code === "WORKSPACE_NOT_FOUND") {
+            setAllowCreate(true);
+          } else {
+            setError("Workspace discovery could not be completed. Refresh or sign in again before creating a workspace.");
+          }
+          setLoading(false);
+        }
       } catch {
-        if (active) setLoading(false);
+        if (!active) return;
+        setError("Unable to verify your session. Sign in and retry.");
+        setLoading(false);
       }
     };
 
@@ -59,20 +81,23 @@ export default function OnboardingPage() {
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (!allowCreate || authMode !== "authenticated" || !userId || creating) return;
     setCreating(true);
     setError(null);
     try {
       const workspace = await createWorkspace({
         name: name.trim(),
         slug: slug.trim() || null,
-      });
+      }, { workspaceId: null, expectedUserId: userId });
+      if (!alive.current) return;
       setWorkspaceId(workspace.id);
       toast.success("Workspace created");
       navigateStatic("/documents");
     } catch (err: unknown) {
+      if (!alive.current) return;
       setError(err instanceof Error ? err.message : "Unable to create workspace");
     } finally {
-      setCreating(false);
+      if (alive.current) setCreating(false);
     }
   };
 
@@ -135,7 +160,7 @@ export default function OnboardingPage() {
           </label>
           <button
             type="submit"
-            disabled={creating || name.trim().length < 2}
+            disabled={!allowCreate || authMode !== "authenticated" || !userId || creating || name.trim().length < 2}
             className="flex w-full items-center justify-center gap-2 rounded-xl bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-500 disabled:opacity-50"
           >
             {creating ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}

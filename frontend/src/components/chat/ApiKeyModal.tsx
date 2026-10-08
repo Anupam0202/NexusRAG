@@ -3,12 +3,27 @@
 import { useState, useRef, useEffect } from "react";
 import { useStore } from "@/hooks/useStore";
 import { setApiKey } from "@/lib/api";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { Key, X, Loader2, CheckCircle2, AlertTriangle, ExternalLink, Sparkles, ShieldAlert } from "lucide-react";
 import { toast } from "sonner";
 
 export function ApiKeyModal() {
-  const { showApiKeyModal, setShowApiKeyModal, setUserApiKey, isQuotaBlocked, setIsQuotaBlocked } = useStore();
+  const show = useStore(state => state.showApiKeyModal);
+  const identity = useStore(state => JSON.stringify([state.authMode, state.authUser?.id, state.workspaceId]));
+  return show ? <AccountApiKeyModal key={identity} /> : null;
+}
+function AccountApiKeyModal() {
+  const setShowApiKeyModal = useStore(state => state.setShowApiKeyModal);
+  const setUserApiKey = useStore(state => state.setUserApiKey);
+  const isQuotaBlocked = useStore(state => state.isQuotaBlocked);
+  const setIsQuotaBlocked = useStore(state => state.setIsQuotaBlocked);
+  const userId = useStore(state => state.authUser?.id);
+  const authMode = useStore(state => state.authMode);
+  const workspaceId = useStore(state => state.workspaceId);
+  const canActivate = authMode === "authenticated" && !!userId && !!workspaceId;
+  const reducedMotion = useReducedMotion();
+  const alive = useRef(true);
+  const dialogRef = useRef<HTMLDivElement>(null);
   const [key, setKey] = useState("");
   const [costConsentAccepted, setCostConsentAccepted] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -16,25 +31,44 @@ export function ApiKeyModal() {
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (showApiKeyModal) setTimeout(() => inputRef.current?.focus(), 150);
-  }, [showApiKeyModal]);
-
-  // When quota-blocked, trap Escape so it cannot close the modal
-  useEffect(() => {
-    if (!showApiKeyModal || !isQuotaBlocked) return;
-    const trap = (e: KeyboardEvent) => { if (e.key === "Escape") e.preventDefault(); };
+    alive.current = true;
+    const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const background = Array.from(document.querySelectorAll<HTMLElement>("aside, header, main"))
+      .filter(element => !element.contains(dialogRef.current) && !dialogRef.current?.contains(element));
+    const inertStates = background.map(element => element.inert);
+    background.forEach(element => { element.inert = true; });
+    inputRef.current?.focus();
+    const trap = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setShowApiKeyModal(false); // Dismissal never clears quota enforcement.
+        return;
+      }
+      if (event.key !== "Tab") return;
+      const controls = Array.from(dialogRef.current?.querySelectorAll<HTMLElement>(
+        'button:not(:disabled), input:not(:disabled), a[href], [tabindex="0"]'
+      ) ?? []).sort((a, b) => a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1);
+      const first = controls[0], last = controls[controls.length - 1];
+      if (!first) { event.preventDefault(); dialogRef.current?.focus(); return; }
+      if (!dialogRef.current?.contains(document.activeElement) || (event.shiftKey && document.activeElement === first)) {
+        event.preventDefault(); (event.shiftKey ? last : first).focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault(); first.focus();
+      }
+    };
     document.addEventListener("keydown", trap, true);
-    return () => document.removeEventListener("keydown", trap, true);
-  }, [showApiKeyModal, isQuotaBlocked]);
+    return () => {
+      alive.current = false;
+      document.removeEventListener("keydown", trap, true);
+      background.forEach((element, index) => { element.inert = inertStates[index]; });
+      if (previousFocus?.isConnected) previousFocus.focus();
+    };
+  }, [setShowApiKeyModal]);
 
-  const handleClose = () => {
-    if (isQuotaBlocked) return; // blocked — must submit a key
-    setShowApiKeyModal(false);
-    setKey("");
-    setCostConsentAccepted(false);
-  };
+  const handleClose = () => setShowApiKeyModal(false);
 
   const handleSubmit = async () => {
+    if (!canActivate || loading) return;
     const trimmed = key.trim();
     if (!trimmed || trimmed.length < 10) {
       toast.error("Please enter a valid API key");
@@ -46,51 +80,59 @@ export function ApiKeyModal() {
     }
     setLoading(true);
     try {
-      const result = await setApiKey(trimmed, costConsentAccepted);
+      const result = await setApiKey(trimmed, costConsentAccepted, { workspaceId, expectedUserId: userId });
+      if (!alive.current) return;
       setUserApiKey(result.key_fingerprint ?? "configured");
       setIsQuotaBlocked(false);
       setShowApiKeyModal(false);
       setKey("");
       setCostConsentAccepted(false);
-      toast.success("API key updated — you can continue chatting!", {
+      toast.success("API key configured — workspace processing approvals still apply", {
         icon: <CheckCircle2 size={18} />,
         duration: 4000,
       });
     } catch (err: unknown) {
+      if (!alive.current) return;
       const msg = err instanceof Error ? err.message : "Failed to set API key";
       toast.error(msg, { icon: <AlertTriangle size={18} /> });
     } finally {
-      setLoading(false);
+      if (alive.current) setLoading(false);
     }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !loading) handleSubmit();
-    if (e.key === "Escape" && !isQuotaBlocked) handleClose();
+
   };
 
   return (
     <AnimatePresence>
-      {showApiKeyModal && (
+      {(
         <>
-          {/* Backdrop — non-clickable when quota-blocked */}
+          {/* Dismissible without changing server quota authority. */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm"
-            onClick={isQuotaBlocked ? undefined : handleClose}
+            onClick={handleClose}
           />
 
           <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: 10 }}
+            initial={reducedMotion ? false : { opacity: 0, scale: 0.95, y: 10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 10 }}
+            exit={reducedMotion ? { opacity: 0 } : { opacity: 0, scale: 0.95, y: 10 }}
             transition={{ type: "spring", damping: 25, stiffness: 350 }}
             className="fixed inset-0 z-[101] flex items-center justify-center p-4"
+            onClick={event => { if (event.target === event.currentTarget) handleClose(); }}
           >
             <div
-              className="relative w-full max-w-md rounded-2xl bg-[var(--bg-primary)] border border-[var(--border)] shadow-2xl overflow-hidden"
+              ref={dialogRef}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="apikey-title"
+              tabIndex={-1}
+              className="relative max-h-[90dvh] overflow-y-auto w-full max-w-md rounded-2xl bg-[var(--bg-primary)] border border-[var(--border)] shadow-2xl"
             >
               {/* Top accent bar — red when quota-blocked, amber otherwise */}
               <div className={`absolute top-0 left-0 right-0 h-1 ${isQuotaBlocked
@@ -98,8 +140,8 @@ export function ApiKeyModal() {
                   : "bg-linear-to-r/srgb from-amber-500 via-orange-500 to-red-500"
                 }`} />
 
-              {/* Close button — hidden when quota-blocked */}
-              {!isQuotaBlocked && (
+              {/* Read-only workflows remain available without accepting paid processing. */}
+              {(
                 <button
                   onClick={handleClose}
                   aria-label="Close"
@@ -129,14 +171,14 @@ export function ApiKeyModal() {
                 </div>
 
                 {/* Title */}
-                <h3 className="text-lg font-bold text-center mb-1.5">
-                  {isQuotaBlocked ? "Free trial complete" : "Add your Gemini API key"}
+                <h3 id="apikey-title" className="text-lg font-bold text-center mb-1.5">
+                  {isQuotaBlocked ? "Processing quota unavailable" : "Add your Gemini API key"}
                 </h3>
 
                 {/* Description */}
                 <p className="text-sm text-[var(--text-muted)] text-center mb-4 leading-relaxed max-w-sm mx-auto">
                   {isQuotaBlocked
-                    ? "Your five free chat queries are used, or you are adding documents beyond the first. Add a Gemini API key to continue."
+                    ? "This action needs available processing quota and workspace approval. You may dismiss this dialog and continue using permitted read-only workflows."
                     : "Connect your own Gemini API key to process additional documents and continue chatting."}
                 </p>
 
@@ -144,7 +186,7 @@ export function ApiKeyModal() {
                 {isQuotaBlocked && (
                   <div className="rounded-xl bg-red-500/5 border border-red-500/20 px-4 py-3 mb-4">
                     <p className="text-xs text-red-600 dark:text-red-400 font-medium text-center">
-                      This account includes 5 chat queries and 1 document before a key is required. The application allows up to 10 documents per account.
+                      A user-funded key can incur charges and does not override workspace privacy, rights, capacity or owner approval requirements.
                     </p>
                   </div>
                 )}
@@ -182,6 +224,7 @@ export function ApiKeyModal() {
                   </div>
                   <input
                     ref={inputRef}
+                    aria-label="Gemini API key"
                     type={showKey ? "text" : "password"}
                     value={key}
                     onChange={(e) => setKey(e.target.value)}
@@ -202,8 +245,8 @@ export function ApiKeyModal() {
 
                 {/* Actions */}
                 <div className="flex gap-3">
-                  {/* Cancel only shown when NOT quota-blocked */}
-                  {!isQuotaBlocked && (
+                  {/* Consent is optional: cancellation never waives quotas. */}
+                  {(
                     <button
                       onClick={handleClose}
                       disabled={loading}
@@ -214,7 +257,7 @@ export function ApiKeyModal() {
                   )}
                   <button
                     onClick={handleSubmit}
-                    disabled={loading || key.trim().length < 10 || !costConsentAccepted}
+                    disabled={!canActivate || loading || key.trim().length < 10 || !costConsentAccepted}
                     className={`flex items-center justify-center gap-2 rounded-xl bg-linear-to-r/srgb from-brand-500 to-purple-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 ${isQuotaBlocked ? "w-full" : "flex-1"
                       }`}
                   >
@@ -239,7 +282,7 @@ export function ApiKeyModal() {
                   </span>
                 </label>
                 <p className="text-[10px] text-[var(--text-muted)] text-center mt-3">
-                  Your key is validated and stored encrypted for your account. It is not shown again.
+                  Key configuration requires a signed-in account and selected workspace. The server validates and encrypts accepted keys; the key is not shown again.
                 </p>
               </div>
             </div>

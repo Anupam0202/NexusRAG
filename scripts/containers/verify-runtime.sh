@@ -56,14 +56,17 @@ assert abs(sum(value * value for value in vector) - 1) < 1e-4
 print('REAL_OFFLINE_NEURAL_EMBEDDING_PASSED', len(vector), embedder._revision)
 PY
 
+# Require the real backend registry AND library inventory, including upstream
+# builds that omit disabled feature labels rather than printing NO.
+docker run --rm -i --network none --entrypoint python "$BACKEND" - < scripts/containers/verify-opencv-runtime.py
+
 # Required native document/image paths must survive runtime package slimming.
 # Synthetic fixtures only; no downloads or external/provider requests.
 docker run --rm -i --network none --entrypoint python "$BACKEND" - <<'PYFIXTURE'
-import io, os, re, stat
+import io, os, stat
 import cv2, fitz, numpy as np, pdfplumber
 from pypdf import PdfReader
 from PIL import Image
-assert re.search(r"FFMPEG:\s+NO", cv2.getBuildInformation()), "Unused video decoder must not be shipped"
 assert stat.S_IMODE(os.stat(os.environ["TMPDIR"]).st_mode) == 0o700
 assert os.stat(os.environ["TMPDIR"]).st_uid == os.getuid()
 pdf = fitz.open(); page = pdf.new_page(); page.insert_text((72, 72), 'Synthetic PDF runtime fixture')

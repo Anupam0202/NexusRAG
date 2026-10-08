@@ -15,7 +15,7 @@ const control = "w-full rounded-lg border border-[var(--border)] bg-[var(--bg-pr
 const button = "rounded-lg border border-[var(--border)] px-3 py-2 text-sm font-medium disabled:opacity-50";
 
 export default function FindingsPage() {
-  const identity = useStore(state => `${state.authUser?.id}:${state.workspaceId}`);
+  const identity = useStore(state => JSON.stringify([state.authMode, state.authUser?.id, state.workspaceId]));
   return <FindingsWorkbench key={identity} />;
 }
 
@@ -41,7 +41,8 @@ function FindingsWorkbench() {
   const createKey = useRef<string | null>(null);
   const canWrite = ["owner", "admin", "editor"].includes(role);
   const canEdit = canWrite && (!selected || selected.permission !== "read");
-  const context = { workspaceId };
+  const expectedUserId = authMode === "authenticated" ? userId ?? null : undefined;
+  const context = { workspaceId, expectedUserId };
 
   useEffect(() => {
     let active = true;
@@ -50,7 +51,7 @@ function FindingsWorkbench() {
     setRole("viewer"); setMembers([]); setNextAfter(null); createKey.current = null;
     if (authMode !== "authenticated" || !workspaceId) return;
     setBusy(true);
-    Promise.all([listFindings({ workspaceId }), getCurrentWorkspace({ workspaceId }), listCurrentWorkspaceMembers({ workspaceId })])
+    Promise.all([listFindings({ workspaceId, expectedUserId }), getCurrentWorkspace({ workspaceId, expectedUserId }), listCurrentWorkspaceMembers({ workspaceId, expectedUserId })])
       .then(([response, workspace, membership]) => {
         if (!active) return;
         setItems(response.items); setNextAfter(response.next_after); setRole(workspace.role); setMembers(membership.members);
@@ -58,7 +59,7 @@ function FindingsWorkbench() {
       .catch(error => { if (active) setError(error instanceof Error ? error.message : "Unable to load findings."); })
       .finally(() => { if (active) setBusy(false); });
     return () => { active = false; activeIdentity.current = ""; };
-  }, [authMode, userId, workspaceId, identity, reload]);
+  }, [authMode, userId, workspaceId, identity, reload, expectedUserId]);
 
   async function operate(action: () => Promise<void>) {
     if (busy || !workspaceId) return;

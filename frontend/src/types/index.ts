@@ -63,7 +63,7 @@ export interface DocumentChunkPreview {
   content: string;
   page_number: number;
   section_title?: string | null;
-  token_count: number;
+  token_count?: number | null;
   metadata: Record<string, unknown>;
 }
 
@@ -73,6 +73,9 @@ export interface DocumentChunkListResponse {
   chunks: DocumentChunkPreview[];
   total: number;
   query?: string | null;
+  total_is_exact?: boolean;
+  next_after?: number | null;
+  version_id?: string;
 }
 
 // ── Chat ─────────────────────────────────────────────────────

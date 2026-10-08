@@ -40,6 +40,7 @@ export function Sidebar() {
     if (!mobileOpen) return;
     const sidebar = sidebarRef.current;
     if (!sidebar) return;
+    const returnFocus = menuRef.current;
     const previousOverflow = document.body.style.overflow;
     const siblings = Array.from(sidebar.parentElement?.children || [])
       .filter((node): node is HTMLElement => node instanceof HTMLElement && node !== sidebar && node !== backdropRef.current)
@@ -71,7 +72,7 @@ export function Sidebar() {
       window.removeEventListener("resize", handleResize);
       document.body.style.overflow = previousOverflow;
       siblings.forEach(({ element, inert }) => { element.inert = inert; });
-      if (menuRef.current?.getClientRects().length) menuRef.current.focus();
+      if (returnFocus?.getClientRects().length) returnFocus.focus();
     };
   }, [mobileOpen]);
 

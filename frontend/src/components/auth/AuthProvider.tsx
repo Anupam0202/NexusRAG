@@ -30,7 +30,12 @@ export function AuthProvider() {
 
     const syncSession = async () => {
       const initiatingGeneration = ++generation;
-      const { data } = await supabase.auth.getSession();
+      let data;
+      try { ({ data } = await supabase.auth.getSession()); }
+      catch {
+        if (active && generation === initiatingGeneration) setAuthState("signed_out", null);
+        return;
+      }
       if (!active || generation !== initiatingGeneration) return;
 
       const session = data.session;
@@ -44,13 +49,27 @@ export function AuthProvider() {
         email: session.user.email ?? null,
       });
 
-      if (!getStoredWorkspaceId()) {
+      const cachedWorkspace = getStoredWorkspaceId();
+      if (cachedWorkspace) {
         try {
-          const workspace = await getCurrentWorkspace();
-          if (active && generation === initiatingGeneration) setWorkspaceId(workspace.workspace_id);
-        } catch {
-          // The user may be authenticated before being added to a workspace.
+          await getCurrentWorkspace({ workspaceId: cachedWorkspace, expectedUserId: session.user.id });
+          return; // A token refresh never resets a valid selected workspace.
+        } catch (error: unknown) {
+          if (!active || generation !== initiatingGeneration) return;
+          const denied = error && typeof error === "object" && "code" in error &&
+            ["FORBIDDEN", "WORKSPACE_UNAVAILABLE", "WORKSPACE_NOT_FOUND"].includes(String(error.code));
+          if (!denied || useStore.getState().workspaceId !== cachedWorkspace) return;
+          // A stored identifier is not proof of this account's membership.
+          // Preserve it on network errors, but discard a confirmed denied binding.
+          setWorkspaceId(null);
         }
+      }
+      try {
+        const workspace = await getCurrentWorkspace({ workspaceId: null, expectedUserId: session.user.id });
+        if (active && generation === initiatingGeneration && !useStore.getState().workspaceId) setWorkspaceId(workspace.workspace_id);
+      } catch {
+        // Onboarding reports discovery failures; provider outages are not evidence
+        // that a new workspace should be created.
       }
     };
 
