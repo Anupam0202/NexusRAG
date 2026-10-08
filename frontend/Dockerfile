@@ -24,12 +24,16 @@ ARG SOURCE_COMMIT=unverified
 LABEL org.opencontainers.image.revision=$SOURCE_COMMIT
 WORKDIR /app
 # Standalone Next.js needs node, not bundled npm/Corepack/Yarn build tooling.
-# Remove unused package-manager and shell/wget attack surface without touching
-# app modules. All runtime health/configuration probes use Node, not a shell.
+# alpine-baselayout depends on /bin/sh and otherwise silently retains BusyBox.
+# Retain its independent data package (passwd/group/network configuration),
+# remove the shell-dependent init layout, and recreate the temporary directory
+# with Node after removal. Keep APK metadata for truthful runtime scans.
 RUN apk upgrade --no-cache && \
     rm -rf /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/corepack /opt/yarn-* && \
     rm -f /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack /usr/local/bin/yarn /usr/local/bin/yarnpkg && \
-    apk del busybox busybox-binsh ssl_client
+    apk add --no-cache alpine-baselayout-data && \
+    apk del alpine-baselayout busybox busybox-binsh ssl_client && \
+    /usr/local/bin/node -e 'const fs=require("fs");fs.mkdirSync("/tmp",{recursive:true});fs.chmodSync("/tmp",0o1777);if(!fs.readFileSync("/etc/passwd","utf8").includes("node:"))throw Error("Runtime identity missing");for(const p of ["/bin/sh","/bin/busybox"])if(fs.existsSync(p))throw Error("Shell removal failed")'
 ENV NODE_ENV=production PORT=3000 HOSTNAME=0.0.0.0 NEXT_TELEMETRY_DISABLED=1
 COPY --from=builder --chown=node:node /app/.next/standalone ./
 COPY --from=builder --chown=node:node /app/.next/static ./.next/static

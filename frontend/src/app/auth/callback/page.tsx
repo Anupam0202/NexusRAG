@@ -45,6 +45,10 @@ async function completeOAuthSession(supabase: SupabaseBrowserClient, code: strin
 }
 
 export default function AuthCallbackPage() {
+  const identity = useStore(state => JSON.stringify([state.authMode, state.authUser?.id]));
+  return <AccountAuthCallback key={identity} />;
+}
+function AccountAuthCallback() {
   const setAuthState = useStore((state) => state.setAuthState);
   const setWorkspaceId = useStore((state) => state.setWorkspaceId);
   const [error, setError] = useState<string | null>(null);
@@ -55,6 +59,11 @@ export default function AuthCallbackPage() {
     const complete = async () => {
       const url = new URL(window.location.href);
       const callbackError = getAuthCallbackError(url);
+      const nextPath = sanitizeAuthNextPath(url.searchParams.get("next"), "/documents");
+      const code = url.searchParams.get("code");
+      // Capture PKCE code locally, then remove OAuth parameters/provider errors
+      // from browser history before asynchronous session/discovery work.
+      window.history.replaceState(window.history.state, "", `${url.pathname}?next=${encodeURIComponent(nextPath)}`);
       if (callbackError) {
         setError(callbackError);
         return;
@@ -65,12 +74,10 @@ export default function AuthCallbackPage() {
         return;
       }
 
-      const nextPath = sanitizeAuthNextPath(url.searchParams.get("next"), "/documents");
-      const code = url.searchParams.get("code");
-
       try {
         const supabase = createSupabaseBrowserClient();
         const { data, error: sessionError } = await completeOAuthSession(supabase, code);
+        if (!active) return;
         if (sessionError) throw sessionError;
         const user = data.session?.user;
 
@@ -85,11 +92,14 @@ export default function AuthCallbackPage() {
         });
 
         try {
-          const workspace = await getCurrentWorkspace();
+          const workspace = await getCurrentWorkspace({ workspaceId: null, expectedUserId: user.id });
+          if (!active) return;
           setWorkspaceId(workspace.workspace_id);
           navigateStatic(nextPath);
-        } catch {
-          navigateStatic("/onboarding");
+        } catch (error: unknown) {
+          if (!active) return;
+          if (error && typeof error === "object" && "code" in error && error.code === "WORKSPACE_NOT_FOUND") navigateStatic("/onboarding");
+          else setError("Your session was established, but workspace discovery is unavailable. Return to sign in and retry; no new workspace was created.");
         }
       } catch {
         if (!active) return;

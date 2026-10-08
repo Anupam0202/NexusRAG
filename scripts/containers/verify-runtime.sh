@@ -83,6 +83,7 @@ print('REAL_NATIVE_PDF_IMAGE_FIXTURES_PASSED')
 PYFIXTURE
 
 docker run --rm --network none --entrypoint node "$FRONTEND" -e 'const fs=require("fs");for(const path of ["/usr/local/lib/node_modules/npm","/usr/local/lib/node_modules/corepack","/usr/local/bin/yarn","/bin/busybox","/bin/sh"]){if(fs.existsSync(path))throw Error("Unused runtime tooling remains: "+path)}'
+docker run --rm --network none --entrypoint node "$FRONTEND" -e 'const fs=require("fs");if(process.getuid()!==1000)throw Error("Unexpected runtime identity");if((fs.statSync("/tmp").mode&0o7777)!==0o1777)throw Error("Invalid temporary directory");fs.writeFileSync("/tmp/runtime-fixture","synthetic");fs.unlinkSync("/tmp/runtime-fixture");const inventory=fs.readFileSync("/lib/apk/db/installed","utf8");if(!inventory.includes("P:alpine-baselayout-data\n")||!inventory.includes("P:musl\n"))throw Error("Runtime package inventory lost");if(/\nP:(busybox|busybox-binsh|alpine-baselayout)\n/.test("\n"+inventory))throw Error("Shell dependency retained");if(!fs.existsSync("/etc/ssl/certs/ca-certificates.crt"))throw Error("CA bundle missing");console.log("REAL_FRONTEND_IDENTITY_FILESYSTEM_AND_PACKAGE_INVENTORY_PASSED")'
 
 # Repository-contract tests also inspect migrations/configuration outside backend.
 # Give the derived image the exact tracked source, without expanding production
