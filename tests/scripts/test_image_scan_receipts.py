@@ -1,0 +1,51 @@
+import json
+import os
+from pathlib import Path
+import subprocess
+import sys
+import tempfile
+import unittest
+
+SCRIPT = Path(__file__).resolve().parents[2] / 'scripts/containers/report-image-scans.py'
+
+
+class ImageReceiptTests(unittest.TestCase):
+    def run_report(self, reports):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            for name, content in reports.items():
+                (root / f'nexusrag-{name}-grype.json').write_text(json.dumps(content))
+            env = {key: value for key, value in os.environ.items() if key != 'GITHUB_STEP_SUMMARY'}
+            return subprocess.run([sys.executable, str(SCRIPT), '--report-dir', folder], text=True, capture_output=True, env=env)
+
+    def report(self, severity=None):
+        return {'descriptor': {'name': 'grype', 'version': 'synthetic-fixture'},
+                'source': {'type': 'image', 'target': {'imageID': 'synthetic-local-image'}},
+                'matches': [] if not severity else [{'vulnerability': {'id': 'SYNTHETIC-TEST', 'severity': severity}, 'artifact': {'name': 'synthetic-package', 'version': '1'}}]}
+
+    def test_missing_scan_never_turns_green(self):
+        result = self.run_report({'backend': self.report()})
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('SCAN_RESULT_UNAVAILABLE', result.stdout)
+
+    def test_medium_findings_fail_including_without_a_fix(self):
+        result = self.run_report({'backend': self.report('Medium'), 'frontend': self.report()})
+        self.assertNotEqual(result.returncode, 0)
+
+    def test_suppressed_findings_are_rejected(self):
+        report = self.report(); report['ignoredMatches'] = [{'synthetic': 'ignored'}]
+        self.assertNotEqual(self.run_report({'backend': report, 'frontend': self.report()}).returncode, 0)
+
+    def test_wrong_source_type_is_not_an_image_gate(self):
+        report = self.report(); report['source']['type'] = 'directory'
+        self.assertNotEqual(self.run_report({'backend': report, 'frontend': self.report()}).returncode, 0)
+
+    def test_low_findings_remain_visible_not_suppressed(self):
+        result = self.run_report({'backend': self.report('Low'), 'frontend': self.report()})
+        self.assertEqual(result.returncode, 0)
+        self.assertIn('SYNTHETIC-TEST', result.stdout)
+        self.assertIn('Low', result.stdout)
+
+
+if __name__ == '__main__':
+    unittest.main()

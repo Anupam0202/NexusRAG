@@ -8,6 +8,9 @@ WORK=$(mktemp -d)
 BACKEND="nexusrag-backend-check:${SHA:0:12}"
 FRONTEND="nexusrag-frontend-check:${SHA:0:12}"
 CHECK="nexusrag-backend-tests:${SHA:0:12}"
+if [[ -n "${GITHUB_OUTPUT:-}" ]]; then
+  printf 'backend_image=%s\nfrontend_image=%s\n' "$BACKEND" "$FRONTEND" >> "$GITHUB_OUTPUT"
+fi
 backend_container=''
 frontend_container=''
 cleanup() {

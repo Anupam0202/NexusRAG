@@ -25,11 +25,43 @@ jobs:
         with:
           python-version: "3.13"
       - name: Build and inspect real runtime images, neural model and dependencies
+        id: images
         run: bash scripts/containers/verify-runtime.sh
+      - name: Require unsuppressed, uncached image scan configuration
+        run: |
+          printf 'ignore: []\n' > /tmp/nexusrag-grype.yml
+      - name: Scan actual backend OS and application packages
+        id: backend_scan
+        uses: anchore/scan-action@27805bf3b4e84b4a5c980df22ed233c00390a439 # v7.4.2, immutable release
+        with:
+          image: ${{ steps.images.outputs.backend_image }}
+          fail-build: true
+          severity-cutoff: medium
+          only-fixed: false
+          cache-db: false
+          config: /tmp/nexusrag-grype.yml
+          output-format: json
+          output-file: /tmp/nexusrag-backend-grype.json
+      - name: Scan actual frontend OS and application packages
+        id: frontend_scan
+        if: ${{ !cancelled() && steps.images.outcome == 'success' }}
+        uses: anchore/scan-action@27805bf3b4e84b4a5c980df22ed233c00390a439 # v7.4.2, immutable release
+        with:
+          image: ${{ steps.images.outputs.frontend_image }}
+          fail-build: true
+          severity-cutoff: medium
+          only-fixed: false
+          cache-db: false
+          config: /tmp/nexusrag-grype.yml
+          output-format: json
+          output-file: /tmp/nexusrag-frontend-grype.json
+      - name: Summarize actual image vulnerability evidence
+        if: always()
+        run: python3 scripts/containers/report-image-scans.py
       - name: Record acceptance boundary
         if: always()
         env:
           JOB_STATUS: ${{ job.status }}
           SOURCE_COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
-          printf '## Optional self-managed image verification\n\nSource: `%s`\n\nResult: %s\n\nNo image push, cloud artifacts, paid runner, provider credentials or customer data. This does not establish live Cloudflare acceptance, OS vulnerability clearance or commercial dependency rights.\n' "$SOURCE_COMMIT" "$JOB_STATUS" >> "$GITHUB_STEP_SUMMARY"
+          printf '## Optional self-managed image verification\n\nSource: `%s`\n\nResult: %s\n\nNo image push, cloud artifacts, paid runner, provider credentials or customer data. This does not establish live Cloudflare acceptance, commercial dependency rights or complete product acceptance. Image scans must succeed independently.\n' "$SOURCE_COMMIT" "$JOB_STATUS" >> "$GITHUB_STEP_SUMMARY"
