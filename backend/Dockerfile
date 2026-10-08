@@ -9,12 +9,19 @@ ENV PATH="/opt/venv/bin:$PATH"
 RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
     build-essential \
     libgomp1 \
+    cmake \
     && rm -rf /var/lib/apt/lists/*
 
 # Install CPU-only PyTorch FIRST (saves ~400MB vs full torch)
 RUN pip install --no-cache-dir --upgrade "pip>=26.2" && \
     pip install --no-cache-dir "torch>=2.11.0" --index-url https://download.pytorch.org/whl/cpu && \
     pip install --no-cache-dir "setuptools>=83.0.0"
+
+# The application performs still-image operations, never video decoding.
+# Build the reviewed headless source with FFmpeg disabled instead of shipping
+# vulnerable unused video libraries inside the upstream binary wheel.
+RUN ENABLE_HEADLESS=1 CMAKE_ARGS="-DWITH_FFMPEG=OFF" CMAKE_BUILD_PARALLEL_LEVEL=2 \
+    pip install --no-cache-dir --no-deps "https://files.pythonhosted.org/packages/1d/99/76b7c80252aa83c1af16393454aafd125a0287101afe8deb0a6821af0e30/opencv_python_headless-5.0.0.93.tar.gz#sha256=b82f9831daab90b725c7c1ee1b36cb5732c367096ac76d119e64e14eb70d5f3c"
 
 COPY pyproject.toml ./
 # Install the rest of the deps (torch already satisfied)
@@ -42,7 +49,8 @@ ENV PATH="/opt/venv/bin:$PATH"
 
 COPY . .
 
-RUN mkdir -p /app/data/vector_store /app/data/uploads /app/data/scientific_output
+RUN mkdir -p /app/data/vector_store /app/data/uploads /app/data/scientific_output /app/data/private_tmp && \
+    chmod 0700 /app/data/private_tmp
 
 ENV EMBEDDING_REVISION=1110a243fdf4706b3f48f1d95db1a4f5529b4d41
 
@@ -61,6 +69,8 @@ EXPOSE 8000
 # Optional self-managed/local research image; not an active Cloudflare deployment.
 ENV MALLOC_TRIM_THRESHOLD_=100000
 ENV PYTHONUNBUFFERED=1
+# Defense in depth for TemporaryDirectory cleanup races; not a CVE waiver.
+ENV TMPDIR=/app/data/private_tmp
 # An approved self-managed runtime may override PORT.
 ENV PORT=8000
 

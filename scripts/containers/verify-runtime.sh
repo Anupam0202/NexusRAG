@@ -33,7 +33,11 @@ for image in "$BACKEND" "$FRONTEND"; do
   user=$(docker inspect --format '{{.Config.User}}' "$image")
   [[ -n "$user" && "$user" != root && "$user" != 0 ]]
   [[ "$(docker inspect --format '{{index .Config.Labels "org.opencontainers.image.revision"}}' "$image")" = "$SHA" ]]
-  docker run --rm --network none --entrypoint sh "$image" -c 'test -z "$(find /app -type f \( -name .env -o -name ".env.*" \) ! -name .env.example -print -quit)"'
+    if [[ "$image" = "$BACKEND" ]]; then
+    docker run --rm --network none --entrypoint python "$image" -c 'from pathlib import Path; assert not any(p.name != ".env.example" and (p.name == ".env" or p.name.startswith(".env.")) for p in Path("/app").rglob("*"))'
+  else
+    docker run --rm --network none --entrypoint node "$image" -e 'const fs=require("fs");function walk(dir){for(const item of fs.readdirSync(dir,{withFileTypes:true})){if(item.name!==".env.example"&&(item.name===".env"||item.name.startsWith(".env.")))throw Error("Private env file");if(item.isDirectory())walk(dir+"/"+item.name)}}walk("/app")'
+  fi
   docker inspect --format 'image={{.Id}} source={{index .Config.Labels "org.opencontainers.image.revision"}} user={{.Config.User}} bytes={{.Size}}' "$image"
 done
 
@@ -55,10 +59,13 @@ PY
 # Required native document/image paths must survive runtime package slimming.
 # Synthetic fixtures only; no downloads or external/provider requests.
 docker run --rm -i --network none --entrypoint python "$BACKEND" - <<'PYFIXTURE'
-import io
+import io, os, re, stat
 import cv2, fitz, numpy as np, pdfplumber
 from pypdf import PdfReader
 from PIL import Image
+assert re.search(r"FFMPEG:\s+NO", cv2.getBuildInformation()), "Unused video decoder must not be shipped"
+assert stat.S_IMODE(os.stat(os.environ["TMPDIR"]).st_mode) == 0o700
+assert os.stat(os.environ["TMPDIR"]).st_uid == os.getuid()
 pdf = fitz.open(); page = pdf.new_page(); page.insert_text((72, 72), 'Synthetic PDF runtime fixture')
 raw = pdf.tobytes()
 assert 'Synthetic PDF runtime fixture' in PdfReader(io.BytesIO(raw)).pages[0].extract_text()
@@ -72,7 +79,7 @@ with fitz.open(stream=raw, filetype='pdf') as parsed:
 print('REAL_NATIVE_PDF_IMAGE_FIXTURES_PASSED')
 PYFIXTURE
 
-docker run --rm --network none --entrypoint sh "$FRONTEND" -c 'test ! -e /usr/local/lib/node_modules/npm && test ! -e /usr/local/lib/node_modules/corepack && ! command -v yarn'
+docker run --rm --network none --entrypoint node "$FRONTEND" -e 'const fs=require("fs");for(const path of ["/usr/local/lib/node_modules/npm","/usr/local/lib/node_modules/corepack","/usr/local/bin/yarn","/bin/busybox","/bin/sh"]){if(fs.existsSync(path))throw Error("Unused runtime tooling remains: "+path)}'
 
 # Repository-contract tests also inspect migrations/configuration outside backend.
 # Give the derived image the exact tracked source, without expanding production
@@ -138,5 +145,5 @@ for attempt in $(seq 1 30); do
   sleep 1
 done
 if [[ "$ready" != true ]]; then docker logs "$frontend_container"; exit 1; fi
-docker exec "$frontend_container" sh -c 'grep -r -q "supabase.invalid" /app/.next/static && grep -r -q "localhost:8000" /app/.next/static'
+docker exec "$frontend_container" node -e 'const fs=require("fs");let found=new Set();function walk(dir){for(const item of fs.readdirSync(dir,{withFileTypes:true})){const path=dir+"/"+item.name;if(item.isDirectory())walk(path);else if(item.isFile()){const text=fs.readFileSync(path,"utf8");for(const marker of ["supabase.invalid","localhost:8000"])if(text.includes(marker))found.add(marker)}}}walk("/app/.next/static");if(found.size!==2)throw Error("Compiled public configuration missing")'
 printf '\nCONTAINER_RUNTIME_VERIFIED source=%s (synthetic/offline only; no provider or commercial-rights approval)\n' "$SHA"

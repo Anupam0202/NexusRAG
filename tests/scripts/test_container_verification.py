@@ -12,6 +12,7 @@ class ContainerVerificationTests(unittest.TestCase):
         self.assertIn('USER node', dockerfile)
         self.assertIn('apk upgrade --no-cache', dockerfile)
         self.assertIn('rm -rf /usr/local/lib/node_modules/npm', dockerfile)
+        self.assertIn('apk del busybox busybox-binsh ssl_client', dockerfile)
         self.assertIn('ARG NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY', dockerfile)
         self.assertNotIn('SERVICE_ROLE', dockerfile)
         ignore = (ROOT / 'frontend/.dockerignore').read_text()
@@ -37,6 +38,10 @@ class ContainerVerificationTests(unittest.TestCase):
         for unused in ('poppler-utils', 'libgl1', 'libglib2.0-0', '\n    curl'):
             self.assertNotIn(unused, runtime)
         self.assertIn('apt-get upgrade -y', runtime)
+        self.assertIn('ENV TMPDIR=/app/data/private_tmp', runtime)
+        self.assertIn('chmod 0700 /app/data/private_tmp', dockerfile)
+        self.assertIn('CMAKE_ARGS="-DWITH_FFMPEG=OFF"', dockerfile)
+        self.assertRegex(dockerfile, r'opencv_python_headless-[0-9.]+\.tar\.gz#sha256=[a-f0-9]{64}')
 
     def test_ci_no_secret_or_cloud_publication_and_checks_exact_head(self):
         workflow = (ROOT / '.github/workflows/container-verification.yml').read_text()
@@ -60,6 +65,9 @@ class ContainerVerificationTests(unittest.TestCase):
         self.assertIn('ENABLE_LIGHTWEIGHT_EMBEDDINGS=false', script)
         self.assertIn('REAL_OFFLINE_NEURAL_EMBEDDING_PASSED', script)
         self.assertIn('REAL_NATIVE_PDF_IMAGE_FIXTURES_PASSED', script)
+        self.assertIn('cv2.getBuildInformation()', script)
+        self.assertNotIn('--entrypoint sh', script)
+        self.assertNotIn('frontend_container" sh', script)
         self.assertIn('urllib.request.urlopen', script)
         self.assertIn('--no-deps --disable-pip', script)
         self.assertIn('readiness', script)

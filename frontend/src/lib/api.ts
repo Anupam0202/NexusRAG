@@ -299,12 +299,13 @@ export async function getAuditEvents(limit = 20, context: ApiRequestContext = {}
 }
 
 export async function runSampleEvaluation(
-  body: EvaluationRunRequest = {}
+  body: EvaluationRunRequest = {},
+  context: ApiRequestContext = {}
 ): Promise<EvaluationReportResponse> {
   return request("/api/v1/evaluations/sample", {
     method: "POST",
     body: JSON.stringify(body),
-  });
+  }, context);
 }
 
 export async function getSystemStatus(
