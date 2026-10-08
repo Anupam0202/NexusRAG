@@ -5,12 +5,10 @@ WORKDIR /app
 RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
-# System deps for FAISS, PDF processing, and image OCR
-RUN apt-get update && apt-get install -y --no-install-recommends \
+# Native build tools stay in the disposable builder, never the runtime.
+RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
     build-essential \
-    libglib2.0-0 \
     libgomp1 \
-    poppler-utils \
     && rm -rf /var/lib/apt/lists/*
 
 # Install CPU-only PyTorch FIRST (saves ~400MB vs full torch)
@@ -29,12 +27,11 @@ WORKDIR /app
 ARG SOURCE_COMMIT=unverified
 LABEL org.opencontainers.image.revision=$SOURCE_COMMIT
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    libglib2.0-0 \
+# PDF rendering uses PyMuPDF, and image processing uses headless OpenCV.
+# No executable source references Poppler, desktop GL/GLib or curl. Keep only
+# the neural runtime's OpenMP dependency; revalidate real PDF/image fixtures.
+RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
     libgomp1 \
-    libgl1 \
-    poppler-utils \
-    curl \
     && rm -rf /var/lib/apt/lists/*
 
 # Avoid overlaying arbitrary site-packages/entrypoints on the base interpreter.

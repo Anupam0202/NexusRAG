@@ -10,6 +10,8 @@ class ContainerVerificationTests(unittest.TestCase):
         dockerfile = (ROOT / 'frontend/Dockerfile').read_text()
         self.assertIn('FROM node:24-alpine', dockerfile)
         self.assertIn('USER node', dockerfile)
+        self.assertIn('apk upgrade --no-cache', dockerfile)
+        self.assertIn('rm -rf /usr/local/lib/node_modules/npm', dockerfile)
         self.assertIn('ARG NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY', dockerfile)
         self.assertNotIn('SERVICE_ROLE', dockerfile)
         ignore = (ROOT / 'frontend/.dockerignore').read_text()
@@ -31,6 +33,10 @@ class ContainerVerificationTests(unittest.TestCase):
         self.assertIn('setuptools>=83.0.0', dockerfile)
         self.assertNotIn('setuptools>=78.1.1,<82', dockerfile)
         self.assertNotIn('|| true', dockerfile)
+        runtime = dockerfile.split('# ── Stage 2: Runtime', 1)[1]
+        for unused in ('poppler-utils', 'libgl1', 'libglib2.0-0', '\n    curl'):
+            self.assertNotIn(unused, runtime)
+        self.assertIn('apt-get upgrade -y', runtime)
 
     def test_ci_no_secret_or_cloud_publication_and_checks_exact_head(self):
         workflow = (ROOT / '.github/workflows/container-verification.yml').read_text()
@@ -53,6 +59,8 @@ class ContainerVerificationTests(unittest.TestCase):
         self.assertNotRegex(script, r'docker\s+(push|login)')
         self.assertIn('ENABLE_LIGHTWEIGHT_EMBEDDINGS=false', script)
         self.assertIn('REAL_OFFLINE_NEURAL_EMBEDDING_PASSED', script)
+        self.assertIn('REAL_NATIVE_PDF_IMAGE_FIXTURES_PASSED', script)
+        self.assertIn('urllib.request.urlopen', script)
         self.assertIn('--no-deps --disable-pip', script)
         self.assertIn('readiness', script)
         self.assertIn('--network none', script)

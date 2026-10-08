@@ -1,6 +1,7 @@
 # Optional local/self-managed runtime; Cloudflare uses OpenNext instead.
 FROM node:24-alpine AS builder
 WORKDIR /app
+RUN apk upgrade --no-cache
 ENV NEXT_TELEMETRY_DISABLED=1
 COPY package.json package-lock.json ./
 RUN npm ci --ignore-scripts
@@ -22,6 +23,11 @@ FROM node:24-alpine
 ARG SOURCE_COMMIT=unverified
 LABEL org.opencontainers.image.revision=$SOURCE_COMMIT
 WORKDIR /app
+# Standalone Next.js needs node, not bundled npm/Corepack/Yarn build tooling.
+# Remove unused package-manager attack surface without touching app modules.
+RUN apk upgrade --no-cache && \
+    rm -rf /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/corepack /opt/yarn-* && \
+    rm -f /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack /usr/local/bin/yarn /usr/local/bin/yarnpkg
 ENV NODE_ENV=production PORT=3000 HOSTNAME=0.0.0.0 NEXT_TELEMETRY_DISABLED=1
 COPY --from=builder --chown=node:node /app/.next/standalone ./
 COPY --from=builder --chown=node:node /app/.next/static ./.next/static

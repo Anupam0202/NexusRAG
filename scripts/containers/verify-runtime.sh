@@ -52,6 +52,28 @@ assert abs(sum(value * value for value in vector) - 1) < 1e-4
 print('REAL_OFFLINE_NEURAL_EMBEDDING_PASSED', len(vector), embedder._revision)
 PY
 
+# Required native document/image paths must survive runtime package slimming.
+# Synthetic fixtures only; no downloads or external/provider requests.
+docker run --rm -i --network none --entrypoint python "$BACKEND" - <<'PYFIXTURE'
+import io
+import cv2, fitz, numpy as np, pdfplumber
+from pypdf import PdfReader
+from PIL import Image
+pdf = fitz.open(); page = pdf.new_page(); page.insert_text((72, 72), 'Synthetic PDF runtime fixture')
+raw = pdf.tobytes()
+assert 'Synthetic PDF runtime fixture' in PdfReader(io.BytesIO(raw)).pages[0].extract_text()
+with pdfplumber.open(io.BytesIO(raw)) as parsed:
+    assert 'Synthetic PDF runtime fixture' in parsed.pages[0].extract_text()
+with fitz.open(stream=raw, filetype='pdf') as parsed:
+    pix = parsed[0].get_pixmap()
+    image = np.asarray(Image.open(io.BytesIO(pix.tobytes('png'))).convert('RGB'))
+    assert cv2.cvtColor(image, cv2.COLOR_RGB2GRAY).ndim == 2
+    assert cv2.Canny(image, 50, 150).size > 0
+print('REAL_NATIVE_PDF_IMAGE_FIXTURES_PASSED')
+PYFIXTURE
+
+docker run --rm --network none --entrypoint sh "$FRONTEND" -c 'test ! -e /usr/local/lib/node_modules/npm && test ! -e /usr/local/lib/node_modules/corepack && ! command -v yarn'
+
 # Repository-contract tests also inspect migrations/configuration outside backend.
 # Give the derived image the exact tracked source, without expanding production
 # image scope or copying ignored credentials/node_modules from the checkout.
@@ -99,7 +121,7 @@ python3 -m venv "$WORK/audit-venv"
 backend_container=$(docker run -d --network none "$BACKEND")
 ready=false
 for attempt in $(seq 1 60); do
-  if docker exec "$backend_container" curl --fail --silent http://127.0.0.1:8000/health > "$WORK/health.json"; then ready=true; break; fi
+  if docker exec "$backend_container" python -c "import urllib.request; print(urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3).read().decode())" > "$WORK/health.json"; then ready=true; break; fi
   sleep 1
 done
 if [[ "$ready" != true ]]; then docker logs "$backend_container"; exit 1; fi

@@ -46,6 +46,26 @@ class ImageReceiptTests(unittest.TestCase):
         self.assertIn('SYNTHETIC-TEST', result.stdout)
         self.assertIn('Low', result.stdout)
 
+    def test_every_finding_has_recoverable_fix_and_location_receipt(self):
+        report = self.report('Medium')
+        report['matches'][0]['vulnerability']['fix'] = {'state': 'fixed', 'versions': ['2']}
+        report['matches'][0]['artifact']['locations'] = [{'path': '/synthetic/native/library'}]
+        report['matches'] *= 21
+        result = self.run_report({'backend': report, 'frontend': self.report()})
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(sum(line.startswith('IMAGE_FINDING ') for line in result.stdout.splitlines()), 21)
+        self.assertIn('/synthetic/native/library', result.stdout)
+        self.assertIn('"versions": ["2"]', result.stdout)
+
+    def test_bounded_summary_prioritizes_critical_not_original_scan_order(self):
+        report = self.report('Low'); report['matches'] *= 20
+        critical = self.report('Critical')['matches'][0]
+        critical['vulnerability']['id'] = 'SYNTHETIC-CRITICAL'
+        report['matches'].append(critical)
+        result = self.run_report({'backend': report, 'frontend': self.report()})
+        self.assertIn('- SYNTHETIC-CRITICAL:', result.stdout)
+        self.assertNotEqual(result.returncode, 0)
+
 
 if __name__ == '__main__':
     unittest.main()
