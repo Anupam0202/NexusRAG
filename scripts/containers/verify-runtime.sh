@@ -49,11 +49,18 @@ assert abs(sum(value * value for value in vector) - 1) < 1e-4
 print('REAL_OFFLINE_NEURAL_EMBEDDING_PASSED', len(vector), embedder._revision)
 PY
 
+# Repository-contract tests also inspect migrations/configuration outside backend.
+# Give the derived image the exact tracked source, without expanding production
+# image scope or copying ignored credentials/node_modules from the checkout.
+mkdir -p "$WORK/verified-source"
+git archive HEAD | tar -x -C "$WORK/verified-source"
 # Add test tools to a derived image; retain the actual heavyweight runtime deps.
 cat > "$WORK/Dockerfile" <<EOF
 FROM $BACKEND
 USER root
 RUN pip install --no-cache-dir pytest==9.1.1 pytest-asyncio==1.4.0
+COPY --chown=nexusrag:nexusrag verified-source /verification
+WORKDIR /verification/backend
 USER nexusrag
 EOF
 docker build -t "$CHECK" "$WORK"

@@ -12,6 +12,8 @@ defaults:
   run:
     shell: bash
 jobs:
+  self-managed-runtime:
+    uses: ./.github/workflows/container-verification.yml
   migration-integrity:
     name: Migration integrity
     runs-on: ubuntu-latest
@@ -196,7 +198,7 @@ jobs:
   required-summary:
     name: Required foundation summary
     if: always()
-    needs: [migration-integrity,backend-isolated,backend-full,evaluation-inventory,cloudflare-foundation,frontend,dependency-review,supply-chain]
+    needs: [migration-integrity,backend-isolated,backend-full,evaluation-inventory,cloudflare-foundation,frontend,dependency-review,supply-chain,self-managed-runtime]
     runs-on: ubuntu-latest
     steps:
       - name: Fail unless required jobs passed
@@ -209,6 +211,7 @@ jobs:
           FRONTEND_RESULT: ${{ needs.frontend.result }}
           DEPENDENCY_RESULT: ${{ needs.dependency-review.result }}
           SUPPLY_CHAIN_RESULT: ${{ needs.supply-chain.result }}
+          CONTAINER_RESULT: ${{ needs.self-managed-runtime.result }}
         run: |
           set -euo pipefail
           printf 'migration=%s backend=%s evaluation=%s cloudflare=%s frontend=%s dependency=%s supply_chain=%s\n' "$MIGRATION_RESULT" "$BACKEND_RESULT" "$EVALUATION_RESULT" "$CLOUDFLARE_RESULT" "$FRONTEND_RESULT" "$DEPENDENCY_RESULT" "$SUPPLY_CHAIN_RESULT"
@@ -220,3 +223,4 @@ jobs:
           test "$FRONTEND_RESULT" = success
           test "$DEPENDENCY_RESULT" = success
           test "$SUPPLY_CHAIN_RESULT" = success
+          test "$CONTAINER_RESULT" = success

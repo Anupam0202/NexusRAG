@@ -72,8 +72,18 @@ async function geminiCall(env, context, dimensions, operation) {
     if (typeof context.userApiKey !== "string" || context.userApiKey.length < 10) {
       throw error("BYOK_REQUIRED", 402);
     }
-    // This request is charged to the user's own Gemini account, not NexusRAG's
-    // platform key budget. Never include the credential in reservation payloads.
+    if (!validId.test(context.workspaceId || "") || !validId.test(context.actorId || "") ||
+        context.provider !== "gemini" || context.dataClassification !== "non_sensitive" ||
+        (context.action && context.action !== "gemini_non_sensitive")) throw error("RIGHTS_BLOCKED", 403);
+    // BYOK skips operator-funded reservations, not rights/privacy/role checks.
+    // Never include the credential in the durable service-only authority call.
+    const admission = await quotaRpc(env, "nexus_authorize_byok_processing", {
+      p_workspace: context.workspaceId, p_actor: context.actorId,
+      p_data_classification: context.dataClassification,
+    });
+    if (admission.state !== "READY" || admission.credential_mode !== "user_byok")
+      throw error(admission.state === "BYOK_REQUIRED" ? "BYOK_REQUIRED" : "RIGHTS_BLOCKED",
+        admission.state === "BYOK_REQUIRED" ? 402 : 403);
     return operation();
   }
   return metered(env, context, dimensions, operation);

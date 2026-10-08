@@ -156,7 +156,7 @@ async function processIngestionMessage(env, message) {
       });
       if (!original.ok) throw err("PERSISTENCE_UNAVAILABLE", "Original unavailable.", true);
       const file = new File([await original.arrayBuffer()], document.filename, { type: document.content_type });
-      const extracted = await extractFileText(env, file, { workspaceId: job.workspace_id, priority: "background", dataClassification: version.data_classification, userApiKey, credentialMode });
+      const extracted = await extractFileText(env, file, { workspaceId: job.workspace_id, priority: "background", dataClassification: version.data_classification, actorId: document.uploaded_by, userApiKey, credentialMode });
       const chunks = chunkText(extracted.text);
       if (!chunks.length) throw err("EMPTY_DOCUMENT", "The document contains no indexable text.");
       if (chunks.length > MAX_DOCUMENT_CHUNKS) throw err("CAPACITY_REACHED", "Document exceeds the 400-chunk bounded ingestion limit.");
@@ -196,7 +196,7 @@ async function processIngestionMessage(env, message) {
     const points = await indexChunks(env, {
       workspaceId: job.workspace_id, documentId: job.document_id, versionId: job.version_id,
       generation, filename: document.filename, chunks: batch, initializeIndex: offset === 0,
-      dataClassification: version.data_classification, userApiKey, credentialMode,
+      dataClassification: version.data_classification, actorId: document.uploaded_by, userApiKey, credentialMode,
     });
     const stagedChunks = await Promise.all(points.map(async (point, index) => {
       const chunk = batch[index];

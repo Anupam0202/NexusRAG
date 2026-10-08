@@ -75,6 +75,13 @@ function localAppFixture() {
     }
     if (url.hostname === "supabase.invalid" && url.pathname.startsWith("/rest/v1/")) {
       const table = url.pathname.split("/rest/v1/")[1];
+      if (table === "rpc/nexus_authorize_byok_processing") {
+        assert.equal(body.p_actor, userId);
+        assert.equal(body.p_workspace, workspace);
+        assert.equal(body.p_data_classification, "non_sensitive");
+        assert.equal(new Headers(init.headers).has("x-goog-api-key"), false);
+        return json({ state: "READY", credential_mode: "user_byok" });
+      }
       if (table.startsWith("nexus_user_provider_keys")) {
         const userKey = userKeys.get(userId);
         return json(userKey ? [structuredClone(userKey)] : []);
