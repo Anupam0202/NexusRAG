@@ -7,6 +7,7 @@ import { createWorkspace, getCurrentWorkspace } from "@/lib/api";
 import { createSupabaseBrowserClient, hasPublicSupabaseConfig } from "@/lib/supabase/client";
 import { useStore } from "@/hooks/useStore";
 import { navigateStatic } from "@/lib/static-navigation";
+import { boundedDiscoveryRead } from "@/lib/workspace-discovery";
 
 export default function OnboardingPage() {
   const identity = useStore(state => JSON.stringify([state.authMode, state.authUser?.id]));
@@ -38,7 +39,7 @@ function AccountOnboarding() {
 
       try {
         const supabase = createSupabaseBrowserClient();
-        const { data } = await supabase.auth.getSession();
+        const { data } = await boundedDiscoveryRead(() => supabase.auth.getSession());
         if (!active) return;
         const user = data.session?.user;
         if (!user) {
@@ -52,7 +53,7 @@ function AccountOnboarding() {
         });
 
         try {
-          const workspace = await getCurrentWorkspace({ workspaceId: null, expectedUserId: user.id });
+          const workspace = await boundedDiscoveryRead(() => getCurrentWorkspace({ workspaceId: null, expectedUserId: user.id }));
           if (!active) return;
           setWorkspaceId(workspace.workspace_id);
           navigateStatic("/documents");

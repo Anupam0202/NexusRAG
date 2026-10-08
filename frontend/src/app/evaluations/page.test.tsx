@@ -25,8 +25,10 @@ describe("fixture evaluation authority", () => {
     expect(runSampleEvaluation).toHaveBeenCalledWith({ mode: "retrieval", top_k: 20, fail_under_recall: 0.9, fail_under_citation_precision: 0.95 }, { workspaceId: "workspace-a" });
   });
   it("never executes while workspace authority is hydrating", () => {
-    useStore.setState({ workspaceId: null }); render(<EvaluationsPage />);
-    expect(screen.getByRole("button", { name: "Run Fixture Gate" })).toBeDisabled();
+    useStore.setState({ workspaceId: null, workspaceDiscovery: "loading" }); render(<EvaluationsPage />);
+    // The shared access hook now fails closed before exposing a runnable control.
+    // Layout-level pending/missing/error presentation is tested in the boundary suite.
+    expect(screen.queryByRole("button", { name: "Run Fixture Gate" })).not.toBeInTheDocument();
     expect(runSampleEvaluation).not.toHaveBeenCalled();
   });
   it("drops pending old-account reports after identity changes", async () => {

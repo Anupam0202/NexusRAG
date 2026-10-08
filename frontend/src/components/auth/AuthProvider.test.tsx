@@ -11,7 +11,7 @@ describe("authentication discovery", () => {
     cache.workspace = null;
     [getSession, getCurrentWorkspace, setAuth, setWorkspace, unsubscribe, onAuthStateChange].forEach(mock => mock.mockReset());
     onAuthStateChange.mockReturnValue({ data: { subscription: { unsubscribe } } });
-    useStore.setState({ authMode: "loading", authUser: null, workspaceId: null, setAuthState: setAuth, setWorkspaceId: setWorkspace });
+    useStore.setState({ authMode: "loading", authUser: null, workspaceId: null, workspaceDiscovery: "loading", setAuthState: setAuth, setWorkspaceId: setWorkspace });
   });
   it("fails closed on session error without an unhandled rejection", async () => {
     getSession.mockRejectedValue(new Error("Synthetic auth outage")); render(<AuthProvider />);
@@ -48,5 +48,41 @@ describe("authentication discovery", () => {
     await waitFor(() => expect(getCurrentWorkspace).toHaveBeenCalledWith({ workspaceId: null, expectedUserId: "user-a" }));
     act(() => useStore.setState({ workspaceId: "selected-workspace" }));
     await act(async () => finish({ workspace_id: "discovered-workspace" })); expect(setWorkspace).not.toHaveBeenCalled();
+  });
+  it("settles confirmed absence instead of leaving workspace routes loading", async () => {
+    getSession.mockResolvedValue({ data: { session: { user: { id: "user-a" } } } });
+    getCurrentWorkspace.mockRejectedValue(Object.assign(new Error("No workspace"), { code: "WORKSPACE_NOT_FOUND" }));
+    render(<AuthProvider />);
+    await waitFor(() => expect(useStore.getState().workspaceDiscovery).toBe("missing"));
+    expect(setWorkspace).not.toHaveBeenCalled();
+  });
+  it("settles unavailable discovery without treating an outage as absence", async () => {
+    getSession.mockResolvedValue({ data: { session: { user: { id: "user-a" } } } });
+    getCurrentWorkspace.mockRejectedValue(new Error("Synthetic outage"));
+    render(<AuthProvider />);
+    await waitFor(() => expect(useStore.getState().workspaceDiscovery).toBe("error"));
+    expect(setWorkspace).not.toHaveBeenCalled();
+  });
+  it("does not publish old account absence over a newer successful session", async () => {
+    let rejectOld!: (error: unknown) => void;
+    getSession.mockResolvedValueOnce({ data: { session: { user: { id: "user-a" } } } })
+      .mockResolvedValueOnce({ data: { session: { user: { id: "user-b" } } } });
+    getCurrentWorkspace.mockImplementationOnce(() => new Promise((_, reject) => { rejectOld = reject; }))
+      .mockResolvedValueOnce({ workspace_id: "new-workspace" });
+    render(<AuthProvider />);
+    await waitFor(() => expect(getCurrentWorkspace).toHaveBeenCalledOnce());
+    await act(async () => onAuthStateChange.mock.calls[0][0]());
+    await waitFor(() => expect(setWorkspace).toHaveBeenCalledWith("new-workspace"));
+    await act(async () => rejectOld(Object.assign(new Error("Old absent"), { code: "WORKSPACE_NOT_FOUND" })));
+    expect(useStore.getState().workspaceDiscovery).toBe("ready");
+  });
+  it("does not publish late discovery state after unmount", async () => {
+    let rejectPending!: (error: unknown) => void;
+    getSession.mockResolvedValue({ data: { session: { user: { id: "user-a" } } } });
+    getCurrentWorkspace.mockImplementation(() => new Promise((_, reject) => { rejectPending = reject; }));
+    const { unmount } = render(<AuthProvider />);
+    await waitFor(() => expect(getCurrentWorkspace).toHaveBeenCalledOnce()); unmount();
+    await act(async () => rejectPending(new Error("Late outage")));
+    expect(useStore.getState().workspaceDiscovery).toBe("loading");
   });
 });
