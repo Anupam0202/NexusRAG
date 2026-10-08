@@ -84,7 +84,9 @@ root=pathlib.Path(sys.argv[1]); rows=json.loads((root/'python-runtime.json').rea
 print('Installed runtime distributions:',len(rows))
 print('Licence metadata is inventory, not a commercial distribution rights approval.')
 for r in rows:
-    print(r['name'], r['version'], json.dumps({'license':r['license'],'classifiers':r['license_classifiers']}))
+    import hashlib
+    licence=r['license']
+    print(r['name'], r['version'], json.dumps({'license_excerpt':licence[:240],'license_metadata_sha256':hashlib.sha256(licence.encode()).hexdigest(),'classifiers':r['license_classifiers']}))
 PY
 python3 -m venv "$WORK/audit-venv"
 "$WORK/audit-venv/bin/pip" install --quiet 'pip>=26.2' pip-audit

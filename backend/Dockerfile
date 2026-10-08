@@ -2,6 +2,8 @@
 FROM python:3.13-slim AS builder
 
 WORKDIR /app
+RUN python -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
 
 # System deps for FAISS, PDF processing, and image OCR
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -14,7 +16,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Install CPU-only PyTorch FIRST (saves ~400MB vs full torch)
 RUN pip install --no-cache-dir --upgrade "pip>=26.2" && \
     pip install --no-cache-dir "torch>=2.11.0" --index-url https://download.pytorch.org/whl/cpu && \
-    pip install --no-cache-dir "setuptools>=78.1.1,<82"
+    pip install --no-cache-dir "setuptools>=83.0.0"
 
 COPY pyproject.toml ./
 # Install the rest of the deps (torch already satisfied)
@@ -35,8 +37,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-COPY --from=builder /usr/local/lib/python3.13/site-packages /usr/local/lib/python3.13/site-packages
-COPY --from=builder /usr/local/bin /usr/local/bin
+# Avoid overlaying arbitrary site-packages/entrypoints on the base interpreter.
+# The app and verification tools use only the isolated, reviewed runtime venv.
+RUN python -m pip uninstall -y pip setuptools wheel
+COPY --from=builder /opt/venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
 
 COPY . .
 

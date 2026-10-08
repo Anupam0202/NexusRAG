@@ -26,6 +26,10 @@ class ContainerVerificationTests(unittest.TestCase):
         self.assertIn("revision=os.environ['EMBEDDING_REVISION']", dockerfile)
         self.assertIn('trust_remote_code=False', dockerfile)
         self.assertIn('USER nexusrag', dockerfile)
+        self.assertIn('python -m venv /opt/venv', dockerfile)
+        self.assertIn('COPY --from=builder /opt/venv /opt/venv', dockerfile)
+        self.assertIn('setuptools>=83.0.0', dockerfile)
+        self.assertNotIn('setuptools>=78.1.1,<82', dockerfile)
         self.assertNotIn('|| true', dockerfile)
 
     def test_ci_no_secret_or_cloud_publication_and_checks_exact_head(self):
