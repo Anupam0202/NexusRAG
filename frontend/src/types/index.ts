@@ -290,6 +290,7 @@ export interface WorkspaceLifecycleResponse {
 // ── Analytics ────────────────────────────────────────────────
 
 export interface AnalyticsSummary {
+  measurement_states?: { avg_response_time?: "NOT_MEASURED" | "MEASURED"; avg_confidence?: "NOT_MEASURED" | "MEASURED"; cache?: "DISABLED" | "MEASURED" };
   total_queries: number;
   total_documents: number;
   total_chunks: number;
@@ -435,6 +436,7 @@ export interface SystemCapabilities {
 }
 
 export interface SystemStatusResponse {
+  readiness?: string;
   service: string;
   status: string;
   version: string;

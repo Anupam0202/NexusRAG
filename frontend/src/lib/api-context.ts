@@ -28,7 +28,7 @@ export async function getApiHeaders(
     headers["Content-Type"] = "application/json";
   }
 
-  const workspaceId = options.workspaceId?.trim() || getStoredWorkspaceId();
+  const workspaceId = options.workspaceId === undefined ? getStoredWorkspaceId() : options.workspaceId?.trim() || null;
   if (workspaceId) {
     headers["X-Nexus-Workspace-Id"] = workspaceId;
     headers["X-Workspace-ID"] = workspaceId;

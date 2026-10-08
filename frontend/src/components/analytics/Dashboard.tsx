@@ -22,10 +22,7 @@ import { cn } from "@/lib/utils";
  */
 export function Dashboard() {
   const [data, setData] = useState<AnalyticsSummary | null>(null);
-  const [health, setHealth] = useState<{
-    status: string;
-    total_chunks: number;
-  } | null>(null);
+  const [health, setHealth] = useState<Awaited<ReturnType<typeof healthCheck>> | null>(null);
   const [loading, setLoading] = useState(true);
 
   const load = async () => {

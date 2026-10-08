@@ -294,8 +294,8 @@ export async function deleteCurrentWorkspace(context: ApiRequestContext = {}): P
   }, context);
 }
 
-export async function getAuditEvents(limit = 20): Promise<AuditEventListResponse> {
-  return request(`/api/v1/audit?limit=${encodeURIComponent(String(limit))}`);
+export async function getAuditEvents(limit = 20, context: ApiRequestContext = {}): Promise<AuditEventListResponse> {
+  return request(`/api/v1/audit?limit=${encodeURIComponent(String(limit))}`, undefined, context);
 }
 
 export async function runSampleEvaluation(
@@ -317,7 +317,9 @@ export async function getSystemStatus(
 
 export async function healthCheck(): Promise<{
   status: string;
-  total_chunks: number;
+  total_chunks?: number;
+  readiness?: string;
+  probe?: string;
 }> {
   return request("/health");
 }
