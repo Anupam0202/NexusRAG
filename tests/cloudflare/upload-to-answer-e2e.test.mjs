@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { handleQueue } from "../../apps/gateway/src/worker-jobs.js";
 import { handle } from "../../apps/gateway/src/preview-worker.js";
-import { chunkText } from "../../apps/gateway/src/worker-pipeline.js";
+import { chunkText, sha256 } from "../../apps/gateway/src/worker-pipeline.js";
 import { encryptGeminiKey } from "../../apps/gateway/src/user-gemini-key.js";
 
 const workspace = "10101010-1010-4010-8010-101010101010";
@@ -54,6 +54,7 @@ function localAppFixture() {
   const qdrantQueryLimits = [];
   const generationTemperatures = [];
   let expectedGeminiApiKey = null;
+  let onGenerate = null;
   const matchesFilter = (point, filter) => (filter?.must || []).every((condition) => {
     const actual = point.payload?.[condition.key];
     if (condition.match?.value !== undefined) return actual === condition.match.value;
@@ -103,13 +104,18 @@ function localAppFixture() {
           if (idFilter.startsWith("eq.")) { const id = idFilter.slice(3); return json(docs.has(id) ? [structuredClone(docs.get(id))] : []); }
           if (url.searchParams.has("active_version_id")) return json([...docs.values()].filter((row) => row.workspace_id === workspace && row.lifecycle_state === "active" && row.active_version_id && (!idFilter.startsWith("in.(") || idFilter.slice(4, -1).split(",").includes(row.id))).map((row) => ({ id: row.id, active_version_id: row.active_version_id })));
           if (url.searchParams.has("sha256")) return json([]);
-          return json([...docs.values()].filter((row) => row.workspace_id === workspace));
+          return json([...docs.values()].filter((row) => row.workspace_id === workspace && (!idFilter.startsWith("in.(") || idFilter.slice(4, -1).split(",").includes(row.id))));
         }
         if (method === "DELETE") { docs.delete(url.searchParams.get("id")?.slice(3)); return json([]); }
       }
       if (table === "document_versions") {
         if (method === "POST") { for (const row of body) versions.set(row.id, { ...row }); return json(body.map((row) => versions.get(row.id)), 201); }
-        if (method === "GET") { const id = url.searchParams.get("id")?.replace(/^eq\./, ""); if (id) return json(versions.has(id) ? [structuredClone(versions.get(id))] : []); return json([...versions.values()].filter((row) => row.workspace_id === workspace && row.publication_state === "ready" && row.data_classification === "non_sensitive").map((row) => ({ id: row.id, document_id: row.document_id, index_generation: row.index_generation }))); }
+        if (method === "GET") {
+          const filter = url.searchParams.get("id") || "";
+          if (filter.startsWith("eq.")) { const id = filter.slice(3); return json(versions.has(id) ? [structuredClone(versions.get(id))] : []); }
+          const ids = filter.startsWith("in.(") ? filter.slice(4, -1).split(",") : null;
+          return json([...versions.values()].filter((row) => row.workspace_id === workspace && row.publication_state === "ready" && row.data_classification === "non_sensitive" && (!ids || ids.includes(row.id))).map((row) => ({ ...row })));
+        }
       }
       if (table === "ingestion_jobs") {
         if (method === "POST") { for (const row of body) jobs.set(row.id, { ...row, lease_generation: 0, max_attempts: row.max_attempts || 3, cancellation_requested_at: null }); return json(body.map((row) => jobs.get(row.id)), 201); }
@@ -126,7 +132,11 @@ function localAppFixture() {
         const rawVersion = url.searchParams.get("version_id") || "";
         const versionId = rawVersion.startsWith("eq.") ? rawVersion.slice(3) : rawVersion.startsWith("in.(") ? rawVersion.slice(4, -1).split(",")[0] : "";
         if (method === "DELETE") { chunks.delete(versionId); return json([]); }
-        if (method === "GET") return json(chunks.get(versionId) || []);
+        if (method === "GET") {
+          const filter = url.searchParams.get("id") || "";
+          const ids = filter.startsWith("in.(") ? filter.slice(4, -1).split(",") : null;
+          return json((chunks.get(versionId) || []).filter(row => !ids || ids.includes(row.id)).slice(0, Number(url.searchParams.get("limit") || 1000)));
+        }
       }
       if (table === "deletion_operations") {
         if (method === "PATCH") { if (deletionOperation) Object.assign(deletionOperation, body); return json(deletionOperation ? [deletionOperation] : []); }
@@ -224,7 +234,7 @@ function localAppFixture() {
       assert.equal(url.searchParams.get("key"), null, "Gemini API keys must never be placed in provider URLs");
       if (expectedGeminiApiKey) assert.equal(new Headers(init.headers || {}).get("x-goog-api-key"), expectedGeminiApiKey);
       if (url.pathname.endsWith(":embedContent")) { embeddingCalls += 1; return json({ embedding: { values: Array(768).fill(0.01) } }); }
-      if (url.pathname.endsWith(":generateContent")) { generationCalls += 1; generationTemperatures.push(body?.generationConfig?.temperature); return json({ candidates: [{ content: { parts: [{ text: "The evidence describes a 30-day retention policy. [S1]" }] } }], usageMetadata: { promptTokenCount: 42, candidatesTokenCount: 12 } }); }
+      if (url.pathname.endsWith(":generateContent")) { outbound.push(body); onGenerate?.(); generationCalls += 1; generationTemperatures.push(body?.generationConfig?.temperature); return json({ candidates: [{ content: { parts: [{ text: "The evidence describes a 30-day retention policy. [S1]" }] } }], usageMetadata: { promptTokenCount: 42, candidatesTokenCount: 12 } }); }
     }
     if (url.hostname === "qdrant.invalid") {
       if (url.pathname.endsWith("/points/delete")) { for (const [id, point] of points) if (matchesFilter(point, body.filter)) points.delete(id); return json({ result: { status: "completed" } }); }
@@ -236,7 +246,7 @@ function localAppFixture() {
     }
     throw new Error(`Unexpected synthetic network request: ${method} ${url.href}`);
   };
-  return { env, user, source, expectedChunks, docs, versions, jobs, chunks, extractionManifests, extractionChunks, objects, points, sessions, messages, outbound, auditEvents, deletionReceipts, deletionTargets, events, queue, accountUsage, userKeys, qdrantQueryLimits, generationTemperatures, fetch, setExpectedGeminiApiKey(value) { expectedGeminiApiKey = value; }, get deletionOperation() { return deletionOperation; }, get embeddingCalls() { return embeddingCalls; }, get generationCalls() { return generationCalls; } };
+  return { env, user, member, setOnGenerate(callback) { onGenerate = callback; }, source, expectedChunks, docs, versions, jobs, chunks, extractionManifests, extractionChunks, objects, points, sessions, messages, outbound, auditEvents, deletionReceipts, deletionTargets, events, queue, accountUsage, userKeys, qdrantQueryLimits, generationTemperatures, fetch, setExpectedGeminiApiKey(value) { expectedGeminiApiKey = value; }, get deletionOperation() { return deletionOperation; }, get embeddingCalls() { return embeddingCalls; }, get generationCalls() { return generationCalls; } };
 }
 
 test("synthetic upload → queued ingestion → indexed evidence → grounded chat completes without external calls", async (t) => {
@@ -272,6 +282,12 @@ test("synthetic upload → queued ingestion → indexed evidence → grounded ch
   assert.equal(acked.length, 2, "each batch is acknowledged after durable cursor advancement/completion");
   assert.ok(acked.every((state) => state === "ack"));
 
+  for (const point of fixture.points.values()) {
+    point.payload.content = "POISONED_VECTOR_PAYLOAD_DO_NOT_USE";
+    point.payload.filename = "forged-source.txt";
+    point.payload.page_number = 999;
+  }
+
   const answerResponse = await handle(new Request("https://gateway.invalid/api/v1/chat", {
     method: "POST", headers: { authorization: "Bearer synthetic-oauth-token", "x-nexus-workspace-id": workspace, "content-type": "application/json", "idempotency-key": crypto.randomUUID() },
     body: JSON.stringify({ question: "What retention period does the policy specify?", non_sensitive_attested: true, document_ids: [doc.id], top_k: 8 }),
@@ -282,6 +298,11 @@ test("synthetic upload → queued ingestion → indexed evidence → grounded ch
   assert.equal(answer.metadata.claim_state, "REVIEW_REQUIRED", "citation does not imply semantic verification");
   assert.equal(answer.metadata.paid_fallback, false);
   assert.ok(answer.sources.length > 0);
+  assert.ok(answer.sources.every(source => source.filename === "retention-policy.txt" && source.page_number !== 999
+    && source.metadata.authority === "SUPABASE_HASH_VERIFIED"));
+  assert.doesNotMatch(JSON.stringify(answer.sources), /POISONED_VECTOR|forged-source/);
+  assert.doesNotMatch(JSON.stringify(fixture.outbound), /POISONED_VECTOR|forged-source/);
+  assert.equal(answer.metadata.coverage.evidence_authority, "SUPABASE_HASH_VERIFIED");
   assert.ok(fixture.embeddingCalls > fixture.expectedChunks, "both indexing and retrieval embeddings are exercised");
   assert.equal(fixture.generationCalls, 1);
   assert.deepEqual(fixture.qdrantQueryLimits, [8], "workspace retrieval_top_k is applied to Qdrant");
@@ -421,4 +442,45 @@ test("a BYOK-authorized PDF uses the uploader's encrypted key for extraction and
   assert.ok(fixture.events.filter((event) => event.host === "generativelanguage.googleapis.com").length >= 2);
   assert.ok(fixture.events.filter((event) => event.host === "generativelanguage.googleapis.com").every((event) => event.userKeyHeader));
   assert.ok(fixture.events.filter((event) => event.host === "generativelanguage.googleapis.com").every((event) => !event.path.includes(rawKey)));
+});
+
+
+async function seededResearchFixture(t) {
+  const fixture = localAppFixture();
+  const documentId = "30303030-3030-4030-8030-303030303030";
+  const versionId = "40404040-4040-4040-8040-404040404040";
+  const chunkId = "50505050-5050-4050-8050-505050505050";
+  const content = "The retention policy is 30 days.";
+  fixture.docs.set(documentId, { id: documentId, workspace_id: workspace, active_version_id: versionId,
+    lifecycle_state: "active", filename: "synthetic.txt", content_type: "text/plain" });
+  fixture.versions.set(versionId, { id: versionId, workspace_id: workspace, document_id: documentId,
+    publication_state: "ready", data_classification: "non_sensitive", index_generation: "synthetic-generation" });
+  fixture.chunks.set(versionId, [{ id: chunkId, workspace_id: workspace, document_id: documentId, version_id: versionId,
+    content, original_text: content, original_content_hash: await sha256(content), chunk_index: 0, page_number: 0 }]);
+  fixture.points.set(chunkId, { id: chunkId, payload: { chunk_id: chunkId, workspace_id: workspace,
+    document_id: documentId, version_id: versionId, index_generation: "synthetic-generation", content } });
+  t.mock.method(globalThis, "fetch", fixture.fetch);
+  return { fixture, documentId, request: new Request("https://gateway.invalid/api/v1/chat", { method: "POST",
+    headers: { authorization: "Bearer synthetic-oauth-token", "x-nexus-workspace-id": workspace, "content-type": "application/json", "idempotency-key": crypto.randomUUID() },
+    body: JSON.stringify({ question: "What is the retention policy?", non_sensitive_attested: true, document_ids: [documentId] }) }) };
+}
+
+test("a document tombstone during generation blocks answer persistence and return", async t => {
+  const { fixture, documentId, request } = await seededResearchFixture(t);
+  fixture.setOnGenerate(() => { fixture.docs.get(documentId).lifecycle_state = "deleting"; });
+  const response = await handle(request, fixture.env);
+  assert.equal(response.status, 409);
+  assert.equal((await response.json()).error.code, "VERSION_CONFLICT");
+  assert.equal(fixture.generationCalls, 1);
+  assert.equal(fixture.messages.filter(message => message.role === "assistant").length, 0);
+});
+
+test("a role revocation during generation blocks answer persistence and return", async t => {
+  const { fixture, request } = await seededResearchFixture(t);
+  fixture.setOnGenerate(() => { fixture.member.role = "viewer"; });
+  const response = await handle(request, fixture.env);
+  assert.equal(response.status, 403);
+  assert.equal((await response.json()).error.code, "FORBIDDEN");
+  assert.equal(fixture.generationCalls, 1);
+  assert.equal(fixture.messages.filter(message => message.role === "assistant").length, 0);
 });
