@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ApiRequestError, getIngestionJob, listDocuments, uploadDocument, deleteDocument, reindexDocument } from "@/lib/api";
+import { ApiRequestError, getCurrentWorkspace, getIngestionJob, listDocuments, uploadDocument, deleteDocument, reindexDocument } from "@/lib/api";
 import { useStore } from "@/hooks/useStore";
 import { canUseWorkspaceApi } from "@/hooks/useAuthGate";
 import type { DocumentListResponse } from "@/types";
@@ -24,8 +24,18 @@ export function useDocuments() {
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const identity = JSON.stringify([authMode, userId, workspaceId]);
+  const [permission, setPermission] = useState<{ identity: string; access: "checking" | "allowed" | "viewer" | "unavailable" }>({ identity, access: "checking" });
+  const mutationAccess = permission.identity === identity ? permission.access : "checking";
+  const canMutate = canAccessWorkspaceApi && mutationAccess === "allowed";
+  const mutationDisabledReason = !canAccessWorkspaceApi ? undefined
+    : mutationAccess === "viewer" ? "Viewer access: you can inspect documents, but cannot upload, delete or re-index."
+    : mutationAccess === "checking" ? "Checking document edit permissions..."
+    : mutationAccess === "unavailable" ? "Document edit permissions could not be verified. Refresh to retry."
+    : undefined;
   const alive = useRef(true);
   const refreshSequence = useRef(0);
+  const authoritySequence = useRef(0);
   const uploadPending = useRef(false);
   useEffect(() => { const counter = refreshSequence; alive.current = true; return () => { alive.current = false; counter.current++; }; }, []);
   const isCurrent = useCallback(() => {
@@ -33,11 +43,36 @@ export function useDocuments() {
     return alive.current && current.authMode === authMode && current.authUser?.id === userId && current.workspaceId === workspaceId;
   }, [authMode, userId, workspaceId]);
   const context = useCallback(() => ({ workspaceId, expectedUserId: authMode === "authenticated" ? userId ?? null : undefined }), [authMode, userId, workspaceId]);
+  const checkMutationAuthority = useCallback(async () => {
+    const sequence = ++authoritySequence.current;
+    try {
+      const authority = await getCurrentWorkspace(context());
+      if (!isCurrent()) throw new Error("Your account or workspace changed. Try again in the current workspace.");
+      if (sequence !== authoritySequence.current) return "unavailable";
+      const matches = authMode === "demo" || (authority.workspace_id === workspaceId && authority.user_id === userId);
+      const access = !matches || !["owner", "admin", "editor", "viewer"].includes(authority.role)
+        ? "unavailable" : authority.role === "viewer" ? "viewer" : "allowed";
+      setPermission({ identity, access });
+      return access;
+    } catch (error) {
+      if (isCurrent() && sequence === authoritySequence.current) setPermission({ identity, access: "unavailable" });
+      throw error;
+    }
+  }, [authMode, context, identity, isCurrent, userId, workspaceId]);
+  const requireMutationAuthority = useCallback(async () => {
+    const access = await checkMutationAuthority();
+    if (access !== "allowed") throw new Error(access === "viewer"
+      ? "Viewer access does not permit document changes."
+      : "Document edit permissions could not be verified.");
+  }, [checkMutationAuthority]);
 
   const refresh = useCallback(async (options: RefreshOptions = {}): Promise<DocumentListResponse | null> => {
     if (!canAccessWorkspaceApi || !isCurrent()) return null;
     const sequence = ++refreshSequence.current;
     setLoading(true);
+    setPermission({ identity, access: "checking" });
+    // Read access does not depend on a successful role lookup. Mutations do.
+    void checkMutationAuthority().catch(() => {});
     try {
       const response = await listDocuments(context());
       if (!isCurrent() || sequence !== refreshSequence.current) return null;
@@ -46,7 +81,7 @@ export function useDocuments() {
       if (isCurrent() && sequence === refreshSequence.current && !options.suppressError) setError(message(error, "Failed to load documents"));
       return null;
     } finally { if (isCurrent() && sequence === refreshSequence.current) setLoading(false); }
-  }, [canAccessWorkspaceApi, context, isCurrent, setDocuments]);
+  }, [canAccessWorkspaceApi, checkMutationAuthority, context, identity, isCurrent, setDocuments]);
 
   useEffect(() => {
     refreshSequence.current++; uploadPending.current = false;
@@ -73,6 +108,8 @@ export function useDocuments() {
     if (uploadPending.current) throw new Error("An upload is already in progress.");
     uploadPending.current = true; setUploading(true); setError(null);
     try {
+      await requireMutationAuthority();
+      if (!isCurrent()) throw new Error("Your account or workspace changed.");
       const response = await uploadDocument(file, classification, context());
       if (!isCurrent()) return response;
       if (response.success && response.document) {
@@ -92,21 +129,25 @@ export function useDocuments() {
       if (isCurrent()) setError(message(error, "Upload failed; inspect document status before retrying."));
       throw error;
     } finally { if (isCurrent()) { uploadPending.current = false; setUploading(false); } }
-  }, [addDocument, canAccessWorkspaceApi, context, isCurrent, poll, refresh, setIsQuotaBlocked, setShowApiKeyModal]);
+  }, [addDocument, canAccessWorkspaceApi, context, isCurrent, poll, refresh, requireMutationAuthority, setIsQuotaBlocked, setShowApiKeyModal]);
 
   const remove = useCallback(async (documentId: string) => {
     if (!canAccessWorkspaceApi || !isCurrent()) return;
     try {
+      await requireMutationAuthority();
+      if (!isCurrent()) return;
       const result = await deleteDocument(documentId, context());
       if (!result.success) throw new Error(result.message || "Deletion is not complete.");
       if (isCurrent()) removeDocument(documentId);
     } catch (error) { if (isCurrent()) setError(message(error, "Delete failed")); }
-  }, [canAccessWorkspaceApi, context, isCurrent, removeDocument]);
+  }, [canAccessWorkspaceApi, context, isCurrent, removeDocument, requireMutationAuthority]);
 
   const reindex = useCallback(async (documentId: string) => {
     if (!canAccessWorkspaceApi || !isCurrent()) return;
     setError(null);
     try {
+      await requireMutationAuthority();
+      if (!isCurrent()) return;
       const started = await reindexDocument(documentId, context());
       if (!isCurrent()) return;
       if (started.document) addDocument(started.document);
@@ -116,6 +157,6 @@ export function useDocuments() {
         if (isCurrent() && completed === false) setError("Re-indexing is still pending. Refresh the document status; do not start a duplicate job.");
       }
     } catch (error) { if (isCurrent()) setError(message(error, "Re-index failed")); }
-  }, [addDocument, canAccessWorkspaceApi, context, isCurrent, poll, refresh]);
-  return { documents, loading, uploading, error, refresh, upload, remove, reindex, canAccessWorkspaceApi, authMode };
+  }, [addDocument, canAccessWorkspaceApi, context, isCurrent, poll, refresh, requireMutationAuthority]);
+  return { documents, loading, uploading, error, refresh, upload, remove, reindex, canAccessWorkspaceApi, canMutate, mutationDisabledReason, authMode };
 }

@@ -28,6 +28,8 @@ function WorkspaceDocuments() {
     reindex,
     refresh,
     canAccessWorkspaceApi,
+    canMutate,
+    mutationDisabledReason,
     authMode,
   } = useDocuments();
   const [limits, setLimits] = useState<UploadLimits>(DEFAULT_UPLOAD_LIMITS);
@@ -74,7 +76,7 @@ function WorkspaceDocuments() {
           limits={limits}
           disabledReason={
             canAccessWorkspaceApi
-              ? undefined
+              ? mutationDisabledReason
               : authMode === "loading"
                 ? "Checking your session..."
                 : "Sign in to upload documents"
@@ -95,6 +97,8 @@ function WorkspaceDocuments() {
           onReindex={reindex}
           onRefresh={refresh}
           onSelect={setSelectedDocument}
+          canMutate={canMutate}
+          mutationDisabledReason={mutationDisabledReason}
           disabledReason={
             canAccessWorkspaceApi
               ? undefined

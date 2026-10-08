@@ -1,6 +1,6 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-const api = vi.hoisted(() => ({ listDocuments: vi.fn(), uploadDocument: vi.fn(), deleteDocument: vi.fn(), reindexDocument: vi.fn(), getIngestionJob: vi.fn() }));
+const api = vi.hoisted(() => ({ getCurrentWorkspace: vi.fn(), listDocuments: vi.fn(), uploadDocument: vi.fn(), deleteDocument: vi.fn(), reindexDocument: vi.fn(), getIngestionJob: vi.fn() }));
 vi.mock("@/lib/api", async importOriginal => ({ ...await importOriginal<object>(), ...api }));
 import { useStore } from "@/hooks/useStore";
 import { useDocuments } from "./useDocuments";
@@ -10,6 +10,7 @@ describe("document request account fences", () => {
   beforeEach(() => {
     Object.values(api).forEach(mock => mock.mockReset()); [setDocuments, addDocument, removeDocument].forEach(mock => mock.mockReset());
     api.listDocuments.mockResolvedValue({ documents: [], total: 0 });
+    api.getCurrentWorkspace.mockResolvedValue({ workspace_id: "workspace-a", user_id: "user-a", role: "owner" });
     useStore.setState({ authMode: "authenticated", authUser: { id: "user-a", email: null }, workspaceId: "workspace-a", documents: [], setDocuments, addDocument, removeDocument });
   });
   afterEach(() => { vi.useRealTimers(); });
@@ -36,7 +37,7 @@ describe("document request account fences", () => {
     let finish!: (value: unknown) => void; api.uploadDocument.mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
     const { result } = renderHook(() => useDocuments()); await waitFor(() => expect(result.current.loading).toBe(false));
     let pending!: Promise<unknown>; act(() => { pending = result.current.upload(new File(["synthetic"], "fixture.txt"), "non_sensitive"); });
-    expect(api.uploadDocument).toHaveBeenCalledWith(expect.any(File), "non_sensitive", { workspaceId: "workspace-a", expectedUserId: "user-a" });
+    await waitFor(() => expect(api.uploadDocument).toHaveBeenCalledWith(expect.any(File), "non_sensitive", { workspaceId: "workspace-a", expectedUserId: "user-a" }));
     act(() => useStore.setState({ authUser: { id: "user-b", email: null } }));
     await act(async () => { finish({ success: true, document, job_id: "job-a", job: { status: "queued" } }); await pending; });
     expect(addDocument).not.toHaveBeenCalled(); expect(api.getIngestionJob).not.toHaveBeenCalled();
@@ -54,5 +55,58 @@ describe("document request account fences", () => {
     act(() => useStore.setState({ workspaceId: "workspace-b" }));
     await act(async () => { await vi.advanceTimersByTimeAsync(1000); await pending; });
     expect(api.getIngestionJob).not.toHaveBeenCalled();
+  });
+  it("keeps inventory readable for viewers but rejects every document mutation", async () => {
+    api.getCurrentWorkspace.mockResolvedValue({ workspace_id: "workspace-a", user_id: "user-a", role: "viewer" });
+    const { result } = renderHook(() => useDocuments());
+    await waitFor(() => expect(result.current.mutationDisabledReason).toMatch(/Viewer access/));
+    expect(api.listDocuments).toHaveBeenCalled(); expect(result.current.canMutate).toBe(false);
+    await act(async () => {
+      await expect(result.current.upload(new File(["fixture"], "fixture.txt"), "non_sensitive")).rejects.toThrow("Viewer access");
+      await result.current.remove("doc-a"); await result.current.reindex("doc-a");
+    });
+    expect(api.uploadDocument).not.toHaveBeenCalled(); expect(api.deleteDocument).not.toHaveBeenCalled(); expect(api.reindexDocument).not.toHaveBeenCalled();
+  });
+  it("revalidates a previous owner role before sending a private file", async () => {
+    const { result } = renderHook(() => useDocuments());
+    await waitFor(() => expect(result.current.canMutate).toBe(true));
+    api.getCurrentWorkspace.mockResolvedValue({ workspace_id: "workspace-a", user_id: "user-a", role: "viewer" });
+    await act(async () => {
+      await expect(result.current.upload(new File(["fixture"], "fixture.txt"), "non_sensitive")).rejects.toThrow("Viewer access");
+    });
+    expect(api.uploadDocument).not.toHaveBeenCalled(); expect(result.current.canMutate).toBe(false);
+  });
+  it("fails closed on foreign authority or role lookup failure without losing read access", async () => {
+    api.getCurrentWorkspace.mockResolvedValue({ workspace_id: "workspace-b", user_id: "user-b", role: "owner" });
+    const { result } = renderHook(() => useDocuments());
+    await waitFor(() => expect(result.current.mutationDisabledReason).toMatch(/could not be verified/));
+    api.getCurrentWorkspace.mockRejectedValue(new Error("Synthetic authority outage"));
+    await act(async () => result.current.remove("doc-a"));
+    expect(api.deleteDocument).not.toHaveBeenCalled();
+    expect(api.listDocuments).toHaveBeenCalled(); expect(result.current.canMutate).toBe(false);
+  });
+  it("does not dispatch a mutation after its authority check crosses an identity change", async () => {
+    const { result } = renderHook(() => useDocuments());
+    await waitFor(() => expect(result.current.canMutate).toBe(true));
+    let finish!: (value: unknown) => void;
+    api.getCurrentWorkspace.mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+    let pending!: Promise<unknown>;
+    act(() => { pending = result.current.remove("doc-a"); });
+    api.getCurrentWorkspace.mockResolvedValue({ workspace_id: "workspace-a", user_id: "user-b", role: "viewer" });
+    act(() => useStore.setState({ authUser: { id: "user-b", email: null } }));
+    await act(async () => { finish({ workspace_id: "workspace-a", user_id: "user-a", role: "owner" }); await pending; });
+    expect(api.deleteDocument).not.toHaveBeenCalled(); expect(result.current.canMutate).toBe(false);
+  });
+  it("does not let an older owner lookup overwrite a newer viewer refresh", async () => {
+    let finish!: (value: unknown) => void;
+    api.getCurrentWorkspace.mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+    const { result } = renderHook(() => useDocuments());
+    await waitFor(() => expect(api.getCurrentWorkspace).toHaveBeenCalledOnce());
+    api.getCurrentWorkspace.mockResolvedValue({ workspace_id: "workspace-a", user_id: "user-a", role: "viewer" });
+    await act(async () => { await result.current.refresh(); });
+    await waitFor(() => expect(result.current.mutationDisabledReason).toMatch(/Viewer access/));
+    await act(async () => finish({ workspace_id: "workspace-a", user_id: "user-a", role: "owner" }));
+    expect(result.current.canMutate).toBe(false);
+    expect(result.current.mutationDisabledReason).toMatch(/Viewer access/);
   });
 });
