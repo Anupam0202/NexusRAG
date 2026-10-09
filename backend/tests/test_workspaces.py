@@ -93,6 +93,12 @@ class FakeWorkspaceSupabase:
             return [{"workspace_id": self.workspace_id, "user_id": self.user_id, "role": self.role}]
         return []
 
+    async def table_count(self, table: str, *, query: str, service_role: bool = True) -> int:
+        assert table == "workspace_members"
+        assert service_role is True
+        assert query == f"select=user_id&workspace_id=eq.{self.workspace_id}"
+        return 1
+
     async def table_insert(
         self,
         table: str,
@@ -489,3 +495,152 @@ def test_workspace_manager_cannot_remove_themselves(
     assert response.status_code == 409
     assert response.json()["detail"] == "You cannot remove yourself from the active workspace."
     assert fake_supabase.deletes == []
+
+
+class PagedWorkspaceSupabase(FakeWorkspaceSupabase):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        from uuid import UUID
+
+        self.roster = [
+            {
+                "user_id": str(UUID(int=index)),
+                "role": "viewer",
+                "profiles": {"email": f"member{index}@example.com"},
+            }
+            for index in range(1, 206)
+        ]
+        self.roster_read = False
+        self.revoke_after_read = False
+        self.count_unavailable = False
+
+    async def table_select(self, table, *, query="select=*", service_role=True):
+        if table == "workspace_members" and "profiles(" in query:
+            from urllib.parse import parse_qs
+
+            filters = parse_qs(query)
+            assert filters["workspace_id"] == [f"eq.{self.workspace_id}"]
+            assert filters["order"] == ["user_id.asc"]
+            self.select_queries.append((table, query))
+            self.roster_read = True
+            cursor = filters.get("user_id", ["gt."])[0].removeprefix("gt.")
+            return [row for row in self.roster if row["user_id"] > cursor][
+                : int(filters["limit"][0])
+            ]
+        if self.roster_read and self.revoke_after_read and self.user_id in query:
+            return []
+        return await super().table_select(table, query=query, service_role=service_role)
+
+    async def table_count(self, table, *, query, service_role=True):
+        await super().table_count(table, query=query, service_role=service_role)
+        if self.count_unavailable:
+            raise ValueError("Exact count unavailable")
+        return len(self.roster)
+
+
+def test_members_keyset_pages_report_exact_workspace_total(test_client, enterprise_auth_env):
+    from main import app
+
+    fake = PagedWorkspaceSupabase(workspace_id=str(uuid4()), user_id=str(uuid4()))
+    app.dependency_overrides[get_supabase_client] = lambda: fake
+    headers = {
+        "Authorization": f"Bearer {_token(fake.user_id, enterprise_auth_env)}",
+        "X-Nexus-Workspace-Id": fake.workspace_id,
+    }
+    cursor = None
+    all_ids = []
+    for expected_size in (100, 100, 5):
+        response = test_client.get(
+            "/api/v1/workspaces/current/members",
+            headers=headers,
+            params={"after": cursor} if cursor else {},
+        )
+        assert response.status_code == 200
+        body = response.json()
+        assert body["total"] == 205 and body["total_is_exact"] is True
+        assert len(body["members"]) == expected_size
+        all_ids.extend(row["user_id"] for row in body["members"])
+        cursor = body["next_after"]
+    assert cursor is None
+    assert len(set(all_ids)) == 205
+    assert all_ids == sorted(all_ids)
+
+
+@pytest.mark.parametrize(
+    "params",
+    [{"after": "x&workspace_id=eq.foreign"}, {"limit": 0}, {"limit": 101}, {"limit": "many"}],
+)
+def test_members_reject_invalid_page_inputs(test_client, enterprise_auth_env, params):
+    from main import app
+
+    fake = FakeWorkspaceSupabase(workspace_id=str(uuid4()), user_id=str(uuid4()))
+    app.dependency_overrides[get_supabase_client] = lambda: fake
+    response = test_client.get(
+        "/api/v1/workspaces/current/members",
+        params=params,
+        headers={
+            "Authorization": f"Bearer {_token(fake.user_id, enterprise_auth_env)}",
+            "X-Nexus-Workspace-Id": fake.workspace_id,
+        },
+    )
+    assert response.status_code == 422
+    assert not any("profiles(" in query for _, query in fake.select_queries)
+
+
+@pytest.mark.parametrize("fault, status", [("revoke_after_read", 403), ("count_unavailable", 503)])
+def test_members_fail_closed_after_revocation_or_unknown_count(
+    test_client, enterprise_auth_env, fault, status
+):
+    from main import app
+
+    fake = PagedWorkspaceSupabase(workspace_id=str(uuid4()), user_id=str(uuid4()))
+    setattr(fake, fault, True)
+    app.dependency_overrides[get_supabase_client] = lambda: fake
+    response = test_client.get(
+        "/api/v1/workspaces/current/members",
+        headers={
+            "Authorization": f"Bearer {_token(fake.user_id, enterprise_auth_env)}",
+            "X-Nexus-Workspace-Id": fake.workspace_id,
+        },
+    )
+    assert response.status_code == status
+    assert "members" not in response.json()
+
+
+@pytest.mark.parametrize("role", ["owner", "admin", "editor", "viewer"])
+def test_all_authorized_member_roles_can_read_bounded_inventory(
+    test_client, enterprise_auth_env, role
+):
+    from main import app
+
+    fake = FakeWorkspaceSupabase(workspace_id=str(uuid4()), user_id=str(uuid4()), role=role)
+    app.dependency_overrides[get_supabase_client] = lambda: fake
+    response = test_client.get(
+        "/api/v1/workspaces/current/members",
+        params={"limit": 1},
+        headers={
+            "Authorization": f"Bearer {_token(fake.user_id, enterprise_auth_env)}",
+            "X-Nexus-Workspace-Id": fake.workspace_id,
+        },
+    )
+    assert response.status_code == 200
+    assert response.json()["total_is_exact"] is True
+    assert len(response.json()["members"]) == 1
+    assert any("limit=2" in query for _, query in fake.select_queries)
+
+
+def test_invalid_member_records_are_not_silently_omitted(test_client, enterprise_auth_env):
+    from main import app
+
+    fake = FakeWorkspaceSupabase(workspace_id=str(uuid4()), user_id=str(uuid4()))
+    fake.target_role = "unknown"
+    app.dependency_overrides[get_supabase_client] = lambda: fake
+    response = test_client.get(
+        "/api/v1/workspaces/current/members",
+        headers={
+            "Authorization": f"Bearer {_token(fake.user_id, enterprise_auth_env)}",
+            "X-Nexus-Workspace-Id": fake.workspace_id,
+        },
+    )
+    assert response.status_code == 503
+    assert "members" not in response.json()

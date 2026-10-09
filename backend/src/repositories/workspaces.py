@@ -59,13 +59,29 @@ class WorkspaceRepository(SupabaseRepository):
             ),
         )
 
-    async def list_members(self, workspace_id: str) -> list[dict[str, Any]]:
+    async def list_members(
+        self,
+        workspace_id: str,
+        *,
+        after: UUID | None = None,
+        limit: int = 100,
+    ) -> list[dict[str, Any]]:
+        if not 1 <= limit <= 100:
+            raise ValueError("Member page size must be between 1 and 100.")
+        cursor = f"&user_id=gt.{after}" if after else ""
         return await self._supabase.table_select(
             "workspace_members",
             query=(
                 "select=user_id,role,created_at,profiles(id,email,display_name,avatar_url)&"
-                f"{eq_filter('workspace_id', workspace_id)}&order=created_at.asc"
+                f"{eq_filter('workspace_id', workspace_id)}&order=user_id.asc"
+                f"{cursor}&limit={limit + 1}"
             ),
+        )
+
+    async def count_members(self, workspace_id: str) -> int:
+        return await self._supabase.table_count(
+            "workspace_members",
+            query=and_query("select=user_id", eq_filter("workspace_id", workspace_id)),
         )
 
     async def get_membership(

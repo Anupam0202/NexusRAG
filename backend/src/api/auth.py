@@ -14,7 +14,7 @@ from typing import Any, Literal
 from uuid import UUID
 
 import httpx
-from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, status
 from pydantic import BaseModel, Field
 
 from config.settings import Settings, get_settings
@@ -101,6 +101,8 @@ class WorkspaceMembersResponse(BaseModel):
     workspace_id: str
     members: list[WorkspaceMemberResponse]
     total: int
+    next_after: str | None = None
+    total_is_exact: bool = True
 
 
 class WorkspaceMemberCreateRequest(BaseModel):
@@ -610,6 +612,8 @@ async def read_current_workspace(
 
 @workspace_router.get("/current/members", response_model=WorkspaceMembersResponse)
 async def list_current_workspace_members(
+    after: UUID | None = None,
+    limit: int = Query(100, ge=1, le=100),
     context: WorkspaceContext = Depends(
         require_workspace_role(
             WorkspaceRole.OWNER,
@@ -629,14 +633,24 @@ async def list_current_workspace_members(
         )
         return WorkspaceMembersResponse(
             workspace_id=context.workspace_id,
-            members=[member],
+            members=[member] if after is None or UUID(member.user_id).int > after.int else [],
             total=1,
         )
 
     from src.repositories.workspaces import WorkspaceRepository
 
     try:
-        rows = await WorkspaceRepository(supabase).list_members(context.workspace_id)
+        repository = WorkspaceRepository(supabase)
+        rows = await repository.list_members(context.workspace_id, after=after, limit=limit)
+        total = await repository.count_members(context.workspace_id)
+        membership = await repository.get_membership(
+            workspace_id=context.workspace_id,
+            user_id=context.user.id,
+        )
+        if not membership or membership.get("role") not in {role.value for role in WorkspaceRole}:
+            raise HTTPException(
+                status_code=403, detail="Workspace membership is no longer available."
+            )
     except SupabaseNotConfiguredError as exc:
         raise _enterprise_auth_not_configured_error() from exc
     except httpx.HTTPStatusError as exc:
@@ -644,17 +658,27 @@ async def list_current_workspace_members(
             exc,
             detail="Unable to load workspace members from Supabase.",
         )
+    except httpx.RequestError as exc:
+        raise HTTPException(
+            status_code=503, detail="Workspace member service is unavailable."
+        ) from exc
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=503, detail="Exact workspace member inventory is unavailable."
+        ) from exc
 
+    has_more = len(rows) > limit
+    rows = rows[:limit]
     members: list[WorkspaceMemberResponse] = []
     for row in rows:
         profile = row.get("profiles") if isinstance(row.get("profiles"), dict) else {}
         try:
             role = WorkspaceRole(str(row["role"]))
         except (KeyError, ValueError):
-            continue
+            raise HTTPException(status_code=503, detail="Workspace member inventory is invalid.")
         member_user_id = row.get("user_id") or profile.get("id")
         if not member_user_id:
-            continue
+            raise HTTPException(status_code=503, detail="Workspace member inventory is invalid.")
         members.append(
             WorkspaceMemberResponse(
                 user_id=str(member_user_id),
@@ -677,7 +701,8 @@ async def list_current_workspace_members(
     return WorkspaceMembersResponse(
         workspace_id=context.workspace_id,
         members=members,
-        total=len(members),
+        total=total,
+        next_after=str(rows[-1]["user_id"]) if has_more else None,
     )
 
 

@@ -3,8 +3,8 @@
   "product": "NexusRAG Evidence Intelligence OS",
   "profile": "ZERO_COST_LOW_TRAFFIC",
   "status": "PARTIAL_NOT_COMPLETE",
-  "observed_at": "2026-10-09T16:11:56.025995+00:00",
-  "observed_source": "b87b88ad9bb653f5ed8a04eaee63f7f73966f0c0",
+  "observed_at": "2026-10-09T17:55:18.543Z",
+  "observed_source": "b30ba7bf5245df8da5d0f12de63bada1cd080799",
   "privacy": {
     "credentials_published": false,
     "customer_records_published": false,
@@ -43,7 +43,12 @@
             "nexusrag-v6-candidate-frontend"
           ],
           "queue_dependencies": [],
-          "vector_collection": null
+          "vector_collection": null,
+          "workers_dev": {
+            "enabled": true,
+            "previews_enabled": true
+          },
+          "deployment_id": "aee921a9-38a2-457d-b4e8-9e7f80048f81"
         },
         {
           "name": "nexusrag-v6-candidate-gateway",
@@ -83,7 +88,12 @@
           "queue_dependencies": [
             "nexusrag-v6-candidate-ingestion"
           ],
-          "vector_collection": "nexusrag-v6-candidate"
+          "vector_collection": "nexusrag-v6-candidate",
+          "workers_dev": {
+            "enabled": true,
+            "previews_enabled": false
+          },
+          "deployment_id": "d384ed4c-b773-412d-8132-4ba49d5b0407"
         },
         {
           "name": "nexusrag-v6-frontend-preview",
@@ -107,11 +117,16 @@
             "nexusrag-v6-frontend-preview"
           ],
           "queue_dependencies": [],
-          "vector_collection": null
+          "vector_collection": null,
+          "workers_dev": {
+            "enabled": true,
+            "previews_enabled": true
+          },
+          "deployment_id": "65c59da4-4d02-433c-8d5b-6139e7f2361c"
         },
         {
           "name": "nexusrag-v6-pr3-frontend",
-          "decision": "RETIRE_CANDIDATE",
+          "decision": "KEEP_RECOVERY",
           "active_versions": [
             {
               "version_id": "1b965250-4c41-4f74-9fee-1a82b1c8b80d",
@@ -133,13 +148,16 @@
           "queue_dependencies": [],
           "vector_collection": null,
           "workers_dev": {
-            "enabled": true,
-            "previews_enabled": true
-          }
+            "enabled": false,
+            "previews_enabled": false
+          },
+          "deployment_id": "5f12087a-c54d-4e0e-bae5-acf0407d3d1e",
+          "quarantine_approved": true,
+          "quarantine_state": "PUBLIC_AND_PREVIEW_URLS_DISABLED_NO_CRON"
         },
         {
           "name": "nexusrag-v6-pr3-gateway",
-          "decision": "RETIRE_CANDIDATE",
+          "decision": "KEEP_RECOVERY",
           "active_versions": [
             {
               "version_id": "25228659-dbda-44e5-b63c-6c742daaba54",
@@ -149,13 +167,7 @@
           "latest_version": "25228659-dbda-44e5-b63c-6c742daaba54",
           "source_commit": "443290ef4c627748b46f4d01ea69d26fb0ff3932",
           "authority": "https://ukgjygzfhyvnrsecdcuu.supabase.co",
-          "schedules": [
-            {
-              "cron": "*/5 * * * *",
-              "created_on": "2026-09-25T18:25:04.886816Z",
-              "modified_on": "2026-09-25T20:48:34.047634Z"
-            }
-          ],
+          "schedules": [],
           "retirement_approved": false,
           "binding_names": [
             "FRONTEND_ORIGIN",
@@ -177,9 +189,12 @@
           ],
           "vector_collection": "nexusrag-v6-pr3",
           "workers_dev": {
-            "enabled": true,
+            "enabled": false,
             "previews_enabled": false
-          }
+          },
+          "deployment_id": "e11a0d2f-f24e-42d0-a392-c78f8d1aa183",
+          "quarantine_approved": true,
+          "quarantine_state": "PUBLIC_AND_PREVIEW_URLS_DISABLED_NO_CRON"
         },
         {
           "name": "nexusrag-v6-preview-gateway",
@@ -217,7 +232,12 @@
           "queue_dependencies": [
             "nexusrag-v6-preview-ingestion"
           ],
-          "vector_collection": null
+          "vector_collection": null,
+          "workers_dev": {
+            "enabled": true,
+            "previews_enabled": false
+          },
+          "deployment_id": "90e12603-f2cb-41c5-a95c-6504299ddce4"
         }
       ]
     },
@@ -261,30 +281,26 @@
         },
         {
           "name": "nexusrag-v6-pr3-ingestion",
-          "decision": "RETIRE_CANDIDATE",
+          "decision": "KEEP_RECOVERY",
           "backlog_snapshot": {
             "backlog_count": 0,
             "backlog_bytes": 0,
             "oldest_message_timestamp_ms": 0
           },
-          "consumers": [
-            {
-              "script": "nexusrag-v6-pr3-gateway",
-              "dead_letter_queue": "nexusrag-v6-pr3-ingestion-dlq",
-              "type": "worker"
-            }
-          ],
+          "consumers": [],
           "producers": [
             {
               "script": "nexusrag-v6-pr3-gateway",
               "type": "worker"
             }
           ],
-          "retirement_approved": false
+          "retirement_approved": false,
+          "quarantine_approved": true,
+          "backlog_observed_at": "2026-10-09T17:55:18.543Z"
         },
         {
           "name": "nexusrag-v6-pr3-ingestion-dlq",
-          "decision": "RETIRE_CANDIDATE",
+          "decision": "KEEP_RECOVERY",
           "backlog_snapshot": {
             "backlog_count": 0,
             "backlog_bytes": 0,
@@ -292,7 +308,9 @@
           },
           "consumers": [],
           "producers": [],
-          "retirement_approved": false
+          "retirement_approved": false,
+          "quarantine_approved": true,
+          "backlog_observed_at": "2026-10-09T17:55:18.543Z"
         },
         {
           "name": "nexusrag-v6-preview-ingestion",
@@ -459,7 +477,7 @@
     "sla_claimed": false
   },
   "proposed_reversible_quarantine": {
-    "status": "OWNER_APPROVAL_REQUIRED_ACTIVE_TRAFFIC_OBSERVED",
+    "status": "APPROVED_AND_APPLIED_VERIFIED_AFTER_PROPAGATION",
     "workers": [
       "nexusrag-v6-pr3-frontend",
       "nexusrag-v6-pr3-gateway"
@@ -468,7 +486,8 @@
     "remove_pr3_gateway_cron": "*/5 * * * *",
     "detach_empty_pr3_queue_consumer": true,
     "retain_workers_versions_secrets_queues_data": true,
-    "production_resources_modified": false
+    "production_resources_modified": false,
+    "approval_scope": "Only reversible PR3 URL/cron/empty-consumer quarantine; no deletion or protected-runtime change."
   },
   "browser_retirement_confirmation": {
     "purpose": "Retirement safety verification, not usage attribution or a traffic trend",
@@ -525,5 +544,55 @@
       "The two browser windows differ by approximately one minute; no comparison or conversion rate is calculated.",
       "Metrics availability and adaptive sampling do not prove absence of external dependencies."
     ]
+  },
+  "applied_reversible_quarantine": {
+    "status": "PREVIEW_VERIFIED_SCOPED_REVERSIBLE_QUARANTINE",
+    "post_propagation_observed_at": "2026-10-09T17:55:18.543Z",
+    "quarantined_workers": [
+      "nexusrag-v6-pr3-frontend",
+      "nexusrag-v6-pr3-gateway"
+    ],
+    "subdomains_and_preview_urls_disabled": true,
+    "pr3_gateway_cron_removed": true,
+    "empty_consumer_detached": true,
+    "protected_candidate_and_shared_preview_metadata_unchanged": true,
+    "worker_count_retained": 6,
+    "queue_count_retained": 6,
+    "worker_or_queue_deletions": 0,
+    "data_purge": false,
+    "secret_material_read_or_rotated": false,
+    "rollback_executed": false,
+    "full_product_acceptance": false,
+    "limitations": [
+      "This verifies the approved PR3 controls, public reachability and point-in-time pending-work checks; it is not global request-history or full-product acceptance.",
+      "Rollback payloads and original versions/secrets remain preserved; rollback was not executed.",
+      "Consumer restoration can assign a new consumer ID.",
+      "Supabase PR3 OAuth allowlist entries remain unchanged and need separate approval to modify."
+    ],
+    "public_statuses": {
+      "nexusrag-v6-pr3-frontend": 404,
+      "nexusrag-v6-pr3-gateway": 404,
+      "nexusrag-v6-candidate-frontend": 200,
+      "nexusrag-v6-candidate-gateway": 200,
+      "nexusrag-v6-frontend-preview": 200,
+      "nexusrag-v6-preview-gateway": 200
+    },
+    "pending_work_snapshot": {
+      "ingestion_job_count": 0,
+      "active_job_lease_count": 0,
+      "pending_outbox_count": 0,
+      "document_upload_count": 0
+    }
+  },
+  "retained_oauth_recovery_configuration": {
+    "environment": "isolated rehearsal",
+    "site_url": "https://nexusrag-v6-candidate-frontend.nexusrag-evidence-preview.workers.dev",
+    "candidate_callback_allowed": true,
+    "pr3_redirects": [
+      "https://nexusrag-v6-pr3-frontend.nexusrag-evidence-preview.workers.dev/auth/callback",
+      "https://nexusrag-v6-pr3-frontend.nexusrag-evidence-preview.workers.dev/**"
+    ],
+    "decision": "KEEP_RECOVERY_PENDING_SEPARATE_SECURITY_CONFIGURATION_APPROVAL",
+    "changed": false
   }
 }
