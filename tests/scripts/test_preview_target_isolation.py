@@ -2,6 +2,7 @@ import unittest
 import json
 import tempfile
 import shutil
+import re
 from unittest.mock import patch
 from pathlib import Path
 
@@ -131,6 +132,20 @@ class PreviewTargetIsolationTests(unittest.TestCase):
         self.assertIn("REHEARSAL_RESULT: ${{ needs.clean-baseline-rehearsal.result }}", workflow)
         self.assertIn('test "$REHEARSAL_RESULT" = success', workflow)
         self.assertEqual(workflow.count("name: Clean Supabase baseline rehearsal"), 1)
+
+    def test_every_rehearsed_forward_migration_is_packaged_for_ci(self):
+        repository = Path(__file__).resolve().parents[2]
+        harness = (repository / "tests/postgres/local-rehearsal.sh").read_text()
+        workflow = (repository / ".github/workflows/v6-database-rehearsal.yml").read_text()
+        migrations = re.findall(r'\$ROOT/(supabase/migrations/[^"]+\.sql)', harness)
+        self.assertGreaterEqual(len(migrations), 15)
+        for migration in migrations:
+            with self.subTest(migration=migration):
+                self.assertTrue((repository / migration).is_file())
+                self.assertIn(
+                    f'cp "$GITHUB_WORKSPACE/{migration}" "$source_dir/supabase/migrations/"',
+                    workflow,
+                )
 
     def test_queue_creation_uses_free_plan_retention_limit(self):
         repository = Path(__file__).resolve().parents[2]

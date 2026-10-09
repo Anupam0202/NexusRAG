@@ -63,6 +63,7 @@ jobs:
           cp "$GITHUB_WORKSPACE/supabase/migrations/037_byok_workspace_processing_authority.sql" "$source_dir/supabase/migrations/"
           cp "$GITHUB_WORKSPACE/supabase/migrations/038_terms_bound_workspace_processing_policy.sql" "$source_dir/supabase/migrations/"
           cp "$GITHUB_WORKSPACE/supabase/migrations/039_canonical_service_role_processing_authority.sql" "$source_dir/supabase/migrations/"
+          cp "$GITHUB_WORKSPACE/supabase/migrations/040_recipient_bound_workspace_invitations.sql" "$source_dir/supabase/migrations/"
           chmod -R a+rX "$source_dir"
           cleanup() {
             sudo -u postgres dropdb --if-exists -h /var/run/postgresql -p "$port" "$db" >/dev/null 2>&1 || true

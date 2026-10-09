@@ -2442,6 +2442,22 @@
           "result": "PASS:363backend+10subtests;200gateway/no skips. Synthetic auth/mocked transport, not real-user tenant isolation."
         }
       ]
+    },
+    {
+      "id": "DEFECT-RATE-LIMIT-CAPACITY",
+      "requirement": "Bound per-process IP rate-limit tracking without evicting live history or extending denied-request lifetimes",
+      "status": "IN_PROGRESS",
+      "environment": "retained Python backend local source; not deployed load/distributed-quota acceptance",
+      "next_action": "Publish bounded monotonic sliding-window tracking and exact CI packaging repair; verify exact-head backend/image CI and retain independent distributed quota authority. No live load/production claim.",
+      "acceptance_evidence": [
+        {
+          "environment": "offline deterministic backend regressions",
+          "observed_at": "2026-10-09T22:19:15.065629Z",
+          "source_identity": "parent33806e9 + bounded middleware source",
+          "command_or_url": "python backend/scripts/run_full_tests.py; python backend/scripts/run_isolated.py",
+          "result": "PASS:373backend+10subtests;57isolated; address churn/capacity/idle expiry/window/concurrent reservations/slow response; unchanged application request121 denied."
+        }
+      ]
     }
   ]
 }
