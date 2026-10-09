@@ -1,5 +1,7 @@
 # Requirement traceability
 
+> Current execution status is maintained in `docs/implementation/execution-ledger.json` and the latest section of `docs/audits/COMPREHENSIVE_APPLICATION_AUDIT.md`. The dated/scoped labels below are historical evidence, not complete-product or current production acceptance. Normative requirement wording remains authoritative where explicitly designated. Required engineering is not deferred to future phases.
+
 Status: `PARTIAL_NOT_COMPLETE_WITH_ACCEPTED_NORMATIVE_BASELINE`
 
 The V6 prompt defines `Z01–Z32` and adds `S`, `G`, and `P`. The accepted owner-directed `LEGACY_REPLACEMENT_BASELINE.md` defines `R`, `CF`, and `A`; missing historical wording is no longer an unresolved source blocker. This does not establish complete-product acceptance.

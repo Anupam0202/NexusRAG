@@ -32,6 +32,15 @@ for name in ("backend", "frontend"):
     target = source.get("target", {})
     lines.append(f"{name}: Grype {scanner}; source type {source.get('type')}; target {target.get('imageID', target.get('userInput', 'UNKNOWN'))}")
     lines.append(f"Findings: {json.dumps(dict(sorted(severity.items())))}. Medium/high/critical fail the required job, including findings without an available fix. Lower severities remain visible for review.")
+    print("IMAGE_SCAN_DESCRIPTOR", json.dumps({
+        "image": name, "scanner": result["descriptor"]["name"], "version": scanner,
+        "database": {key: value for key, value in result["descriptor"].get("db", {}).items()
+                     if key in ("built", "schemaVersion", "checksum", "status")},
+        "image_id": target.get("imageID", "UNKNOWN"),
+        "manifest_digest": target.get("manifestDigest", "UNKNOWN"),
+        "distro": result.get("distro", {}),
+        "ignored_match_count": len(result.get("ignoredMatches", [])),
+    }, sort_keys=True))
     # Compact complete receipt in job logs; bounded high-severity-first summary.
     # No vulnerability suppression: missing fix information remains explicit.
     for item in findings:
@@ -40,6 +49,11 @@ for name in ("backend", "frontend"):
             "severity": item["vulnerability"]["severity"],
             "package": item["artifact"]["name"], "version": item["artifact"]["version"],
             "type": item["artifact"].get("type", "UNKNOWN"),
+            "namespace": item["vulnerability"].get("namespace", "UNKNOWN"),
+            "data_source": item["vulnerability"].get("dataSource", "UNKNOWN"),
+            "layer_ids": sorted({location["layerID"] for location in item["artifact"].get("locations", []) if location.get("layerID")}),
+            "source_package": {key: value for key, value in item["artifact"].get("metadata", {}).items()
+                               if key in ("sourceName", "sourceVersion", "source")},
             "fix": item["vulnerability"].get("fix", {"state": "UNKNOWN"}),
             "locations": [value.get("path", "UNKNOWN") for value in item["artifact"].get("locations", [])],
         }, sort_keys=True))

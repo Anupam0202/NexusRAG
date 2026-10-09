@@ -22,6 +22,7 @@ import {
 } from "./user-gemini-key.js";
 
 // Supabase service-role access is kept in a Cloudflare secret binding; OAuth and MCP gates are exact-head validated.
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const BASE_HEADERS = Object.freeze({
   "cache-control": "private, no-store, max-age=0",
   "content-security-policy": "default-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
@@ -162,7 +163,10 @@ async function userRequest(request, env, tablePath, init = {}) {
   return text ? JSON.parse(text) : null;
 }
 async function countWorkspaceRows(env, table, workspace, filters = "", countColumn = "id") {
-  const response = await apiFetch(`${env.SUPABASE_URL}/rest/v1/${table}?workspace_id=eq.${encodeURIComponent(workspace)}&select=${countColumn}${filters}`, {
+  return countRows(env, `${table}?workspace_id=eq.${encodeURIComponent(workspace)}&select=${countColumn}${filters}`);
+}
+async function countRows(env, tablePath) {
+  const response = await apiFetch(`${env.SUPABASE_URL}/rest/v1/${tablePath}`, {
     method: "HEAD",
     headers: {
       apikey: env.SUPABASE_SERVICE_ROLE_KEY,
@@ -610,15 +614,26 @@ async function handle(request, env = {}) {
 
     if (url.pathname === "/api/v1/workspaces" && request.method === "POST") return json(request, env, await createWorkspace(request, env, user), 201);
     if (url.pathname === "/api/v1/workspaces" && (request.method === "GET" || request.method === "HEAD")) {
-      const members = await serviceRequest(env, `workspace_members?user_id=eq.${encodeURIComponent(user.id)}&select=workspace_id,role&limit=50`);
-      const ids = members.map((item) => item.workspace_id);
-      const workspaces = ids.length ? await serviceRequest(env, `workspaces?id=in.(${ids.join(",")})&select=id,name,slug,plan,lifecycle_state,created_at&limit=50`) : [];
-      const roles = Object.fromEntries(members.map((item) => [item.workspace_id, item.role]));
-      return json(request, env, { workspaces: workspaces.map((item) => ({ ...item, workspace_id: item.id, role: roles[item.id] })) });
+      const limitText = url.searchParams.get("limit") ?? "50";
+      const limit = Number(limitText), after = url.searchParams.get("after");
+      if (!/^[0-9]+$/.test(limitText) || !Number.isInteger(limit) || limit < 1 || limit > 100 || (after !== null && !UUID_PATTERN.test(after)))
+        throw Object.assign(new Error("Workspace pagination is invalid."), { status: 422, code: "INVALID_SCOPE" });
+      const scope = `workspace_members?user_id=eq.${encodeURIComponent(user.id)}&workspaces.lifecycle_state=eq.active`;
+      const total = await countRows(env, `${scope}&select=workspace_id,workspaces!inner(id)`);
+      // Read joined membership and active authority together after the count.
+      // The total and page are separate observations, not a transaction snapshot.
+      const members = await serviceRequest(env, `${scope}${after ? `&workspace_id=gt.${encodeURIComponent(after)}` : ""}&select=workspace_id,role,workspaces!inner(id,name,slug,plan,lifecycle_state,created_at)&order=workspace_id.asc&limit=${limit + 1}`);
+      if (!Array.isArray(members) || members.length > limit + 1)
+        throw Object.assign(new Error("Authoritative workspace page is invalid."), { status: 503, code: "PERSISTENCE_UNAVAILABLE" });
+      const hasMore = members.length > limit, page = members.slice(0, limit);
+      if (members.some(row => !row || !UUID_PATTERN.test(row.workspace_id) || row.workspaces?.id !== row.workspace_id || row.workspaces?.lifecycle_state !== "active" || !["owner","admin","editor","viewer"].includes(row.role)))
+        throw Object.assign(new Error("Authoritative workspace inventory is invalid."), { status: 503, code: "PERSISTENCE_UNAVAILABLE" });
+      return json(request, env, { workspaces: page.map(row => ({ ...row.workspaces, workspace_id: row.workspace_id, role: row.role })),
+        total, total_is_exact: true, next_after: hasMore ? page.at(-1).workspace_id : null });
     }
     if (url.pathname === "/api/v1/workspaces/current" && (request.method === "GET" || request.method === "HEAD")) {
       const bound = request.headers.get("x-nexus-workspace-id") || request.headers.get("x-workspace-id");
-      const memberships = bound ? null : await serviceRequest(env, `workspace_members?user_id=eq.${encodeURIComponent(user.id)}&select=workspace_id,role&order=workspace_id.asc&limit=1`);
+      const memberships = bound ? null : await serviceRequest(env, `workspace_members?user_id=eq.${encodeURIComponent(user.id)}&select=workspace_id,role,workspaces!inner(lifecycle_state)&workspaces.lifecycle_state=eq.active&order=workspace_id.asc&limit=1`);
       const id = bound ? workspaceId(request) : memberships?.[0]?.workspace_id;
       if (!id) throw Object.assign(new Error("Create a workspace to continue."), { status: 404, code: "WORKSPACE_NOT_FOUND" });
       const member = await membership(env, user.id, id);

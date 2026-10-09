@@ -20,6 +20,9 @@ function AccountWorkspaces() {
   const [workspaces, setWorkspaces] = useState<WorkspaceSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [nextAfter, setNextAfter] = useState<string | null>(null);
+  const [total, setTotal] = useState<number | null>(null);
   const [name, setName] = useState("");
   const [error, setError] = useState<string | null>(null);
 
@@ -27,22 +30,27 @@ function AccountWorkspaces() {
   const sequence = useRef(0);
   useEffect(() => { alive.current = true; return () => { alive.current = false; sequence.current += 1; }; }, []);
   const context = { workspaceId: null, expectedUserId: authMode === "authenticated" ? userId ?? null : undefined };
-  const load = async () => {
+  const load = async (after?: string) => {
     const current = ++sequence.current;
-    setLoading(true);
+    if (after) setLoadingMore(true);
+    else { setLoading(true); setLoadingMore(false); setNextAfter(null); }
     setError(null);
     try {
-      const response = await listWorkspaces(context);
+      const response = after ? await listWorkspaces(context, { after }) : await listWorkspaces(context);
       if (!alive.current || current !== sequence.current) return;
-      setWorkspaces(response.workspaces);
-      if (!useStore.getState().workspaceId && response.workspaces[0]) {
+      setWorkspaces(previous => after
+        ? [...previous, ...response.workspaces.filter(item => !previous.some(old => old.id === item.id))]
+        : response.workspaces);
+      setNextAfter(response.next_after ?? null);
+      setTotal(response.total_is_exact === true ? response.total : null);
+      if (!after && !useStore.getState().workspaceId && response.workspaces[0]) {
         setWorkspaceId(response.workspaces[0].id);
       }
     } catch (err: unknown) {
       if (!alive.current || current !== sequence.current) return;
       setError(err instanceof Error ? err.message : "Unable to load workspaces");
     } finally {
-      if (alive.current && current === sequence.current) setLoading(false);
+      if (alive.current && current === sequence.current) { setLoading(false); setLoadingMore(false); }
     }
   };
 
@@ -65,7 +73,7 @@ function AccountWorkspaces() {
     try {
       const workspace = await createWorkspace({ name: name.trim() }, context);
       if (!alive.current) return;
-      setWorkspaces((current) => [...current, workspace]);
+      void load();
       if (useStore.getState().workspaceId === workspaceId) setWorkspaceId(workspace.id);
       setName("");
       toast.success("Workspace created");
@@ -101,8 +109,8 @@ function AccountWorkspaces() {
           </div>
           <button
             type="button"
-            onClick={load}
-            disabled={loading}
+            onClick={() => void load()}
+            disabled={loading || loadingMore}
             className="inline-flex items-center justify-center gap-2 rounded-xl border border-[var(--border)] px-3 py-2 text-sm font-semibold hover:bg-[var(--bg-hover)] disabled:opacity-50"
           >
             <RefreshCw size={15} className={loading ? "animate-spin" : ""} />
@@ -111,7 +119,7 @@ function AccountWorkspaces() {
         </div>
 
         {error && (
-          <div className="mb-4 rounded-xl border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/30 dark:text-red-300">
+          <div role="alert" className="mb-4 rounded-xl border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/30 dark:text-red-300">
             {error}
           </div>
         )}
@@ -131,6 +139,7 @@ function AccountWorkspaces() {
               value={name}
               onChange={(event) => setName(event.target.value)}
               placeholder="New workspace name"
+              aria-label="New workspace name"
               minLength={2}
               maxLength={80}
               className="min-w-0 flex-1 rounded-lg border border-[var(--border)] bg-[var(--bg-secondary)] px-3 py-2 text-sm outline-none focus:border-brand-500"
@@ -146,12 +155,17 @@ function AccountWorkspaces() {
           </form>
         )}
 
+        {!loading && workspaces.length > 0 && (
+          <p aria-live="polite" className="mb-3 text-sm text-[var(--text-muted)]">
+            {total !== null ? `Showing ${workspaces.length} of ${total} active workspaces` : `${workspaces.length} workspaces loaded`}
+          </p>
+        )}
         {loading ? (
           <div className="flex items-center justify-center py-12 text-sm text-[var(--text-muted)]">
             <Loader2 size={18} className="mr-2 animate-spin" />
             Loading workspaces
           </div>
-        ) : workspaces.length === 0 ? (
+        ) : error && workspaces.length === 0 ? null : workspaces.length === 0 ? (
           <div className="rounded-xl border border-dashed border-[var(--border)] px-4 py-10 text-center text-sm text-[var(--text-muted)]">
             No workspaces yet
           </div>
@@ -163,6 +177,7 @@ function AccountWorkspaces() {
                 <button
                   key={workspace.id}
                   type="button"
+                  aria-pressed={selected}
                   onClick={() => {
                     if (useStore.getState().workspaceId === workspaceId) setWorkspaceId(workspace.id);
                     toast.success(`Workspace switched to ${workspace.name}`);
@@ -185,6 +200,13 @@ function AccountWorkspaces() {
               );
             })}
           </div>
+        )}
+        {!loading && nextAfter && (
+          <button type="button" disabled={loadingMore} onClick={() => void load(nextAfter)}
+            className="mt-4 inline-flex items-center gap-2 rounded-xl border border-[var(--border)] px-4 py-2 text-sm font-semibold disabled:opacity-50">
+            {loadingMore && <Loader2 size={15} className="animate-spin" />}
+            {loadingMore ? "Loading more workspaces" : "Load more workspaces"}
+          </button>
         )}
       </div>
     </div>

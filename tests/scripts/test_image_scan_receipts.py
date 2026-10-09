@@ -67,5 +67,21 @@ class ImageReceiptTests(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
 
 
+
+
+class ImageProvenanceTests(unittest.TestCase):
+    run_report = ImageReceiptTests.run_report
+    report = ImageReceiptTests.report
+    def test_origin_layers_source_package_and_scanner_identity_remain_visible(self):
+        report = self.report('High')
+        report['matches'][0]['artifact'].update({'locations': [{'path': '/synthetic/library', 'layerID': 'synthetic-layer'}], 'metadata': {'sourceName': 'synthetic-source', 'sourceVersion': '1'}})
+        report['matches'][0]['vulnerability'].update({'namespace': 'synthetic-distro', 'dataSource': 'https://example.invalid/synthetic-advisory'})
+        result = self.run_report({'backend': report, 'frontend': self.report()})
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('synthetic-layer', result.stdout)
+        self.assertIn('synthetic-source', result.stdout)
+        self.assertIn('IMAGE_SCAN_DESCRIPTOR', result.stdout)
+
+
 if __name__ == '__main__':
     unittest.main()

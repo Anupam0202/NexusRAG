@@ -442,8 +442,14 @@ export function exportFinding(id: string, context: ApiRequestContext) {
     `/api/v2/findings/${encodeURIComponent(id)}/export`, { method: "POST" }, context);
 }
 
-export async function listWorkspaces(context: ApiRequestContext = {}): Promise<WorkspaceListResponse> {
-  return request("/api/v1/workspaces", undefined, context);
+export async function listWorkspaces(
+  context: ApiRequestContext = {},
+  page: { after?: string; limit?: number } = {}
+): Promise<WorkspaceListResponse> {
+  const params = new URLSearchParams();
+  if (page.after !== undefined) params.set("after", page.after);
+  if (page.limit !== undefined) params.set("limit", String(page.limit));
+  return request(`/api/v1/workspaces${params.size ? `?${params}` : ""}`, undefined, context);
 }
 
 export async function createWorkspace(

@@ -54,6 +54,9 @@ jobs:
           main="$(git rev-parse origin/main)"
           test "$actual" = "$RELEASE_SHA"
           test "$actual" = "$main" || { echo "::error::Production deploys only the current main commit."; exit 1; }
+      - name: Require complete evidence-backed execution closure
+        working-directory: .
+        run: python3 scripts/check_execution_ledger.py --require-closure
       - uses: actions/setup-node@v5
         with: {node-version: "24"}
       - name: Validate production configuration
@@ -150,6 +153,9 @@ jobs:
           main="$(git rev-parse origin/main)"
           test "$actual" = "$RELEASE_SHA"
           test "$actual" = "$main"
+      - name: Require complete evidence-backed execution closure
+        working-directory: .
+        run: python3 scripts/check_execution_ledger.py --require-closure
       - uses: actions/setup-node@v5
         with:
           node-version: "24"

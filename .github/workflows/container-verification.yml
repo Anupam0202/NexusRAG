@@ -35,6 +35,7 @@ jobs:
         uses: anchore/scan-action@27805bf3b4e84b4a5c980df22ed233c00390a439 # v7.4.2, immutable release
         with:
           image: ${{ steps.images.outputs.backend_image }}
+          grype-version: v0.118.0
           fail-build: true
           severity-cutoff: medium
           only-fixed: false
@@ -48,6 +49,7 @@ jobs:
         uses: anchore/scan-action@27805bf3b4e84b4a5c980df22ed233c00390a439 # v7.4.2, immutable release
         with:
           image: ${{ steps.images.outputs.frontend_image }}
+          grype-version: v0.118.0
           fail-build: true
           severity-cutoff: medium
           only-fixed: false

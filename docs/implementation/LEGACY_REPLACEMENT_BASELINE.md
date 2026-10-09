@@ -1,5 +1,7 @@
 # Owner-directed legacy replacement baseline
 
+> Current execution status is maintained in `docs/implementation/execution-ledger.json` and the latest section of `docs/audits/COMPREHENSIVE_APPLICATION_AUDIT.md`. The dated/scoped labels below are historical evidence, not complete-product or current production acceptance. Normative requirement wording remains authoritative where explicitly designated. Required engineering is not deferred to future phases.
+
 Status: `OWNER_DIRECTED_REPLACEMENT_BASELINE`
 
 The original normative definitions for `R01–R32`, `CF01–CF32`, and `A01–A32` were not present in the supplied prompt or repository history. On 2026-09-21 the accountable owner directed implementation using the best understanding of the application. The definitions below therefore replace the missing legacy text for this repository; they do not claim to reproduce an unavailable historical document.

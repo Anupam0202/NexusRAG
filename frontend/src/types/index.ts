@@ -224,6 +224,8 @@ export interface WorkspaceSummary {
 export interface WorkspaceListResponse {
   workspaces: WorkspaceSummary[];
   total: number;
+  total_is_exact?: boolean;
+  next_after?: string | null;
 }
 
 export interface WorkspaceCreateRequest {

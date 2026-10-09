@@ -50,12 +50,32 @@ class WorkspaceRepository(SupabaseRepository):
         )
         return first_row(rows)
 
-    async def list_for_user(self, user_id: str) -> list[dict[str, Any]]:
+    async def list_for_user(
+        self,
+        user_id: str,
+        *,
+        after: UUID | None = None,
+        limit: int = 50,
+    ) -> list[dict[str, Any]]:
+        if not 1 <= limit <= 100:
+            raise ValueError("Workspace page size must be between 1 and 100.")
+        cursor = f"&workspace_id=gt.{after}" if after else ""
         return await self._supabase.table_select(
             "workspace_members",
             query=(
-                "select=role,created_at,workspaces(id,name,slug,plan,owner_id,created_at,updated_at)&"
-                f"{eq_filter('user_id', user_id)}&order=created_at.asc"
+                "select=workspace_id,role,created_at,workspaces!inner(id,name,slug,plan,owner_id,created_at,updated_at,lifecycle_state)&"
+                f"{eq_filter('user_id', user_id)}&workspaces.lifecycle_state=eq.active"
+                f"{cursor}&order=workspace_id.asc&limit={limit + 1}"
+            ),
+        )
+
+    async def count_for_user(self, user_id: str) -> int:
+        return await self._supabase.table_count(
+            "workspace_members",
+            query=and_query(
+                "select=workspace_id,workspaces!inner(id)",
+                eq_filter("user_id", user_id),
+                "workspaces.lifecycle_state=eq.active",
             ),
         )
 
@@ -93,7 +113,8 @@ class WorkspaceRepository(SupabaseRepository):
         rows = await self._supabase.table_select(
             "workspace_members",
             query=and_query(
-                "select=workspace_id,user_id,role,created_at",
+                "select=workspace_id,user_id,role,created_at,workspaces!inner(lifecycle_state)",
+                "workspaces.lifecycle_state=eq.active",
                 eq_filter("workspace_id", workspace_id),
                 eq_filter("user_id", user_id),
                 "limit=1",

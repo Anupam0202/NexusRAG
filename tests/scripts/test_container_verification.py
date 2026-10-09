@@ -61,6 +61,7 @@ class ContainerVerificationTests(unittest.TestCase):
         self.assertNotIn('secrets.', workflow)
         self.assertNotIn('upload-artifact', workflow)
         self.assertEqual(workflow.count('uses: anchore/scan-action@27805bf3b4e84b4a5c980df22ed233c00390a439'), 2)
+        self.assertEqual(workflow.count('grype-version: v0.118.0'), 2)
         self.assertEqual(workflow.count('only-fixed: false'), 2)
         self.assertEqual(workflow.count('cache-db: false'), 2)
         self.assertNotIn('continue-on-error', workflow)
