@@ -245,6 +245,8 @@ export interface WorkspaceMembersResponse {
   workspace_id: string;
   members: WorkspaceMember[];
   total: number;
+  total_is_exact?: boolean;
+  next_after?: string | null;
 }
 
 export interface WorkspaceMemberCreateRequest {

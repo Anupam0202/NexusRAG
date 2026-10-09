@@ -161,8 +161,8 @@ async function userRequest(request, env, tablePath, init = {}) {
   const text = await response.text();
   return text ? JSON.parse(text) : null;
 }
-async function countWorkspaceRows(env, table, workspace, filters = "") {
-  const response = await apiFetch(`${env.SUPABASE_URL}/rest/v1/${table}?workspace_id=eq.${encodeURIComponent(workspace)}&select=id${filters}`, {
+async function countWorkspaceRows(env, table, workspace, filters = "", countColumn = "id") {
+  const response = await apiFetch(`${env.SUPABASE_URL}/rest/v1/${table}?workspace_id=eq.${encodeURIComponent(workspace)}&select=${countColumn}${filters}`, {
     method: "HEAD",
     headers: {
       apikey: env.SUPABASE_SERVICE_ROLE_KEY,
@@ -628,10 +628,23 @@ async function handle(request, env = {}) {
 
     if (url.pathname === "/api/v1/workspaces/current/members" && (request.method === "GET" || request.method === "HEAD")) {
       const id = workspaceId(request); await membership(env, user.id, id);
-      const records = await serviceRequest(env, `workspace_members?workspace_id=eq.${id}&select=user_id,role,created_at,profiles(display_name)&order=created_at.asc&limit=100`);
-      const members = records.map(({ profiles, ...record }) => ({ ...record, display_name: profiles?.display_name || null }));
-      const schema = await serviceRequest(env, "rpc/nexus_management_version", { method: "POST", body: "{}" }).catch(() => null);
-      return json(request, env, { workspace_id: id, members, total: members.length, management_supported: schema?.version === "036",
+      const after = url.searchParams.get("after");
+      const rawLimit = url.searchParams.get("limit") ?? "100";
+      if ((after !== null && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(after)) ||
+          !/^[1-9][0-9]{0,2}$/.test(rawLimit) || Number(rawLimit) > 100)
+        return fail(request, env, "INVALID_SCOPE", "Choose a valid member cursor and page size from 1 to 100.", 422);
+      const limit = Number(rawLimit);
+      const [records, total, schema] = await Promise.all([
+        serviceRequest(env, `workspace_members?workspace_id=eq.${id}${after ? `&user_id=gt.${encodeURIComponent(after)}` : ""}&select=user_id,role,created_at,profiles(display_name)&order=user_id.asc&limit=${limit + 1}`),
+        countWorkspaceRows(env, "workspace_members", id, "", "user_id"),
+        serviceRequest(env, "rpc/nexus_management_version", { method: "POST", body: "{}" }).catch(() => null),
+      ]);
+      // Revalidate access after reads: a removed member must not receive a late roster.
+      await membership(env, user.id, id);
+      const more = records.length > limit;
+      const members = records.slice(0, limit).map(({ profiles, ...record }) => ({ ...record, display_name: profiles?.display_name || null }));
+      return json(request, env, { workspace_id: id, members, total, total_is_exact: true,
+        next_after: more ? members.at(-1).user_id : null, management_supported: schema?.version === "036",
         invitation_supported: false, add_requires_existing_account: true });
     }
     const memberRoute = url.pathname.match(/^\/api\/v1\/workspaces\/current\/members(?:\/([0-9a-f-]{36}))?$/i);

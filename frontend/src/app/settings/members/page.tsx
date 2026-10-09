@@ -39,6 +39,9 @@ function MembersWorkbench() {
   const sequence = useRef(0);
   useEffect(() => { const counter = sequence; alive.current = true; return () => { alive.current = false; counter.current++; }; }, []);
   const [members, setMembers] = useState<WorkspaceMember[]>([]);
+  const [nextAfter, setNextAfter] = useState<string | null>(null);
+  const [total, setTotal] = useState<number | null>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [workspaceId, setWorkspaceId] = useState<string | null>(null);
   const [currentRole, setCurrentRole] = useState<WorkspaceRole>("viewer");
   const [managementSupported, setManagementSupported] = useState(true);
@@ -49,7 +52,7 @@ function MembersWorkbench() {
   const [error, setError] = useState<string | null>(null);
 
   const canManage =
-    managementSupported && authMode === "authenticated" && (currentRole === "owner" || currentRole === "admin");
+    !loading && !loadingMore && !error && managementSupported && authMode === "authenticated" && (currentRole === "owner" || currentRole === "admin");
 
   const loadMembers = useCallback(async () => {
     if (authMode === "authenticated" && !boundWorkspaceId) return;
@@ -63,6 +66,9 @@ function MembersWorkbench() {
       if (!alive.current || current !== sequence.current) return;
       setWorkspaceId(response.workspace_id);
       setMembers(response.members);
+      setNextAfter(response.next_after ?? null);
+      setTotal(response.total_is_exact === true ? response.total : null);
+      setLoadingMore(false);
       setCurrentRole(workspace.role);
       setManagementSupported(response.management_supported !== false);
       setError(null);
@@ -83,19 +89,37 @@ function MembersWorkbench() {
     void loadMembers();
   }, [authMode, loadMembers]);
 
+  const loadMore = async () => {
+    if (!nextAfter || loading || loadingMore || savingUserId) return;
+    const after = nextAfter;
+    const current = ++sequence.current;
+    setLoadingMore(true);
+    try {
+      const response = await listCurrentWorkspaceMembers(context, { after });
+      if (!alive.current || current !== sequence.current) return;
+      if (response.next_after === after) throw new Error("Member pagination did not advance. Refresh and retry.");
+      setMembers(previous => [...new Map([...previous, ...response.members].map(member => [member.user_id, member])).values()]);
+      setNextAfter(response.next_after ?? null);
+      setTotal(response.total_is_exact === true ? response.total : null);
+      setError(null);
+    } catch (err: unknown) {
+      if (alive.current && current === sequence.current) setError(err instanceof Error ? err.message : "Unable to load more members");
+    } finally {
+      if (alive.current && current === sequence.current) setLoadingMore(false);
+    }
+  };
+
   const addMember = async () => {
     if (!canManage || savingUserId || !emailOrUserId.trim()) return;
     setSavingUserId("new");
     try {
-      const member = await addCurrentWorkspaceMember({
+      await addCurrentWorkspaceMember({
         email_or_user_id: emailOrUserId.trim(),
         role: newRole,
       }, context);
       if (!alive.current) return;
-      setMembers((current) => [
-        ...current.filter((item) => item.user_id !== member.user_id),
-        member,
-      ]);
+      await loadMembers();
+      if (!alive.current) return;
       setEmailOrUserId("");
       toast.success("Workspace member added");
     } catch (err) {
@@ -132,7 +156,8 @@ function MembersWorkbench() {
     try {
       await removeCurrentWorkspaceMember(member.user_id, context);
       if (!alive.current) return;
-      setMembers((current) => current.filter((item) => item.user_id !== member.user_id));
+      await loadMembers();
+      if (!alive.current) return;
       toast.success("Workspace member removed");
     } catch (err) {
       if (!alive.current) return;
@@ -174,6 +199,10 @@ function MembersWorkbench() {
           </div>
         </div>
 
+        <button type="button" onClick={() => void loadMembers()} disabled={loading || loadingMore || !!savingUserId}
+          className="mb-4 min-h-11 rounded-xl border border-[var(--border)] px-4 py-2 text-sm font-semibold disabled:opacity-50">
+          Refresh members
+        </button>
         {!managementSupported && (
           <p className="mb-4 rounded-xl border border-[var(--border)] p-4 text-sm text-[var(--text-muted)]">
             Membership is read-only on this bounded Worker. Adding, changing, and removing members is not yet available.
@@ -228,6 +257,11 @@ function MembersWorkbench() {
           </div>
         )}
 
+        {!loading && total !== null && (
+          <p className="mb-3 text-sm text-[var(--text-muted)]" aria-live="polite">
+            Showing {members.length} loaded members · {total} total members
+          </p>
+        )}
         {loading ? (
           <div className="flex items-center justify-center py-12 text-sm text-[var(--text-muted)]">
             <Loader2 size={18} className="mr-2 animate-spin" />
@@ -241,7 +275,7 @@ function MembersWorkbench() {
           <div className="space-y-2">
             {members.map((member) => {
               const isCurrentUser = member.user_id === authUser?.id;
-              const canManageMember = canManageWorkspaceMember({
+              const canManageMember = canManage && canManageWorkspaceMember({
                 authMode,
                 actorRole: currentRole,
                 actorUserId: authUser?.id,
@@ -302,6 +336,13 @@ function MembersWorkbench() {
               );
             })}
           </div>
+        )}
+        {!loading && nextAfter && (
+          <button type="button" onClick={() => void loadMore()} disabled={loadingMore || !!savingUserId}
+            className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-xl border border-[var(--border)] px-4 py-2 text-sm font-semibold disabled:opacity-50">
+            {loadingMore && <Loader2 size={16} className="animate-spin" />}
+            {loadingMore ? "Loading more members" : "Load more members"}
+          </button>
         )}
       </div>
     </div>

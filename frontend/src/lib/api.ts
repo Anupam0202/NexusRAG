@@ -460,8 +460,15 @@ export async function createWorkspace(
   }, context);
 }
 
-export async function listCurrentWorkspaceMembers(context: ApiRequestContext = {}): Promise<WorkspaceMembersResponse> {
-  return request("/api/v1/workspaces/current/members", undefined, context);
+export async function listCurrentWorkspaceMembers(
+  context: ApiRequestContext = {},
+  options: { after?: string; limit?: number } = {},
+): Promise<WorkspaceMembersResponse> {
+  const params = new URLSearchParams();
+  if (options.after !== undefined) params.set("after", options.after);
+  if (options.limit !== undefined) params.set("limit", String(options.limit));
+  const query = params.toString();
+  return request(`/api/v1/workspaces/current/members${query ? `?${query}` : ""}`, undefined, context);
 }
 
 export async function addCurrentWorkspaceMember(

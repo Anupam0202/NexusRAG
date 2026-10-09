@@ -357,7 +357,9 @@
       "state": "READ_ONLY_INVENTORY_EMPTY"
     },
     "workflows": {
-      "state": "NOT_RECHECKED_DO_NOT_ASSUME_EMPTY"
+      "count": 0,
+      "state": "READ_ONLY_INVENTORY_EMPTY",
+      "evidence": "Cloudflare GET workflows returned HTTP 200, empty result and total_count 0 after the initial ledger snapshot."
     },
     "domains_routes": {
       "zones": 0,
@@ -457,7 +459,7 @@
     "sla_claimed": false
   },
   "proposed_reversible_quarantine": {
-    "status": "OWNER_APPROVAL_REQUIRED",
+    "status": "OWNER_APPROVAL_REQUIRED_ACTIVE_TRAFFIC_OBSERVED",
     "workers": [
       "nexusrag-v6-pr3-frontend",
       "nexusrag-v6-pr3-gateway"
@@ -467,5 +469,61 @@
     "detach_empty_pr3_queue_consumer": true,
     "retain_workers_versions_secrets_queues_data": true,
     "production_resources_modified": false
+  },
+  "browser_retirement_confirmation": {
+    "purpose": "Retirement safety verification, not usage attribution or a traffic trend",
+    "source": "Authenticated Cloudflare Metrics browser GraphQL responses",
+    "profile_grain": "Each raw record is an overlapping dashboard query response, not a unique invocation. Constant source/window labels are capture metadata; query filters establish actual windows. No records are summed across responses.",
+    "findings": {
+      "gateway": {
+        "window_start_inclusive": "2026-10-02T16:28:55Z",
+        "window_end_exclusive": "2026-10-09T16:28:55Z",
+        "filters": {
+          "datetime_geq": "2026-10-02T16:28:55Z",
+          "datetime_lt": "2026-10-09T16:28:55Z",
+          "AND": [
+            {
+              "scriptName": "nexusrag-v6-pr3-gateway"
+            },
+            {
+              "isPreview": 0
+            }
+          ]
+        },
+        "worker": "nexusrag-v6-pr3-gateway",
+        "metric": "workersInvocationsAdaptive",
+        "provider_reported_total": {
+          "errors": 0,
+          "requests": 2355,
+          "subrequests": 7623
+        },
+        "request_status": 200
+      },
+      "frontend": {
+        "window_start_inclusive": "2026-10-02T16:30:04Z",
+        "window_end_exclusive": "2026-10-09T16:30:04Z",
+        "filters": {
+          "datetime_geq": "2026-10-02T16:30:04Z",
+          "datetime_lt": "2026-10-09T16:30:04Z",
+          "AND": [
+            {
+              "scriptName": "nexusrag-v6-pr3-frontend"
+            }
+          ]
+        },
+        "worker": "nexusrag-v6-pr3-frontend",
+        "metric": "workersAssetsRequestsAdaptiveGroups",
+        "provider_reported_total": {
+          "requests": 193
+        },
+        "request_status": 200
+      }
+    },
+    "limitations": [
+      "Invocation aggregates do not distinguish scheduled, queue, HTTP, bot or human events.",
+      "Static asset requests may bypass Worker execution. Zero displayed Worker invocations does not establish zero frontend traffic.",
+      "The two browser windows differ by approximately one minute; no comparison or conversion rate is calculated.",
+      "Metrics availability and adaptive sampling do not prove absence of external dependencies."
+    ]
   }
 }

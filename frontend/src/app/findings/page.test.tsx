@@ -87,4 +87,25 @@ describe("Findings workbench", () => {
     await waitFor(() => expect(screen.queryByText("Saved evidence note")).not.toBeInTheDocument());
     expect(screen.getByLabelText("Authored finding")).toHaveValue("");
   });
+  it("makes reviewers beyond the first roster page selectable without broad eager reads", async () => {
+    api.listCurrentWorkspaceMembers.mockResolvedValueOnce({members: [{user_id: "user-b", display_name: "Reviewer B", role: "editor"}], next_after: "cursor-a"})
+      .mockResolvedValueOnce({members: [{user_id: "user-c", display_name: "Later reviewer", role: "editor"}], next_after: null});
+    render(<FindingsPage />);fireEvent.click(await screen.findByRole("button", {name: /Saved evidence note/}));
+    fireEvent.click(await screen.findByRole("button", {name: "Load more workspace members"}));
+    expect(await screen.findByRole("option", {name: /Later reviewer/})).toBeInTheDocument();
+    expect(api.listCurrentWorkspaceMembers).toHaveBeenLastCalledWith({workspaceId: workspace, expectedUserId: "user-a"}, {after: "cursor-a"});
+    expect(screen.queryByRole("button", {name: "Load more workspace members"})).not.toBeInTheDocument();
+  });
+  it("does not expose a late reviewer page after an account switch", async () => {
+    let finish!: (value: unknown) => void;
+    api.listCurrentWorkspaceMembers.mockResolvedValueOnce({members: [], next_after: "cursor-a"})
+      .mockImplementationOnce(() => new Promise(resolve => {finish = resolve;}));
+    render(<FindingsPage />);fireEvent.click(await screen.findByRole("button", {name: /Saved evidence note/}));
+    fireEvent.click(await screen.findByRole("button", {name: "Load more workspace members"}));
+    api.listFindings.mockResolvedValue({items: [], next_after: null});
+    act(() => useStore.setState({authUser: {id: "user-b", email: null}, workspaceId: "workspace-b"}));
+    await act(async () => finish({members: [{user_id: "old-private", display_name: "Private late reviewer", role: "editor"}], next_after: null}));
+    expect(screen.queryByRole("option", {name: /Private late reviewer/})).not.toBeInTheDocument();
+  });
+
 });

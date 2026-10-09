@@ -34,6 +34,7 @@ function FindingsWorkbench() {
   const [shareUserId, setShareUserId] = useState("");
   const [sharePermission, setSharePermission] = useState<"read" | "contribute">("contribute");
   const [members, setMembers] = useState<WorkspaceMember[]>([]);
+  const [memberAfter, setMemberAfter] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [nextAfter, setNextAfter] = useState<string | null>(null);
@@ -48,13 +49,13 @@ function FindingsWorkbench() {
     let active = true;
     activeIdentity.current = identity;
     setItems([]); setSelected(null); setTitle(""); setMarkdown(""); setError(null);
-    setRole("viewer"); setMembers([]); setNextAfter(null); createKey.current = null;
+    setRole("viewer"); setMembers([]); setMemberAfter(null); setNextAfter(null); createKey.current = null;
     if (authMode !== "authenticated" || !workspaceId) return;
     setBusy(true);
     Promise.all([listFindings({ workspaceId, expectedUserId }), getCurrentWorkspace({ workspaceId, expectedUserId }), listCurrentWorkspaceMembers({ workspaceId, expectedUserId })])
       .then(([response, workspace, membership]) => {
         if (!active) return;
-        setItems(response.items); setNextAfter(response.next_after); setRole(workspace.role); setMembers(membership.members);
+        setItems(response.items); setNextAfter(response.next_after); setRole(workspace.role); setMembers(membership.members); setMemberAfter(membership.next_after ?? null);
       })
       .catch(error => { if (active) setError(error instanceof Error ? error.message : "Unable to load findings."); })
       .finally(() => { if (active) setBusy(false); });
@@ -181,6 +182,14 @@ function FindingsWorkbench() {
               onChange={event => setSharePermission(event.target.value as "read" | "contribute")} disabled={busy}>
               <option value="read">Read only</option><option value="contribute">Edit & independently review</option>
             </select></label>
+            {memberAfter && <button className={button} disabled={busy} onClick={() => void operate(async () => {
+              const after = memberAfter;
+              const response = await listCurrentWorkspaceMembers(context, { after });
+              if (!current()) return;
+              if (response.next_after === after) throw new Error("Member pagination did not advance. Reload and retry.");
+              setMembers(previous => [...new Map([...previous, ...response.members].map(member => [member.user_id, member])).values()]);
+              setMemberAfter(response.next_after ?? null);
+            })}>Load more workspace members</button>}
             <button className={button} disabled={busy || !shareUserId.trim()} onClick={() => void operate(async () => {
               const shared = await shareFinding(selected.id, { user_id: shareUserId.trim(), permission: sharePermission }, context);
               if (current()) { setSelected(shared); setShareUserId(""); }
