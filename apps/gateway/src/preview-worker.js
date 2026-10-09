@@ -13,6 +13,7 @@ import { handleQueue, sweepJobs } from "./worker-jobs.js";
 import { candidateChunkIds, rehydrateEvidence } from "./retrieval-authority.js";
 import { assessAnswer } from "./answer-evidence.js";
 import { handleWorkbench, listFindings } from "./workbench.js";
+import { handleInvitations } from "./workspace-invitations.js";
 import {
   deleteUserGeminiKey,
   getUserGeminiKeyRecord,
@@ -612,6 +613,9 @@ async function handle(request, env = {}) {
         || fail(request, env, "NOT_FOUND", "Finding route not found.", 404);
     }
 
+    const invitationResponse = await handleInvitations({request,env,user,serviceRequest,membership,workspaceId,json,fail});
+    if (invitationResponse) return invitationResponse;
+
     if (url.pathname === "/api/v1/workspaces" && request.method === "POST") return json(request, env, await createWorkspace(request, env, user), 201);
     if (url.pathname === "/api/v1/workspaces" && (request.method === "GET" || request.method === "HEAD")) {
       const limitText = url.searchParams.get("limit") ?? "50";
@@ -649,10 +653,11 @@ async function handle(request, env = {}) {
           !/^[1-9][0-9]{0,2}$/.test(rawLimit) || Number(rawLimit) > 100)
         return fail(request, env, "INVALID_SCOPE", "Choose a valid member cursor and page size from 1 to 100.", 422);
       const limit = Number(rawLimit);
-      const [records, total, schema] = await Promise.all([
+      const [records, total, schema, invitationSchema] = await Promise.all([
         serviceRequest(env, `workspace_members?workspace_id=eq.${id}${after ? `&user_id=gt.${encodeURIComponent(after)}` : ""}&select=user_id,role,created_at,profiles(display_name)&order=user_id.asc&limit=${limit + 1}`),
         countWorkspaceRows(env, "workspace_members", id, "", "user_id"),
         serviceRequest(env, "rpc/nexus_management_version", { method: "POST", body: "{}" }).catch(() => null),
+        serviceRequest(env, "rpc/nexus_invitation_version", { method: "POST", body: "{}" }).catch(() => null),
       ]);
       // Revalidate access after reads: a removed member must not receive a late roster.
       await membership(env, user.id, id);
@@ -660,7 +665,7 @@ async function handle(request, env = {}) {
       const members = records.slice(0, limit).map(({ profiles, ...record }) => ({ ...record, display_name: profiles?.display_name || null }));
       return json(request, env, { workspace_id: id, members, total, total_is_exact: true,
         next_after: more ? members.at(-1).user_id : null, management_supported: schema?.version === "036",
-        invitation_supported: false, add_requires_existing_account: true });
+        invitation_supported: invitationSchema?.version === "040" && invitationSchema.recipient_bound === true && invitationSchema.manual_delivery === true, add_requires_existing_account: true });
     }
     const memberRoute = url.pathname.match(/^\/api\/v1\/workspaces\/current\/members(?:\/([0-9a-f-]{36}))?$/i);
     if (memberRoute && ["POST", "PATCH", "DELETE"].includes(request.method)) {

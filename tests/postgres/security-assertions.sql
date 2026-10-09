@@ -2,7 +2,7 @@
 DO $$ DECLARE n int; BEGIN
  SELECT count(*) INTO n FROM pg_class c JOIN pg_namespace s ON s.oid=c.relnamespace
  WHERE s.nspname='public' AND c.relkind='r' AND c.relrowsecurity;
- IF n<>56 THEN RAISE EXCEPTION 'expected 56 RLS tables, found %',n; END IF;
+ IF n<>57 THEN RAISE EXCEPTION 'expected 57 RLS tables including service-mediated invitations, found %',n; END IF;
  IF has_table_privilege('authenticated','public.provider_registry','select') OR has_table_privilege('anon','public.provider_registry','select') THEN
   RAISE EXCEPTION 'client role unexpectedly reads protected provider table';
  END IF;

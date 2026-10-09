@@ -514,3 +514,31 @@ export async function updateProcessingPolicy(body: import("./processing-policy")
   context: ApiRequestContext = {}): Promise<import("./processing-policy").ProcessingPolicy> {
   return request("/api/v1/privacy/processing-policy", { method: "PATCH", body: JSON.stringify(body) }, context);
 }
+
+// Codes are ephemeral and POST-body-only, never query parameters or persisted browser state.
+export interface WorkspaceInvitation {
+  id: string; workspace_id: string; recipient_email: string;
+  role: Exclude<import('@/types').WorkspaceRole, 'owner'>;
+  state: 'pending' | 'accepted' | 'revoked' | 'expired';
+  expires_at: string; created_at: string; created_by: string;
+}
+export interface InvitationInventory {
+  invitations: WorkspaceInvitation[]; total: number; total_is_exact: true;
+  next_after: string | null; schema_version: '040';
+}
+export function listWorkspaceInvitations(context: ApiRequestContext, after?: string): Promise<InvitationInventory> {
+  return request(`/api/v1/workspaces/current/invitations${after ? `?after=${encodeURIComponent(after)}` : ''}`,undefined,context);
+}
+export function createWorkspaceInvitation(body: {recipient_email: string; role: WorkspaceInvitation['role']; token: string; idempotency_key: string},context: ApiRequestContext): Promise<WorkspaceInvitation> {
+  return request('/api/v1/workspaces/current/invitations',{method:'POST',body:JSON.stringify(body)},context);
+}
+export function revokeWorkspaceInvitation(id: string,context: ApiRequestContext): Promise<{success:boolean}> {
+  return request(`/api/v1/workspaces/current/invitations/${encodeURIComponent(id)}`,{method:'DELETE'},context);
+}
+export function acceptWorkspaceInvitation(token: string,context: ApiRequestContext): Promise<{workspace_id:string; role:string; accepted:true; schema_version:'040'}> {
+  return request('/api/v1/workspaces/invitations/accept',{method:'POST',body:JSON.stringify({token})},{...context,workspaceId:null});
+}
+
+export function getInvitationCapabilities(context: ApiRequestContext): Promise<{invitation_supported:boolean;schema_version?:'040';state?:string}> {
+  return request('/api/v1/workspaces/invitations/capabilities',undefined,{...context,workspaceId:null});
+}

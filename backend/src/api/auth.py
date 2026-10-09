@@ -100,6 +100,7 @@ class WorkspaceMemberResponse(BaseModel):
 
 
 class WorkspaceMembersResponse(BaseModel):
+    invitation_supported: bool = False
     workspace_id: str
     members: list[WorkspaceMemberResponse]
     total: int
@@ -734,6 +735,19 @@ async def list_current_workspace_members(
             status_code=503, detail="Exact workspace member inventory is unavailable."
         ) from exc
 
+    invitation_supported = False
+    try:
+        schema = await supabase.rpc("nexus_invitation_version", {}, service_role=True)
+        invitation_supported = (
+            isinstance(schema, dict)
+            and schema.get("version") == "040"
+            and schema.get("recipient_bound") is True
+            and schema.get("manual_delivery") is True
+        )
+    except (SupabaseNotConfiguredError, httpx.HTTPError, ValueError):
+        # Missing/unavailable invitation authority must not enable controls or
+        # misrepresent the otherwise authorized roster as an empty workspace.
+        pass
     has_more = len(rows) > limit
     rows = rows[:limit]
     members: list[WorkspaceMemberResponse] = []
@@ -776,6 +790,7 @@ async def list_current_workspace_members(
     return WorkspaceMembersResponse(
         workspace_id=context.workspace_id,
         members=members,
+        invitation_supported=invitation_supported,
         total=total,
         next_after=str(rows[-1]["user_id"]) if has_more else None,
     )

@@ -22,6 +22,7 @@ import { useStore } from "@/hooks/useStore";
 import { navigateStatic } from "@/lib/static-navigation";
 import { canManageWorkspaceMember } from "@/lib/workspace-controls";
 import type { WorkspaceMember, WorkspaceRole } from "@/types";
+import { WorkspaceInvitationManager } from "@/components/workspaces/Invitations";
 
 type ManageableRole = Exclude<WorkspaceRole, "owner">;
 
@@ -45,6 +46,7 @@ function MembersWorkbench() {
   const [workspaceId, setWorkspaceId] = useState<string | null>(null);
   const [currentRole, setCurrentRole] = useState<WorkspaceRole>("viewer");
   const [managementSupported, setManagementSupported] = useState(true);
+  const [invitationSupported, setInvitationSupported] = useState(false);
   const [loading, setLoading] = useState(true);
   const [savingUserId, setSavingUserId] = useState<string | null>(null);
   const [emailOrUserId, setEmailOrUserId] = useState("");
@@ -71,6 +73,7 @@ function MembersWorkbench() {
       setLoadingMore(false);
       setCurrentRole(workspace.role);
       setManagementSupported(response.management_supported !== false);
+      setInvitationSupported(response.invitation_supported === true);
       setError(null);
     } catch (err: unknown) {
       if (!alive.current || current !== sequence.current) return;
@@ -214,6 +217,8 @@ function MembersWorkbench() {
           </div>
         )}
 
+        {canManage && invitationSupported && <WorkspaceInvitationManager key={`${expectedUserId}:${boundWorkspaceId}:${currentRole}`} context={context} workspaceRole={currentRole} />}
+        {canManage && !invitationSupported && <p className="mb-4 text-sm text-[var(--text-muted)]">Recipient-bound invitations require verified migration 040 on this environment; existing-account membership controls remain separate.</p>}
         {canManage && (
           <div className="mb-5 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
             <div className="mb-3 flex items-center gap-2">

@@ -94,12 +94,18 @@ async def root() -> dict:
 async def health() -> dict:
     # Process liveness is not tenant inventory or provider readiness. Never
     # initialize models or expose a cross-workspace count to an anonymous probe.
-    return {"status": "healthy", "probe": "liveness", "readiness": "NOT_PROBED", "version": "1.0.0"}
+    return {
+        "status": "healthy",
+        "probe": "liveness",
+        "readiness": "NOT_PROBED",
+        "version": "1.0.0",
+    }
 
 
 # ── Mount Routers ─────────────────────────────────────────────────────────
 
 from src.api.auth import router as auth_router  # noqa: E402
+from src.api.invitations import router as invitation_router  # noqa: E402
 from src.api.evidence_routes import router as evidence_router  # noqa: E402
 from src.api.routes import router as api_router  # noqa: E402
 from src.api.websocket import router as ws_router  # noqa: E402
@@ -107,6 +113,7 @@ from src.api.workspace import router as workspace_router  # noqa: E402
 
 app.include_router(auth_router, prefix="/api/v1")
 app.include_router(workspace_router, prefix="/api/v1")
+app.include_router(invitation_router, prefix="/api/v1")
 app.include_router(evidence_router, prefix="/api/v1")
 app.include_router(api_router, prefix="/api/v1")
 app.include_router(ws_router)

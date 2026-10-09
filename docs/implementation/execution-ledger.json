@@ -2419,6 +2419,29 @@
         "decision_or_access": "Authorize the exact production source, migration plan, retained resources and recovery plan",
         "affected_operation": "Production schema/deployment/cutover and live production acceptance"
       }
+    },
+    {
+      "id": "DEFECT-INVITATIONS",
+      "requirement": "Durable recipient-bound workspace invitation creation, management, acceptance and revocation",
+      "status": "IN_PROGRESS",
+      "environment": "local source; no hosted migration or runtime change approved",
+      "next_action": "Publish the locally tested source for exact-head review/CI; obtain exact candidate frontend/gateway and isolated rehearsal migration040 approval, then prove real OAuth recipient/owner/admin/editor/viewer, cross-tenant, expiry/revoke/replay and fixture-cleanup acceptance. Hosted and production behavior remain unverified.",
+      "acceptance_evidence": [
+        {
+          "environment": "disposable local PostgreSQL17.10, pgvector0.8.2, synthetic Auth/Storage stand-ins",
+          "observed_at": "2026-10-09T22:09:19.802692Z",
+          "source_identity": "parent3ef + migration040 SHA256 ab1cccde2aaf5e128c9d2269b7a80dfc034b9555889af26635ae48eba0e5b92b",
+          "command_or_url": "bash tests/postgres/local-rehearsal.sh; bash tests/postgres/backup-restore.sh",
+          "result": "PASS: recipient binding/grants/roles/expiry/revoke/idempotency/issuer demotion/replay after removal; concurrent16 accept/replay +64 pending-admission calls; backup60tables/93functions. Not hosted OAuth acceptance."
+        },
+        {
+          "environment": "offline backend and gateway wiring",
+          "observed_at": "2026-10-09T22:09:19.802692Z",
+          "source_identity": "parent3ef + recovered invitation source and validation-redaction fix",
+          "command_or_url": "python backend/scripts/run_full_tests.py; npm run test:cloudflare",
+          "result": "PASS:363backend+10subtests;200gateway/no skips. Synthetic auth/mocked transport, not real-user tenant isolation."
+        }
+      ]
     }
   ]
 }

@@ -243,6 +243,7 @@ export interface WorkspaceMember {
 }
 
 export interface WorkspaceMembersResponse {
+  invitation_supported?: boolean;
   management_supported?: boolean;
   workspace_id: string;
   members: WorkspaceMember[];

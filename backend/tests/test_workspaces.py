@@ -112,6 +112,11 @@ class FakeWorkspaceSupabase:
         }
         return 1
 
+    async def rpc(self, name, payload, *, service_role=True):
+        assert name == "nexus_invitation_version"
+        assert service_role is True
+        return {"version": "039"}
+
     async def table_insert(
         self,
         table: str,

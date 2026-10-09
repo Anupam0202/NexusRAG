@@ -7,6 +7,7 @@ import { createWorkspace, listWorkspaces } from "@/lib/api";
 import { useStore } from "@/hooks/useStore";
 import { navigateStatic, reloadStatic } from "@/lib/static-navigation";
 import type { WorkspaceSummary } from "@/types";
+import { InvitationAcceptance } from "@/components/workspaces/Invitations";
 
 export default function WorkspacesPage() {
   const identity = useStore(state => JSON.stringify([state.authMode, state.authUser?.id]));
@@ -130,6 +131,7 @@ function AccountWorkspaces() {
           </div>
         )}
 
+        {authMode === "authenticated" && userId && <InvitationAcceptance context={context} onAccepted={() => void load()} />}
         {authMode === "authenticated" && (
           <form
             onSubmit={create}

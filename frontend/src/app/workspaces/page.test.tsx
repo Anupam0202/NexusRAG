@@ -1,7 +1,8 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 const { createWorkspace, listWorkspaces, setWorkspace, navigate } = vi.hoisted(() => ({ createWorkspace: vi.fn(), listWorkspaces: vi.fn(), setWorkspace: vi.fn(), navigate: vi.fn() }));
-vi.mock("@/lib/api", () => ({ createWorkspace, listWorkspaces }));
+vi.mock("@/lib/api", () => ({
+  getInvitationCapabilities: vi.fn().mockResolvedValue({invitation_supported:false,state:"MIGRATION_REQUIRED"}), createWorkspace, listWorkspaces }));
 vi.mock("@/lib/static-navigation", () => ({ navigateStatic: navigate, reloadStatic: vi.fn() }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn() } }));
 import { useStore } from "@/hooks/useStore";
