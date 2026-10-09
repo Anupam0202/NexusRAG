@@ -17,6 +17,27 @@ class PreviewTargetIsolationTests(unittest.TestCase):
                 self.assertIn("candidate", target[key])
                 self.assertNotIn("pr3", target[key])
 
+    def test_retired_pr_configs_cannot_be_reintroduced(self):
+        repository = Path(__file__).resolve().parents[2]
+        target = resolve_target("refs/heads/main")
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            for name in (target["GATEWAY_CONFIG"], "frontend/" + target["FRONTEND_CONFIG"], "frontend/worker.js"):
+                destination = root / name
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copyfile(repository / name, destination)
+            with patch("scripts.preview_target.ROOT", root):
+                validate_targets()
+                for name in ("frontend/wrangler.pr3.jsonc", "apps/gateway/wrangler.pr3-preview.jsonc"):
+                    with self.subTest(retired_config=name):
+                        destination = root / name
+                        destination.parent.mkdir(parents=True, exist_ok=True)
+                        destination.write_text("{}")
+                        with self.assertRaisesRegex(ValueError, "Retired PR preview configuration"):
+                            validate_targets()
+                        destination.unlink()
+                        validate_targets()
+
     def test_sensitive_query_redaction_is_required_on_both_candidate_workers(self):
         repository = Path(__file__).resolve().parents[2]
         target = resolve_target("refs/heads/main")

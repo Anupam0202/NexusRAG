@@ -32,7 +32,12 @@ def resolve_target(ref: str) -> dict[str, str]:
 
 
 def validate_targets() -> None:
-    """Ensure the canonical candidate config agrees with its unique resources."""
+    """Ensure canonical deployment cannot silently revive retired PR targets."""
+    # Configuration recovery remains available in immutable Git history. Live
+    # resource retirement is separately approved; this guard deletes nothing.
+    for retired in ("frontend/wrangler.pr3.jsonc", "apps/gateway/wrangler.pr3-preview.jsonc"):
+        if (ROOT / retired).exists():
+            raise ValueError(f"Retired PR preview configuration must not be recreated: {retired}")
     resource_keys = (
         "GATEWAY_WORKER",
         "INGESTION_QUEUE",

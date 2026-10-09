@@ -1,135 +1,471 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "product": "NexusRAG Evidence Intelligence OS",
   "profile": "ZERO_COST_LOW_TRAFFIC",
-  "status": "PREVIEW_VERIFIED",
-  "observed_at": "2026-09-20T20:40:00Z",
+  "status": "PARTIAL_NOT_COMPLETE",
+  "observed_at": "2026-10-09T16:11:56.025995+00:00",
+  "observed_source": "b87b88ad9bb653f5ed8a04eaee63f7f73966f0c0",
   "privacy": {
-    "account_identifiers_published": false,
-    "resource_identifiers_published": false,
     "credentials_published": false,
-    "public_preview_url_published": false
+    "customer_records_published": false,
+    "account_identifiers_published": false
   },
   "authority": {
     "business_records": "Supabase",
     "private_originals": "Supabase Storage",
-    "retrieval_index": "Qdrant",
-    "cloudflare_role": "frontend, gateway, request controls, and bounded coordination",
+    "reconstructible_retrieval_index": "Qdrant",
     "cloudflare_coordination_is_authoritative": false
   },
   "inventory": {
     "workers": {
-      "count": 2,
-      "state": "AUTHENTICATED_FRONTEND_AND_GATEWAY_PREVIEW_VERIFIED",
-      "public_health_verified": true,
-      "health_profile": "ZERO_COST_LOW_TRAFFIC",
-      "health_state": "READY",
-      "production_verified": false,
-      "paid_fallback": false,
-      "business_authority": "Supabase",
-      "vector_authority": "Qdrant",
-      "compatibility_date_explicit": true,
-      "compatibility_date": "2026-09-20",
-      "compatibility_flags": [],
-      "binding_count": 9
+      "count": 6,
+      "items": [
+        {
+          "name": "nexusrag-v6-candidate-frontend",
+          "decision": "KEEP_ACTIVE",
+          "active_versions": [
+            {
+              "version_id": "5db33e20-dcc8-4b51-ae8e-ceabe0a8c9a7",
+              "percentage": 100
+            }
+          ],
+          "latest_version": "5db33e20-dcc8-4b51-ae8e-ceabe0a8c9a7",
+          "source_commit": "2fbc5c98f6859824ebdc4c1f0c0f5d4cb8d2642e",
+          "authority": null,
+          "schedules": [],
+          "retirement_approved": false,
+          "binding_names": [
+            "ASSETS",
+            "SOURCE_COMMIT",
+            "WORKER_SELF_REFERENCE"
+          ],
+          "service_dependencies": [
+            "nexusrag-v6-candidate-frontend"
+          ],
+          "queue_dependencies": [],
+          "vector_collection": null
+        },
+        {
+          "name": "nexusrag-v6-candidate-gateway",
+          "decision": "KEEP_ACTIVE",
+          "active_versions": [
+            {
+              "version_id": "f330d5f0-5389-4ffe-8a7d-ccc1eab29c4d",
+              "percentage": 100
+            }
+          ],
+          "latest_version": "f330d5f0-5389-4ffe-8a7d-ccc1eab29c4d",
+          "source_commit": "46bb14f743a81c1d7095de467bdc53047229aa79",
+          "authority": "https://ukgjygzfhyvnrsecdcuu.supabase.co",
+          "schedules": [
+            {
+              "cron": "*/5 * * * *",
+              "created_on": "2026-09-24T20:11:42.902095Z",
+              "modified_on": "2026-09-25T19:10:50.63693Z"
+            }
+          ],
+          "retirement_approved": false,
+          "binding_names": [
+            "FRONTEND_ORIGIN",
+            "GEMINI_USER_KEY_ENCRYPTION_SECRET",
+            "GOOGLE_API_KEY",
+            "INGESTION_QUEUE",
+            "QDRANT_API_KEY",
+            "QDRANT_COLLECTION",
+            "QDRANT_URL",
+            "RUNTIME_SERVICE_NAME",
+            "SOURCE_COMMIT",
+            "SUPABASE_PUBLISHABLE_KEY",
+            "SUPABASE_SERVICE_ROLE_KEY",
+            "SUPABASE_URL"
+          ],
+          "service_dependencies": [],
+          "queue_dependencies": [
+            "nexusrag-v6-candidate-ingestion"
+          ],
+          "vector_collection": "nexusrag-v6-candidate"
+        },
+        {
+          "name": "nexusrag-v6-frontend-preview",
+          "decision": "KEEP_ACTIVE",
+          "active_versions": [
+            {
+              "version_id": "dbae2b54-3200-46ae-a3cd-0b0cac27a898",
+              "percentage": 100
+            }
+          ],
+          "latest_version": "03c48d25-d2e1-4b70-91f6-e526eb060026",
+          "source_commit": null,
+          "authority": null,
+          "schedules": [],
+          "retirement_approved": false,
+          "binding_names": [
+            "ASSETS",
+            "WORKER_SELF_REFERENCE"
+          ],
+          "service_dependencies": [
+            "nexusrag-v6-frontend-preview"
+          ],
+          "queue_dependencies": [],
+          "vector_collection": null
+        },
+        {
+          "name": "nexusrag-v6-pr3-frontend",
+          "decision": "RETIRE_CANDIDATE",
+          "active_versions": [
+            {
+              "version_id": "1b965250-4c41-4f74-9fee-1a82b1c8b80d",
+              "percentage": 100
+            }
+          ],
+          "latest_version": "1b965250-4c41-4f74-9fee-1a82b1c8b80d",
+          "source_commit": null,
+          "authority": null,
+          "schedules": [],
+          "retirement_approved": false,
+          "binding_names": [
+            "ASSETS",
+            "WORKER_SELF_REFERENCE"
+          ],
+          "service_dependencies": [
+            "nexusrag-v6-pr3-frontend"
+          ],
+          "queue_dependencies": [],
+          "vector_collection": null,
+          "workers_dev": {
+            "enabled": true,
+            "previews_enabled": true
+          }
+        },
+        {
+          "name": "nexusrag-v6-pr3-gateway",
+          "decision": "RETIRE_CANDIDATE",
+          "active_versions": [
+            {
+              "version_id": "25228659-dbda-44e5-b63c-6c742daaba54",
+              "percentage": 100
+            }
+          ],
+          "latest_version": "25228659-dbda-44e5-b63c-6c742daaba54",
+          "source_commit": "443290ef4c627748b46f4d01ea69d26fb0ff3932",
+          "authority": "https://ukgjygzfhyvnrsecdcuu.supabase.co",
+          "schedules": [
+            {
+              "cron": "*/5 * * * *",
+              "created_on": "2026-09-25T18:25:04.886816Z",
+              "modified_on": "2026-09-25T20:48:34.047634Z"
+            }
+          ],
+          "retirement_approved": false,
+          "binding_names": [
+            "FRONTEND_ORIGIN",
+            "GEMINI_USER_KEY_ENCRYPTION_SECRET",
+            "GOOGLE_API_KEY",
+            "INGESTION_QUEUE",
+            "QDRANT_API_KEY",
+            "QDRANT_COLLECTION",
+            "QDRANT_URL",
+            "RUNTIME_SERVICE_NAME",
+            "SOURCE_COMMIT",
+            "SUPABASE_PUBLISHABLE_KEY",
+            "SUPABASE_SERVICE_ROLE_KEY",
+            "SUPABASE_URL"
+          ],
+          "service_dependencies": [],
+          "queue_dependencies": [
+            "nexusrag-v6-pr3-ingestion"
+          ],
+          "vector_collection": "nexusrag-v6-pr3",
+          "workers_dev": {
+            "enabled": true,
+            "previews_enabled": false
+          }
+        },
+        {
+          "name": "nexusrag-v6-preview-gateway",
+          "decision": "KEEP_ACTIVE",
+          "active_versions": [
+            {
+              "version_id": "cd25c30b-6003-4df6-be85-4683bd2a610a",
+              "percentage": 100
+            }
+          ],
+          "latest_version": "95edecec-9fe4-4089-ab2c-c7a3cd528c68",
+          "source_commit": null,
+          "authority": "https://fcjaomiceajcdownarel.supabase.co",
+          "schedules": [
+            {
+              "cron": "*/5 * * * *",
+              "created_on": "2026-09-22T19:36:30.527514Z",
+              "modified_on": "2026-09-25T13:03:11.688923Z"
+            }
+          ],
+          "retirement_approved": false,
+          "binding_names": [
+            "FRONTEND_ORIGIN",
+            "GOOGLE_API_KEY",
+            "INGESTION_QUEUE",
+            "QDRANT_API_KEY",
+            "QDRANT_COLLECTION_PREFIX",
+            "QDRANT_URL",
+            "SUPABASE_PUBLISHABLE_KEY",
+            "SUPABASE_SECRET_KEY",
+            "SUPABASE_SERVICE_ROLE_KEY",
+            "SUPABASE_URL"
+          ],
+          "service_dependencies": [],
+          "queue_dependencies": [
+            "nexusrag-v6-preview-ingestion"
+          ],
+          "vector_collection": null
+        }
+      ]
     },
-    "pages_projects": {
-      "count": 0,
-      "state": "NOT_CONFIGURED"
+    "queues": {
+      "count": 6,
+      "items": [
+        {
+          "name": "nexusrag-v6-candidate-ingestion",
+          "decision": "KEEP_ACTIVE",
+          "backlog_snapshot": {
+            "backlog_count": 0,
+            "backlog_bytes": 0,
+            "oldest_message_timestamp_ms": 0
+          },
+          "consumers": [
+            {
+              "script": "nexusrag-v6-candidate-gateway",
+              "dead_letter_queue": "nexusrag-v6-candidate-ingestion-dlq",
+              "type": "worker"
+            }
+          ],
+          "producers": [
+            {
+              "script": "nexusrag-v6-candidate-gateway",
+              "type": "worker"
+            }
+          ],
+          "retirement_approved": false
+        },
+        {
+          "name": "nexusrag-v6-candidate-ingestion-dlq",
+          "decision": "KEEP_ACTIVE",
+          "backlog_snapshot": {
+            "backlog_count": 0,
+            "backlog_bytes": 0,
+            "oldest_message_timestamp_ms": 0
+          },
+          "consumers": [],
+          "producers": [],
+          "retirement_approved": false
+        },
+        {
+          "name": "nexusrag-v6-pr3-ingestion",
+          "decision": "RETIRE_CANDIDATE",
+          "backlog_snapshot": {
+            "backlog_count": 0,
+            "backlog_bytes": 0,
+            "oldest_message_timestamp_ms": 0
+          },
+          "consumers": [
+            {
+              "script": "nexusrag-v6-pr3-gateway",
+              "dead_letter_queue": "nexusrag-v6-pr3-ingestion-dlq",
+              "type": "worker"
+            }
+          ],
+          "producers": [
+            {
+              "script": "nexusrag-v6-pr3-gateway",
+              "type": "worker"
+            }
+          ],
+          "retirement_approved": false
+        },
+        {
+          "name": "nexusrag-v6-pr3-ingestion-dlq",
+          "decision": "RETIRE_CANDIDATE",
+          "backlog_snapshot": {
+            "backlog_count": 0,
+            "backlog_bytes": 0,
+            "oldest_message_timestamp_ms": 0
+          },
+          "consumers": [],
+          "producers": [],
+          "retirement_approved": false
+        },
+        {
+          "name": "nexusrag-v6-preview-ingestion",
+          "decision": "KEEP_ACTIVE",
+          "backlog_snapshot": {
+            "backlog_count": 0,
+            "backlog_bytes": 0,
+            "oldest_message_timestamp_ms": 0
+          },
+          "consumers": [
+            {
+              "script": "nexusrag-v6-preview-gateway",
+              "dead_letter_queue": "nexusrag-v6-preview-ingestion-dlq",
+              "type": "worker"
+            }
+          ],
+          "producers": [
+            {
+              "script": "nexusrag-v6-preview-gateway",
+              "type": "worker"
+            }
+          ],
+          "retirement_approved": false
+        },
+        {
+          "name": "nexusrag-v6-preview-ingestion-dlq",
+          "decision": "KEEP_ACTIVE",
+          "backlog_snapshot": {
+            "backlog_count": 0,
+            "backlog_bytes": 0,
+            "oldest_message_timestamp_ms": 0
+          },
+          "consumers": [],
+          "producers": [],
+          "retirement_approved": false
+        }
+      ],
+      "warning": "A zero backlog snapshot is not permission to delete a queue or its DLQ."
     },
-    "d1_databases": {
+    "kv": {
       "count": 0,
-      "state": "NOT_CONFIGURED"
+      "state": "READ_ONLY_INVENTORY_EMPTY"
+    },
+    "d1": {
+      "count": 0,
+      "state": "READ_ONLY_INVENTORY_EMPTY"
     },
     "r2": {
       "state": "ACCOUNT_FEATURE_NOT_ENABLED",
-      "used_by_selected_architecture": false
+      "enablement_authorized": false
     },
-    "kv_namespaces": {
+    "pages": {
       "count": 0,
-      "state": "NOT_CONFIGURED"
+      "state": "READ_ONLY_INVENTORY_EMPTY"
     },
-    "queues": {
+    "vectorize": {
       "count": 0,
-      "state": "NOT_CONFIGURED"
+      "state": "READ_ONLY_INVENTORY_EMPTY"
+    },
+    "hyperdrive": {
+      "count": 0,
+      "state": "READ_ONLY_INVENTORY_EMPTY"
     },
     "workflows": {
-      "count": 0,
-      "state": "NOT_CONFIGURED"
+      "state": "NOT_RECHECKED_DO_NOT_ASSUME_EMPTY"
     },
-    "vectorize_indexes": {
-      "count": 0,
-      "state": "NOT_CONFIGURED",
-      "used_by_selected_architecture": false
-    },
-    "hyperdrive_configs": {
-      "count": 0,
-      "state": "NOT_CONFIGURED"
-    },
-    "workers_dev_subdomain": {
-      "state": "CREATED",
-      "public_preview_url_available": true,
-      "worker_enabled": true,
-      "preview_aliases_enabled": false
+    "domains_routes": {
+      "zones": 0,
+      "worker_custom_domains": 0,
+      "state": "READ_ONLY_INVENTORY_EMPTY"
     }
   },
-  "zero_cost_controls": {
-    "configuration": "config/zero-cost/cloudflare.free.json",
-    "decision_matrix": "docs/architecture/CLOUDFLARE_DECISION_MATRIX.json",
-    "unknown_quotas_fail_closed": true,
-    "paid_fallback": false,
-    "workers_ai_enabled": false,
-    "admission_thresholds_percent": [
-      50,
-      70,
-      85,
-      95,
-      100
-    ]
+  "dependencies": {
+    "supabase": [
+      {
+        "project": "fcjaomiceajcdownarel",
+        "role": "production_application",
+        "decision": "KEEP_ACTIVE",
+        "status": "ACTIVE_HEALTHY",
+        "public_tables": 56,
+        "public_functions": 79,
+        "all_public_table_rls_flags": true,
+        "private_documents_bucket": true,
+        "edge_functions": 0,
+        "development_branches": 0,
+        "policy_version_function_present": false,
+        "warning": "Older migration registry; no production reconciliation is approved."
+      },
+      {
+        "project": "ukgjygzfhyvnrsecdcuu",
+        "role": "isolated_rehearsal",
+        "decision": "KEEP_REQUIRED_TEST",
+        "status": "ACTIVE_HEALTHY",
+        "public_tables": 56,
+        "public_functions": 88,
+        "all_public_table_rls_flags": true,
+        "private_documents_bucket": true,
+        "edge_functions": 0,
+        "development_branches": 0,
+        "latest_registered_migration": "20261008184100 canonical_service_role_processing_authority",
+        "cleanup_precheck": {
+          "ingestion_jobs": 0,
+          "active_job_leases": 0,
+          "pending_outbox": 0,
+          "document_uploads": 0,
+          "customer_content_read": false
+        }
+      }
+    ],
+    "qdrant": {
+      "observed_clusters": 1,
+      "cluster_name": "NexusRAG",
+      "console_state": "Healthy",
+      "plan": "Free",
+      "version": "1.19.1",
+      "decision": "KEEP_ACTIVE",
+      "collection_inventory": "UNRESOLVED_DO_NOT_TOUCH",
+      "cluster_ui_access": "FAILED_TO_LOAD",
+      "previous_inactivity_suspension": true
+    }
   },
-  "validated": [
-    "Cloudflare compatibility contract tests",
-    "public gateway health response",
-    "explicit Worker compatibility date",
-    "degraded-state honesty",
-    "fail-closed unknown quota behavior",
-    "no hidden paid fallback",
-    "non-authoritative coordination boundary",
-    "current recurring-free allowance configuration",
-    "OpenNext frontend deployment with Workers Static Assets",
-    "homepage, Evidence OS, and gateway health smoke checks",
-    "zero automated WCAG 2 A/AA violations on Chat and Evidence OS routes",
-    "desktop and mobile full-page visual regression baselines",
-    "current provider rights register with zero recurring connectors enabled",
-    "D1 permission-check resource deletion and zero remaining D1 databases",
-    "5%/95% live percentage canary with 25 successful probes",
-    "100% rollback to last known-good with route probes",
-    "100% restoration of validated current version",
-    "Cloudflare account 2FA enabled",
-    "GitHub OAuth callback on Cloudflare preview",
-    "authenticated workspace listing and selection",
-    "owner capability discovery",
-    "bounded Evidence API reads",
-    "cross-workspace API denial",
-    "read-only capability-scoped MCP operation surface"
+  "repository_cleanup": {
+    "removed_unreferenced_configs": [
+      "frontend/wrangler.pr3.jsonc",
+      "apps/gateway/wrangler.pr3-preview.jsonc"
+    ],
+    "recovery_source": "b87b88ad9bb653f5ed8a04eaee63f7f73966f0c0",
+    "recreation_guard": "scripts/preview_target.py",
+    "live_resources_removed": [],
+    "validation": {
+      "script_tests": 44,
+      "gateway_tests": 158,
+      "gateway_skips": 0,
+      "foundation_check": "passed",
+      "secret_scan_candidates": 4,
+      "secret_scan_review": "All four are verified public Git commit identifiers; no suppression.",
+      "final_scan_candidate_count": 5,
+      "final_scan_review": "Four public commit IDs plus an explanatory metadata sentence; no credentials or suppression."
+    }
+  },
+  "critical_boundaries": [
+    "Shared Preview active gateway uses production even though latest uploaded gateway uses rehearsal.",
+    "PR3 gateway still has an active five-minute schedule against rehearsal; retirement is not yet approved.",
+    "Secret bindings cannot be recovered from a Worker module export; preserve escrow/provisioning and stable encryption-key continuity before deletion.",
+    "Supabase RLS flags do not prove role/Storage isolation.",
+    "No production deployment, rights decision, credential rotation or paid resource enablement is approved.",
+    "Source sweepJobs selects all due ingestion jobs in its Supabase project without runtime-target filtering; old PR3 and candidate scheduled workers share rehearsal authority but different vector collections. No jobs were observed in rehearsal; retire duplicate dispatch before new fixture ingestion."
   ],
-  "blocked": [
-    "Production custom-domain cutover is unavailable because no Cloudflare zone is connected; Workers.dev is the approved Preview origin"
-  ],
-  "next_safe_actions": [
-    "Verify authenticated multi-user browser workflows with controlled identities",
-    "Add only resources justified by recurring free allowances",
-    "Keep Supabase and Qdrant as the sole selected authorities"
+  "required_before_live_retirement": [
+    "Owner confirmation of consumers and continued use",
+    "Fresh inbound route/OAuth/service-binding/usage checks",
+    "No pending DB jobs/leases/outbox work for the retired environment",
+    "Fresh empty queue/DLQ checks after producers are stopped",
+    "Verified recoverable code/configuration and secret provisioning",
+    "Exact-resource owner approval and final drift guard"
   ],
   "claims": {
-    "gateway_health_verified": true,
-    "compatibility_date_verified": true,
-    "production_verified": false,
-    "preview_verified": true,
     "complete": false,
+    "production_verified": false,
+    "whole_platform_cleanup_verified": false,
+    "persisted_query_redaction": "NOT_PROVEN",
     "sla_claimed": false
   },
-  "account_security": {
-    "two_factor_authentication": "ENABLED_VERIFIED"
+  "proposed_reversible_quarantine": {
+    "status": "OWNER_APPROVAL_REQUIRED",
+    "workers": [
+      "nexusrag-v6-pr3-frontend",
+      "nexusrag-v6-pr3-gateway"
+    ],
+    "disable_workers_dev_and_preview_urls": true,
+    "remove_pr3_gateway_cron": "*/5 * * * *",
+    "detach_empty_pr3_queue_consumer": true,
+    "retain_workers_versions_secrets_queues_data": true,
+    "production_resources_modified": false
   }
 }
