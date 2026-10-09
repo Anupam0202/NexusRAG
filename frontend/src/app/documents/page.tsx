@@ -18,6 +18,8 @@ export default function DocumentsPage() {
   return <WorkspaceDocuments key={identity} />;
 }
 function WorkspaceDocuments() {
+  const workspaceId = useStore(state => state.workspaceId);
+  const userId = useStore(state => state.authUser?.id);
   const {
     documents,
     loading,
@@ -36,8 +38,14 @@ function WorkspaceDocuments() {
   const [selectedDocument, setSelectedDocument] = useState<DocumentMetadata | null>(null);
 
   useEffect(() => {
+    if (!canAccessWorkspaceApi || (authMode === "authenticated" && (!workspaceId || !userId))) {
+      setLimits(DEFAULT_UPLOAD_LIMITS);
+      return;
+    }
     let active = true;
-    getSystemStatus()
+    getSystemStatus(authMode === "authenticated"
+      ? { workspaceId, expectedUserId: userId }
+      : {})
       .then((status) => {
         if (!active) return;
         const settings = status.settings;
@@ -64,7 +72,7 @@ function WorkspaceDocuments() {
       })
       .catch(() => { if (active) setLimits(DEFAULT_UPLOAD_LIMITS); });
     return () => { active = false; };
-  }, [authMode, canAccessWorkspaceApi]);
+  }, [authMode, canAccessWorkspaceApi, workspaceId, userId]);
 
   return (
     <div className="h-full overflow-y-auto">
