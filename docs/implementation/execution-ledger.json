@@ -13,6 +13,50 @@
   "interpretation": "OPEN_ENGINEERING includes implemented but not fully accepted requirements; it does not assert that no code or scoped evidence exists. External approvals do not close unfinished internal work.",
   "entries": [
     {
+      "id": "DEFECT-WORKSPACE-ACTOR-CONTRACT",
+      "requirement": "Workspace authority responses identify the authenticated actor so document mutations can enforce the client identity fence",
+      "normative_source": "Owner end-user workflow mandate; accepted R and A registers",
+      "status": "IN_PROGRESS",
+      "environment": "batch007 local gateway/frontend; old deployed candidate not patched",
+      "next_action": "Recover exact saved source, verify protected CI, then approved candidate rollout and real owner/editor/viewer document workflow checks. Preserve all actor/membership guards.",
+      "acceptance_evidence": [
+        {
+          "environment": "existing candidate Chrome read-only UI plus offline actual gateway handler and component transports",
+          "observed_at": "2026-10-10T20:58:32Z",
+          "source_identity": "parent2b1d48b plus batch007 actor-response patch; final manifest binds saved source",
+          "command_or_url": "tests/cloudflare/workspace-discovery.test.mjs; useDocuments.test.tsx; candidate document UI",
+          "result": "Five gateway assertions failed before fix,273gateway and319frontend pass after. Server-derived user_id added, client missing/foreign actor remains denied. Not deployed or real mutation acceptance."
+        }
+      ]
+    },
+    {
+      "id": "DEFECT-MOBILE-FOCUS-VERIFICATION",
+      "requirement": "Mobile modal focus stays contained across browser link-tab preferences; verification fixtures preserve normative closure checks across ledger order and Windows encoding",
+      "normative_source": "Owner comprehensive user/recovery mandate; accepted accessibility and verification registers",
+      "status": "IN_PROGRESS",
+      "environment": "batch007 local unit/script and public browser; exact-head CI/recovery pending source save",
+      "next_action": "Prove fresh saved-source recovery and Linux exact-head cross-browser CI. Retain Windows teardown failure and missing visual-baseline limitations without weakening gates.",
+      "acceptance_evidence": [
+        {
+          "environment": "local Next/Worker mobileWebKit, Chromium desktop/emulated mobile, fresh fixture reruns",
+          "observed_at": "2026-10-10T20:58:32Z",
+          "source_identity": "parent2b1d48b plus batch007 focus/test corrections",
+          "command_or_url": "public-smoke.spec.ts keyboard tests; Sidebar.test.tsx; tests/scripts; lint-scope.test.ts",
+          "result": "Two mobileWebKit keyboard cases pass per runtime;46Next/50Worker Chromium and79scripts pass. Broad69assertion cross-Next hangs teardown and is stopped exit1, not accepted PASS."
+        }
+      ]
+    },
+    {
+      "id": "DEFECT-PRODUCTION-IDENTITY-READINESS",
+      "requirement": "Production rollout must bind exact gateway source and distinguish public configuration metadata from independently proven readiness",
+      "normative_source": "Owner production acceptance evidence mandate",
+      "status": "OPEN_ENGINEERING",
+      "environment": "production deployment source contract, not executed",
+      "next_action": "Resolve RELEASE_SHA versus SOURCE_COMMIT injection and READY versus CONFIGURED/NOT_PROBED verification using a strict separate identity/acceptance contract. Do not relax closure or image gates.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Read .github/workflows/production-deploy.yml lines103/121 and apps/gateway/src/preview-worker.js public health contract. No hosted rollout attempted."
+    },
+    {
       "id": "DEFECT-AUTH-RECOVERY",
       "requirement": "Workspace-independent account security and membership bootstrap remain reachable; callback waits are bounded and recovery preserves a safe destination",
       "normative_source": "Owner end-user authentication/recovery mandate; accepted A and S registers",

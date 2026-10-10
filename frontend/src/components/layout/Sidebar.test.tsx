@@ -47,4 +47,21 @@ describe("Accessible navigation", () => {
     view.unmount();
     expect(document.body.style.overflow).not.toBe("hidden");
   });
+
+  it("moves every Tab explicitly so browser link-tabbing preferences cannot escape the dialog", async () => {
+    fixture();
+    fireEvent.click(screen.getByRole("button", { name: "Open navigation menu" }));
+    const dialog = screen.getByRole("dialog", { name: "Navigation menu" });
+    const dismiss = screen.getByRole("button", { name: "Dismiss navigation menu" });
+    await waitFor(() => expect(dismiss).toHaveFocus());
+    const nodes = Array.from(dialog.querySelectorAll<HTMLElement>('a[href],button:not([disabled]),[tabindex]:not([tabindex="-1"])'));
+    for (let index = 1; index <= nodes.length; index++) {
+      const event = new KeyboardEvent("keydown", { key: "Tab", bubbles: true, cancelable: true });
+      document.dispatchEvent(event);
+      expect(event.defaultPrevented).toBe(true);
+      expect(nodes[index % nodes.length]).toHaveFocus();
+    }
+    fireEvent.keyDown(document, { key: "Tab", shiftKey: true });
+    expect(nodes[nodes.length - 1]).toHaveFocus();
+  });
 });

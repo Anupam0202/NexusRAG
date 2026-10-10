@@ -649,7 +649,7 @@ async function handle(request, env = {}) {
       if (!id) throw Object.assign(new Error("Create a workspace to continue."), { status: 404, code: "WORKSPACE_NOT_FOUND" });
       const member = await membership(env, user.id, id);
       const rows = await serviceRequest(env, `workspaces?id=eq.${id}&select=id,name,slug,plan,lifecycle_state,created_at&limit=1`);
-      return json(request, env, { ...(rows[0] || {}), workspace_id: id, role: member.role });
+      return json(request, env, { ...(rows[0] || {}), workspace_id: id, role: member.role, user_id: user.id });
     }
 
     if (url.pathname === "/api/v1/workspaces/current/members" && (request.method === "GET" || request.method === "HEAD")) {

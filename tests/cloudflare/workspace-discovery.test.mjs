@@ -51,6 +51,24 @@ test('default discovery filters inactive membership before selecting its first w
   throw Error('Unexpected request');
  });
  const r=await handle(new Request('https://gateway.invalid/api/v1/workspaces/current',{headers:{authorization:'Bearer synthetic'}}),env);
- assert.equal(r.status,200);assert.equal((await r.json()).workspace_id,ids[1]);
+ assert.equal(r.status,200);const authority=await r.json();assert.equal(authority.workspace_id,ids[1]);assert.equal(authority.user_id,user);
  assert.equal(calls.filter(u=>u.pathname.endsWith('workspace_members')).length,2);
+});
+
+for(const role of ['owner','admin','editor','viewer'])test(`current workspace returns server-derived actor authority for ${role}`,async t=>{
+ const foreign='66666666-6666-4666-8666-666666666666';
+ t.mock.method(globalThis,'fetch',async url=>{
+  const u=new URL(url);
+  if(u.pathname==='/auth/v1/user')return Response.json({id:user});
+  if(u.pathname==='/rest/v1/workspace_members'){
+   assert.equal(u.searchParams.get('user_id'),`eq.${user}`);
+   assert.equal(u.searchParams.get('workspace_id'),`eq.${ids[1]}`);
+   return Response.json([{workspace_id:ids[1],user_id:user,role}]);
+  }
+  if(u.pathname==='/rest/v1/workspaces')return Response.json([{id:ids[1],name:'Active workspace',user_id:foreign}]);
+  throw Error('Unexpected request');
+ });
+ const r=await handle(new Request('https://gateway.invalid/api/v1/workspaces/current',{headers:{authorization:'Bearer synthetic','x-nexus-workspace-id':ids[1],'x-user-id':foreign}}),env);
+ assert.equal(r.status,200);const authority=await r.json();
+ assert.equal(authority.workspace_id,ids[1]);assert.equal(authority.role,role);assert.equal(authority.user_id,user);
 });

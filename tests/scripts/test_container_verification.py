@@ -33,7 +33,7 @@ class ContainerVerificationTests(unittest.TestCase):
         self.assertIn('args:', compose)
 
     def test_backend_model_is_immutable_and_image_is_non_root(self):
-        dockerfile = (ROOT / 'backend/Dockerfile').read_text()
+        dockerfile = (ROOT / 'backend/Dockerfile').read_text(encoding='utf-8')
         self.assertRegex(dockerfile, r'ENV EMBEDDING_REVISION=[a-f0-9]{40}\b')
         self.assertIn("revision=os.environ['EMBEDDING_REVISION']", dockerfile)
         self.assertIn('trust_remote_code=False', dockerfile)
