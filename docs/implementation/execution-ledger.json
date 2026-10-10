@@ -2347,7 +2347,7 @@
       "requirement": "Unsuppressed maintained-stable backend runtime image passes the mandatory medium-and-higher gate",
       "normative_source": ".github/workflows/container-verification.yml",
       "status": "FAILED",
-      "environment": "exact 59a454725fee5d402ce91f70b352353eae293687 GitHub image job 113953898006",
+      "environment": "exact cda71113604d2430eefd6f4e23f863cd797055c3 GitHub image job114051241841",
       "next_action": "Remediate actual installed package findings with compatible maintained components and rerun the real image; reconcile CNA/scanner range discrepancies without changing acceptance policy.",
       "acceptance_evidence": [],
       "observed_failure": {
@@ -2362,7 +2362,10 @@
           "not-fixed": 47,
           "fixed": 2
         },
-        "url": "https://github.com/Anupam0202/NexusRAG/actions/runs/37970000673/job/113953898006"
+        "url": "https://github.com/Anupam0202/NexusRAG/actions/runs/37998675093/job/114051241841",
+        "raw_sha256": "a2e5a6281ba37eb6bb616ecf1450cbf68e9384f2333e17874c56529353f73c7b",
+        "source_identity": "cda71113604d2430eefd6f4e23f863cd797055c3",
+        "frontend_matches": 0
       }
     },
     {
@@ -2370,8 +2373,8 @@
       "requirement": "Discover only active actor-authorized workspaces, with bounded pages and honest exact totals",
       "normative_source": "Owner identity and accurate-inventory mandate, 2026-10-09",
       "status": "IN_PROGRESS",
-      "environment": "working tree based on 59a454725fee5d402ce91f70b352353eae293687; not deployed",
-      "next_action": "Finish cross-layer paging/race/error regressions, publish exact source, obtain scoped preview permission and verify real OAuth workspace discovery.",
+      "environment": "published3ef3933 source; approved live candidate still2fbc/46bb, new-source hosted acceptance pending",
+      "next_action": "Obtain exact-source isolated candidate approval and verify real OAuth active-workspace discovery, pagination and account races; do not count local synthetic/public checks as hosted private acceptance.",
       "acceptance_evidence": []
     },
     {
@@ -2424,8 +2427,8 @@
       "id": "DEFECT-INVITATIONS",
       "requirement": "Durable recipient-bound workspace invitation creation, management, acceptance and revocation",
       "status": "IN_PROGRESS",
-      "environment": "local source; no hosted migration or runtime change approved",
-      "next_action": "Publish the locally tested source for exact-head review/CI; obtain exact candidate frontend/gateway and isolated rehearsal migration040 approval, then prove real OAuth recipient/owner/admin/editor/viewer, cross-tenant, expiry/revoke/replay and fixture-cleanup acceptance. Hosted and production behavior remain unverified.",
+      "environment": "published33806e9 source; corrected cda7111 PostgreSQL CI rehearsal passed; no hosted040 migration or candidate release",
+      "next_action": "Obtain exact candidate source and isolated rehearsal040 approval, then prove real OAuth recipient/owner/admin/editor/viewer, cross-tenant, expiry/revoke/replay and fixture cleanup. CI PostgreSQL stand-ins are not hosted Auth/Storage acceptance.",
       "acceptance_evidence": [
         {
           "environment": "disposable local PostgreSQL17.10, pgvector0.8.2, synthetic Auth/Storage stand-ins",
@@ -2440,6 +2443,13 @@
           "source_identity": "parent3ef + recovered invitation source and validation-redaction fix",
           "command_or_url": "python backend/scripts/run_full_tests.py; npm run test:cloudflare",
           "result": "PASS:363backend+10subtests;200gateway/no skips. Synthetic auth/mocked transport, not real-user tenant isolation."
+        },
+        {
+          "environment": "GitHub CI disposable PostgreSQL17/Auth-Storage stand-ins",
+          "observed_at": "2026-10-10T07:57:10.095017+00:00",
+          "source_identity": "cda71113604d2430eefd6f4e23f863cd797055c3",
+          "command_or_url": "https://github.com/Anupam0202/NexusRAG/actions/runs/37998674667/job/114051093467",
+          "result": "PASS: actual packaged baseline-plus040 migration/concurrency rehearsal and protected summary. Not a hosted Supabase migration or OAuth/Storage acceptance."
         }
       ]
     },
@@ -2447,8 +2457,8 @@
       "id": "DEFECT-RATE-LIMIT-CAPACITY",
       "requirement": "Bound per-process IP rate-limit tracking without evicting live history or extending denied-request lifetimes",
       "status": "IN_PROGRESS",
-      "environment": "retained Python backend local source; not deployed load/distributed-quota acceptance",
-      "next_action": "Publish bounded monotonic sliding-window tracking and exact CI packaging repair; verify exact-head backend/image CI and retain independent distributed quota authority. No live load/production claim.",
+      "environment": "publishedcda7111 Python source, follow-up locally tested; no deployed load/distributed-quota acceptance",
+      "next_action": "Keep exact-head backend/image checks; verify bounded deployed load when this retained runtime is approved. Do not substitute per-process protection for durable workspace quotas.",
       "acceptance_evidence": [
         {
           "environment": "offline deterministic backend regressions",
@@ -2456,6 +2466,23 @@
           "source_identity": "parent33806e9 + bounded middleware source",
           "command_or_url": "python backend/scripts/run_full_tests.py; python backend/scripts/run_isolated.py",
           "result": "PASS:373backend+10subtests;57isolated; address churn/capacity/idle expiry/window/concurrent reservations/slow response; unchanged application request121 denied."
+        }
+      ]
+    },
+    {
+      "id": "DEFECT-PROVIDER-ERROR-PRIVACY",
+      "requirement": "Provider failures and request validation do not reflect credentials/private inputs; unverifiable BYOK is not activated",
+      "normative_source": "Owner security/private-log and fail-closed provider mandate",
+      "status": "IN_PROGRESS",
+      "environment": "Python backend follow-up to cda7111; offline synthetic failure tests only, not deployed or persisted-log acceptance",
+      "next_action": "Publish exact reviewed source and verify new-head CI; continue auditing remaining upload/retrieval/telemetry/log surfaces and prove approved deployed behavior without private customer probes. Cloudflare persisted URL redaction remains NOT_PROVEN.",
+      "acceptance_evidence": [
+        {
+          "environment": "offline Python synthetic provider/error and actual test WebSocket paths",
+          "observed_at": "2026-10-10T07:57:10.095017+00:00",
+          "source_identity": "parentcda7111 plus reviewed targeted privacy fix",
+          "command_or_url": "python backend/scripts/run_full_tests.py; python backend/scripts/run_isolated.py; npm run test:cloudflare",
+          "result": "PASS:399backend+10subtests,57isolated,200gateway/no skips;26new cases include model init/failover, three fallback paths, HTTP/WS validation, actual WebSocket failure/audit, missing SDK and unknown verification failures preventing activation. No provider/network/customer credentials or live log probe."
         }
       ]
     }

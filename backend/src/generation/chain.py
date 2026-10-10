@@ -158,8 +158,8 @@ class RAGChain:
             answer = self._invoke_llm_messages(messages, workspace_id=scoped_workspace_id)
         except Exception as exc:
             generation_fallback = True
-            generation_error = getattr(exc, "message", str(exc))
-            logger.warning("generation_fallback_used", error=generation_error)
+            generation_error = "Generation unavailable; retrieved excerpts only."
+            logger.warning("generation_fallback_used", error_type=type(exc).__name__)
             answer = self._build_extractive_fallback_answer(docs, generation_error)
 
         # Update memory
@@ -266,10 +266,10 @@ class RAGChain:
             answer = self._invoke_llm_messages(messages, workspace_id=scoped_workspace_id)
         except Exception as exc:
             generation_fallback = True
-            generation_error = getattr(exc, "message", str(exc))
+            generation_error = "Generation unavailable; retrieved excerpts only."
             logger.warning(
                 "durable_document_generation_fallback_used",
-                error=generation_error,
+                error_type=type(exc).__name__,
             )
             answer = self._build_extractive_fallback_answer(safe_docs, generation_error)
 
@@ -414,8 +414,8 @@ class RAGChain:
                 yield {"type": "token", "content": token}
         except Exception as exc:
             generation_fallback = True
-            generation_error = getattr(exc, "message", str(exc))
-            logger.warning("stream_generation_fallback_used", error=generation_error)
+            generation_error = "Generation unavailable; retrieved excerpts only."
+            logger.warning("stream_generation_fallback_used", error_type=type(exc).__name__)
             full_answer = self._build_extractive_fallback_answer(docs, generation_error)
             yield {"type": "token", "content": full_answer}
 
@@ -561,7 +561,7 @@ class RAGChain:
             except TypeError:
                 documents = self._vector_store.list_documents()
         except Exception as exc:
-            logger.warning("document_inventory_unavailable", error=str(exc))
+            logger.warning("document_inventory_unavailable", error_type=type(exc).__name__)
             return docs
 
         if not documents:

@@ -179,7 +179,7 @@ async def _persist_stream_history(
             "stream_chat_history_persist_failed",
             workspace_id=workspace_id,
             session_id=durable_session_id,
-            error=str(exc)[:300],
+            error_type=type(exc).__name__,
         )
         return session_id
     return durable_session_id
@@ -310,10 +310,10 @@ async def chat_stream(ws: WebSocket) -> None:
             try:
                 body = QueryRequest.model_validate(data)
                 retrieval_filters = _stream_retrieval_filters(body)
-            except (ValidationError, ValueError) as exc:
+            except (ValidationError, ValueError):
                 await _safe_send(
                     ws,
-                    {"type": "error", "content": f"Invalid chat request: {exc}"},
+                    {"type": "error", "content": "Invalid chat request. Check the entered fields."},
                 )
                 continue
 
@@ -464,7 +464,7 @@ async def chat_stream(ws: WebSocket) -> None:
                         "resource exhausted",
                     )
                 )
-                logger.error("stream_error", error=err_msg, is_quota=is_quota)
+                logger.error("stream_error", error_type=type(exc).__name__, is_quota=is_quota)
                 await telemetry.record_llm_usage(
                     workspace_id=workspace_id,
                     user_id=workspace.user.id if workspace else None,
@@ -493,7 +493,7 @@ async def chat_stream(ws: WebSocket) -> None:
                         "history_messages": len(body.conversation_history),
                         "top_k": body.top_k,
                         "use_reranking": body.use_reranking,
-                        "error": err_msg[:200],
+                        "error_type": type(exc).__name__,
                     },
                     persist=persist_event,
                 )
@@ -503,16 +503,20 @@ async def chat_stream(ws: WebSocket) -> None:
                         {
                             "type": "error",
                             "content": (
-                                "API quota exceeded. Please provide your own "
-                                "Google API key to continue."
+                                "Provider quota reached. Retry after reset or "
+                                "review the authorized provider settings."
                             ),
                             "error_code": "QUOTA_EXCEEDED",
                         },
                     )
                 else:
-                    await _safe_send(ws, {"type": "error", "content": err_msg})
+                    await _safe_send(ws, {
+                        "type": "error",
+                        "content": "Research request failed. Retry or inspect service status.",
+                        "error_code": "RESEARCH_REQUEST_FAILED",
+                    })
 
     except WebSocketDisconnect:
         logger.info("websocket_disconnected")
     except Exception as exc:
-        logger.error("websocket_fatal", error=str(exc))
+        logger.error("websocket_fatal", error_type=type(exc).__name__)

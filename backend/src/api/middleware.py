@@ -17,7 +17,7 @@ from math import ceil
 
 import structlog
 from fastapi import FastAPI, Request, Response
-from fastapi.exceptions import HTTPException
+from fastapi.exceptions import HTTPException, RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
@@ -145,6 +145,18 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 
 
 def register_exception_handlers(app: FastAPI) -> None:
+    @app.exception_handler(RequestValidationError)
+    async def validation_exception_handler(
+        request: Request, exc: RequestValidationError
+    ) -> JSONResponse:
+        # Pydantic errors include submitted inputs, unknown-field names and
+        # validator context. All may contain credentials or private content.
+        # Do not reflect or log them, including for malformed JSON requests.
+        return JSONResponse(
+            {"detail": "Invalid request. Check the entered fields."},
+            status_code=422,
+        )
+
     @app.exception_handler(HTTPException)
     async def http_exception_handler(
         request: Request, exc: HTTPException
@@ -155,7 +167,7 @@ def register_exception_handlers(app: FastAPI) -> None:
     async def rag_exception_handler(
         request: Request, exc: RAGException
     ) -> JSONResponse:
-        logger.error("rag_exception", code=exc.code, message=exc.message)
+        logger.error("rag_exception", code=exc.code, type=type(exc).__name__)
         status = 429 if "RATE_LIMIT" in exc.code else 400
         return JSONResponse(exc.to_dict(), status_code=status)
 
@@ -163,7 +175,8 @@ def register_exception_handlers(app: FastAPI) -> None:
     async def generic_handler(request: Request, exc: Exception) -> JSONResponse:
         if isinstance(exc, HTTPException):
             return JSONResponse({"detail": exc.detail}, status_code=exc.status_code)
-        logger.error("unhandled_exception", error=str(exc), type=type(exc).__name__)
+        # Arbitrary provider/SQL error text may contain keys or document content.
+        logger.error("unhandled_exception", type=type(exc).__name__)
         return JSONResponse(
             {"code": "INTERNAL_ERROR", "message": "An internal error occurred."},
             status_code=500,
