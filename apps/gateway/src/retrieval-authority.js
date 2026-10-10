@@ -1,4 +1,5 @@
 import { sha256 } from "./worker-pipeline.js";
+import { matchesDocumentFilters, matchesChunkFilters } from "./retrieval-filters.js";
 
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export function candidateChunkIds(candidates) {
@@ -9,7 +10,7 @@ export function candidateChunkIds(candidates) {
 // Vector content, names and locators are cache data, never evidence authority.
 // Rehydrate every candidate from current tenant/version authority and hash-check
 // the immutable original before a provider receives any source content.
-export async function rehydrateEvidence({ workspaceId, candidates, chunks, documents, versions }) {
+export async function rehydrateEvidence({ workspaceId, candidates, chunks, documents, versions, filters = {} }) {
   const currentDocuments = new Map(documents.filter(document => document.workspace_id === workspaceId
     && document.lifecycle_state === "active").map(document => [document.id, document]));
   const currentVersions = new Map(versions.filter(version => version.workspace_id === workspaceId
@@ -26,7 +27,8 @@ export async function rehydrateEvidence({ workspaceId, candidates, chunks, docum
     if (!chunk || !document || !version || document.active_version_id !== version.id
         || version.document_id !== document.id || payload.workspace_id !== workspaceId
         || payload.document_id !== document.id || payload.version_id !== version.id
-        || payload.index_generation !== version.index_generation) continue;
+        || payload.index_generation !== version.index_generation
+        || !matchesDocumentFilters(document, filters) || !matchesChunkFilters(chunk, filters)) continue;
     const original = chunk.original_text ?? chunk.content;
     if (typeof original !== "string" || !original.trim()
         || !/^[a-f0-9]{64}$/.test(chunk.original_content_hash ?? "")

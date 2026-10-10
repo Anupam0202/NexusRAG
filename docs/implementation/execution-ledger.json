@@ -2509,6 +2509,23 @@
           "result": "PASS:224gateway/no skips,399backend+10subtests/57isolated combined-source rerun,59script tests, foundation and local-only Worker bundle. Covers exact byte/multibyte boundary, forged length, oversized/stalled cancellation, aborts, stalled/empty streams and frozen-clock fragment capacity, safe malformed UTF-8/JSON, no finding mutation or chat account reservation on overflow. Not a deployment, load benchmark or authenticated hosted acceptance."
         }
       ]
+    },
+    {
+      "id": "DEFECT-AUTHORITATIVE-RETRIEVAL-FILTERS",
+      "requirement": "Exact filename/extension/uploader/date/page/metadata scopes constrain dense and lexical retrieval using current durable tenant/version authority",
+      "normative_source": "Owner complete advanced-filter and trusted research mandate; R19/R20",
+      "status": "IN_PROGRESS",
+      "environment": "local reviewed filter follow-up to2ef7f43e108e183c8a7522086bba775ad0eb01dc; no hosted release",
+      "next_action": "Verify exact-head CI and approved isolated candidate SQL/REST/Qdrant/controls with real authorized sessions; measure labeled recall/entailment. Keep accurate extraction, complete research modes and production acceptance open; never broaden or truncate filtered scope.",
+      "acceptance_evidence": [
+        {
+          "environment": "offline Node gateway, synthetic React controls, disposable PostgreSQL17 and local Chromium desktop/mobile emulation",
+          "observed_at": "2026-10-10T11:17:45.192356+00:00",
+          "source_identity": "parent2ef7f43 plus reviewed authoritative filter source and tests",
+          "command_or_url": "npm run test:cloudflare/check:cloudflare; frontend npm ci/lint/test/tsc/build/cf:build and original public/visual/Worker browser suites; tests/postgres/local-rehearsal.sh; backend full/isolated runners",
+          "result": "PASS:269gateway/no skips,280frontend,409backend+10subtests,57isolated,59scripts,Next/OpenNext builds,full local PostgreSQL authorization/concurrency/filter rehearsal and two48-check local Chromium desktop/mobile-emulated passes. Dense/lexical scopes share durable filters and hash authority; empty matches make no provider calls; capacity fails before account usage/persistence; current filter fields revalidated. Fixes lexical-only fusion workspace identity without weakening authority. Source restored/hash-checkpointed after platform cancellation/reset and revalidated. Earlier unconfigured/demo public pass failed7of48; no baselines/thresholds weakened. Not hosted/live-role/provider-quality/production acceptance."
+        }
+      ]
     }
   ]
 }

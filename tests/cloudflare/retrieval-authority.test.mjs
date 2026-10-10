@@ -38,3 +38,13 @@ for (const [name, mutate] of [
 test("only bounded UUID chunk identifiers enter authoritative filters", () => {
   assert.deepEqual(candidateChunkIds([{ payload: { chunk_id: id } }, { payload: { chunk_id: id } }, { payload: { chunk_id: "x)&workspace_id=neq.foreign" } }]), [id]);
 });
+for (const [name, filters, mutate] of [
+  ["filename cache poisoning", { filename: "forged.txt" }, () => {}],
+  ["page cache poisoning", { min_page: 900 }, () => {}],
+  ["uploader mismatch", { uploaded_by: "foreign" }, value => { value.documents[0].uploaded_by = "correct"; }],
+  ["missing upload timestamp", { uploaded_after: 0 }, () => {}],
+  ["literal metadata key mismatch", { metadata_filters: { "a.b": "correct" } }, value => { value.chunks[0].metadata = { a: { b: "correct" } }; }],
+]) test(`filter rehydration denies ${name}`, async () => {
+  const value = await fixture(); mutate(value); value.filters = filters;
+  assert.deepEqual(await rehydrateEvidence(value), []);
+});

@@ -410,7 +410,7 @@ function WorkspaceChat() {
                     id="chat-filename-filter"
                     value={filenameFilter}
                     onChange={(event) => setFilenameFilter(event.target.value)}
-                    placeholder="Filename filter"
+                    placeholder="Exact filename (case-sensitive)"
                     className="rounded-lg border border-[var(--border)] bg-[var(--bg-secondary)] px-3 py-2 text-xs outline-none focus:border-brand-500"
                   />
                   <label htmlFor="chat-uploader-filter" className="sr-only">
@@ -474,7 +474,7 @@ function WorkspaceChat() {
                     id="chat-metadata-key-filter"
                     value={metadataKey}
                     onChange={(event) => setMetadataKey(event.target.value)}
-                    placeholder="Metadata key"
+                    placeholder="Exact chunk metadata key"
                     className="rounded-lg border border-[var(--border)] bg-[var(--bg-secondary)] px-3 py-2 text-xs outline-none focus:border-brand-500"
                   />
                   <label htmlFor="chat-metadata-value-filter" className="sr-only">
@@ -484,10 +484,16 @@ function WorkspaceChat() {
                     id="chat-metadata-value-filter"
                     value={metadataValue}
                     onChange={(event) => setMetadataValue(event.target.value)}
-                    placeholder="Metadata value"
+                    placeholder="Exact metadata text value"
                     className="rounded-lg border border-[var(--border)] bg-[var(--bg-secondary)] px-3 py-2 text-xs outline-none focus:border-brand-500"
                   />
                 </div>
+                <p className="text-xs text-[var(--text-muted)]">
+                  Dates use UTC; the end date includes the entire day. Page 0 matches only
+                  explicitly unpaginated chunks, not missing page data. Metadata matches
+                  literal keys and exact text values. Research is bounded to 100 matching
+                  documents; page/metadata scopes must contain at most 200 matching chunks.
+                </p>
               </div>
             )}
             <label className="mb-2 flex items-start gap-2 text-[11px] leading-4 text-[var(--text-muted)]">

@@ -27,6 +27,7 @@ PSQL=(psql -X -v ON_ERROR_STOP=1 -d "$PGDATABASE")
 "${PSQL[@]}" -f "$ROOT/supabase/migrations/039_canonical_service_role_processing_authority.sql"
 "${PSQL[@]}" -f "$ROOT/supabase/migrations/040_recipient_bound_workspace_invitations.sql"
 "${PSQL[@]}" -f "$TESTS/fixtures.sql"
+"${PSQL[@]}" -f "$TESTS/retrieval-filter-assertions.sql"
 "${PSQL[@]}" -f "$TESTS/account-trial-assertions.sql"
 "${PSQL[@]}" -f "$TESTS/account-rollback.sql"
 "${PSQL[@]}" -f "$TESTS/security-assertions.sql"

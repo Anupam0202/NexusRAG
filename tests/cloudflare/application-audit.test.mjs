@@ -18,7 +18,7 @@ test('CORS permits browser key deletion only from configured origin',async()=>{
  assert.equal(r.status,204);assert.match(r.headers.get('access-control-allow-methods'),/DELETE/);assert.equal(r.headers.get('access-control-allow-origin'),env.FRONTEND_ORIGIN);
  const other=await handle(request('/api/v1/apikey',{method:'OPTIONS',headers:{origin:'https://untrusted.invalid'}}),env);assert.equal(other.headers.get('access-control-allow-origin'),null);
 });
-for(const body of [{question:'test',chat_scope:'documents'},{question:'test',document_ids:['invalid']},{question:'test',filename:'private.txt'},{question:'test',file_types:['pdf']},{question:'test',min_page:0},{question:'test',metadata_filters:{classification:'private'}}]){
+for(const body of [{question:'test',chat_scope:'documents'},{question:'test',document_ids:['invalid']},{question:'test',filename:{value:'private.txt'}},{question:'test',file_types:'pdf'},{question:'test',min_page:-1},{question:'test',metadata_filters:{classification:{value:'private'}}}]){
  test(`chat rejects scope widening before admission: ${JSON.stringify(body)}`,async t=>{mockAuth(t);const r=await handle(request('/api/v1/chat',{method:'POST',body:JSON.stringify({...body,non_sensitive_attested:true})}),env);assert.equal(r.status,422);assert.ok(['INVALID_SCOPE','UNSUPPORTED_FILTER'].includes((await r.json()).error.code));});
 }
 test('malformed JSON is a client error, not an internal failure',async t=>{mockAuth(t);const r=await handle(request('/api/v1/chat',{method:'POST',body:'{'}),env);assert.equal(r.status,400);assert.equal((await r.json()).error.code,'INVALID_REQUEST');});

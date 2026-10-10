@@ -52,10 +52,13 @@ function localAppFixture() {
   let embeddingCalls = 0;
   let generationCalls = 0;
   const qdrantQueryLimits = [];
+  const qdrantQueryFilters = [];
+  const restQueries = [];
   const generationTemperatures = [];
   let expectedGeminiApiKey = null;
   let onGenerate = null;
   const matchesFilter = (point, filter) => (filter?.must || []).every((condition) => {
+    if (condition.has_id) return condition.has_id.includes(point.id);
     const actual = point.payload?.[condition.key];
     if (condition.match?.value !== undefined) return actual === condition.match.value;
     if (condition.match?.any) return condition.match.any.includes(actual);
@@ -75,6 +78,7 @@ function localAppFixture() {
       if (method === "GET") return objects.has(key) ? new Response(objects.get(key), { status: 200 }) : json({ code: "NoSuchKey" }, 404);
     }
     if (url.hostname === "supabase.invalid" && url.pathname.startsWith("/rest/v1/")) {
+      restQueries.push({ table: url.pathname.split("/rest/v1/")[1], params: new URLSearchParams(url.searchParams) });
       const table = url.pathname.split("/rest/v1/")[1];
       if (table === "rpc/nexus_authorize_byok_processing") {
         assert.equal(body.p_actor, userId);
@@ -102,9 +106,9 @@ function localAppFixture() {
         if (method === "GET") {
           const idFilter = url.searchParams.get("id") || "";
           if (idFilter.startsWith("eq.")) { const id = idFilter.slice(3); return json(docs.has(id) ? [structuredClone(docs.get(id))] : []); }
-          if (url.searchParams.has("active_version_id")) return json([...docs.values()].filter((row) => row.workspace_id === workspace && row.lifecycle_state === "active" && row.active_version_id && (!idFilter.startsWith("in.(") || idFilter.slice(4, -1).split(",").includes(row.id))).map((row) => ({ id: row.id, active_version_id: row.active_version_id })));
+          if (url.searchParams.has("active_version_id")) return json([...docs.values()].filter((row) => row.workspace_id === workspace && row.lifecycle_state === "active" && row.active_version_id && (!idFilter.startsWith("in.(") || idFilter.slice(4, -1).split(",").includes(row.id)) && matchesDocumentQuery(row, url.searchParams)).slice(0, Number(url.searchParams.get("limit") || 1000)));
           if (url.searchParams.has("sha256")) return json([]);
-          return json([...docs.values()].filter((row) => row.workspace_id === workspace && (!idFilter.startsWith("in.(") || idFilter.slice(4, -1).split(",").includes(row.id))));
+          return json([...docs.values()].filter((row) => row.workspace_id === workspace && (!idFilter.startsWith("in.(") || idFilter.slice(4, -1).split(",").includes(row.id)) && matchesDocumentQuery(row, url.searchParams)));
         }
         if (method === "DELETE") { docs.delete(url.searchParams.get("id")?.slice(3)); return json([]); }
       }
@@ -135,7 +139,7 @@ function localAppFixture() {
         if (method === "GET") {
           const filter = url.searchParams.get("id") || "";
           const ids = filter.startsWith("in.(") ? filter.slice(4, -1).split(",") : null;
-          return json((chunks.get(versionId) || []).filter(row => !ids || ids.includes(row.id)).slice(0, Number(url.searchParams.get("limit") || 1000)));
+          return json((chunks.get(versionId) || []).filter(row => (!ids || ids.includes(row.id)) && matchesChunkQuery(row, url.searchParams)).slice(0, Number(url.searchParams.get("limit") || 1000)));
         }
       }
       if (table === "deletion_operations") {
@@ -239,14 +243,39 @@ function localAppFixture() {
     if (url.hostname === "qdrant.invalid") {
       if (url.pathname.endsWith("/points/delete")) { for (const [id, point] of points) if (matchesFilter(point, body.filter)) points.delete(id); return json({ result: { status: "completed" } }); }
       if (url.pathname.endsWith("/points/count")) return json({ result: { count: [...points.values()].filter((point) => matchesFilter(point, body.filter)).length } });
-      if (url.pathname.endsWith("/points/query")) { qdrantQueryLimits.push(body.limit); return json({ result: { points: [...points.values()].filter((point) => matchesFilter(point, body.filter)).slice(0, body.limit).map((point, index) => ({ id: point.id, payload: point.payload, score: 1 - index / 100 })) } }); }
+      if (url.pathname.endsWith("/points/query")) { qdrantQueryLimits.push(body.limit); qdrantQueryFilters.push(body.filter); return json({ result: { points: [...points.values()].filter((point) => matchesFilter(point, body.filter)).slice(0, body.limit).map((point, index) => ({ id: point.id, payload: point.payload, score: 1 - index / 100 })) } }); }
       if (url.pathname.includes("/collections/") && url.pathname.endsWith("/index")) return json({ result: true });
       if (url.pathname.includes("/collections/") && url.pathname.endsWith("/points")) { for (const point of body.points) points.set(point.id, point); return json({ result: { status: "completed" } }); }
       if (url.pathname.includes("/collections/")) return json({ result: { status: "green" } });
     }
     throw new Error(`Unexpected synthetic network request: ${method} ${url.href}`);
   };
-  return { env, user, member, setOnGenerate(callback) { onGenerate = callback; }, source, expectedChunks, docs, versions, jobs, chunks, extractionManifests, extractionChunks, objects, points, sessions, messages, outbound, auditEvents, deletionReceipts, deletionTargets, events, queue, accountUsage, userKeys, qdrantQueryLimits, generationTemperatures, fetch, setExpectedGeminiApiKey(value) { expectedGeminiApiKey = value; }, get deletionOperation() { return deletionOperation; }, get embeddingCalls() { return embeddingCalls; }, get generationCalls() { return generationCalls; } };
+  return { env, user, member, setOnGenerate(callback) { onGenerate = callback; }, source, expectedChunks, docs, versions, jobs, chunks, extractionManifests, extractionChunks, objects, points, sessions, messages, outbound, auditEvents, deletionReceipts, deletionTargets, events, queue, accountUsage, userKeys, qdrantQueryLimits, qdrantQueryFilters, restQueries, generationTemperatures, fetch, setExpectedGeminiApiKey(value) { expectedGeminiApiKey = value; }, get deletionOperation() { return deletionOperation; }, get embeddingCalls() { return embeddingCalls; }, get generationCalls() { return generationCalls; } };
+}
+
+// Independently model the small PostgREST subset used by filtered chat. These
+// mocks exercise actual routes/provider admission, not real hosted SQL or RLS.
+function matchesDocumentQuery(row, params) {
+  for (const key of ["filename", "uploaded_by"]) {
+    const filter = params.get(key);
+    if (filter && row[key] !== filter.slice(3)) return false;
+  }
+  const types = params.get("or");
+  if (types && !types.slice(1, -1).split(",").some(filter => row.filename?.toLowerCase().endsWith(filter.replace("filename.ilike.*", "")))) return false;
+  for (const filter of params.getAll("created_at")) {
+    const actual = Date.parse(row.created_at), bound = Date.parse(filter.slice(4));
+    if (!Number.isFinite(actual) || (filter.startsWith("gte.") ? actual < bound : actual > bound)) return false;
+  }
+  if (params.get("lifecycle_state") === "eq.active" && row.lifecycle_state !== "active") return false;
+  return true;
+}
+function matchesChunkQuery(row, params) {
+  for (const filter of params.getAll("page_number")) {
+    if (!Number.isInteger(row.page_number) || (filter.startsWith("gte.") ? row.page_number < Number(filter.slice(4)) : row.page_number > Number(filter.slice(4)))) return false;
+  }
+  const metadata = params.get("metadata");
+  if (metadata && Object.entries(JSON.parse(metadata.slice(3))).some(([key, value]) => !Object.hasOwn(row.metadata || {}, key) || row.metadata[key] !== value)) return false;
+  return true;
 }
 
 test("synthetic upload → queued ingestion → indexed evidence → grounded chat completes without external calls", async (t) => {
@@ -452,7 +481,7 @@ async function seededResearchFixture(t) {
   const chunkId = "50505050-5050-4050-8050-505050505050";
   const content = "The retention policy is 30 days.";
   fixture.docs.set(documentId, { id: documentId, workspace_id: workspace, active_version_id: versionId,
-    lifecycle_state: "active", filename: "synthetic.txt", content_type: "text/plain" });
+    lifecycle_state: "active", filename: "synthetic.txt", content_type: "text/plain", uploaded_by: userId, created_at: "2026-01-02T12:00:00Z" });
   fixture.versions.set(versionId, { id: versionId, workspace_id: workspace, document_id: documentId,
     publication_state: "ready", data_classification: "non_sensitive", index_generation: "synthetic-generation" });
   fixture.chunks.set(versionId, [{ id: chunkId, workspace_id: workspace, document_id: documentId, version_id: versionId,
@@ -483,4 +512,117 @@ test("a role revocation during generation blocks answer persistence and return",
   assert.equal((await response.json()).error.code, "FORBIDDEN");
   assert.equal(fixture.generationCalls, 1);
   assert.equal(fixture.messages.filter(message => message.role === "assistant").length, 0);
+});
+
+async function filteredResearchRequest(t, filters) {
+  const value = await seededResearchFixture(t);
+  const body = await value.request.json();
+  value.request = new Request(value.request.url, { method: "POST", headers: value.request.headers,
+    body: JSON.stringify({ ...body, ...filters }) });
+  return value;
+}
+test("all advanced filters constrain the actual dense and lexical chat paths equally", async t => {
+  const { fixture, documentId, request } = await filteredResearchRequest(t, {
+    filename: "synthetic.txt", file_types: ["txt"], uploaded_by: userId, min_page: 0, max_page: 2,
+    uploaded_after: "2026-01-02T00:00:00Z", uploaded_before: "2026-01-02T23:59:59.999Z",
+    metadata_filters: { "literal.key": "finance" },
+  });
+  const version = fixture.docs.get(documentId).active_version_id;
+  const matching = fixture.chunks.get(version)[0];
+  matching.metadata = { "literal.key": "finance" };
+  const excludedId = "60606060-6060-4060-8060-606060606060";
+  fixture.chunks.get(version).push({ ...matching, id: excludedId, page_number: 9,
+    content: "EXCLUDED_PRIVATE_EVIDENCE", original_text: "EXCLUDED_PRIVATE_EVIDENCE",
+    original_content_hash: await sha256("EXCLUDED_PRIVATE_EVIDENCE") });
+  fixture.points.set(excludedId, { ...fixture.points.get(matching.id), id: excludedId,
+    payload: { ...fixture.points.get(matching.id).payload, chunk_id: excludedId, page_number: 0,
+      filename: "synthetic.txt", metadata: { "literal.key": "finance" } } });
+  const response = await handle(request, fixture.env);
+  assert.equal(response.status, 200);
+  const answer = await response.json();
+  assert.equal(answer.sources.length, 1);
+  assert.equal(answer.sources[0].metadata.chunk_id, matching.id);
+  assert.equal(answer.metadata.coverage.chunk_scope, "COMPLETE_BOUNDED_MATCHING_CHUNKS");
+  assert.deepEqual(fixture.qdrantQueryFilters[0].must.at(-1), { has_id: [matching.id] });
+  assert.doesNotMatch(JSON.stringify(fixture.outbound), /EXCLUDED_PRIVATE_EVIDENCE/);
+  for (const query of fixture.restQueries.filter(item => ["documents", "document_chunks"].includes(item.table))) {
+    assert.deepEqual(query.params.getAll("workspace_id"), [`eq.${workspace}`]);
+    if (query.table === "documents") assert.equal(query.params.get("uploaded_by"), `eq.${userId}`);
+    else assert.equal(query.params.get("metadata"), 'cs.{"literal.key":"finance"}');
+  }
+});
+for (const [name, filters] of [
+  ["filename", { filename: "missing.txt" }], ["extension", { file_types: ["pdf"] }],
+  ["uploader", { uploaded_by: "70707070-7070-4070-8070-707070707070" }],
+  ["date", { uploaded_after: "2026-01-03" }], ["page", { min_page: 1 }],
+  ["metadata", { metadata_filters: { department: "absent" } }],
+]) test(`no matching ${name} scope abstains without widening or provider calls`, async t => {
+  const { fixture, request } = await filteredResearchRequest(t, filters);
+  const response = await handle(request, fixture.env);
+  assert.equal(response.status, 200);
+  const answer = await response.json();
+  assert.equal(answer.metadata.abstained, true);
+  assert.deepEqual(answer.sources, []);
+  assert.equal(fixture.embeddingCalls, 0);
+  assert.equal(fixture.generationCalls, 0);
+  assert.equal(fixture.qdrantQueryFilters.length, 0);
+});
+test("filtered chunk overflow rejects before account usage, session creation, or metered provider work", async t => {
+  const { fixture, documentId, request } = await filteredResearchRequest(t, { min_page: 0 });
+  const version = fixture.docs.get(documentId).active_version_id;
+  const original = fixture.chunks.get(version)[0];
+  fixture.chunks.set(version, Array.from({ length: 201 }, () => ({ ...original, id: crypto.randomUUID() })));
+  const response = await handle(request, fixture.env);
+  assert.equal(response.status, 413);
+  assert.equal((await response.json()).error.code, "CAPACITY_REACHED");
+  assert.equal(fixture.accountUsage.free_chat_queries, 0);
+  assert.equal(fixture.sessions.size, 0);
+  assert.equal(fixture.embeddingCalls, 0);
+  assert.equal(fixture.events.some(event => event.path.includes("v6_reserve_many")), false);
+});
+test("matching document overflow rejects before account usage or persistence", async t => {
+  const { fixture, documentId, request } = await filteredResearchRequest(t, { document_ids: undefined, file_types: ["txt"] });
+  const original = fixture.docs.get(documentId);
+  for (let i = 0; i < 100; i++) {
+    const id = crypto.randomUUID(); fixture.docs.set(id, { ...original, id });
+  }
+  const response = await handle(request, fixture.env);
+  assert.equal(response.status, 413);
+  assert.equal(fixture.accountUsage.free_chat_queries, 0);
+  assert.equal(fixture.sessions.size, 0);
+});
+test("chunk metadata changes during generation cannot persist or return the old filtered answer", async t => {
+  const { fixture, documentId, request } = await filteredResearchRequest(t, { metadata_filters: { department: "finance" } });
+  const row = fixture.chunks.get(fixture.docs.get(documentId).active_version_id)[0];
+  row.metadata = { department: "finance" };
+  fixture.setOnGenerate(() => { row.metadata.department = "other"; });
+  const response = await handle(request, fixture.env);
+  assert.equal(response.status, 409);
+  assert.equal((await response.json()).error.code, "VERSION_CONFLICT");
+  assert.equal(fixture.messages.filter(message => message.role === "assistant").length, 0);
+});
+test("filename changes during generation cannot resurrect evidence outside the requested scope", async t => {
+  const { fixture, documentId, request } = await filteredResearchRequest(t, { filename: "synthetic.txt" });
+  fixture.setOnGenerate(() => { fixture.docs.get(documentId).filename = "other.txt"; });
+  const response = await handle(request, fixture.env);
+  assert.equal(response.status, 409);
+  assert.equal(fixture.messages.filter(message => message.role === "assistant").length, 0);
+});
+test("a poisoned vector response cannot bypass the authoritative filtered chunk allowlist", async t => {
+  const { fixture, documentId, request } = await filteredResearchRequest(t, { max_page: 0 });
+  const chunk = fixture.chunks.get(fixture.docs.get(documentId).active_version_id)[0];
+  const foreignId = "80808080-8080-4080-8080-808080808080";
+  t.mock.method(globalThis, "fetch", async (url, init) => {
+    if (new URL(url).pathname.endsWith("/points/query")) {
+      return json({ result: { points: [{ id: foreignId, score: 1,
+        payload: { ...fixture.points.get(chunk.id).payload, chunk_id: foreignId,
+          content: "POISONED_OUTSIDE_FILTER" } }] } });
+    }
+    return fixture.fetch(url, init);
+  });
+  const response = await handle(request, fixture.env);
+  assert.equal(response.status, 200);
+  const answer = await response.json();
+  assert.ok(answer.sources.every(source => source.metadata.chunk_id === chunk.id));
+  assert.doesNotMatch(JSON.stringify(fixture.outbound), /POISONED_OUTSIDE_FILTER/);
 });

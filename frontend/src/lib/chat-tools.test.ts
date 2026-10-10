@@ -3,6 +3,29 @@ import { buildChatRequestFilters, exportChatJson, exportChatMarkdown } from "./c
 import type { UIMessage } from "@/types";
 
 describe("buildChatRequestFilters", () => {
+  const empty = { chatScope: "workspace" as const, documentIds: [], fileTypes: [] };
+  it("includes the whole UTC end day while preserving exact timestamp bounds", () => {
+    expect(buildChatRequestFilters({ ...empty, uploadedAfter: "2026-01-02", uploadedBefore: "2026-01-02" })).toMatchObject({
+      uploaded_after: "2026-01-02T00:00:00.000Z", uploaded_before: "2026-01-02T23:59:59.999Z",
+    });
+    expect(buildChatRequestFilters({ ...empty, uploadedBefore: "2026-01-02T12:30:00Z" }).uploaded_before).toBe("2026-01-02T12:30:00.000Z");
+  });
+  it.each(["2026-02-30", "2026-13-01", "0000-01-01", "01/02/2026", "2026-02-30T12:00:00Z", "2026-01-01T24:00:00Z"])("rejects invalid calendar date %s instead of rolling it forward", uploadedAfter => {
+    expect(() => buildChatRequestFilters({ ...empty, uploadedAfter })).toThrow("Upload dates must be valid dates.");
+  });
+  it("rejects oversized selections instead of silently weakening the requested scope", () => {
+    expect(() => buildChatRequestFilters({ ...empty, documentIds: Array.from({ length: 26 }, (_, i) => `doc-${i}`) })).toThrow("scope will not be silently truncated");
+    expect(() => buildChatRequestFilters({ ...empty, fileTypes: Array.from({ length: 21 }, (_, i) => `ext${i}`) })).toThrow("at most 20");
+  });
+  it.each([
+    { uploadedBy: "not-a-user-id" }, { fileTypes: ["pdf),other"] },
+    { filename: "x".repeat(256) }, { metadataKey: "department" },
+    { metadataValue: "finance" }, { metadataKey: "__proto__", metadataValue: "private" },
+    { metadataKey: "department", metadataValue: "x".repeat(257) },
+    { minPage: "1000001" }, { minPage: "99999999999999999999999" },
+  ])("rejects invalid or incomplete scope %j", filters => {
+    expect(() => buildChatRequestFilters({ ...empty, ...filters })).toThrow();
+  });
   it("normalizes selected documents and page filters", () => {
     expect(
       buildChatRequestFilters({
@@ -10,7 +33,7 @@ describe("buildChatRequestFilters", () => {
         documentIds: ["doc-b", "doc-a", "doc-a", ""],
         fileTypes: ["pdf", "md", "pdf"],
         filename: "  report.pdf ",
-        uploadedBy: " user-1 ",
+        uploadedBy: " 22222222-2222-4222-8222-222222222222 ",
         minPage: "2",
         maxPage: "8",
         uploadedAfter: "2026-01-01",
@@ -23,11 +46,11 @@ describe("buildChatRequestFilters", () => {
       document_ids: ["doc-a", "doc-b"],
       file_types: ["md", "pdf"],
       filename: "report.pdf",
-      uploaded_by: "user-1",
+      uploaded_by: "22222222-2222-4222-8222-222222222222",
       min_page: 2,
       max_page: 8,
       uploaded_after: "2026-01-01T00:00:00.000Z",
-      uploaded_before: "2026-06-01T00:00:00.000Z",
+      uploaded_before: "2026-06-01T23:59:59.999Z",
       metadata_filters: { department: "finance" },
     });
   });
