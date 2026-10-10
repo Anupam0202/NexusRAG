@@ -2573,8 +2573,8 @@
       "requirement": "Retention processing rejects malformed claims, isolates per-row retry-write failure, preserves partial counts and signals operator failure without private exception disclosure",
       "normative_source": "Owner lifecycle/recovery/privacy mandate",
       "status": "IN_PROGRESS",
-      "environment": "local retained Python scheduler/CLI; no hosted retention/deletion",
-      "next_action": "Complete manual-run scoped claims, external-deletion fencing/legal hold and durable worker/recovery authority; obtain approved hosted041 parity/acceptance. Schedule-write fencing alone does not close complete retention/erasure.",
+      "environment": "batch005 retained Python manual/scheduler source; Windows offline checks passed,042 SQL/CI and hosted retention remain unverified at source save",
+      "next_action": "Verify exact saved/recovered batch005 and042 PostgreSQL concurrency/restore CI, then continue external-deletion fencing/legal hold and durable worker/recovery authority. Obtain source/schema-specific hosted040-042 approval before live operations. Manual/scheduler schedule-write fencing alone does not close complete retention/erasure.",
       "acceptance_evidence": [
         {
           "environment": "denied-network synthetic lifecycle/settings transports and actual scheduler/CLI functions",

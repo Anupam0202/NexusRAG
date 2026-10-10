@@ -1,8 +1,8 @@
 """Run the complete backend suite without inherited secrets or outbound networking."""
 from pathlib import Path
 import os
-import socket
 import sys
+from offline_network import install_network_guard
 
 ROOT = Path(__file__).resolve().parents[1]
 keep = {key: os.environ[key] for key in ('PATH', 'HOME', 'TMPDIR', 'SYSTEMROOT') if key in os.environ}
@@ -17,27 +17,7 @@ os.environ.update({
 os.chdir(ROOT)
 sys.path.insert(0, str(ROOT))
 
-def denied(*args, **kwargs):
-    raise RuntimeError('Outbound networking is denied in backend tests')
-
-original_connect = socket.socket.connect
-original_connect_ex = socket.socket.connect_ex
-
-def connect(sock, *args, **kwargs):
-    if sock.family in (socket.AF_INET, socket.AF_INET6):
-        return denied()
-    return original_connect(sock, *args, **kwargs)
-
-def connect_ex(sock, *args, **kwargs):
-    if sock.family in (socket.AF_INET, socket.AF_INET6):
-        return denied()
-    return original_connect_ex(sock, *args, **kwargs)
-
-socket.socket.connect = connect
-socket.socket.connect_ex = connect_ex
-socket.create_connection = denied
-socket.getaddrinfo = denied
-socket.socket.sendto = denied
+install_network_guard()
 
 if __name__ == '__main__':
     import pytest
