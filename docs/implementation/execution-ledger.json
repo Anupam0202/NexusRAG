@@ -13,6 +13,23 @@
   "interpretation": "OPEN_ENGINEERING includes implemented but not fully accepted requirements; it does not assert that no code or scoped evidence exists. External approvals do not close unfinished internal work.",
   "entries": [
     {
+      "id": "DEFECT-WORKER-RUNTIME-MANIFEST",
+      "requirement": "Actual Cloudflare server fallbacks and dynamic authentication route rejection must execute without missing-manifest crashes",
+      "normative_source": "Owner comprehensive end-user and production runtime mandate",
+      "status": "IN_PROGRESS",
+      "environment": "batch008 source and actual local Worker; not deployed",
+      "next_action": "Verify exact secure compatibility pin, real lockfile, fresh build/runtime regressions, recovery and unsuppressed CI image gates before any approved rollout; unpin only after the upstream manifest fix is released and tested.",
+      "acceptance_evidence": [
+        {
+          "environment": "authenticated read-only Cloudflare sampled exception and clean recovered007 local Worker",
+          "observed_at": "2026-10-10T21:38:05Z",
+          "source_identity": "deployed candidate frontend2fbc5c9 and recovered ddecaeb4d90e8f87ff2ee81c60e7fbb246082f20",
+          "command_or_url": "frontend/src/e2e/worker-routing.spec.ts; upstream opennextjs/opennextjs-cloudflare PR1356",
+          "result": "Two new regressions failed with500 instead of404/303 on Next16.4.0/OpenNext1.20.9. Source pins the latest16.3 security patch16.3.8; final manifest and external receipts bind subsequent results. No exception swallowing, generated manifest edits or production acceptance."
+        }
+      ]
+    },
+    {
       "id": "DEFECT-WORKSPACE-ACTOR-CONTRACT",
       "requirement": "Workspace authority responses identify the authenticated actor so document mutations can enforce the client identity fence",
       "normative_source": "Owner end-user workflow mandate; accepted R and A registers",

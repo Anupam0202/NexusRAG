@@ -24,3 +24,30 @@ test("document route methods and malformed identifiers fail closed", async ({ re
   expect(head.status()).toBe(200);
   expect(await head.body()).toHaveLength(0);
 });
+
+test("missing assets and unknown routes return 404 instead of crashing the server adapter", async ({ request }) => {
+  for (const path of ["/favicon.ico", "/__nexusrag_readonly_missing_route"]) {
+    const response = await request.get(path);
+    expect(response.status(), path).toBe(404);
+    expect(await response.text()).not.toContain("Unexpected loadManifest");
+    const head = await request.head(path);
+    expect(head.status(), path).toBe(404);
+    expect(await head.body()).toHaveLength(0);
+  }
+  const icon = await request.get("/favicon.svg");
+  expect(icon.status()).toBe(200);
+  expect(icon.headers()["content-type"]).toContain("image/svg+xml");
+});
+
+test("the dynamic legacy auth verifier rejects cross-origin posts without an adapter crash", async ({ request }) => {
+  const response = await request.post("/auth/confirm/verify", {
+    headers: { Origin: "https://cross-origin.synthetic.invalid" },
+    form: { type: "email", token_hash: "synthetic-untrusted" },
+    maxRedirects: 0,
+  });
+  expect(response.status()).toBe(303);
+  const destination = new URL(response.headers().location);
+  expect(destination.pathname).toBe("/auth/callback");
+  expect(destination.searchParams.has("token_hash")).toBe(false);
+  expect(destination.searchParams.has("error_description")).toBe(true);
+});
