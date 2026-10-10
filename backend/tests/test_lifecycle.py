@@ -250,7 +250,7 @@ async def test_workspace_deletion_fails_closed_when_scoped_cleanup_fails() -> No
 
     assert result.workspace_deleted is False
     assert result.failures == [
-        {"resource": "workspace_settings", "message": "settings unavailable"}
+        {"resource": "workspace_settings", "code": "WORKSPACE_CLEANUP_FAILED", "message": "Workspace data cleanup failed; deletion remains incomplete."}
     ]
     assert workspaces.deleted == 0
 
@@ -276,7 +276,7 @@ async def test_workspace_deletion_reports_workspace_row_delete_failure() -> None
 
     assert result.workspace_deleted is False
     assert result.failures == [
-        {"resource": "workspaces", "message": "workspace foreign key blocked"}
+        {"resource": "workspaces", "code": "WORKSPACE_DELETE_FAILED", "message": "Workspace deletion failed; complete deletion is not confirmed."}
     ]
     assert workspaces.deleted == 0
 

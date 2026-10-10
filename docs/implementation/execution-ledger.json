@@ -2543,6 +2543,23 @@
           "result": "PASS:283frontend/48files,269gateway/no skips,409backend+10subtests,57isolated; Next/OpenNext builds intentionally missing public auth settings; two48-check browser passes without configuration and unchanged visual baselines. Three regressions prove no cached scope/session API/demo fallback and actual private-state reset. Not hosted, live-role/provider or production acceptance."
         }
       ]
+    },
+    {
+      "id": "DEFECT-LIFECYCLE-FAILURE-PRIVACY",
+      "requirement": "Handled lifecycle failures never expose raw provider/storage/database errors through logs, deletion details or retention audit receipts",
+      "normative_source": "Owner privacy/sensitive-log and verifiable deletion mandate",
+      "status": "IN_PROGRESS",
+      "environment": "local retained Python lifecycle follow-up to37e1603; no hosted deletion or retention",
+      "next_action": "Verify exact-head CI and approved fixture-only hosted lifecycle paths; continue remaining private-log, legal-hold, retry-persistence and complete-erasure/recovery implementation. Never treat safe static failure messages as successful deletion.",
+      "acceptance_evidence": [
+        {
+          "environment": "denied-network backend fixture transports and real lifecycle/route functions",
+          "observed_at": "2026-10-10T11:56:36.276187+00:00",
+          "source_identity": "parent37e1603 plus reviewed lifecycle failure privacy source",
+          "command_or_url": "backend/scripts/run_full_tests.py; backend/scripts/run_isolated.py; npm run test:cloudflare/check:cloudflare; python3 -m unittest discover -s tests/scripts",
+          "result": "PASS initial:425backend+10subtests,57isolated,269gateway/no skips,68scripts and foundation.16new cases cover all document/resource/workspace failure stages, scheduler retries and deletion/retention route receipt/audit consumers. Private exception __str__ deliberately raises; never invoked by fixed handlers. Initial new fixture had wrong deletion confirmation; corrected without changing required confirmation or safety assertions. Final saved-source logs exported separately. Not live authenticated, full legal-hold/erasure or persisted-log acceptance."
+        }
+      ]
     }
   ]
 }

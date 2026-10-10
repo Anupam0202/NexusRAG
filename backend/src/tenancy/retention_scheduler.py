@@ -84,6 +84,6 @@ class RetentionScheduler:
                 logger.warning(
                     "retention_schedule_failed",
                     workspace_id=workspace_id,
-                    error=str(exc)[:300],
+                    error_type=type(exc).__name__,
                 )
         return summary

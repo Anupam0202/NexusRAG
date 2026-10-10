@@ -1,53 +1,50 @@
 # NexusRAG execution checkpoint
 
-## Batch: checkpoint-protocol-001
+## Batch: lifecycle-privacy-002
 
-**Application: PARTIAL_NOT_COMPLETE. Batch: locally tested checkpoint tooling; no hosted deployment or production verification.**
+**Application: PARTIAL_NOT_COMPLETE. Batch: LOCALLY_TESTED lifecycle failure privacy; no hosted operation or production verification.**
 
-Full accepted implementation/cleanup scope remains in force. The normative requirement register and `docs/implementation/execution-ledger.json` remain authoritative for product closure. This file is the current execution/recovery handoff, not another claim that the product is complete.
+The full accepted scope remains unchanged. Normative registers and `docs/implementation/execution-ledger.json` remain authoritative for product closure; this is the current execution/recovery handoff.
 
-### Source identity and start inspection
+### Source identity and continuation inspection
 
-- Started from clean published `019fa7cd541721a0b6ff63e6461afec34a684488`, PR8 review branch `release/production-candidate-redaction`.
-- Before edits, inspected the saved publication manifest and independently matched its four file hashes against that checkout. No workspace reset or summary-based reconstruction was needed.
-- Protected main remains `85b14f131f5eacb07082a32c7173f20be472772f`; do not force-push or bypass checks.
-- The exported ZIP's `.checkpoint/manifest.json` records the exact final commit and SHA256/size/mode of **every tracked source file**, including this file and all tracked lockfiles. The only tracked dependency lockfile at this checkpoint is `frontend/package-lock.json`; backend dependency specifications are retained, not mislabeled as a lockfile.
-- Publish/save the batch source before export. Export refuses dirty/untracked work rather than silently omitting it. Ignored files, installed dependencies, `.git`, credentials and caches are not included.
+- Started from clean published37e1603fce3594fb2389ef3634b7ef93d82a2f86, review branch release/production-candidate-redaction, PR8 unmerged.
+- Verified trusted prior full ZIP SHA2567072522b5069fa516477af2e477c398c154604a42827974a07d4da275b20f2eb, then matched all488 checkout source hashes before edits. No workspace reset or summary-based reconstruction.
+- The final exported ZIP manifest records the exact saved commit and every tracked source hash/size/mode. Source and existing lock/dependency specifications are retained; frontend/package-lock.json is unchanged. No invented backend lockfile.
+- Protected main85b14f131f5eacb07082a32c7173f20be472772f is untouched. No force push or protection bypass.
 
-### Completed changes in this batch
+### Completed changes
 
-- Added `scripts/checkpoint_source.py`: clean-source ZIP export, per-file/log integrity verification, duplicate/missing/unexpected/unsafe entry rejection, bounded archive sizes, executable mode preservation and explicit log selection.
-- Recovery requires the trusted external ZIP SHA256 and a **new** destination. Internal manifest hashes alone do not authenticate a self-consistent forged ZIP. No existing source is overwritten; no downloaded code is executed by recovery.
-- Added nine isolated checkpoint tests, including complete source/lock/log round trip, ignored-file exclusion, dirty/untracked refusal, symlink/path denial, tampering and trusted-checksum enforcement.
-- Added this run-state protocol. No application/runtime/provider/schema/security setting was changed in this batch.
+- Lifecycle document/resource/workspace failure logs are type-only, without evaluating raw exception strings.
+- Failure receipts use static messages and stable DOCUMENT_CLEANUP_FAILED / WORKSPACE_CLEANUP_FAILED / WORKSPACE_DELETE_FAILED codes, preserving useful resource/document identifiers.
+- Real deletion response details and retention audit consumers receive safe receipts. Retention scheduler exception logging is type-only; its existing retry/lease behavior is unchanged.
+- Partial deletion is not reported as complete: workspace removal/cache confirmation remain blocked on failures; already-completed vector/chat counts remain truthful.
+- Added16synthetic regressions; existing two raw-message assertions now require safe messages/codes with all fail-closed assertions intact.
 
-### Verification status
+### Fresh verification / scope
 
-These are fresh batch checks, not inherited browser/build passes. After publication the same commands are rerun against the clean saved source before the final ZIP is exported. Exact exits, source identity and log hashes are exported with the checkpoint; if a rerun differs, do not report this batch as passed.
-
-| Check | Fresh local result | Scope |
+| Check | Local result | Qualification |
 | --- | --- | --- |
-| `python3 -m unittest discover -s tests/scripts` | PASS: 68 tests, including nine new checkpoint cases | Offline script/source fixtures |
-| `npm run test:cloudflare` | PASS: 269 tests, no skips | Offline gateway fixtures |
-| `python backend/scripts/run_full_tests.py` | PASS: 409 tests plus 10 subtests | Denied-network offline backend |
-| `python scripts/run_isolated.py` from backend | PASS: 57 tests | Isolated backend |
-| Frontend `npm test` | PASS: 283 tests / 48 files | Unit/component fixtures |
-| Frontend lint and TypeScript | PASS | Current source and installed dependencies |
-| `npm run check:cloudflare` and ledger validator | PASS validation; release closure remains false | Static foundation/traceability, not deployment |
-| New clean installs/builds/browser/PostgreSQL/live OAuth/role/Storage/provider pipelines | NOT RUN in this checkpoint-tooling batch | Prior results remain historical, not new acceptance |
-| Mandatory actual-image security | Latest completed prior gate FAILED on exact2ef; exact019 image job still pending at observation | Never inherit a previous scan as a new-head result |
-| Final ZIP verify/full-source recovery round trip | Must pass before exported checkpoint is handed off | Recorded in exported verification logs; not a product test |
+| Full offline backend | PASS:425tests +10subtests | Denied networking, synthetic fixtures |
+| Isolated backend | PASS:57tests | No live provider/Storage |
+| Gateway | PASS:269tests, no skips | Unchanged executable gateway, freshly rerun |
+| Script tests | PASS:68tests | Checkpoint/source fixtures |
+| Foundation and ledger validator | PASS validation; closure false | Not release acceptance |
+| First new full-suite run | FAILED:1new fixture /424passes | Required confirmation was wrong; corrected to existing DELETE WORKSPACE contract, not loosened |
+| New frontend/install/build/browser/PostgreSQL/live role/Storage/provider/image checks | NOT RUN locally | Do not inherit prior passes |
+| New-head remote CI | Requires independent exact-head result | Prior37 image job was pending at observation; no scan success asserted |
+| Final full ZIP/recovery | Must verify before handoff | Exported receipts record hashes/modes and freshly reexecuted targeted tests, not full recovered product acceptance |
 
-No known failing local test is concealed. No scanner suppression, weakened threshold/baseline or branch-protection bypass.
+After saving/publishing source, repeat selected checks against that exact clean commit before export. Logs contain command exits, commit identity and checksums. Initial and final logs remain distinguishable; if repeats differ, report failure rather than exporting a green claim.
 
-### Unfinished work and boundaries
+### Unfinished work / next bounded batch
 
-- Ledger remains 245 entries:234 OPEN_ENGINEERING,7 IN_PROGRESS,1 FAILED,2 BLOCKED_EXTERNAL,1 narrowly VERIFIED. Do not close requirements merely because code or a checkpoint exists.
-- Next bounded engineering batch: independently inspect exact-head image/security logs and actual maintained runtime remediation; retain unsuppressed native/neural/image gates. CPython CNA/scanner/tagged-source discrepancies need reconciliation, not automatic waivers.
-- Complete products/research/retrieval quality, accurate extraction, progressive execution, lifecycle/retention/legal hold, lawful connectors and real-role/Storage/pipeline acceptance remain unfinished engineering.
-- Hosted migration040 and exact candidate frontend/gateway rollout require specific scoped approval and fresh binding/schema/source checks; production authorization and processing rights remain separate. Last qualified candidate/rehearsal are older source/schema039, not this commit.
-- Shared production-connected Preview, reversible PR3 recovery, queues/DLQs and provider data remain untouched. Platform resource cleanup must follow inventory, dependencies, recovery and explicit destructive approval.
-- Contributor cleanup remains deferred until the broader implementation is completed, with honest attribution/history handling.
+- Ledger246rows:234OPEN_ENGINEERING,8IN_PROGRESS,1FAILED,2BLOCKED_EXTERNAL,1narrow VERIFIED. All accepted product families remain open at their real scope.
+- Inspect/remediate the actual maintained-runtime image gate without suppression, lowered thresholds or unstable runtime substitution. Read exact-head completed logs, not a historical scan.
+- Continue private-error surfaces in ingestion/API/retrieval; this fix covers only lifecycle/scheduler handled paths. Complete legal hold, retention/erasure receipts, retry-persistence recovery and distributed lease authority remain unfinished.
+- Full ten-product workflows, research/quality, accurate extraction/progressive execution, lawful connectors and real-role/Storage/pipeline acceptance remain engineering work, not external blockers.
+- Hosted040 migration/exact isolated candidate rollout needs scoped approval and fresh parity checks. Production authorization and processing-rights decisions remain separate. No hosted deletion/retention was performed.
+- Production-connected shared Preview, PR3 recovery, queues/DLQs, provider data and contributor attribution remain untouched. Destructive shared cleanup and contributor operations retain their separate approval/history boundaries.
 
 ## Exact continuation commands
 
@@ -108,9 +105,11 @@ python3 -m unittest discover -s tests/scripts
 npm run check:cloudflare
 npm run test:cloudflare
 python3 scripts/check_execution_ledger.py
-# Use the documented backend test environment; do not activate provider secrets.
-python backend/scripts/run_full_tests.py
-(cd backend && python scripts/run_isolated.py)
+# Recreate the bounded pinned test profile; never activate provider secrets.
+python3 -m venv /data/nexusrag-recovered-testenv
+/data/nexusrag-recovered-testenv/bin/python -m pip install -r backend/requirements-test.txt
+/data/nexusrag-recovered-testenv/bin/python backend/scripts/run_full_tests.py
+(cd backend && /data/nexusrag-recovered-testenv/bin/python scripts/run_isolated.py)
 (cd frontend && npm ci --ignore-scripts && npm run lint && npm test \
   && npm exec tsc -- --noEmit && npm run build && npm run cf:build)
 ```
@@ -124,18 +123,15 @@ Update this file with the actual completed/unfinished work and passed/failed/not
 ```bash
 cd /data/NexusRAG-current
 python3 scripts/checkpoint_source.py export \
-  --archive /data/nexusrag-checkpoints/checkpoint-protocol-001.zip \
-  --log /data/nexusrag-checkpoints/protocol-001-logs/results.json \
-  --log /data/nexusrag-checkpoints/protocol-001-logs/scripts-final.log \
-  --log /data/nexusrag-checkpoints/protocol-001-logs/gateway-final.log \
-  --log /data/nexusrag-checkpoints/protocol-001-logs/backend-final.log \
-  --log /data/nexusrag-checkpoints/protocol-001-logs/isolated-final.log \
-  --log /data/nexusrag-checkpoints/protocol-001-logs/frontend-final.log \
-  --log /data/nexusrag-checkpoints/protocol-001-logs/lint-final.log \
-  --log /data/nexusrag-checkpoints/protocol-001-logs/types-final.log \
-  --log /data/nexusrag-checkpoints/protocol-001-logs/foundation-final.log \
-  --log /data/nexusrag-checkpoints/protocol-001-logs/ledger-final.json
-sha256sum /data/nexusrag-checkpoints/checkpoint-protocol-001.zip
+  --archive /data/nexusrag-checkpoints/lifecycle-privacy-002.zip \
+  --log /data/nexusrag-checkpoints/lifecycle-privacy-002-logs/results.json \
+  --log /data/nexusrag-checkpoints/lifecycle-privacy-002-logs/scripts-final.log \
+  --log /data/nexusrag-checkpoints/lifecycle-privacy-002-logs/gateway-final.log \
+  --log /data/nexusrag-checkpoints/lifecycle-privacy-002-logs/backend-final.log \
+  --log /data/nexusrag-checkpoints/lifecycle-privacy-002-logs/isolated-final.log \
+  --log /data/nexusrag-checkpoints/lifecycle-privacy-002-logs/foundation-final.log \
+  --log /data/nexusrag-checkpoints/lifecycle-privacy-002-logs/ledger-final.json
+sha256sum /data/nexusrag-checkpoints/lifecycle-privacy-002.zip
 ```
 
 Export the ZIP and final verification/checksum receipts as session files. Preserve each prior checkpoint until the newer checkpoint is verified and durably exported. Logs inside a recovered ZIP are historical evidence only. The next batch must rerun its acceptance checks against its saved/recovered source.
