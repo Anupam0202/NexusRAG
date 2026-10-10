@@ -1,0 +1,2596 @@
+{
+  "schema_version": 1,
+  "profile": "ZERO_COST_LOW_TRAFFIC",
+  "status": "PARTIAL_NOT_COMPLETE",
+  "baseline_source": "59a454725fee5d402ce91f70b352353eae293687",
+  "baseline_main": "85b14f131f5eacb07082a32c7173f20be472772f",
+  "baseline_observed_at": "2026-10-09T18:21:15Z",
+  "inventory_source": "docs/implementation/cloudflare-ledger.json",
+  "normative_registers": [
+    "docs/implementation/LEGACY_REPLACEMENT_BASELINE.md",
+    "docs/implementation/REQUIREMENT_TRACEABILITY.md"
+  ],
+  "interpretation": "OPEN_ENGINEERING includes implemented but not fully accepted requirements; it does not assert that no code or scoped evidence exists. External approvals do not close unfinished internal work.",
+  "entries": [
+    {
+      "id": "R01",
+      "requirement": "Tenant identity is explicit on every authority record",
+      "normative_source": "docs/implementation/LEGACY_REPLACEMENT_BASELINE.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "R02",
+      "requirement": "Authentication is required for private operations",
+      "normative_source": "docs/implementation/LEGACY_REPLACEMENT_BASELINE.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "R03",
+      "requirement": "Workspace membership gates every private operation",
+      "normative_source": "docs/implementation/LEGACY_REPLACEMENT_BASELINE.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "R04",
+      "requirement": "Roles map to least-privilege capabilities",
+      "normative_source": "docs/implementation/LEGACY_REPLACEMENT_BASELINE.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "R05",
+      "requirement": "Cross-workspace identifiers never widen access",
+      "normative_source": "docs/implementation/LEGACY_REPLACEMENT_BASELINE.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "R06",
+      "requirement": "Customer originals remain private",
+      "normative_source": "docs/implementation/LEGACY_REPLACEMENT_BASELINE.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "R07",
+      "requirement": "Document versions are immutable and fenced",
+      "normative_source": "docs/implementation/LEGACY_REPLACEMENT_BASELINE.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "R08",
+      "requirement": "Active versions are explicit",
+      "normative_source": "docs/implementation/LEGACY_REPLACEMENT_BASELINE.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "R09",
+      "requirement": "Lifecycle epochs prevent stale publication",
+      "normative_source": "docs/implementation/LEGACY_REPLACEMENT_BASELINE.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "R10",
+      "requirement": "Jobs are leased and bounded",
+      "normative_source": "docs/implementation/LEGACY_REPLACEMENT_BASELINE.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "R11",
+      "requirement": "Retries are idempotent and capped",
+      "normative_source": "docs/implementation/LEGACY_REPLACEMENT_BASELINE.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "R12",
+      "requirement": "Cancellation is durable",
+      "normative_source": "docs/implementation/LEGACY_REPLACEMENT_BASELINE.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "R13",
+      "requirement": "Audit events preserve actor and action",
+      "normative_source": "docs/implementation/LEGACY_REPLACEMENT_BASELINE.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "R14",
+      "requirement": "Private responses are never cached",
+      "normative_source": "docs/implementation/LEGACY_REPLACEMENT_BASELINE.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "R15",
+      "requirement": "Secrets are never returned to clients",
+      "normative_source": "docs/implementation/LEGACY_REPLACEMENT_BASELINE.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "R16",
+      "requirement": "Logs redact sensitive values",
+      "normative_source": "docs/implementation/LEGACY_REPLACEMENT_BASELINE.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "R17",
+      "requirement": "Uploads use server-allocated object keys",
+      "normative_source": "docs/implementation/LEGACY_REPLACEMENT_BASELINE.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "R18",
+      "requirement": "Upload media and archive limits are enforced",
+      "normative_source": "docs/implementation/LEGACY_REPLACEMENT_BASELINE.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "R19",
+      "requirement": "Retrieval is workspace filtered",
+      "normative_source": "docs/implementation/LEGACY_REPLACEMENT_BASELINE.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "R20",
+      "requirement": "Retrieval is version filtered",
+      "normative_source": "docs/implementation/LEGACY_REPLACEMENT_BASELINE.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "R21",
+      "requirement": "Vector generations are fenced",
+      "normative_source": "docs/implementation/LEGACY_REPLACEMENT_BASELINE.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "R22",
+      "requirement": "Citations preserve evidence locators",
+      "normative_source": "docs/implementation/LEGACY_REPLACEMENT_BASELINE.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "R23",
+      "requirement": "Unsupported claims abstain",
+      "normative_source": "docs/implementation/LEGACY_REPLACEMENT_BASELINE.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "R24",
+      "requirement": "Contradictions remain visible",
+      "normative_source": "docs/implementation/LEGACY_REPLACEMENT_BASELINE.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "R25",
+      "requirement": "Human review gates consequential outputs",
+      "normative_source": "docs/implementation/LEGACY_REPLACEMENT_BASELINE.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "R26",
+      "requirement": "Provider rights fail closed",
+      "normative_source": "docs/implementation/LEGACY_REPLACEMENT_BASELINE.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "R27",
+      "requirement": "Provider quotas fail closed",
+      "normative_source": "docs/implementation/LEGACY_REPLACEMENT_BASELINE.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "R28",
+      "requirement": "Usage is reserved before metered work",
+      "normative_source": "docs/implementation/LEGACY_REPLACEMENT_BASELINE.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "R29",
+      "requirement": "Deletion is service mediated and receipted",
+      "normative_source": "docs/implementation/LEGACY_REPLACEMENT_BASELINE.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "R30",
+      "requirement": "Recovery preserves Supabase authority",
+      "normative_source": "docs/implementation/LEGACY_REPLACEMENT_BASELINE.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "R31",
+      "requirement": "Exports remain bounded and attributable",
+      "normative_source": "docs/implementation/LEGACY_REPLACEMENT_BASELINE.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "R32",
+      "requirement": "Readiness claims match measured state",
+      "normative_source": "docs/implementation/LEGACY_REPLACEMENT_BASELINE.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "CF01",
+      "requirement": "Workers.dev Preview is the canonical preview origin",
+      "normative_source": "docs/implementation/LEGACY_REPLACEMENT_BASELINE.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "CF02",
+      "requirement": "Frontend uses OpenNext Workers Static Assets",
+      "normative_source": "docs/implementation/LEGACY_REPLACEMENT_BASELINE.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "CF03",
+      "requirement": "Gateway and frontend have explicit compatibility dates",
+      "normative_source": "docs/implementation/LEGACY_REPLACEMENT_BASELINE.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "CF04",
+      "requirement": "Gateway rejects binding or configuration drift",
+      "normative_source": "docs/implementation/LEGACY_REPLACEMENT_BASELINE.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "CF05",
+      "requirement": "Private API responses use no-store",
+      "normative_source": "docs/implementation/LEGACY_REPLACEMENT_BASELINE.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "CF06",
+      "requirement": "Security headers are emitted on every response",
+      "normative_source": "docs/implementation/LEGACY_REPLACEMENT_BASELINE.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "CF07",
+      "requirement": "CORS allows only the configured frontend origin",
+      "normative_source": "docs/implementation/LEGACY_REPLACEMENT_BASELINE.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "CF08",
+      "requirement": "Unauthenticated private requests fail closed",
+      "normative_source": "docs/implementation/LEGACY_REPLACEMENT_BASELINE.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "CF09",
+      "requirement": "Supabase JWTs are verified by Supabase Auth",
+      "normative_source": "docs/implementation/LEGACY_REPLACEMENT_BASELINE.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "CF10",
+      "requirement": "Workspace membership is checked server side",
+      "normative_source": "docs/implementation/LEGACY_REPLACEMENT_BASELINE.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "CF11",
+      "requirement": "Capability scopes derive from workspace role",
+      "normative_source": "docs/implementation/LEGACY_REPLACEMENT_BASELINE.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "CF12",
+      "requirement": "Result limits are server bounded",
+      "normative_source": "docs/implementation/LEGACY_REPLACEMENT_BASELINE.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "CF13",
+      "requirement": "Deadlines bound upstream requests",
+      "normative_source": "docs/implementation/LEGACY_REPLACEMENT_BASELINE.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "CF14",
+      "requirement": "Per-user preview rate limiting is enforced",
+      "normative_source": "docs/implementation/LEGACY_REPLACEMENT_BASELINE.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "CF15",
+      "requirement": "Mutations require idempotency where applicable",
+      "normative_source": "docs/implementation/LEGACY_REPLACEMENT_BASELINE.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "CF16",
+      "requirement": "Service credentials remain Worker secrets",
+      "normative_source": "docs/implementation/LEGACY_REPLACEMENT_BASELINE.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "CF17",
+      "requirement": "Supabase remains business authority",
+      "normative_source": "docs/implementation/LEGACY_REPLACEMENT_BASELINE.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "CF18",
+      "requirement": "Qdrant remains reconstructible retrieval state",
+      "normative_source": "docs/implementation/LEGACY_REPLACEMENT_BASELINE.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "CF19",
+      "requirement": "Gemini receives only bounded synthetic/live requests",
+      "normative_source": "docs/implementation/LEGACY_REPLACEMENT_BASELINE.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "CF20",
+      "requirement": "No hidden paid fallback exists",
+      "normative_source": "docs/implementation/LEGACY_REPLACEMENT_BASELINE.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "CF21",
+      "requirement": "Unknown quota produces a typed state",
+      "normative_source": "docs/implementation/LEGACY_REPLACEMENT_BASELINE.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "CF22",
+      "requirement": "HTTP 429 remains retryable and explicit",
+      "normative_source": "docs/implementation/LEGACY_REPLACEMENT_BASELINE.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "CF23",
+      "requirement": "Provider failures use safe public errors",
+      "normative_source": "docs/implementation/LEGACY_REPLACEMENT_BASELINE.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "CF24",
+      "requirement": "Cloudflare coordination is non-authoritative",
+      "normative_source": "docs/implementation/LEGACY_REPLACEMENT_BASELINE.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "CF25",
+      "requirement": "Preview deployment is protected by GitHub Environment",
+      "normative_source": "docs/implementation/LEGACY_REPLACEMENT_BASELINE.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "CF26",
+      "requirement": "Live smoke probes gate deployment",
+      "normative_source": "docs/implementation/LEGACY_REPLACEMENT_BASELINE.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "CF27",
+      "requirement": "Desktop and mobile browser tests gate deployment",
+      "normative_source": "docs/implementation/LEGACY_REPLACEMENT_BASELINE.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "CF28",
+      "requirement": "Accessibility scans gate deployment",
+      "normative_source": "docs/implementation/LEGACY_REPLACEMENT_BASELINE.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "CF29",
+      "requirement": "Visual baselines gate deployment",
+      "normative_source": "docs/implementation/LEGACY_REPLACEMENT_BASELINE.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "CF30",
+      "requirement": "Canary promotion and rollback are rehearsed",
+      "normative_source": "docs/implementation/LEGACY_REPLACEMENT_BASELINE.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "CF31",
+      "requirement": "Custom DNS is not required for Preview verification",
+      "normative_source": "docs/implementation/LEGACY_REPLACEMENT_BASELINE.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "CF32",
+      "requirement": "Production is not claimed from a workers.dev preview",
+      "normative_source": "docs/implementation/LEGACY_REPLACEMENT_BASELINE.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "A01",
+      "requirement": "GitHub and Google OAuth are the enabled sign-in methods",
+      "normative_source": "docs/implementation/LEGACY_REPLACEMENT_BASELINE.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "A02",
+      "requirement": "Email/password authentication is disabled",
+      "normative_source": "docs/implementation/LEGACY_REPLACEMENT_BASELINE.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "A03",
+      "requirement": "Supabase Site URL targets the Cloudflare preview",
+      "normative_source": "docs/implementation/LEGACY_REPLACEMENT_BASELINE.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "A04",
+      "requirement": "OAuth callback targets the Cloudflare preview",
+      "normative_source": "docs/implementation/LEGACY_REPLACEMENT_BASELINE.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "A05",
+      "requirement": "Signed-out users receive an authentication boundary",
+      "normative_source": "docs/implementation/LEGACY_REPLACEMENT_BASELINE.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "A06",
+      "requirement": "Signed-in identity is visible in the application shell",
+      "normative_source": "docs/implementation/LEGACY_REPLACEMENT_BASELINE.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "A07",
+      "requirement": "Initial workspace onboarding is available",
+      "normative_source": "docs/implementation/LEGACY_REPLACEMENT_BASELINE.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "A08",
+      "requirement": "Workspace creation is idempotent",
+      "normative_source": "docs/implementation/LEGACY_REPLACEMENT_BASELINE.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "A09",
+      "requirement": "Workspace selection is stored client-side",
+      "normative_source": "docs/implementation/LEGACY_REPLACEMENT_BASELINE.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "A10",
+      "requirement": "API requests carry the Supabase access token",
+      "normative_source": "docs/implementation/LEGACY_REPLACEMENT_BASELINE.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "A11",
+      "requirement": "API requests carry the workspace binding",
+      "normative_source": "docs/implementation/LEGACY_REPLACEMENT_BASELINE.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "A12",
+      "requirement": "Evidence capabilities are discoverable after authentication",
+      "normative_source": "docs/implementation/LEGACY_REPLACEMENT_BASELINE.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "A13",
+      "requirement": "Evidence search is bounded",
+      "normative_source": "docs/implementation/LEGACY_REPLACEMENT_BASELINE.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "A14",
+      "requirement": "Claim retrieval is bounded",
+      "normative_source": "docs/implementation/LEGACY_REPLACEMENT_BASELINE.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "A15",
+      "requirement": "Citation retrieval is bounded",
+      "normative_source": "docs/implementation/LEGACY_REPLACEMENT_BASELINE.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "A16",
+      "requirement": "Entity lookup is bounded",
+      "normative_source": "docs/implementation/LEGACY_REPLACEMENT_BASELINE.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "A17",
+      "requirement": "Relationship lookup is bounded",
+      "normative_source": "docs/implementation/LEGACY_REPLACEMENT_BASELINE.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "A18",
+      "requirement": "Obligation lookup is capability scoped",
+      "normative_source": "docs/implementation/LEGACY_REPLACEMENT_BASELINE.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "A19",
+      "requirement": "Procurement lookup is capability scoped",
+      "normative_source": "docs/implementation/LEGACY_REPLACEMENT_BASELINE.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "A20",
+      "requirement": "Passport retrieval is capability scoped",
+      "normative_source": "docs/implementation/LEGACY_REPLACEMENT_BASELINE.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "A21",
+      "requirement": "Finding retrieval is capability scoped",
+      "normative_source": "docs/implementation/LEGACY_REPLACEMENT_BASELINE.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "A22",
+      "requirement": "Monitor status is capability scoped",
+      "normative_source": "docs/implementation/LEGACY_REPLACEMENT_BASELINE.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "A23",
+      "requirement": "Every private read writes a best-effort audit event",
+      "normative_source": "docs/implementation/LEGACY_REPLACEMENT_BASELINE.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "A24",
+      "requirement": "Cross-origin requests use exact-origin CORS",
+      "normative_source": "docs/implementation/LEGACY_REPLACEMENT_BASELINE.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "A25",
+      "requirement": "Expired tokens fail with AUTH_REQUIRED",
+      "normative_source": "docs/implementation/LEGACY_REPLACEMENT_BASELINE.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "A26",
+      "requirement": "Missing workspace bindings fail safely",
+      "normative_source": "docs/implementation/LEGACY_REPLACEMENT_BASELINE.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "A27",
+      "requirement": "Unknown routes fail safely",
+      "normative_source": "docs/implementation/LEGACY_REPLACEMENT_BASELINE.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "A28",
+      "requirement": "The UI reflows without horizontal overflow",
+      "normative_source": "docs/implementation/LEGACY_REPLACEMENT_BASELINE.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "A29",
+      "requirement": "Keyboard focus remains visible",
+      "normative_source": "docs/implementation/LEGACY_REPLACEMENT_BASELINE.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "A30",
+      "requirement": "Reduced motion preserves content",
+      "normative_source": "docs/implementation/LEGACY_REPLACEMENT_BASELINE.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "A31",
+      "requirement": "Automated WCAG 2 A/AA checks pass",
+      "normative_source": "docs/implementation/LEGACY_REPLACEMENT_BASELINE.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "A32",
+      "requirement": "Authenticated preview status is reported separately from production",
+      "normative_source": "docs/implementation/LEGACY_REPLACEMENT_BASELINE.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "S01",
+      "requirement": "Use stable public identifiers",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "S02",
+      "requirement": "Use versioned evidence identifiers",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "S03",
+      "requirement": "Preserve source locators",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "S04",
+      "requirement": "Preserve source timestamps",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "S05",
+      "requirement": "Preserve content hashes",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "S06",
+      "requirement": "Support JSON-LD export",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "S07",
+      "requirement": "Support W3C PROV links",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "S08",
+      "requirement": "Use ISO-8601 timestamps",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "S09",
+      "requirement": "Use UTC for durable accounting",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "S10",
+      "requirement": "Use standard HTTP status codes",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "S11",
+      "requirement": "Honor Retry-After",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "S12",
+      "requirement": "Support cursor pagination",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "S13",
+      "requirement": "Support conditional HTTP",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "S14",
+      "requirement": "Preserve MIME types",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "S15",
+      "requirement": "Use SPDX-compatible licence identifiers",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "S16",
+      "requirement": "Produce CycloneDX SBOM",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "S17",
+      "requirement": "Use documented API schemas",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "S18",
+      "requirement": "Keep schemas versioned",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "S19",
+      "requirement": "Use typed failure states",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "S20",
+      "requirement": "Support deterministic exports",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "S21",
+      "requirement": "Separate authority from caches",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "S22",
+      "requirement": "Keep reconstructible indexes portable",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "S23",
+      "requirement": "Keep provider adapters replaceable",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "S24",
+      "requirement": "Expose capability discovery",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "S25",
+      "requirement": "Fence MCP operations by capability",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "S26",
+      "requirement": "Use accessible semantic HTML",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "S27",
+      "requirement": "Meet WCAG 2 A/AA automated gates",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "S28",
+      "requirement": "Support reduced motion",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "S29",
+      "requirement": "Support keyboard navigation",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "S30",
+      "requirement": "Support responsive desktop/mobile layouts",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "S31",
+      "requirement": "Document migration paths",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "S32",
+      "requirement": "Document interoperability limits",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "G01",
+      "requirement": "Fail closed on unknown rights",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "G02",
+      "requirement": "Fail closed on unknown quota",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "G03",
+      "requirement": "Require human review for consequential obligations",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "G04",
+      "requirement": "Require review for uncertain entity links",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "G05",
+      "requirement": "Preserve contradictory evidence",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "G06",
+      "requirement": "Label inference separately from evidence",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "G07",
+      "requirement": "Block untrusted content from authorizing tools",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "G08",
+      "requirement": "Treat retrieved instructions as data",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "G09",
+      "requirement": "Redact secrets from logs",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "G10",
+      "requirement": "Redact private query attributes",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "G11",
+      "requirement": "Enforce workspace authorization",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "G12",
+      "requirement": "Fence versions and lifecycle epochs",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "G13",
+      "requirement": "Enforce least-privilege capabilities",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "G14",
+      "requirement": "Keep provider credentials server-side",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "G15",
+      "requirement": "Keep originals in private storage",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "G16",
+      "requirement": "Record immutable audit evidence",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "G17",
+      "requirement": "Record provider and policy revisions",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "G18",
+      "requirement": "Record reviewer identity and time",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "G19",
+      "requirement": "Support retention and deletion",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "G20",
+      "requirement": "Preserve deletion receipts",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "G21",
+      "requirement": "Keep export available near capacity",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "G22",
+      "requirement": "Keep deletion available near capacity",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "G23",
+      "requirement": "No hidden paid fallback",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "G24",
+      "requirement": "No free-tier SLA claim",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "G25",
+      "requirement": "Bound automated work",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "G26",
+      "requirement": "Prioritize user-triggered work",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "G27",
+      "requirement": "Support cancellation and resume",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "G28",
+      "requirement": "Detect stale workers",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "G29",
+      "requirement": "Require idempotency keys",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "G30",
+      "requirement": "Make recovery decisions explicit",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "G31",
+      "requirement": "Publish honest readiness states",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "G32",
+      "requirement": "Document residual risk",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "P01",
+      "requirement": "Claims carry evidence",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "P02",
+      "requirement": "Claims carry confidence",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "P03",
+      "requirement": "Claims carry review status",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "P04",
+      "requirement": "Unsupported claims abstain",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "P05",
+      "requirement": "Contradictions remain visible",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "P06",
+      "requirement": "Calculations are deterministic",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "P07",
+      "requirement": "Calculations preserve units",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "P08",
+      "requirement": "Calculations preserve formulas",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "P09",
+      "requirement": "Obligations preserve authority",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "P10",
+      "requirement": "Obligations preserve jurisdiction",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "P11",
+      "requirement": "Obligations preserve actor/action",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "P12",
+      "requirement": "Obligations preserve temporal validity",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "P13",
+      "requirement": "Approved obligations require reviewers",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "P14",
+      "requirement": "Procurement records preserve source identity",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "P15",
+      "requirement": "Procurement normalization is selective",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "P16",
+      "requirement": "Counterparty matches expose uncertainty",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "P17",
+      "requirement": "Adverse matches require review",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "P18",
+      "requirement": "Passport exports use JSON-LD",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "P19",
+      "requirement": "Passport exports use PROV links",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "P20",
+      "requirement": "Passport exports have deterministic receipts",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "P21",
+      "requirement": "Scientific evidence preserves study identity",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "P22",
+      "requirement": "Scientific evidence preserves version",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "P23",
+      "requirement": "Open-source findings preserve advisory identity",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "P24",
+      "requirement": "Open-source findings preserve licence",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "P25",
+      "requirement": "Public-risk alerts preserve source time",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "P26",
+      "requirement": "Monitors distinguish unchanged/changed/failed",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "P27",
+      "requirement": "Terms changes require review",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "P28",
+      "requirement": "Evidence API requires workspace scope",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "P29",
+      "requirement": "MCP tools are capability scoped",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "P30",
+      "requirement": "MCP tools are non-destructive by default",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "P31",
+      "requirement": "Setup Center exposes readiness",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "P32",
+      "requirement": "All verticals share evidence lineage",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "Z01",
+      "requirement": "Every metered operation has admission control",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "Z02",
+      "requirement": "Every provider has a documented quota",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "Z03",
+      "requirement": "Quota windows are configurable",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "Z04",
+      "requirement": "No paid fallback is hidden",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "Z05",
+      "requirement": "Low-priority work can be delayed",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "Z06",
+      "requirement": "Retry-After is respected",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "Z07",
+      "requirement": "Browser rendering is a last resort",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "Z08",
+      "requirement": "Static retrieval is preferred",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "Z09",
+      "requirement": "Conditional HTTP is used where supported",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "Z10",
+      "requirement": "Unchanged sources avoid AI calls",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "Z11",
+      "requirement": "Public datasets are selectively materialized",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "Z12",
+      "requirement": "Bulk analysis can run locally in DuckDB",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "Z13",
+      "requirement": "Reconstructible data has an expiry policy",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "Z14",
+      "requirement": "Irreplaceable evidence is protected",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "Z15",
+      "requirement": "Qdrant is reconstructible",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "Z16",
+      "requirement": "AI outputs are cached only when authorized",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "Z17",
+      "requirement": "Cache reuse respects source versions",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "Z18",
+      "requirement": "Cache reuse respects rights changes",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "Z19",
+      "requirement": "Workspace budgets are enforced",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "Z20",
+      "requirement": "Global budgets are enforced",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "Z21",
+      "requirement": "Administrators can see utilization",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "Z22",
+      "requirement": "Users see quota-based delays",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "Z23",
+      "requirement": "Exhaustion produces a typed state",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "Z24",
+      "requirement": "Export remains available near capacity",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "Z25",
+      "requirement": "Deletion remains available near capacity",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "Z26",
+      "requirement": "Background monitoring has priority tiers",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "Z27",
+      "requirement": "User-triggered refresh is supported",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "Z28",
+      "requirement": "Free-plan pauses are handled",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "Z29",
+      "requirement": "Read-only database mode is handled",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "Z30",
+      "requirement": "Every critical service has a migration path",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "Z31",
+      "requirement": "Free-tier behavior is tested",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "Z32",
+      "requirement": "The application never claims an SLA for free dependencies",
+      "normative_source": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "complete-product acceptance; production not approved",
+      "next_action": "Trace the accepted requirement into its current UI/API/data/runtime path, implement gaps, and attach current scoped acceptance evidence before closing.",
+      "acceptance_evidence": [],
+      "historical_evidence": "Earlier LOCALLY_TESTED/PREVIEW_VERIFIED register labels are retained in the normative document; they do not satisfy this complete-product mandate."
+    },
+    {
+      "id": "PRODUCT-01",
+      "requirement": "Evidence Workbench: durable authorized end-to-end user workflow",
+      "normative_source": "Owner execution directive, 2026-10-09; docs/MASTER_PROMPT_AUDIT.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "source and isolated rehearsal; production not approved",
+      "next_action": "Complete the connected UI/API/persistence/job/provider/review/export/delete scenario, verify rights and failure behavior, then exercise live acceptance with authorized synthetic fixtures.",
+      "acceptance_evidence": []
+    },
+    {
+      "id": "PRODUCT-02",
+      "requirement": "API Terms and Quota Radar: durable authorized end-to-end user workflow",
+      "normative_source": "Owner execution directive, 2026-10-09; docs/MASTER_PROMPT_AUDIT.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "source and isolated rehearsal; production not approved",
+      "next_action": "Complete the connected UI/API/persistence/job/provider/review/export/delete scenario, verify rights and failure behavior, then exercise live acceptance with authorized synthetic fixtures.",
+      "acceptance_evidence": []
+    },
+    {
+      "id": "PRODUCT-03",
+      "requirement": "Regulatory Obligation Compiler: durable authorized end-to-end user workflow",
+      "normative_source": "Owner execution directive, 2026-10-09; docs/MASTER_PROMPT_AUDIT.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "source and isolated rehearsal; production not approved",
+      "next_action": "Complete the connected UI/API/persistence/job/provider/review/export/delete scenario, verify rights and failure behavior, then exercise live acceptance with authorized synthetic fixtures.",
+      "acceptance_evidence": []
+    },
+    {
+      "id": "PRODUCT-04",
+      "requirement": "Procurement Intelligence Graph: durable authorized end-to-end user workflow",
+      "normative_source": "Owner execution directive, 2026-10-09; docs/MASTER_PROMPT_AUDIT.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "source and isolated rehearsal; production not approved",
+      "next_action": "Complete the connected UI/API/persistence/job/provider/review/export/delete scenario, verify rights and failure behavior, then exercise live acceptance with authorized synthetic fixtures.",
+      "acceptance_evidence": []
+    },
+    {
+      "id": "PRODUCT-05",
+      "requirement": "Counterparty Evidence Graph: durable authorized end-to-end user workflow",
+      "normative_source": "Owner execution directive, 2026-10-09; docs/MASTER_PROMPT_AUDIT.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "source and isolated rehearsal; production not approved",
+      "next_action": "Complete the connected UI/API/persistence/job/provider/review/export/delete scenario, verify rights and failure behavior, then exercise live acceptance with authorized synthetic fixtures.",
+      "acceptance_evidence": []
+    },
+    {
+      "id": "PRODUCT-06",
+      "requirement": "Product Evidence Passport: durable authorized end-to-end user workflow",
+      "normative_source": "Owner execution directive, 2026-10-09; docs/MASTER_PROMPT_AUDIT.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "source and isolated rehearsal; production not approved",
+      "next_action": "Complete the connected UI/API/persistence/job/provider/review/export/delete scenario, verify rights and failure behavior, then exercise live acceptance with authorized synthetic fixtures.",
+      "acceptance_evidence": []
+    },
+    {
+      "id": "PRODUCT-07",
+      "requirement": "Scientific Evidence Workbench: durable authorized end-to-end user workflow",
+      "normative_source": "Owner execution directive, 2026-10-09; docs/MASTER_PROMPT_AUDIT.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "source and isolated rehearsal; production not approved",
+      "next_action": "Complete the connected UI/API/persistence/job/provider/review/export/delete scenario, verify rights and failure behavior, then exercise live acceptance with authorized synthetic fixtures.",
+      "acceptance_evidence": []
+    },
+    {
+      "id": "PRODUCT-08",
+      "requirement": "Open-Source Assurance Graph: durable authorized end-to-end user workflow",
+      "normative_source": "Owner execution directive, 2026-10-09; docs/MASTER_PROMPT_AUDIT.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "source and isolated rehearsal; production not approved",
+      "next_action": "Complete the connected UI/API/persistence/job/provider/review/export/delete scenario, verify rights and failure behavior, then exercise live acceptance with authorized synthetic fixtures.",
+      "acceptance_evidence": []
+    },
+    {
+      "id": "PRODUCT-09",
+      "requirement": "Infrastructure and Public-Risk Monitoring: durable authorized end-to-end user workflow",
+      "normative_source": "Owner execution directive, 2026-10-09; docs/MASTER_PROMPT_AUDIT.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "source and isolated rehearsal; production not approved",
+      "next_action": "Complete the connected UI/API/persistence/job/provider/review/export/delete scenario, verify rights and failure behavior, then exercise live acceptance with authorized synthetic fixtures.",
+      "acceptance_evidence": []
+    },
+    {
+      "id": "PRODUCT-10",
+      "requirement": "Evidence API and MCP Platform: durable authorized end-to-end user workflow",
+      "normative_source": "Owner execution directive, 2026-10-09; docs/MASTER_PROMPT_AUDIT.md",
+      "status": "OPEN_ENGINEERING",
+      "environment": "source and isolated rehearsal; production not approved",
+      "next_action": "Complete the connected UI/API/persistence/job/provider/review/export/delete scenario, verify rights and failure behavior, then exercise live acceptance with authorized synthetic fixtures.",
+      "acceptance_evidence": []
+    },
+    {
+      "id": "DEFECT-IMAGE-SECURITY",
+      "requirement": "Unsuppressed maintained-stable backend runtime image passes the mandatory medium-and-higher gate",
+      "normative_source": ".github/workflows/container-verification.yml",
+      "status": "FAILED",
+      "environment": "exacta04a01ce74f15369c583fdc0585720034962e0ab GitHub image job114207864203",
+      "next_action": "Remediate actual installed package findings with compatible maintained components and rerun the real image; reconcile CNA/scanner range discrepancies without changing acceptance policy.",
+      "acceptance_evidence": [],
+      "observed_failure": {
+        "scanner": "Grype 0.118.0",
+        "findings": 163,
+        "high": 57,
+        "medium": 50,
+        "low": 10,
+        "negligible": 46,
+        "fix_states": {
+          "wont-fix": 114,
+          "not-fixed": 47,
+          "fixed": 2
+        },
+        "url": "https://github.com/Anupam0202/NexusRAG/actions/runs/38050262443/job/114207864203",
+        "raw_sha256": "54f31555ac3e6fee1f62619c2fb823a9ec1af9ff07de0702308171b100621164",
+        "source_identity": "a04a01ce74f15369c583fdc0585720034962e0ab",
+        "frontend_matches": 0
+      },
+      "latest_ci_failure": {
+        "source_identity": "8faaebad5bbcfb70a3e8161dd645a7069ddb9c29",
+        "image_job_url": "https://github.com/Anupam0202/NexusRAG/actions/runs/38055440949/job/114222818422",
+        "summary_job": 114227102083,
+        "conclusion": "FAILED",
+        "detailed_raw_findings": "NOT_REACQUIRED; observed_failure retains independently measured a04 details only"
+      }
+    },
+    {
+      "id": "DEFECT-WORKSPACE-DISCOVERY",
+      "requirement": "Discover only active actor-authorized workspaces, with bounded pages and honest exact totals",
+      "normative_source": "Owner identity and accurate-inventory mandate, 2026-10-09",
+      "status": "IN_PROGRESS",
+      "environment": "published3ef3933 source; approved live candidate still2fbc/46bb, new-source hosted acceptance pending",
+      "next_action": "Obtain exact-source isolated candidate approval and verify real OAuth active-workspace discovery, pagination and account races; do not count local synthetic/public checks as hosted private acceptance.",
+      "acceptance_evidence": []
+    },
+    {
+      "id": "CLEANUP-PR3-QUARANTINE",
+      "requirement": "Preserve approved reversible PR3 quarantine and protected runtime identities",
+      "normative_source": "Owner scoped quarantine approval; docs/implementation/cloudflare-ledger.json",
+      "status": "VERIFIED",
+      "environment": "live Cloudflare PR3 controls only",
+      "next_action": "Recheck drift without reactivation or permanent deletion; retain recoverable configuration and all data/secrets.",
+      "verified_scope": "Only approved URL/cron/empty-consumer detachment, retained inventories and protected metadata parity; not full product or rollback rehearsal.",
+      "acceptance_evidence": [
+        {
+          "environment": "live PR3/candidate/shared Preview controls",
+          "observed_at": "2026-10-09T17:55:18Z",
+          "source_identity": "PR3 gateway 443290 / candidate frontend 2fbc / candidate gateway 46bb; unchanged versions recorded in Cloudflare ledger",
+          "command_or_url": "GET Cloudflare active deployments/subdomain/schedules/consumers/metrics and six public endpoints; docs/implementation/cloudflare-ledger.json",
+          "result": "PASS"
+        }
+      ]
+    },
+    {
+      "id": "EXTERNAL-PROVIDER-PROCESSING",
+      "requirement": "Current verified operator rights and workspace-owner processing approval for live generation",
+      "normative_source": "docs/implementation/PROVIDER_RIGHTS_REGISTER.md",
+      "status": "BLOCKED_EXTERNAL",
+      "environment": "live provider-processing acceptance only",
+      "next_action": "Request the specific current provider-rights/privacy decision; do not bypass fail-closed controls.",
+      "acceptance_evidence": [],
+      "external_prerequisite": {
+        "owner": "Accountable operator and workspace owner",
+        "decision_or_access": "Approve current verified provider terms/privacy/processing scope through the actual controls",
+        "affected_operation": "Authorized live document processing and generated-answer acceptance"
+      }
+    },
+    {
+      "id": "EXTERNAL-PRODUCTION-CUTOVER",
+      "requirement": "Explicit source/schema-specific production rollout authorization",
+      "normative_source": "docs/DEPLOYMENT_PRODUCTION.md and owner boundaries",
+      "status": "BLOCKED_EXTERNAL",
+      "environment": "production cutover only",
+      "next_action": "Complete engineering/gates/recovery evidence first, then request exact production rollout approval.",
+      "acceptance_evidence": [],
+      "external_prerequisite": {
+        "owner": "Repository/platform owner",
+        "decision_or_access": "Authorize the exact production source, migration plan, retained resources and recovery plan",
+        "affected_operation": "Production schema/deployment/cutover and live production acceptance"
+      }
+    },
+    {
+      "id": "DEFECT-INVITATIONS",
+      "requirement": "Durable recipient-bound workspace invitation creation, management, acceptance and revocation",
+      "status": "IN_PROGRESS",
+      "environment": "published33806e9 source; corrected cda7111 PostgreSQL CI rehearsal passed; no hosted040 migration or candidate release",
+      "next_action": "Obtain exact candidate source and isolated rehearsal040 approval, then prove real OAuth recipient/owner/admin/editor/viewer, cross-tenant, expiry/revoke/replay and fixture cleanup. CI PostgreSQL stand-ins are not hosted Auth/Storage acceptance.",
+      "acceptance_evidence": [
+        {
+          "environment": "disposable local PostgreSQL17.10, pgvector0.8.2, synthetic Auth/Storage stand-ins",
+          "observed_at": "2026-10-09T22:09:19.802692Z",
+          "source_identity": "parent3ef + migration040 SHA256 ab1cccde2aaf5e128c9d2269b7a80dfc034b9555889af26635ae48eba0e5b92b",
+          "command_or_url": "bash tests/postgres/local-rehearsal.sh; bash tests/postgres/backup-restore.sh",
+          "result": "PASS: recipient binding/grants/roles/expiry/revoke/idempotency/issuer demotion/replay after removal; concurrent16 accept/replay +64 pending-admission calls; backup60tables/93functions. Not hosted OAuth acceptance."
+        },
+        {
+          "environment": "offline backend and gateway wiring",
+          "observed_at": "2026-10-09T22:09:19.802692Z",
+          "source_identity": "parent3ef + recovered invitation source and validation-redaction fix",
+          "command_or_url": "python backend/scripts/run_full_tests.py; npm run test:cloudflare",
+          "result": "PASS:363backend+10subtests;200gateway/no skips. Synthetic auth/mocked transport, not real-user tenant isolation."
+        },
+        {
+          "environment": "GitHub CI disposable PostgreSQL17/Auth-Storage stand-ins",
+          "observed_at": "2026-10-10T07:57:10.095017+00:00",
+          "source_identity": "cda71113604d2430eefd6f4e23f863cd797055c3",
+          "command_or_url": "https://github.com/Anupam0202/NexusRAG/actions/runs/37998674667/job/114051093467",
+          "result": "PASS: actual packaged baseline-plus040 migration/concurrency rehearsal and protected summary. Not a hosted Supabase migration or OAuth/Storage acceptance."
+        }
+      ]
+    },
+    {
+      "id": "DEFECT-RATE-LIMIT-CAPACITY",
+      "requirement": "Bound per-process IP rate-limit tracking without evicting live history or extending denied-request lifetimes",
+      "status": "IN_PROGRESS",
+      "environment": "publishedcda7111 Python source, follow-up locally tested; no deployed load/distributed-quota acceptance",
+      "next_action": "Keep exact-head backend/image checks; verify bounded deployed load when this retained runtime is approved. Do not substitute per-process protection for durable workspace quotas.",
+      "acceptance_evidence": [
+        {
+          "environment": "offline deterministic backend regressions",
+          "observed_at": "2026-10-09T22:19:15.065629Z",
+          "source_identity": "parent33806e9 + bounded middleware source",
+          "command_or_url": "python backend/scripts/run_full_tests.py; python backend/scripts/run_isolated.py",
+          "result": "PASS:373backend+10subtests;57isolated; address churn/capacity/idle expiry/window/concurrent reservations/slow response; unchanged application request121 denied."
+        }
+      ]
+    },
+    {
+      "id": "DEFECT-PROVIDER-ERROR-PRIVACY",
+      "requirement": "Provider failures and request validation do not reflect credentials/private inputs; unverifiable BYOK is not activated",
+      "normative_source": "Owner security/private-log and fail-closed provider mandate",
+      "status": "IN_PROGRESS",
+      "environment": "Python backend follow-up to cda7111; offline synthetic failure tests only, not deployed or persisted-log acceptance",
+      "next_action": "Publish exact reviewed source and verify new-head CI; continue auditing remaining upload/retrieval/telemetry/log surfaces and prove approved deployed behavior without private customer probes. Cloudflare persisted URL redaction remains NOT_PROVEN.",
+      "acceptance_evidence": [
+        {
+          "environment": "offline Python synthetic provider/error and actual test WebSocket paths",
+          "observed_at": "2026-10-10T07:57:10.095017+00:00",
+          "source_identity": "parentcda7111 plus reviewed targeted privacy fix",
+          "command_or_url": "python backend/scripts/run_full_tests.py; python backend/scripts/run_isolated.py; npm run test:cloudflare",
+          "result": "PASS:399backend+10subtests,57isolated,200gateway/no skips;26new cases include model init/failover, three fallback paths, HTTP/WS validation, actual WebSocket failure/audit, missing SDK and unknown verification failures preventing activation. No provider/network/customer credentials or live log probe."
+        },
+        {
+          "environment": "offline Python telemetry persistence/error and metadata recursion regression",
+          "observed_at": "2026-10-10T10:26:30.070621+00:00",
+          "source_identity": "parent77ac1b7 plus reviewed telemetry privacy fix",
+          "command_or_url": "python backend/scripts/run_full_tests.py; python backend/scripts/run_isolated.py; npm run test:cloudflare",
+          "result": "PASS:409backend+10subtests,57isolated,224gateway/no skips,59scripts. Ten new failures/deep recursion/opaque key-value/error-detail cases. No deployed or persisted-log acceptance."
+        }
+      ]
+    },
+    {
+      "id": "DEFECT-BOUNDED-JSON-ADMISSION",
+      "requirement": "Ordinary gateway JSON and finding/invitation writes are streamed under byte/deadline/cancellation bounds before mutation",
+      "normative_source": "Owner bounded execution, malicious input and maintainability mandate",
+      "status": "IN_PROGRESS",
+      "environment": "local gateway follow-up to4b6474243db4c09647f34d1f5f711ef88b9107a1; no hosted deployment",
+      "next_action": "Publish reviewed bounded reader, verify exact-head compatibility/build CI and approved candidate runtime/control behavior. Preserve invitation same-code retry and existing400/422 contracts; do not silently truncate long request/history input.",
+      "acceptance_evidence": [
+        {
+          "environment": "offline Node synthetic streams and actual gateway handle paths",
+          "observed_at": "2026-10-10T08:07:35.273475+00:00",
+          "source_identity": "parent4b64742 plus reviewed shared JSON reader",
+          "command_or_url": "npm run test:cloudflare; npm run check:cloudflare; wrangler deploy --dry-run --config apps/gateway/wrangler.preview.jsonc",
+          "result": "PASS:224gateway/no skips,399backend+10subtests/57isolated combined-source rerun,59script tests, foundation and local-only Worker bundle. Covers exact byte/multibyte boundary, forged length, oversized/stalled cancellation, aborts, stalled/empty streams and frozen-clock fragment capacity, safe malformed UTF-8/JSON, no finding mutation or chat account reservation on overflow. Not a deployment, load benchmark or authenticated hosted acceptance."
+        }
+      ]
+    },
+    {
+      "id": "DEFECT-AUTHORITATIVE-RETRIEVAL-FILTERS",
+      "requirement": "Exact filename/extension/uploader/date/page/metadata scopes constrain dense and lexical retrieval using current durable tenant/version authority",
+      "normative_source": "Owner complete advanced-filter and trusted research mandate; R19/R20",
+      "status": "IN_PROGRESS",
+      "environment": "local reviewed filter follow-up to2ef7f43e108e183c8a7522086bba775ad0eb01dc; no hosted release",
+      "next_action": "Verify exact-head CI and approved isolated candidate SQL/REST/Qdrant/controls with real authorized sessions; measure labeled recall/entailment. Keep accurate extraction, complete research modes and production acceptance open; never broaden or truncate filtered scope.",
+      "acceptance_evidence": [
+        {
+          "environment": "offline Node gateway, synthetic React controls, disposable PostgreSQL17 and local Chromium desktop/mobile emulation",
+          "observed_at": "2026-10-10T11:17:45.192356+00:00",
+          "source_identity": "parent2ef7f43 plus reviewed authoritative filter source and tests",
+          "command_or_url": "npm run test:cloudflare/check:cloudflare; frontend npm ci/lint/test/tsc/build/cf:build and original public/visual/Worker browser suites; tests/postgres/local-rehearsal.sh; backend full/isolated runners",
+          "result": "PASS:269gateway/no skips,280frontend,409backend+10subtests,57isolated,59scripts,Next/OpenNext builds,full local PostgreSQL authorization/concurrency/filter rehearsal and two48-check local Chromium desktop/mobile-emulated passes. Dense/lexical scopes share durable filters and hash authority; empty matches make no provider calls; capacity fails before account usage/persistence; current filter fields revalidated. Fixes lexical-only fusion workspace identity without weakening authority. Source restored/hash-checkpointed after platform cancellation/reset and revalidated. Earlier unconfigured/demo public pass failed7of48; no baselines/thresholds weakened. Not hosted/live-role/provider-quality/production acceptance."
+        }
+      ]
+    },
+    {
+      "id": "DEFECT-MISSING-AUTH-CONFIG",
+      "requirement": "Missing public authentication configuration never implicitly authorizes demo behavior or restores private cached actor scope",
+      "normative_source": "Owner OAuth-only fail-closed identity and stale-data mandate",
+      "status": "IN_PROGRESS",
+      "environment": "local auth follow-up to8c221b3313174219efeb07c849905488230bcb45; not hosted",
+      "next_action": "Verify exact-head CI and approved candidate signed-out/configured OAuth behavior; retain real-role and private pipeline acceptance as separate unresolved gates.",
+      "acceptance_evidence": [
+        {
+          "environment": "local frontend actual store and public Chromium/mobile emulation; offline gateway/backend",
+          "observed_at": "2026-10-10T11:31:05.570793+00:00",
+          "source_identity": "parent8c221b3 plus reviewed fail-closed auth fix",
+          "command_or_url": "frontend npm run lint/test/build/cf:build; npm exec tsc -- --noEmit; original public smoke/visual/Worker-routing suites twice; gateway and offline backend runners",
+          "result": "PASS:283frontend/48files,269gateway/no skips,409backend+10subtests,57isolated; Next/OpenNext builds intentionally missing public auth settings; two48-check browser passes without configuration and unchanged visual baselines. Three regressions prove no cached scope/session API/demo fallback and actual private-state reset. Not hosted, live-role/provider or production acceptance."
+        }
+      ]
+    },
+    {
+      "id": "DEFECT-LIFECYCLE-FAILURE-PRIVACY",
+      "requirement": "Handled lifecycle failures never expose raw provider/storage/database errors through logs, deletion details or retention audit receipts",
+      "normative_source": "Owner privacy/sensitive-log and verifiable deletion mandate",
+      "status": "IN_PROGRESS",
+      "environment": "local retained Python lifecycle follow-up to37e1603; no hosted deletion or retention",
+      "next_action": "Verify exact-head CI and approved fixture-only hosted lifecycle paths; continue remaining private-log, legal-hold, retry-persistence and complete-erasure/recovery implementation. Never treat safe static failure messages as successful deletion.",
+      "acceptance_evidence": [
+        {
+          "environment": "denied-network backend fixture transports and real lifecycle/route functions",
+          "observed_at": "2026-10-10T11:56:36.276187+00:00",
+          "source_identity": "parent37e1603 plus reviewed lifecycle failure privacy source",
+          "command_or_url": "backend/scripts/run_full_tests.py; backend/scripts/run_isolated.py; npm run test:cloudflare/check:cloudflare; python3 -m unittest discover -s tests/scripts",
+          "result": "PASS initial:425backend+10subtests,57isolated,269gateway/no skips,68scripts and foundation.16new cases cover all document/resource/workspace failure stages, scheduler retries and deletion/retention route receipt/audit consumers. Private exception __str__ deliberately raises; never invoked by fixed handlers. Initial new fixture had wrong deletion confirmation; corrected without changing required confirmation or safety assertions. Final saved-source logs exported separately. Not live authenticated, full legal-hold/erasure or persisted-log acceptance."
+        }
+      ]
+    },
+    {
+      "id": "DEFECT-RETENTION-FAILURE-ISOLATION",
+      "requirement": "Retention processing rejects malformed claims, isolates per-row retry-write failure, preserves partial counts and signals operator failure without private exception disclosure",
+      "normative_source": "Owner lifecycle/recovery/privacy mandate",
+      "status": "IN_PROGRESS",
+      "environment": "local retained Python scheduler/CLI; no hosted retention/deletion",
+      "next_action": "Complete manual-run scoped claims, external-deletion fencing/legal hold and durable worker/recovery authority; obtain approved hosted041 parity/acceptance. Schedule-write fencing alone does not close complete retention/erasure.",
+      "acceptance_evidence": [
+        {
+          "environment": "denied-network synthetic lifecycle/settings transports and actual scheduler/CLI functions",
+          "observed_at": "2026-10-10T13:21:17.644692+00:00",
+          "source_identity": "parenta04 plus reviewed retention-resilience source",
+          "command_or_url": "backend/scripts/run_full_tests.py; backend/scripts/run_isolated.py; npm run test:cloudflare/check:cloudflare; python3 -m unittest discover -s tests/scripts",
+          "result": "PASS initial:457backend+10subtests,57isolated,269gateway/no skips,68scripts and foundation.32new regressions; invalid rows never mutate, retry-write failures continue, partial counts retained, CLI exits nonzero. Ambiguous writes are not proved scheduled or released. No live role/Storage/deletion/distributed-lease acceptance; final exact source receipts external."
+        },
+        {
+          "environment": "new isolated test venv; denied-network fixtures; disposable PostgreSQL17 baseline+026\u2013041 and logical restore",
+          "observed_at": "2026-10-10T14:03:21.331180+00:00",
+          "source_identity": "restored parent8faa plus reviewed041/scheduler/RPC source",
+          "command_or_url": "backend full/isolated; gateway; scripts/foundation/immutable integrity; tests/postgres/local-rehearsal.sh and backup-restore.sh",
+          "result": "PASS initial475backend+10subtests,57isolated,269gateway/no skips,68scripts.18new cases; exact claim schedule writes, replay, concurrent winner/post-lock expiry SQL tests pass. Final saved/recovered-source repeats external. No atomic external cleanup/manual authority/legal-hold/hosted acceptance."
+        }
+      ]
+    }
+  ]
+}

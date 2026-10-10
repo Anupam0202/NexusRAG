@@ -1,9 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { runSampleEvaluation } from "@/lib/api";
 import { AuthRequiredState } from "@/components/auth/AuthRequiredState";
+import { useStore } from "@/hooks/useStore";
 import { useWorkspaceApiAccess } from "@/hooks/useAuthGate";
 import type { EvaluationMode, EvaluationReportResponse } from "@/types";
 import {
@@ -28,45 +29,49 @@ const GATE_LABELS: Record<string, string> = {
 };
 
 export default function EvaluationsPage() {
-  const { authMode, canAccessWorkspaceApi } = useWorkspaceApiAccess();
+  const identity = useStore(state => JSON.stringify([state.authMode, state.authUser?.id, state.workspaceId]));
+  return <WorkspaceEvaluations key={identity} />;
+}
+
+function WorkspaceEvaluations() {
+  const { authMode, workspaceId, isWorkspaceLoading, canAccessWorkspaceApi } = useWorkspaceApiAccess();
   const [mode, setMode] = useState<EvaluationMode>("retrieval");
-  const [topK, setTopK] = useState(5);
+  const [topK, setTopK] = useState(20);
   const [report, setReport] = useState<EvaluationReportResponse | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const sequence = useRef(0);
+  useEffect(() => () => { sequence.current += 1; }, []);
+
   const run = useCallback(async (nextMode = mode, nextTopK = topK) => {
-    if (!canAccessWorkspaceApi) {
+    if (!canAccessWorkspaceApi || isWorkspaceLoading) {
       setLoading(false);
       return;
     }
 
+    if (!Number.isInteger(nextTopK) || nextTopK < 1 || nextTopK > 20) {
+      setError("Top K must be an integer from 1 to 20."); return;
+    }
+    const current = ++sequence.current;
     setLoading(true);
     setError(null);
     try {
       const nextReport = await runSampleEvaluation({
         mode: nextMode,
         top_k: nextTopK,
-        fail_under_recall: 0.8,
-        fail_under_citation_precision: 0.8,
-      });
+        fail_under_recall: 0.9,
+        fail_under_citation_precision: 0.95,
+      }, { workspaceId });
+      if (current !== sequence.current) return;
       setReport(nextReport);
     } catch (err: unknown) {
+      if (current !== sequence.current) return;
       setError(err instanceof Error ? err.message : "Evaluation run failed");
     } finally {
-      setLoading(false);
+      if (current === sequence.current) setLoading(false);
     }
-  }, [canAccessWorkspaceApi, mode, topK]);
-
-  useEffect(() => {
-    if (!canAccessWorkspaceApi) {
-      setLoading(false);
-      return;
-    }
-    void run();
-    // Run the bundled quality gate once on first page load.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [canAccessWorkspaceApi]);
+  }, [canAccessWorkspaceApi, isWorkspaceLoading, workspaceId, mode, topK]);
 
   const totalCases = summaryNumber(report, "total");
   const passedCases = summaryNumber(report, "passed");
@@ -96,7 +101,7 @@ export default function EvaluationsPage() {
             authMode={authMode}
             nextPath="/evaluations"
             title="Sign in to run evaluations"
-            description="Quality gates use workspace data and require an authenticated session."
+            description="Bundled fixture evaluation requires an authenticated workspace. It is not a live quality or isolation assessment."
           />
         </div>
       </div>
@@ -113,7 +118,7 @@ export default function EvaluationsPage() {
               <h2 className="text-lg font-bold">Evaluation Dashboard</h2>
             </div>
             <p className="mt-1 text-xs text-[var(--text-muted)]">
-              Golden dataset quality gates for retrieval, citations, latency, and tenant isolation.
+              Bundled offline regression corpus only. Passing fixtures does not establish live retrieval quality, source entailment, real-user isolation, or production readiness.
             </p>
           </div>
 
@@ -123,6 +128,7 @@ export default function EvaluationsPage() {
                 <button
                   key={item}
                   type="button"
+                  disabled={loading || isWorkspaceLoading}
                   onClick={() => {
                     setMode(item);
                     void run(item, topK);
@@ -153,11 +159,11 @@ export default function EvaluationsPage() {
             <button
               type="button"
               onClick={() => run()}
-              disabled={loading}
+              disabled={loading || isWorkspaceLoading}
               className="inline-flex items-center gap-2 rounded-xl bg-brand-700 px-4 py-2 text-xs font-semibold text-white shadow-md transition hover:shadow-lg disabled:opacity-60"
             >
               <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
-              Run Gate
+              Run Fixture Gate
             </button>
           </div>
         </div>
@@ -185,7 +191,7 @@ export default function EvaluationsPage() {
               </div>
               <div>
                 <p className="text-sm font-bold">
-                  {loading ? "Running evaluation" : report?.gates.passed ? "Quality gate passed" : "Quality gate needs attention"}
+                  {isWorkspaceLoading ? "Waiting for workspace" : loading ? "Running fixture evaluation" : error ? "Evaluation unavailable" : !report ? "Fixture evaluation not run" : report.gates.passed ? "Fixture gate passed — not production acceptance" : "Fixture gate failed"}
                 </p>
                 <p className="text-xs text-[var(--text-secondary)]">
                   {report?.dataset ?? "sample_corpus.json"} - {mode} - {generatedAt}
@@ -193,9 +199,9 @@ export default function EvaluationsPage() {
               </div>
             </div>
             <div className="grid grid-cols-3 gap-2 text-center md:w-[300px]">
-              <Badge label="Cases" value={`${passedCases}/${totalCases}`} />
-              <Badge label="Failed" value={`${failedCases}`} />
-              <Badge label="Leaks" value={`${leakCount}`} />
+              <Badge label="Cases" value={`${passedCases ?? "—"}/${totalCases ?? "—"}`} />
+              <Badge label="Failed" value={`${failedCases ?? "—"}`} />
+              <Badge label="Leaks" value={`${leakCount ?? "Not measured"}`} />
             </div>
           </div>
         </div>
@@ -204,7 +210,7 @@ export default function EvaluationsPage() {
           <Metric icon={<SearchCheck size={18} />} label="Recall@K" value={formatPct(recall)} tone="brand" />
           <Metric icon={<Target size={18} />} label="Citation Precision" value={formatPct(citationPrecision)} tone="green" />
           <Metric icon={<Gauge size={18} />} label="Pass Rate" value={formatPct(passRate)} tone="blue" />
-          <Metric icon={<Clock size={18} />} label="Avg Latency" value={latency ? `${latency.toFixed(0)}ms` : "-"} tone="orange" />
+          <Metric icon={<Clock size={18} />} label="Avg Latency" value={latency === undefined ? "Not measured" : `${latency.toFixed(0)}ms`} tone="orange" />
         </div>
 
         <div className="grid gap-4 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]">
@@ -307,10 +313,11 @@ export default function EvaluationsPage() {
 
 function summaryNumber(report: EvaluationReportResponse | null, key: string) {
   const value = report?.summary[key];
-  return typeof value === "number" ? value : 0;
+  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
 }
 
-function formatPct(value: number) {
+function formatPct(value: number | undefined) {
+  if (value === undefined) return "Not measured";
   return `${Math.round(value * 100)}%`;
 }
 

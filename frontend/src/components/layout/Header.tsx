@@ -1,8 +1,9 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { Moon, Sun, Wifi, WifiOff } from "lucide-react";
+import { Building2, Moon, Sun, Wifi, WifiOff } from "lucide-react";
 import { useStore } from "@/hooks/useStore";
+import { shallow } from "zustand/shallow";
 import { useEffect, useState } from "react";
 import { getSystemStatus } from "@/lib/api";
 import { AuthMenu } from "@/components/auth/AuthMenu";
@@ -28,7 +29,16 @@ const PAGE_TITLES: Record<string, string> = {
 
 export function Header() {
   const pathname = usePathname();
-  const store = useStore();
+  const { authMode, userId, workspaceId, workspaceDiscovery, connectionStatus, setConnectionStatus, darkMode, toggleDark } = useStore(state => ({
+    authMode: state.authMode,
+    userId: state.authUser?.id ?? null,
+    workspaceId: state.workspaceId,
+    workspaceDiscovery: state.workspaceDiscovery,
+    connectionStatus: state.connectionStatus,
+    setConnectionStatus: state.setConnectionStatus,
+    darkMode: state.darkMode,
+    toggleDark: state.toggleDark,
+  }), shallow);
   const title = pathname.startsWith("/documents/")
     ? "Document Detail"
     : PAGE_TITLES[pathname] ?? "NexusRAG";
@@ -48,17 +58,25 @@ export function Header() {
   useEffect(() => {
     let cancelled = false;
     const checkBackend = async () => {
-      if (store.authMode === "loading") return;
-      if (store.authMode === "signed_out") {
-        store.setConnectionStatus("auth_required");
+      if (authMode === "loading") return;
+      if (authMode === "signed_out") {
+        setConnectionStatus("auth_required");
+        return;
+      }
+      if (authMode === "authenticated" && !workspaceId) {
+        // Status is workspace-authorized, not a public connectivity probe.
+        // Missing membership must not become an outage or private status request.
+        setConnectionStatus("checking");
         return;
       }
       if (!navigator.onLine) {
-        store.setConnectionStatus("offline");
+        setConnectionStatus("offline");
         return;
       }
       try {
-        const status = await getSystemStatus();
+        const status = await getSystemStatus(authMode === "authenticated"
+          ? { workspaceId: workspaceId, expectedUserId: userId ?? null }
+          : {});
         const authSetupRequired =
           status.settings.anonymous_demo_enabled === false &&
           (!status.settings.supabase_configured || !status.settings.supabase_auth_configured);
@@ -68,7 +86,7 @@ export function Header() {
           status.settings.supabase_auth_configured === true &&
           status.settings.supabase_data_api_reachable === false;
         if (!cancelled) {
-          store.setConnectionStatus(
+          setConnectionStatus(
             authSetupRequired
               ? "auth_setup_required"
               : dataSetupRequired
@@ -80,9 +98,9 @@ export function Header() {
         const authenticationRequired =
           error instanceof Error &&
           "code" in error &&
-          (error as Error & { code?: unknown }).code === "AUTH_REQUIRED";
+          ["AUTH_REQUIRED", "AUTH_CONTEXT_CHANGED"].includes(String((error as Error & { code?: unknown }).code));
         if (!cancelled) {
-          store.setConnectionStatus(authenticationRequired ? "auth_required" : "offline");
+          setConnectionStatus(authenticationRequired ? "auth_required" : "offline");
         }
       }
     };
@@ -92,33 +110,39 @@ export function Header() {
       cancelled = true;
       window.clearInterval(timer);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [store.authMode, store.authUser?.id, store.workspaceId]);
+  }, [authMode, userId, workspaceId, setConnectionStatus]);
 
+  const needsWorkspace = authMode === "authenticated" && !workspaceId;
   const connectionLabel = !browserOnline
     ? "Offline"
-    : store.connectionStatus === "online"
+    : needsWorkspace
+      ? workspaceDiscovery === "missing"
+        ? "Workspace required"
+        : workspaceDiscovery === "error" || workspaceDiscovery === "ready"
+          ? "Workspace unavailable"
+          : "Checking workspace"
+    : connectionStatus === "online"
       ? "Gateway reachable"
-      : store.connectionStatus === "auth_setup_required"
+      : connectionStatus === "auth_setup_required"
         ? "Auth setup required"
-        : store.connectionStatus === "data_setup_required"
+        : connectionStatus === "data_setup_required"
           ? "Data setup required"
-          : store.connectionStatus === "auth_required"
+          : connectionStatus === "auth_required"
             ? "Sign in required"
-          : store.connectionStatus === "reconnecting"
+          : connectionStatus === "reconnecting"
             ? "Reconnecting"
-            : store.connectionStatus === "offline"
+            : connectionStatus === "offline"
               ? "Backend offline"
               : "Checking";
-  const connectionOnline = browserOnline && store.connectionStatus === "online";
+  const connectionOnline = browserOnline && !needsWorkspace && connectionStatus === "online";
   const connectionNeedsSetup =
     browserOnline &&
-    (store.connectionStatus === "auth_setup_required" ||
-      store.connectionStatus === "data_setup_required" ||
-      store.connectionStatus === "auth_required");
+    (needsWorkspace || connectionStatus === "auth_setup_required" ||
+      connectionStatus === "data_setup_required" ||
+      connectionStatus === "auth_required");
   const connectionReachable =
     browserOnline &&
-    (connectionOnline || store.connectionStatus === "auth_required");
+    (connectionOnline || connectionStatus === "auth_required");
 
   return (
     <header className="flex w-full min-w-0 items-center justify-between border-b border-white/10 dark:border-white/5 bg-white/70 dark:bg-[#0a0e1a]/70 backdrop-blur-xl px-4 sm:px-6 h-14 shrink-0 sticky top-0 z-30 shadow-[0_1px_3px_rgba(0,0,0,0.05)]">
@@ -140,18 +164,18 @@ export function Header() {
               ? "bg-amber-100 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300"
             : "bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-400"
         }`}>
-          {connectionReachable ? <Wifi size={11} /> : <WifiOff size={11} />}
+          {needsWorkspace && browserOnline ? <Building2 size={11} /> : connectionReachable ? <Wifi size={11} /> : <WifiOff size={11} />}
           {connectionLabel}
         </div>
 
         {/* Dark mode toggle */}
         <button
-          onClick={() => store.toggleDark()}
+          onClick={() => toggleDark()}
           aria-label="Toggle dark mode"
           className="flex h-9 w-9 items-center justify-center rounded-xl hover:bg-[var(--bg-hover)] text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-all hover:scale-105 active:scale-95"
           title="Toggle theme"
         >
-          {store.darkMode ? <Sun size={17} /> : <Moon size={17} />}
+          {darkMode ? <Sun size={17} /> : <Moon size={17} />}
         </button>
       </div>
     </header>

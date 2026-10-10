@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { getAnalytics, getApiKeyStatus, getBillingUsage, getSystemStatus } = vi.hoisted(() => ({
@@ -28,9 +28,11 @@ vi.mock("@/lib/api", () => ({
 }));
 
 import BillingOrUsagePage from "./page";
+import { useStore } from "@/hooks/useStore";
 
 describe("BillingOrUsagePage", () => {
   beforeEach(() => {
+    useStore.setState({ authMode: "authenticated", authUser: { id: "user-a", email: null }, workspaceId: "workspace-a" });
     getAnalytics.mockReset();
     getApiKeyStatus.mockReset();
     getBillingUsage.mockReset();
@@ -154,4 +156,31 @@ describe("BillingOrUsagePage", () => {
     await waitFor(() => expect(screen.getByText("Unknown", { exact: true })).toBeInTheDocument());
     expect(screen.getByText(/BYOK\) calls are billed by Google/)).toBeInTheDocument();
   });
+
+  it("removes private usage immediately when the account changes", async () => {
+    mockUsageResponses();
+    const view = render(<BillingOrUsagePage />);
+    await screen.findByText("Durable usage ledger");
+    getAnalytics.mockImplementationOnce(() => new Promise(() => {}));
+    act(() => useStore.setState({ authUser: { id: "user-b", email: null } }));
+    view.rerender(<BillingOrUsagePage />);
+    expect(screen.getByText("Loading usage")).toBeInTheDocument();
+    expect(screen.queryByText("Durable usage ledger")).not.toBeInTheDocument();
+  });
+
+
+  it("never invents free quotas or healthy provider posture from missing measurements", async () => {
+    mockUsageResponses();
+    getAnalytics.mockResolvedValue({ total_documents: 1, queries_today: 2 });
+    getSystemStatus.mockResolvedValue({ settings: {}, capabilities: {}, provider_health: [] });
+    getApiKeyStatus.mockRejectedValue(new Error("Key lookup unavailable"));
+    render(<BillingOrUsagePage />);
+    await screen.findByText("Durable usage ledger");
+    expect(screen.getByText("Usage posture not verified")).toBeInTheDocument();
+    expect(screen.getAllByText(/Limit not configured/)).toHaveLength(4);
+    expect(screen.getByText("Key status unavailable")).toBeInTheDocument();
+    expect(screen.getByText(/Missing health observations do not establish availability/)).toBeInTheDocument();
+    expect(screen.queryByText("Healthy")).not.toBeInTheDocument();
+  });
+
 });

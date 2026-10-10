@@ -101,13 +101,17 @@ class WorkspaceLifecycleService:
                 await self._workspaces.delete_workspace(workspace_id=workspace_id)
             ) > 0
         except Exception as exc:
-            message = str(exc)[:300]
+            message = "Workspace deletion failed; complete deletion is not confirmed."
             logger.warning(
                 "workspace_lifecycle_workspace_delete_failed",
                 workspace_id=workspace_id,
-                error=message,
+                error_type=type(exc).__name__,
             )
-            result.failures.append({"resource": "workspaces", "message": message})
+            result.failures.append({
+                "resource": "workspaces",
+                "code": "WORKSPACE_DELETE_FAILED",
+                "message": message,
+            })
             return result
         get_layered_cache().invalidate(workspace_id=workspace_id)
         return result
@@ -132,14 +136,18 @@ class WorkspaceLifecycleService:
                 if resource == "chat_history":
                     result.chat_sessions_deleted += deleted
             except Exception as exc:
-                message = str(exc)[:300]
+                message = "Workspace data cleanup failed; deletion remains incomplete."
                 logger.warning(
                     "workspace_lifecycle_workspace_cleanup_failed",
                     workspace_id=workspace_id,
                     resource=resource,
-                    error=message,
+                    error_type=type(exc).__name__,
                 )
-                result.failures.append({"resource": resource, "message": message})
+                result.failures.append({
+                    "resource": resource,
+                    "code": "WORKSPACE_CLEANUP_FAILED",
+                    "message": message,
+                })
 
     async def _delete_document(
         self,
@@ -187,9 +195,13 @@ class WorkspaceLifecycleService:
                 "workspace_lifecycle_document_cleanup_failed",
                 workspace_id=workspace_id,
                 document_id=document_id,
-                error=str(exc)[:300],
+                error_type=type(exc).__name__,
             )
-            result.failures.append({"document_id": document_id, "message": str(exc)[:300]})
+            result.failures.append({
+                "document_id": document_id,
+                "code": "DOCUMENT_CLEANUP_FAILED",
+                "message": "Document cleanup failed; deletion remains incomplete.",
+            })
 
     @staticmethod
     def _parse_datetime(value: Any) -> datetime | None:

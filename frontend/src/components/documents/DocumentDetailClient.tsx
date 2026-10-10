@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "@/components/layout/StaticLink";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import {
   Activity,
@@ -21,8 +21,10 @@ import {
 import { DocumentChunksExplorer } from "@/components/documents/DocumentChunksExplorer";
 import { AuthRequiredState } from "@/components/auth/AuthRequiredState";
 import {
+  ApiRequestError,
   deleteDocument,
   getDocumentIngestionStatus,
+  getCurrentWorkspace,
   listDocuments,
   reindexDocument,
   retryIngestionJob,
@@ -78,11 +80,22 @@ function jobStatusTone(status?: IngestionJobStatusResponse["status"]) {
 
 export default function DocumentDetailPage() {
   const params = useParams();
+  const identity = useStore(state => JSON.stringify([state.authMode, state.authUser?.id, state.workspaceId, readParam(params.documentId)]));
+  return <WorkspaceDocumentDetail key={identity} />;
+}
+function WorkspaceDocumentDetail() {
+  const params = useParams();
   const [resolvedDocumentId, setResolvedDocumentId] = useState(
     readParam(params.documentId)
   );
   const documentId = resolvedDocumentId;
-  const { authMode, canAccessWorkspaceApi } = useWorkspaceApiAccess();
+  const { authMode, canAccessWorkspaceApi, isWorkspaceLoading, workspaceId } = useWorkspaceApiAccess();
+  const userId = useStore(state => state.authUser?.id);
+  const expectedUserId = authMode === "authenticated" ? userId ?? null : undefined;
+  const context = { workspaceId, expectedUserId };
+  const alive = useRef(true);
+  const sequence = useRef(0);
+  useEffect(() => { const counter = sequence; alive.current = true; return () => { alive.current = false; counter.current++; }; }, []);
   const setDocuments = useStore((state) => state.setDocuments);
   const removeDocument = useStore((state) => state.removeDocument);
 
@@ -93,6 +106,8 @@ export default function DocumentDetailPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [reindexing, setReindexing] = useState(false);
+  const [mutationAccess, setMutationAccess] = useState<"checking" | "allowed" | "viewer" | "unavailable">("checking");
+  const canMutate = mutationAccess === "allowed";
 
   useEffect(() => {
     const idFromPath = decodeURIComponent(
@@ -104,7 +119,9 @@ export default function DocumentDetailPage() {
   }, []);
 
   const loadDocument = useCallback(async () => {
-    if (!canAccessWorkspaceApi) return;
+    if (!canAccessWorkspaceApi || isWorkspaceLoading) return;
+    const current = ++sequence.current;
+    const valid = () => alive.current && sequence.current === current;
     if (!documentId) {
       setLoadState("not_found");
       return;
@@ -112,13 +129,28 @@ export default function DocumentDetailPage() {
 
     setRefreshing(true);
     setError(null);
+    setMutationAccess("checking");
+    // Read-only inspection remains useful while permission discovery is
+    // pending/unavailable. Never reuse a role from another actor or workspace.
+    void getCurrentWorkspace({ workspaceId, expectedUserId }).then(authority => {
+      if (!valid()) return;
+      const matches = authMode === "demo" || (
+        authority.workspace_id === workspaceId && authority.user_id === expectedUserId
+      );
+      if (!matches || !["owner", "admin", "editor", "viewer"].includes(authority.role)) {
+        setMutationAccess("unavailable");
+      } else {
+        setMutationAccess(authority.role === "viewer" ? "viewer" : "allowed");
+      }
+    }).catch(() => { if (valid()) setMutationAccess("unavailable"); });
     try {
       let nextDocument: DocumentMetadata | null = null;
       let nextJob: IngestionJobStatusResponse | null = null;
       let documentsError: unknown = null;
 
       try {
-        const response = await listDocuments();
+        const response = await listDocuments({ workspaceId, expectedUserId });
+        if (!valid()) return;
         setDocuments(response.documents);
         nextDocument = response.documents.find((item) => item.document_id === documentId) ?? null;
       } catch (err: unknown) {
@@ -127,11 +159,14 @@ export default function DocumentDetailPage() {
 
       if (!nextDocument || nextDocument.status !== "ready") {
         try {
-          nextJob = await getDocumentIngestionStatus(documentId);
+          nextJob = await getDocumentIngestionStatus(documentId, { workspaceId, expectedUserId });
+          if (!valid()) return;
           if (nextJob.document) {
             nextDocument = nextJob.document;
           }
-        } catch {
+        } catch (statusError: unknown) {
+          if (!valid()) return;
+          if (!(statusError instanceof ApiRequestError) || !["DOCUMENT_NOT_FOUND", "JOB_NOT_FOUND"].includes(statusError.code ?? "")) throw statusError;
           if (!nextDocument && documentsError) {
             throw documentsError;
           }
@@ -144,6 +179,7 @@ export default function DocumentDetailPage() {
         }
       }
 
+      if (!valid()) return;
       setJob(nextJob);
       setDocument(nextDocument);
 
@@ -153,12 +189,13 @@ export default function DocumentDetailPage() {
         setLoadState("not_found");
       }
     } catch (err: unknown) {
+      if (!valid()) return;
       setError(err instanceof Error ? err.message : "Unable to load document details");
       setLoadState("error");
     } finally {
-      setRefreshing(false);
+      if (valid()) setRefreshing(false);
     }
-  }, [canAccessWorkspaceApi, documentId, setDocuments]);
+  }, [canAccessWorkspaceApi, isWorkspaceLoading, workspaceId, expectedUserId, authMode, documentId, setDocuments]);
 
   useEffect(() => {
     if (canAccessWorkspaceApi) {
@@ -187,47 +224,54 @@ export default function DocumentDetailPage() {
   const progress = job?.progress ?? (document?.status === "ready" ? 100 : 0);
 
   const handleDelete = async () => {
-    if (!canAccessWorkspaceApi) return;
+    if (!canMutate || !canAccessWorkspaceApi || isWorkspaceLoading || deleting || reindexing) return;
     if (!document) return;
     setDeleting(true);
     setError(null);
     try {
-      await deleteDocument(document.document_id);
+      const receipt = await deleteDocument(document.document_id, context);
+      if (!alive.current) return;
+      if (!receipt.success) throw new Error(receipt.message || "Document cleanup is incomplete.");
       removeDocument(document.document_id);
       navigateStatic("/documents");
     } catch (err: unknown) {
+      if (!alive.current) return;
       setError(err instanceof Error ? err.message : "Unable to delete document");
       setDeleting(false);
     }
   };
 
   const handleReindex = async () => {
-    if (!canAccessWorkspaceApi || !document) return;
+    if (!canMutate || !canAccessWorkspaceApi || isWorkspaceLoading || deleting || reindexing || !document) return;
     setReindexing(true);
     setError(null);
     try {
-      const nextJob = await reindexDocument(document.document_id);
+      const nextJob = await reindexDocument(document.document_id, context);
+      if (!alive.current) return;
       setJob(nextJob);
       await loadDocument();
     } catch (err: unknown) {
+      if (!alive.current) return;
       setError(err instanceof Error ? err.message : "Unable to re-index document");
     } finally {
-      setReindexing(false);
+      if (alive.current) setReindexing(false);
     }
   };
 
   const handleRetry = async () => {
-    if (!canAccessWorkspaceApi || !job) return;
+    if (!canMutate || !canAccessWorkspaceApi || isWorkspaceLoading || deleting || reindexing || !job) return;
     setReindexing(true);
     setError(null);
     try {
-      const nextJob = await retryIngestionJob(job.job_id);
+      const nextJob = await retryIngestionJob(job.job_id, context);
+      if (!alive.current) return;
       setJob(nextJob);
       await loadDocument();
     } catch (err: unknown) {
+      if (!alive.current) return;
       setError(err instanceof Error ? err.message : "Unable to retry ingestion");
     } finally {
-      setReindexing(false);
+      if (alive.current) setReindexing(false);
     }
   };
 
@@ -313,7 +357,7 @@ export default function DocumentDetailPage() {
             <button
               type="button"
               onClick={() => void loadDocument()}
-              disabled={refreshing}
+              disabled={refreshing || deleting || reindexing}
               className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] px-3 py-2 text-sm font-semibold text-[var(--text-secondary)] transition hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] disabled:opacity-50"
             >
               <RefreshCw size={15} className={cn(refreshing && "animate-spin")} />
@@ -322,7 +366,8 @@ export default function DocumentDetailPage() {
             <button
               type="button"
               onClick={() => void handleReindex()}
-              disabled={reindexing}
+              disabled={!canMutate || deleting || reindexing}
+              aria-describedby={!canMutate ? "document-mutation-permission" : undefined}
               className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] px-3 py-2 text-sm font-semibold text-[var(--text-secondary)] transition hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] disabled:opacity-50"
             >
               {reindexing ? <Loader2 size={15} className="animate-spin" /> : <RefreshCw size={15} />}
@@ -331,7 +376,8 @@ export default function DocumentDetailPage() {
             <button
               type="button"
               onClick={() => void handleDelete()}
-              disabled={deleting}
+              disabled={!canMutate || deleting || reindexing}
+              aria-describedby={!canMutate ? "document-mutation-permission" : undefined}
               className="inline-flex items-center gap-2 rounded-xl border border-red-200 px-3 py-2 text-sm font-semibold text-red-600 transition hover:bg-red-50 disabled:opacity-50 dark:border-red-900/60 dark:text-red-300 dark:hover:bg-red-900/20"
             >
               {deleting ? <Loader2 size={15} className="animate-spin" /> : <Trash2 size={15} />}
@@ -339,6 +385,14 @@ export default function DocumentDetailPage() {
             </button>
           </div>
         </div>
+
+        {!canMutate && (
+          <p id="document-mutation-permission" role="status" className="text-sm text-[var(--text-muted)]">
+            {mutationAccess === "checking" ? "Checking document edit permissions…"
+              : mutationAccess === "viewer" ? "Viewer access: you can inspect this document. Re-indexing, retry and deletion require an editor, administrator or owner."
+              : "Edit permissions could not be verified. Document changes are disabled; refresh to retry. Read-only inspection remains available."}
+          </p>
+        )}
 
         {error && (
           <div className="rounded-xl border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-300">
@@ -447,7 +501,8 @@ export default function DocumentDetailPage() {
             <button
               type="button"
               onClick={() => void handleRetry()}
-              disabled={reindexing}
+              disabled={!canMutate || deleting || reindexing}
+              aria-describedby={!canMutate ? "document-mutation-permission" : undefined}
               className="mt-4 inline-flex items-center gap-2 rounded-xl bg-brand-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-500 disabled:opacity-50"
             >
               {reindexing ? <Loader2 size={15} className="animate-spin" /> : <RefreshCw size={15} />}

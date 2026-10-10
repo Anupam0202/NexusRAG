@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "@/components/layout/StaticLink";
 import {
   ArrowLeft,
@@ -22,22 +22,31 @@ import { useStore } from "@/hooks/useStore";
 import { navigateStatic } from "@/lib/static-navigation";
 import { canManageWorkspaceMember } from "@/lib/workspace-controls";
 import type { WorkspaceMember, WorkspaceRole } from "@/types";
+import { WorkspaceInvitationManager } from "@/components/workspaces/Invitations";
 
 type ManageableRole = Exclude<WorkspaceRole, "owner">;
 
 export default function MembersPage() {
-  const identity = useStore(state => `${state.authUser?.id}:${state.workspaceId}`);
+  const identity = useStore(state => JSON.stringify([state.authMode, state.authUser?.id, state.workspaceId]));
   return <MembersWorkbench key={identity} />;
 }
 function MembersWorkbench() {
   const authMode = useStore((state) => state.authMode);
   const authUser = useStore((state) => state.authUser);
   const boundWorkspaceId = useStore((state) => state.workspaceId);
-  const context = { workspaceId: boundWorkspaceId };
+  const expectedUserId = authMode === "authenticated" ? authUser?.id ?? null : undefined;
+  const context = { workspaceId: boundWorkspaceId, expectedUserId };
+  const alive = useRef(true);
+  const sequence = useRef(0);
+  useEffect(() => { const counter = sequence; alive.current = true; return () => { alive.current = false; counter.current++; }; }, []);
   const [members, setMembers] = useState<WorkspaceMember[]>([]);
+  const [nextAfter, setNextAfter] = useState<string | null>(null);
+  const [total, setTotal] = useState<number | null>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [workspaceId, setWorkspaceId] = useState<string | null>(null);
   const [currentRole, setCurrentRole] = useState<WorkspaceRole>("viewer");
   const [managementSupported, setManagementSupported] = useState(true);
+  const [invitationSupported, setInvitationSupported] = useState(false);
   const [loading, setLoading] = useState(true);
   const [savingUserId, setSavingUserId] = useState<string | null>(null);
   const [emailOrUserId, setEmailOrUserId] = useState("");
@@ -45,26 +54,34 @@ function MembersWorkbench() {
   const [error, setError] = useState<string | null>(null);
 
   const canManage =
-    managementSupported && authMode === "authenticated" && (currentRole === "owner" || currentRole === "admin");
+    !loading && !loadingMore && !error && managementSupported && authMode === "authenticated" && (currentRole === "owner" || currentRole === "admin");
 
   const loadMembers = useCallback(async () => {
+    if (authMode === "authenticated" && !boundWorkspaceId) return;
+    const current = ++sequence.current;
     setLoading(true);
     try {
       const [response, workspace] = await Promise.all([
-        listCurrentWorkspaceMembers({ workspaceId: boundWorkspaceId }),
-        getCurrentWorkspace({ workspaceId: boundWorkspaceId }),
+        listCurrentWorkspaceMembers({ workspaceId: boundWorkspaceId, expectedUserId }),
+        getCurrentWorkspace({ workspaceId: boundWorkspaceId, expectedUserId }),
       ]);
+      if (!alive.current || current !== sequence.current) return;
       setWorkspaceId(response.workspace_id);
       setMembers(response.members);
+      setNextAfter(response.next_after ?? null);
+      setTotal(response.total_is_exact === true ? response.total : null);
+      setLoadingMore(false);
       setCurrentRole(workspace.role);
       setManagementSupported(response.management_supported !== false);
+      setInvitationSupported(response.invitation_supported === true);
       setError(null);
     } catch (err: unknown) {
+      if (!alive.current || current !== sequence.current) return;
       setError(err instanceof Error ? err.message : "Unable to load members");
     } finally {
-      setLoading(false);
+      if (alive.current && current === sequence.current) setLoading(false);
     }
-  }, [boundWorkspaceId]);
+  }, [boundWorkspaceId, authMode, expectedUserId]);
 
   useEffect(() => {
     if (authMode === "loading") return;
@@ -75,54 +92,81 @@ function MembersWorkbench() {
     void loadMembers();
   }, [authMode, loadMembers]);
 
+  const loadMore = async () => {
+    if (!nextAfter || loading || loadingMore || savingUserId) return;
+    const after = nextAfter;
+    const current = ++sequence.current;
+    setLoadingMore(true);
+    try {
+      const response = await listCurrentWorkspaceMembers(context, { after });
+      if (!alive.current || current !== sequence.current) return;
+      if (response.next_after === after) throw new Error("Member pagination did not advance. Refresh and retry.");
+      setMembers(previous => [...new Map([...previous, ...response.members].map(member => [member.user_id, member])).values()]);
+      setNextAfter(response.next_after ?? null);
+      setTotal(response.total_is_exact === true ? response.total : null);
+      setError(null);
+    } catch (err: unknown) {
+      if (alive.current && current === sequence.current) setError(err instanceof Error ? err.message : "Unable to load more members");
+    } finally {
+      if (alive.current && current === sequence.current) setLoadingMore(false);
+    }
+  };
+
   const addMember = async () => {
-    if (!emailOrUserId.trim()) return;
+    if (!canManage || savingUserId || !emailOrUserId.trim()) return;
     setSavingUserId("new");
     try {
-      const member = await addCurrentWorkspaceMember({
+      await addCurrentWorkspaceMember({
         email_or_user_id: emailOrUserId.trim(),
         role: newRole,
       }, context);
-      setMembers((current) => [
-        ...current.filter((item) => item.user_id !== member.user_id),
-        member,
-      ]);
+      if (!alive.current) return;
+      await loadMembers();
+      if (!alive.current) return;
       setEmailOrUserId("");
       toast.success("Workspace member added");
     } catch (err) {
+      if (!alive.current) return;
       toast.error(err instanceof Error ? err.message : "Unable to add member");
     } finally {
-      setSavingUserId(null);
+      if (alive.current) setSavingUserId(null);
     }
   };
 
   const updateRole = async (member: WorkspaceMember, role: ManageableRole) => {
+    if (!canManage || savingUserId) return;
     setSavingUserId(member.user_id);
     try {
       const updated = await updateCurrentWorkspaceMember(member.user_id, { role }, context);
+      if (!alive.current) return;
       setMembers((current) =>
         current.map((item) => (item.user_id === updated.user_id ? { ...item, ...updated } : item))
       );
       toast.success("Member role updated");
     } catch (err) {
+      if (!alive.current) return;
       toast.error(err instanceof Error ? err.message : "Unable to update role");
     } finally {
-      setSavingUserId(null);
+      if (alive.current) setSavingUserId(null);
     }
   };
 
   const removeMember = async (member: WorkspaceMember) => {
+    if (!canManage || savingUserId) return;
     const label = member.display_name || member.email || member.user_id;
     if (!window.confirm(`Remove ${label} from this workspace?`)) return;
     setSavingUserId(member.user_id);
     try {
       await removeCurrentWorkspaceMember(member.user_id, context);
-      setMembers((current) => current.filter((item) => item.user_id !== member.user_id));
+      if (!alive.current) return;
+      await loadMembers();
+      if (!alive.current) return;
       toast.success("Workspace member removed");
     } catch (err) {
+      if (!alive.current) return;
       toast.error(err instanceof Error ? err.message : "Unable to remove member");
     } finally {
-      setSavingUserId(null);
+      if (alive.current) setSavingUserId(null);
     }
   };
 
@@ -158,6 +202,10 @@ function MembersWorkbench() {
           </div>
         </div>
 
+        <button type="button" onClick={() => void loadMembers()} disabled={loading || loadingMore || !!savingUserId}
+          className="mb-4 min-h-11 rounded-xl border border-[var(--border)] px-4 py-2 text-sm font-semibold disabled:opacity-50">
+          Refresh members
+        </button>
         {!managementSupported && (
           <p className="mb-4 rounded-xl border border-[var(--border)] p-4 text-sm text-[var(--text-muted)]">
             Membership is read-only on this bounded Worker. Adding, changing, and removing members is not yet available.
@@ -169,6 +217,8 @@ function MembersWorkbench() {
           </div>
         )}
 
+        {canManage && invitationSupported && <WorkspaceInvitationManager key={`${expectedUserId}:${boundWorkspaceId}:${currentRole}`} context={context} workspaceRole={currentRole} />}
+        {canManage && !invitationSupported && <p className="mb-4 text-sm text-[var(--text-muted)]">Recipient-bound invitations require verified migration 040 on this environment; existing-account membership controls remain separate.</p>}
         {canManage && (
           <div className="mb-5 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
             <div className="mb-3 flex items-center gap-2">
@@ -212,6 +262,11 @@ function MembersWorkbench() {
           </div>
         )}
 
+        {!loading && total !== null && (
+          <p className="mb-3 text-sm text-[var(--text-muted)]" aria-live="polite">
+            Showing {members.length} loaded members · {total} total members
+          </p>
+        )}
         {loading ? (
           <div className="flex items-center justify-center py-12 text-sm text-[var(--text-muted)]">
             <Loader2 size={18} className="mr-2 animate-spin" />
@@ -225,7 +280,7 @@ function MembersWorkbench() {
           <div className="space-y-2">
             {members.map((member) => {
               const isCurrentUser = member.user_id === authUser?.id;
-              const canManageMember = canManageWorkspaceMember({
+              const canManageMember = canManage && canManageWorkspaceMember({
                 authMode,
                 actorRole: currentRole,
                 actorUserId: authUser?.id,
@@ -286,6 +341,13 @@ function MembersWorkbench() {
               );
             })}
           </div>
+        )}
+        {!loading && nextAfter && (
+          <button type="button" onClick={() => void loadMore()} disabled={loadingMore || !!savingUserId}
+            className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-xl border border-[var(--border)] px-4 py-2 text-sm font-semibold disabled:opacity-50">
+            {loadingMore && <Loader2 size={16} className="animate-spin" />}
+            {loadingMore ? "Loading more members" : "Load more members"}
+          </button>
         )}
       </div>
     </div>

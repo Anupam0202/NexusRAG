@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -21,7 +21,12 @@ import type { ApiKeyStatusResponse } from "@/types";
 import { useStore } from "@/hooks/useStore";
 
 export default function ApiKeysPage() {
-  const { authMode, canAccessWorkspaceApi } = useWorkspaceApiAccess();
+  const identity = useStore(state => JSON.stringify([state.authMode, state.authUser?.id, state.workspaceId]));
+  return <AccountApiKeys key={identity} />;
+}
+function AccountApiKeys() {
+  const userId = useStore(state => state.authUser?.id);
+  const { authMode, workspaceId, isWorkspaceLoading, canAccessWorkspaceApi } = useWorkspaceApiAccess();
   const [status, setStatus] = useState<ApiKeyStatusResponse | null>(null);
   const [apiKey, setApiKeyValue] = useState("");
   const [costConsentAccepted, setCostConsentAccepted] = useState(false);
@@ -33,24 +38,32 @@ export default function ApiKeysPage() {
   const setUserApiKey = useStore((state) => state.setUserApiKey);
   const setIsQuotaBlocked = useStore((state) => state.setIsQuotaBlocked);
 
+  const alive = useRef(true);
+  const sequence = useRef(0);
+  useEffect(() => { alive.current = true; return () => { alive.current = false; sequence.current += 1; }; }, []);
+  const expectedUserId = authMode === "authenticated" ? userId ?? null : undefined;
+  const context = { workspaceId, expectedUserId };
   const load = useCallback(async () => {
-    if (!canAccessWorkspaceApi) {
-      setLoading(false);
+    if (!canAccessWorkspaceApi || isWorkspaceLoading) {
+      setLoading(isWorkspaceLoading);
       return;
     }
 
+    const current = ++sequence.current;
     setLoading(true);
     setError(null);
     try {
-      const nextStatus = await getApiKeyStatus();
+      const nextStatus = await getApiKeyStatus({ workspaceId, expectedUserId });
+      if (!alive.current || current !== sequence.current) return;
       setStatus(nextStatus);
       setUserApiKey(nextStatus.key_fingerprint);
     } catch (err: unknown) {
+      if (!alive.current || current !== sequence.current) return;
       setError(err instanceof Error ? err.message : "Unable to load API key status");
     } finally {
-      setLoading(false);
+      if (alive.current && current === sequence.current) setLoading(false);
     }
-  }, [canAccessWorkspaceApi, setUserApiKey]);
+  }, [canAccessWorkspaceApi, isWorkspaceLoading, workspaceId, expectedUserId, setUserApiKey]);
 
   useEffect(() => {
     if (!canAccessWorkspaceApi) {
@@ -70,7 +83,7 @@ export default function ApiKeysPage() {
     : "Not configured";
 
   const activate = async () => {
-    if (!canAccessWorkspaceApi) return;
+    if (!canAccessWorkspaceApi || isWorkspaceLoading) return;
     const trimmed = apiKey.trim();
     if (trimmed.length < 10) {
       toast.error("Enter a valid provider key");
@@ -80,10 +93,12 @@ export default function ApiKeysPage() {
       toast.error("Review and accept the Google billing notice before activating this key");
       return;
     }
+    const current = ++sequence.current;
     setSaving(true);
     setError(null);
     try {
-      const nextStatus = await setApiKey(trimmed, costConsentAccepted);
+      const nextStatus = await setApiKey(trimmed, costConsentAccepted, context);
+      if (!alive.current || current !== sequence.current) return;
       setStatus(nextStatus);
       setUserApiKey(nextStatus.key_fingerprint);
       setIsQuotaBlocked(false);
@@ -92,39 +107,43 @@ export default function ApiKeysPage() {
       setShowKey(false);
       toast.success("Account Gemini API key activated");
     } catch (err: unknown) {
+      if (!alive.current || current !== sequence.current) return;
       const message = err instanceof Error ? err.message : "Unable to activate API key";
       setError(message);
       toast.error(message);
     } finally {
-      setSaving(false);
+      if (alive.current && current === sequence.current) setSaving(false);
     }
   };
 
   const remove = async () => {
-    if (!canAccessWorkspaceApi) return;
+    if (!canAccessWorkspaceApi || isWorkspaceLoading) return;
+    const current = ++sequence.current;
     setRemoving(true);
     setError(null);
     try {
-      const nextStatus = await deleteApiKey();
+      const nextStatus = await deleteApiKey(context);
+      if (!alive.current || current !== sequence.current) return;
       setStatus(nextStatus);
       setUserApiKey(null);
       toast.success("Account Gemini API key removed");
     } catch (err: unknown) {
+      if (!alive.current || current !== sequence.current) return;
       const message = err instanceof Error ? err.message : "Unable to remove API key";
       setError(message);
       toast.error(message);
     } finally {
-      setRemoving(false);
+      if (alive.current && current === sequence.current) setRemoving(false);
     }
   };
 
   const hasWorkspaceKey = status?.workspace_key_configured === true;
   const hasServerKey = status?.server_key_configured === true;
-  const effectiveMode = hasWorkspaceKey
+  const effectiveMode = !status ? "Status unavailable" : hasWorkspaceKey
     ? "Account Gemini key"
     : hasServerKey
       ? "Server default"
-      : "Extractive fallback";
+      : "Provider processing unavailable";
 
   if (!canAccessWorkspaceApi) {
     return (
@@ -157,7 +176,7 @@ export default function ApiKeysPage() {
           <button
             type="button"
             onClick={load}
-            disabled={loading}
+            disabled={loading || saving || removing || isWorkspaceLoading}
             className="inline-flex items-center justify-center gap-2 rounded-xl border border-[var(--border)] px-3 py-2 text-xs font-semibold hover:bg-[var(--bg-hover)] disabled:opacity-60"
           >
             <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
@@ -263,7 +282,7 @@ export default function ApiKeysPage() {
 
               <button
                 type="submit"
-                disabled={saving || apiKey.trim().length < 10 || !costConsentAccepted}
+                disabled={loading || saving || removing || isWorkspaceLoading || apiKey.trim().length < 10 || !costConsentAccepted}
                 className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-linear-to-r/srgb from-brand-500 to-purple-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md transition hover:shadow-lg disabled:opacity-60 sm:w-auto"
               >
                 {saving ? <Loader2 size={15} className="animate-spin" /> : <CheckCircle2 size={15} />}
@@ -283,7 +302,7 @@ export default function ApiKeysPage() {
             <button
               type="button"
               onClick={remove}
-              disabled={!hasWorkspaceKey || removing}
+              disabled={loading || saving || !hasWorkspaceKey || removing || isWorkspaceLoading}
               className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-semibold text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-red-900 dark:bg-red-950/20 dark:text-red-300 dark:hover:bg-red-950/30"
             >
               {removing ? <Loader2 size={15} className="animate-spin" /> : <Trash2 size={15} />}

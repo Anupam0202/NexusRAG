@@ -63,7 +63,7 @@ export interface DocumentChunkPreview {
   content: string;
   page_number: number;
   section_title?: string | null;
-  token_count: number;
+  token_count?: number | null;
   metadata: Record<string, unknown>;
 }
 
@@ -73,6 +73,9 @@ export interface DocumentChunkListResponse {
   chunks: DocumentChunkPreview[];
   total: number;
   query?: string | null;
+  total_is_exact?: boolean;
+  next_after?: number | null;
+  version_id?: string;
 }
 
 // ── Chat ─────────────────────────────────────────────────────
@@ -221,6 +224,8 @@ export interface WorkspaceSummary {
 export interface WorkspaceListResponse {
   workspaces: WorkspaceSummary[];
   total: number;
+  total_is_exact?: boolean;
+  next_after?: string | null;
 }
 
 export interface WorkspaceCreateRequest {
@@ -238,10 +243,13 @@ export interface WorkspaceMember {
 }
 
 export interface WorkspaceMembersResponse {
+  invitation_supported?: boolean;
   management_supported?: boolean;
   workspace_id: string;
   members: WorkspaceMember[];
   total: number;
+  total_is_exact?: boolean;
+  next_after?: string | null;
 }
 
 export interface WorkspaceMemberCreateRequest {
@@ -290,6 +298,7 @@ export interface WorkspaceLifecycleResponse {
 // ── Analytics ────────────────────────────────────────────────
 
 export interface AnalyticsSummary {
+  measurement_states?: { avg_response_time?: "NOT_MEASURED" | "MEASURED"; avg_confidence?: "NOT_MEASURED" | "MEASURED"; cache?: "DISABLED" | "MEASURED" };
   total_queries: number;
   total_documents: number;
   total_chunks: number;
@@ -435,6 +444,7 @@ export interface SystemCapabilities {
 }
 
 export interface SystemStatusResponse {
+  readiness?: string;
   service: string;
   status: string;
   version: string;

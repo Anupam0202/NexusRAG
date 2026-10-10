@@ -1,5 +1,7 @@
 # V6 final-deliverable index
 
+> Current execution status is maintained in `docs/implementation/execution-ledger.json` and the latest section of `docs/audits/COMPREHENSIVE_APPLICATION_AUDIT.md`. The dated/scoped labels below are historical evidence, not complete-product or current production acceptance. Normative requirement wording remains authoritative where explicitly designated. Required engineering is not deferred to future phases.
+
 Status: `PARTIAL_NOT_COMPLETE_WITH_PUBLISHED_EVIDENCE`
 
 | # | Deliverable | Evidence | State |

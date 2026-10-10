@@ -60,6 +60,11 @@ jobs:
           cp "$GITHUB_WORKSPACE/supabase/migrations/034_explicit_byok_cost_consent_and_unknown_costs.sql" "$source_dir/supabase/migrations/"
           cp "$GITHUB_WORKSPACE/supabase/migrations/035_atomic_workspace_management_and_finding_exports.sql" "$source_dir/supabase/migrations/"
           cp "$GITHUB_WORKSPACE/supabase/migrations/036_confirmed_auth_member_identity.sql" "$source_dir/supabase/migrations/"
+          cp "$GITHUB_WORKSPACE/supabase/migrations/037_byok_workspace_processing_authority.sql" "$source_dir/supabase/migrations/"
+          cp "$GITHUB_WORKSPACE/supabase/migrations/038_terms_bound_workspace_processing_policy.sql" "$source_dir/supabase/migrations/"
+          cp "$GITHUB_WORKSPACE/supabase/migrations/039_canonical_service_role_processing_authority.sql" "$source_dir/supabase/migrations/"
+          cp "$GITHUB_WORKSPACE/supabase/migrations/040_recipient_bound_workspace_invitations.sql" "$source_dir/supabase/migrations/"
+          cp "$GITHUB_WORKSPACE/supabase/migrations/041_fenced_retention_schedule_completion.sql" "$source_dir/supabase/migrations/"
           chmod -R a+rX "$source_dir"
           cleanup() {
             sudo -u postgres dropdb --if-exists -h /var/run/postgresql -p "$port" "$db" >/dev/null 2>&1 || true
@@ -80,7 +85,7 @@ jobs:
               PGUSER=postgres \
               PGDATABASE="$db" \
               bash "$source_dir/tests/postgres/backup-restore.sh" >>"$log" 2>&1
-            grep -E 'postgres_durable_extraction_stage_pass|concurrent_reservation_settlement_pass|concurrent_account_trial_limit_pass|account_trial_byok_assertions_pass|account_trial_rollback_pass|storage_rls_two_identity_pass|reindex_original_storage_reuse_pass|LOCAL_POSTGRES_REHEARSAL_PASS|POSTGRES_BACKUP_RESTORE_PASS' "$log"
+            grep -E 'POSTGRES_RETENTION_SCHEDULE_FENCE_PASS|POSTGRES_RETENTION_CONCURRENT_FENCE_PASS|POSTGRES_RECIPIENT_INVITATION_AUTHORITY_PASS|POSTGRES_INVITATION_CONCURRENT_ACCEPT_CAPACITY_PASS|postgres_durable_extraction_stage_pass|concurrent_reservation_settlement_pass|concurrent_account_trial_limit_pass|account_trial_byok_assertions_pass|account_trial_rollback_pass|storage_rls_two_identity_pass|reindex_original_storage_reuse_pass|LOCAL_POSTGRES_REHEARSAL_PASS|POSTGRES_BACKUP_RESTORE_PASS' "$log"
           else
             tail -n 80 "$log"
             exit 1

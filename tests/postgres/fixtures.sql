@@ -20,8 +20,8 @@ SET review_owner='22222222-2222-4222-8222-222222222222',
     terms_hash=(SELECT content_hash FROM public.provider_terms_snapshots WHERE provider_id='gemini' AND revision=1)
 WHERE id='gemini';
 INSERT INTO public.workspace_provider_policies(workspace_id,provider_id,status,allowed_actions,rights_hash,reviewed_by,reviewed_at)
-VALUES ('11111111-1111-4111-8111-111111111111','gemini','APPROVED',ARRAY['gemini_non_sensitive'],repeat('a',64),'22222222-2222-4222-8222-222222222222',now()),
-       ('44444444-4444-4444-8444-444444444444','gemini','APPROVED',ARRAY['gemini_non_sensitive'],repeat('b',64),'33333333-3333-4333-8333-333333333333',now());
+VALUES ('11111111-1111-4111-8111-111111111111','gemini','APPROVED',ARRAY['gemini_non_sensitive'],repeat('c',64),'22222222-2222-4222-8222-222222222222',now()),
+       ('44444444-4444-4444-8444-444444444444','gemini','APPROVED',ARRAY['gemini_non_sensitive'],repeat('c',64),'33333333-3333-4333-8333-333333333333',now());
 INSERT INTO public.resource_budgets(scope_key,workspace_id,provider_id,dimension,hard_limit,window_kind,reset_at,state)
 SELECT scope,workspace_id,'gemini',dimension,100,'daily','2030-01-01T00:00:00Z','READY'
 FROM (VALUES

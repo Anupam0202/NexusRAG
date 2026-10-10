@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getAnalytics, getAuditEvents, getSystemStatus, healthCheck } from "@/lib/api";
 import { AuthRequiredState } from "@/components/auth/AuthRequiredState";
+import { useStore } from "@/hooks/useStore";
 import { useWorkspaceApiAccess } from "@/hooks/useAuthGate";
 import type { AnalyticsSummary, AuditEvent, SystemStatusResponse } from "@/types";
 import { motion } from "framer-motion";
@@ -16,16 +17,24 @@ import {
 const AUTO_REFRESH_SECONDS = 30;
 
 export default function AnalyticsPage() {
-  const { authMode, canAccessWorkspaceApi, isWorkspaceLoading } = useWorkspaceApiAccess();
+  const identity = useStore((state) => JSON.stringify([state.authMode, state.authUser?.id, state.workspaceId]));
+  return <WorkspaceAnalytics key={identity} />;
+}
+
+function WorkspaceAnalytics() {
+  const { authMode, workspaceId, canAccessWorkspaceApi, isWorkspaceLoading } = useWorkspaceApiAccess();
   const [data, setData] = useState<AnalyticsSummary | null>(null);
   const [auditEvents, setAuditEvents] = useState<AuditEvent[]>([]);
-  const [auditStorage, setAuditStorage] = useState<"memory" | "supabase">("memory");
-  const [health, setHealth] = useState<{ status: string; total_chunks: number } | null>(null);
+  const [auditStorage, setAuditStorage] = useState<"memory" | "supabase" | "unavailable">("unavailable");
+  const [health, setHealth] = useState<Awaited<ReturnType<typeof healthCheck>> | null>(null);
   const [systemStatus, setSystemStatus] = useState<SystemStatusResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [countdown, setCountdown] = useState(AUTO_REFRESH_SECONDS);
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const requestSequence = useRef(0);
+  useEffect(() => () => { requestSequence.current += 1; }, []);
 
   const load = useCallback(async (signal?: AbortSignal) => {
     if (isWorkspaceLoading) {
@@ -37,31 +46,32 @@ export default function AnalyticsPage() {
       return;
     }
 
+    const sequence = ++requestSequence.current;
     setLoading(true);
     setError(null);
     setCountdown(AUTO_REFRESH_SECONDS);
     try {
       const [a, h, s, audit] = await Promise.all([
-        getAnalytics(),
+        getAnalytics({ workspaceId }),
         healthCheck(),
-        getSystemStatus(),
-        getAuditEvents(8).catch(() => null),
+        getSystemStatus({ workspaceId }),
+        getAuditEvents(8, { workspaceId }).catch(() => null),
       ]);
-      if (signal?.aborted) return;
+      if (signal?.aborted || sequence !== requestSequence.current) return;
       setData(a);
       setHealth(h);
       setSystemStatus(s);
       setAuditEvents(audit?.events ?? []);
-      if (audit?.storage) setAuditStorage(audit.storage);
+      setAuditStorage(audit?.storage ?? "unavailable");
     } catch (err: unknown) {
-      if (signal?.aborted) return;
+      if (signal?.aborted || sequence !== requestSequence.current) return;
       setError(err instanceof Error ? err.message : "Failed to load analytics");
     } finally {
-      if (!signal?.aborted) {
+      if (!signal?.aborted && sequence === requestSequence.current) {
         setLoading(false);
       }
     }
-  }, [canAccessWorkspaceApi, isWorkspaceLoading]);
+  }, [canAccessWorkspaceApi, isWorkspaceLoading, workspaceId]);
 
   // Initial load
   useEffect(() => {
@@ -82,25 +92,24 @@ export default function AnalyticsPage() {
   useEffect(() => {
     if (!canAccessWorkspaceApi || isWorkspaceLoading) return;
     countdownRef.current = setInterval(() => {
-      setCountdown((c) => {
-        if (c <= 1) {
-          load();
-          return AUTO_REFRESH_SECONDS;
-        }
-        return c - 1;
-      });
+      setCountdown((c) => Math.max(0, c - 1));
     }, 1000);
     return () => {
       if (countdownRef.current) clearInterval(countdownRef.current);
     };
   }, [canAccessWorkspaceApi, isWorkspaceLoading, load]);
 
+  useEffect(() => {
+    if (countdown === 0 && canAccessWorkspaceApi && !isWorkspaceLoading) void load();
+  }, [countdown, canAccessWorkspaceApi, isWorkspaceLoading, load]);
+
   const handleRefresh = () => {
     setCountdown(AUTO_REFRESH_SECONDS);
     load();
   };
 
-  const isHealthy = (systemStatus?.status ?? health?.status) === "healthy";
+  const apiResponding = Boolean(systemStatus || health) && !error;
+  const dependenciesReady = systemStatus?.readiness === "READY";
   const capabilities = systemStatus?.capabilities;
   const settings = systemStatus?.settings;
   const memoryConstrained =
@@ -129,13 +138,11 @@ export default function AnalyticsPage() {
       ? `RRF, alpha ${settings.hybrid_search_alpha.toFixed(2)}`
       : "RRF";
   const numberFormatter = new Intl.NumberFormat(undefined, { notation: "compact" });
-  const totalTokens =
-    data?.llm_total_tokens ??
-    ((data?.llm_input_tokens ?? 0) + (data?.llm_output_tokens ?? 0));
-  const llmCalls = data?.llm_usage_events ?? data?.total_queries ?? 0;
-  const auditEventCount = data?.audit_events ?? 0;
-  const usageLatency = data?.usage_avg_latency_ms ?? 0;
-  const indexedChunkCount = data?.total_chunks ?? health?.total_chunks;
+  const totalTokens = data?.llm_total_tokens ??
+    (data?.llm_input_tokens !== undefined && data?.llm_output_tokens !== undefined
+      ? data.llm_input_tokens + data.llm_output_tokens : undefined);
+  const measuredNumber = (value: number | undefined) => value === undefined ? "Not measured" : numberFormatter.format(value);
+  const indexedChunkCount = data?.total_chunks;
   const lastActivity = data?.last_activity_at
     ? new Intl.DateTimeFormat(undefined, {
         month: "short",
@@ -143,7 +150,7 @@ export default function AnalyticsPage() {
         hour: "numeric",
         minute: "2-digit",
       }).format(new Date(data.last_activity_at))
-    : "No activity yet";
+    : "Last activity unavailable";
 
   if (!canAccessWorkspaceApi) {
     return (
@@ -214,13 +221,11 @@ export default function AnalyticsPage() {
           <div className="flex items-center gap-2 text-sm">
             {loading ? (
               <span className="opacity-90">⏳ Checking…</span>
-            ) : isHealthy ? (
+            ) : apiResponding ? (
               <>
                 <CheckCircle2 size={16} className="text-green-200" />
                 <span className="opacity-90">
-                  {memoryConstrained
-                    ? "Operational with Render constrained profile"
-                    : "All systems operational"}
+                  {dependenciesReady ? "Dependencies verified ready" : "API responding — dependency readiness is not verified"}
                 </span>
               </>
             ) : (
@@ -237,20 +242,20 @@ export default function AnalyticsPage() {
           <SkeletonGrid count={6} />
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-            <MetricCard icon={<BarChart3 size={18} />} label="Total Queries" value={data?.total_queries ?? 0} color="brand" />
-            <MetricCard icon={<MessageSquare size={18} />} label="Today" value={data?.queries_today ?? 0} color="indigo" />
-            <MetricCard icon={<FileText size={18} />} label="Documents" value={data?.total_documents ?? 0} color="green" />
-            <MetricCard icon={<Database size={18} />} label="Chunks" value={data?.total_chunks ?? health?.total_chunks ?? 0} color="purple" />
+            <MetricCard icon={<BarChart3 size={18} />} label="Total Queries" value={data?.total_queries ?? "—"} color="brand" />
+            <MetricCard icon={<MessageSquare size={18} />} label="Today" value={data?.queries_today ?? "—"} color="indigo" />
+            <MetricCard icon={<FileText size={18} />} label="Documents" value={data?.total_documents ?? "—"} color="green" />
+            <MetricCard icon={<Database size={18} />} label="Chunks" value={data?.total_chunks ?? "—"} color="purple" />
             <MetricCard
               icon={<Clock size={18} />}
               label="Avg Response"
-              value={data?.avg_response_time ? `${data.avg_response_time.toFixed(2)}s` : "—"}
+              value={data?.measurement_states?.avg_response_time === "NOT_MEASURED" ? "Not measured" : data?.avg_response_time !== undefined ? `${data.avg_response_time.toFixed(2)}s` : "Not measured"}
               color="orange"
             />
             <MetricCard
               icon={<Target size={18} />}
               label="Confidence"
-              value={data?.avg_confidence ? `${(data.avg_confidence * 100).toFixed(0)}%` : "—"}
+              value={data?.measurement_states?.avg_confidence === "NOT_MEASURED" ? "Not measured" : data?.avg_confidence !== undefined ? `${(data.avg_confidence * 100).toFixed(0)}%` : "Not measured"}
               color="blue"
             />
           </div>
@@ -275,7 +280,7 @@ export default function AnalyticsPage() {
                   ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300"
                   : "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300"
               }`}>
-                {(data.llm_error_events ?? 0) > 0 ? "Attention" : "Clean"}
+                {data.llm_error_events === undefined ? "Not measured" : data.llm_error_events > 0 ? "Attention" : "No recorded errors"}
               </span>
             </div>
 
@@ -283,25 +288,25 @@ export default function AnalyticsPage() {
               <UsageStat
                 icon={<Brain size={14} />}
                 label="LLM Calls"
-                value={numberFormatter.format(llmCalls)}
-                detail={`${data.llm_cache_hits ?? 0} cached`}
+                value={measuredNumber(data.llm_usage_events)}
+                detail={data.llm_cache_hits === undefined ? "Cache usage not measured" : `${data.llm_cache_hits} cached`}
               />
               <UsageStat
                 icon={<Gauge size={14} />}
                 label="Tokens"
-                value={numberFormatter.format(totalTokens)}
-                detail={`${numberFormatter.format(data.llm_input_tokens ?? 0)} in / ${numberFormatter.format(data.llm_output_tokens ?? 0)} out`}
+                value={measuredNumber(totalTokens)}
+                detail={`${measuredNumber(data.llm_input_tokens)} in / ${measuredNumber(data.llm_output_tokens)} out`}
               />
               <UsageStat
                 icon={<Activity size={14} />}
                 label="Latency"
-                value={usageLatency ? `${usageLatency}ms` : "-"}
-                detail={`${data.llm_fallbacks ?? 0} fallbacks`}
+                value={data.usage_avg_latency_ms === undefined ? "Not measured" : `${data.usage_avg_latency_ms}ms`}
+                detail={data.llm_fallbacks === undefined ? "Fallbacks not measured" : `${data.llm_fallbacks} fallbacks`}
               />
               <UsageStat
                 icon={<ShieldCheck size={14} />}
                 label="Audit Events"
-                value={numberFormatter.format(auditEventCount)}
+                value={measuredNumber(data.audit_events)}
                 detail={lastActivity}
               />
             </div>
@@ -358,7 +363,7 @@ export default function AnalyticsPage() {
               </div>
             ) : (
               <div className="rounded-xl border border-dashed border-[var(--border)] px-4 py-6 text-center text-xs text-[var(--text-muted)]">
-                Audit events will appear after uploads, chats, settings changes, and API key updates.
+                {auditStorage === "unavailable" ? "Audit trail could not be loaded. Refresh to retry." : "No recent audit events returned for this workspace."}
               </div>
             )}
           </motion.div>
@@ -418,7 +423,7 @@ export default function AnalyticsPage() {
 
               {cacheTotal === 0 && (
                 <p className="text-xs text-[var(--text-muted)] text-center italic">
-                  Cache stats populate after the first query
+                  {data.measurement_states?.cache === "DISABLED" || capabilities?.semantic_cache === false ? "Semantic cache is disabled in this runtime" : "No measured cache activity"}
                 </p>
               )}
             </motion.div>
@@ -489,7 +494,7 @@ export default function AnalyticsPage() {
               />
               <ConfigItem
                 label="Profile"
-                value={memoryConstrained ? "Render constrained" : "Full pipeline"}
+                value={memoryConstrained ? "Memory constrained" : "Configured runtime"}
               />
             </div>
           </motion.div>

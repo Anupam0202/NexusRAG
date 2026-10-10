@@ -32,7 +32,12 @@ def resolve_target(ref: str) -> dict[str, str]:
 
 
 def validate_targets() -> None:
-    """Ensure the canonical candidate config agrees with its unique resources."""
+    """Ensure canonical deployment cannot silently revive retired PR targets."""
+    # Configuration recovery remains available in immutable Git history. Live
+    # resource retirement is separately approved; this guard deletes nothing.
+    for retired in ("frontend/wrangler.pr3.jsonc", "apps/gateway/wrangler.pr3-preview.jsonc"):
+        if (ROOT / retired).exists():
+            raise ValueError(f"Retired PR preview configuration must not be recreated: {retired}")
     resource_keys = (
         "GATEWAY_WORKER",
         "INGESTION_QUEUE",
@@ -45,6 +50,8 @@ def validate_targets() -> None:
         gateway = json.loads(gateway_path.read_text(encoding="utf-8"))
         if gateway.get("name") != target["GATEWAY_WORKER"]:
             raise ValueError(f"Gateway config name mismatch: {gateway_path}")
+        if gateway.get("observability", {}).get("redact_query_string") is not True:
+            raise ValueError(f"Candidate gateway must redact sensitive query strings: {gateway_path}")
         queues = gateway.get("queues", {})
         producers = queues.get("producers", [])
         consumers = queues.get("consumers", [])
@@ -57,13 +64,30 @@ def validate_targets() -> None:
 
         frontend_path = ROOT / "frontend" / target["FRONTEND_CONFIG"]
         frontend_text = frontend_path.read_text(encoding="utf-8")
+        if '"redact_query_string": true' not in frontend_text:
+            raise ValueError(f"Candidate frontend must redact sensitive query strings: {frontend_path}")
         for expected in (
             f'"name": "{target["FRONTEND_WORKER"]}"',
-            f'"main": ".open-next/worker.js"',
+            '"main": "worker.js"',
             f'"service": "{target["FRONTEND_WORKER"]}"',
+            '"binding": "ASSETS"',
+            '"run_worker_first": ["/documents/*"]',
         ):
             if expected not in frontend_text:
                 raise ValueError(f"Frontend config does not bind {expected}: {frontend_path}")
+
+        entrypoint = ROOT / "frontend" / "worker.js"
+        if not entrypoint.is_file():
+            raise ValueError("Candidate frontend routing wrapper is missing.")
+        wrapper = entrypoint.read_text(encoding="utf-8")
+        for expected in (
+            'import nextWorker from "./.open-next/worker.js"',
+            'from "./src/lib/static-document-worker"',
+            'export * from "./.open-next/worker.js"',
+            "export default createDocumentStaticWorker(nextWorker)",
+        ):
+            if expected not in wrapper:
+                raise ValueError(f"Candidate frontend wrapper does not preserve {expected}.")
 
     for key in resource_keys:
         values = [target[key] for target in PREVIEW_TARGETS.values()]

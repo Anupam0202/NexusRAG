@@ -1,14 +1,14 @@
 "use client";
 
 import type { AnchorHTMLAttributes, ReactNode } from "react";
-import { useState } from "react";
+import { useId, useState } from "react";
 import type { UIMessage } from "@/types";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { cn } from "@/lib/utils";
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import {
-  ChevronDown, ChevronUp, Clock, Target, Layers,
+  ChevronDown, ChevronUp, Clock, Layers,
   FileText, User, Bot, Copy, Check, AlertTriangle,
 } from "lucide-react";
 
@@ -21,6 +21,8 @@ export function MessageBubble({ message, onShowSources }: Props) {
   const isUser = message.role === "user";
   const [showInlineSources, setShowInlineSources] = useState(false);
   const [copied, setCopied] = useState(false);
+  const sourceRegionId = useId();
+  const reducedMotion = useReducedMotion();
   const hasSources = (message.sources?.length ?? 0) > 0;
   const answerability =
     typeof message.metadata?.answerability === "string"
@@ -31,6 +33,8 @@ export function MessageBubble({ message, onShowSources }: Props) {
     typeof message.metadata?.source_quote_coverage === "number"
       ? message.metadata.source_quote_coverage
       : undefined;
+  const claimState = typeof message.metadata?.claim_state === "string"
+    ? message.metadata.claim_state : undefined;
 
   const handleCopy = async () => {
     try {
@@ -44,9 +48,9 @@ export function MessageBubble({ message, onShowSources }: Props) {
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 12 }}
+      initial={reducedMotion ? false : { opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3, ease: "easeOut" }}
+      transition={{ duration: reducedMotion ? 0 : 0.3, ease: "easeOut" }}
       className={cn("flex gap-2.5 sm:gap-3", isUser ? "flex-row-reverse" : "")}
     >
       {/* Avatar */}
@@ -78,7 +82,7 @@ export function MessageBubble({ message, onShowSources }: Props) {
                   remarkPlugins={[remarkGfm]}
                   components={{ a: SafeMarkdownLink }}
                 >
-                  {cleanContent(message.content)}
+                  {message.content}
                 </ReactMarkdown>
                 {message.isStreaming && message.content && (
                   <span className="inline-block w-1.5 h-4 ml-0.5 bg-brand-500 animate-pulse rounded-sm align-text-bottom" />
@@ -96,26 +100,32 @@ export function MessageBubble({ message, onShowSources }: Props) {
                 </span>
               </div>
             )}
+            {!message.isStreaming && claimState === "REVIEW_REQUIRED" && (
+              <p className="mt-3 text-xs leading-5 text-[var(--text-muted)]">
+                Review required: citation references were checked, but support for each claim has not been verified.
+              </p>
+            )}
 
             {/* Metadata + source toggle */}
             {!message.isStreaming && message.content && (
               <div className="flex flex-wrap items-center gap-1.5 mt-3 pt-2.5 border-t border-[var(--border)]">
                 {message.queryType && <Badge icon={<Layers size={11} />} text={message.queryType} />}
                 {answerability && <Badge icon={<AlertTriangle size={11} />} text={answerability} />}
+                {claimState && <Badge icon={<FileText size={11} />} text={claimState.replaceAll("_", " ").toLowerCase()} />}
                 {typeof message.confidence === "number" && (
-                  <Badge icon={<Target size={11} />} text={`${(message.confidence * 100).toFixed(0)}%`} />
+                  <span className="text-[11px] text-[var(--text-muted)]">Answer confidence not calibrated</span>
                 )}
-                {typeof sourceQuoteCoverage === "number" && (
+                {typeof sourceQuoteCoverage === "number" && Number.isFinite(sourceQuoteCoverage) && sourceQuoteCoverage >= 0 && sourceQuoteCoverage <= 1 && (
                   <Badge icon={<FileText size={11} />} text={`${(sourceQuoteCoverage * 100).toFixed(0)}% quotes`} />
                 )}
-                {typeof message.responseTime === "number" && (
+                {typeof message.responseTime === "number" && Number.isFinite(message.responseTime) && message.responseTime >= 0 && (
                   <Badge icon={<Clock size={11} />} text={`${message.responseTime.toFixed(1)}s`} />
                 )}
 
                 {/* Copy button */}
                 <button
                   onClick={handleCopy}
-                  className="flex items-center gap-1 rounded-full bg-[var(--bg-secondary)] px-2 py-0.5 text-[11px] font-medium text-[var(--text-muted)] hover:text-[var(--text-primary)] transition opacity-0 group-hover/bubble:opacity-100"
+                  className="flex items-center gap-1 rounded-full bg-[var(--bg-secondary)] px-2 py-0.5 text-[11px] font-medium text-[var(--text-muted)] hover:text-[var(--text-primary)] transition opacity-100 sm:opacity-0 sm:group-hover/bubble:opacity-100 sm:group-focus-within/bubble:opacity-100 focus-visible:opacity-100"
                   aria-label="Copy response to clipboard"
                 >
                   {copied ? <Check size={11} className="text-green-500" /> : <Copy size={11} />}
@@ -126,7 +136,10 @@ export function MessageBubble({ message, onShowSources }: Props) {
                   <>
                     {/* Inline toggle */}
                     <button
+                      type="button"
                       onClick={() => setShowInlineSources(!showInlineSources)}
+                      aria-expanded={showInlineSources}
+                      aria-controls={sourceRegionId}
                       className="flex items-center gap-1 rounded-full bg-amber-100 dark:bg-amber-900/30 px-2 py-0.5 text-[11px] font-semibold text-amber-700 dark:text-amber-300 hover:bg-amber-200 dark:hover:bg-amber-900/50 transition ml-auto"
                     >
                       <FileText size={11} />
@@ -149,13 +162,14 @@ export function MessageBubble({ message, onShowSources }: Props) {
 
             {/* Inline sources preview */}
             {showInlineSources && message.sources && (
-              <div className="mt-3 space-y-2 animate-fade-in">
+              <div id={sourceRegionId} role="region" aria-label="Response sources" className={cn("mt-3 space-y-2", !reducedMotion && "animate-fade-in")}>
                 {message.sources.map((src, i) => (
                   <div
                     key={i}
                     className="rounded-lg border border-[var(--border)] bg-[var(--bg-secondary)] p-2.5"
                   >
                     <div className="flex items-center gap-2 mb-1">
+                      <span className="shrink-0 text-[10px] font-mono text-[var(--text-muted)]">[S{i + 1}]</span>
                       <span className="text-xs font-semibold text-brand-600 dark:text-brand-400 truncate">
                         {src.filename}
                       </span>
@@ -178,11 +192,6 @@ export function MessageBubble({ message, onShowSources }: Props) {
       </div>
     </motion.div>
   );
-}
-
-/** Strip any residual [Source N] from LLM output for clean display */
-function cleanContent(text: string): string {
-  return text.replace(/\[Source\s*\d+(?:\s*[,|]\s*Page\s*\d+)?\]/gi, "").replace(/\s{2,}/g, " ");
 }
 
 export function safeHref(href?: string) {

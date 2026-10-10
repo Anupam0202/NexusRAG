@@ -2481,7 +2481,10 @@ def _raise_api_key_validation_error(exc: Exception) -> None:
         raise HTTPException(400, "Invalid API key. Please check and try again.")
     if any(term in err_msg for term in ("quota", "429", "resource exhausted")):
         raise HTTPException(400, "This API key has also exceeded its quota.")
-    logger.warning("api_key_validation_warning", error=str(exc)[:300])
+    logger.warning("api_key_validation_unavailable", error_type=type(exc).__name__)
+    raise HTTPException(
+        503, "Provider key verification is unavailable. The key was not accepted."
+    ) from exc
 
 
 def _validate_provider_api_key(provider: str, api_key: str) -> None:
@@ -2514,6 +2517,9 @@ def _validate_provider_api_key(provider: str, api_key: str) -> None:
             raise HTTPException(400, "Invalid API key - no models accessible.")
     except ImportError:
         logger.warning("api_key_validation_library_unavailable", provider=normalized_provider)
+        raise HTTPException(
+            503, "Provider key verification is unavailable. The key was not accepted."
+        )
     except HTTPException:
         raise
     except Exception as exc:
@@ -2553,7 +2559,7 @@ async def set_api_key(
             "api_key_persist_failed",
             workspace_id=workspace_id,
             provider=normalized_provider,
-            error=str(exc)[:300],
+            error_type=type(exc).__name__,
         )
 
     logger.info(

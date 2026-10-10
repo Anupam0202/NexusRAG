@@ -69,6 +69,15 @@ class TestHealthEndpoint:
         assert resp.status_code == 200
         data = resp.json()
         assert data["status"] == "healthy"
+        assert data["probe"] == "liveness"
+        assert data["readiness"] == "NOT_PROBED"
+        assert "total_chunks" not in data
+
+    def test_liveness_never_loads_or_counts_private_vectors(self, test_client: TestClient, monkeypatch):
+        def denied():
+            raise AssertionError("Anonymous liveness must not initialize or inspect tenant vectors")
+        monkeypatch.setattr("src.api.dependencies.get_vector_store", denied)
+        assert test_client.get("/health").status_code == 200
 
 
 def test_stream_chat_filters_match_rest_date_and_metadata_surface() -> None:

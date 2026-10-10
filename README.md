@@ -24,6 +24,7 @@ The deployed Cloudflare gateway is the bounded, tenant-scoped runtime; the Pytho
 - Migrations 035/036 add atomic workspace creation, confirmed-Auth existing-account member management, private versioned findings, independent review and manual-note export receipts. `/findings` is the corresponding workbench. Invitations and complete ten-product workflows are not established by these features.
 - Unsupported advanced retrieval filters, retention enforcement, and workspace erasure fail closed. Deletions needing unimplemented derived-content or outstanding-write verification remain tombstoned/blocked; no successful receipt is fabricated.
 - Document inventory follows bounded keyset pages rather than presenting the first 100 records as the entire workspace.
+- Workspace discovery distinguishes confirmed absence from connection failure and bounds read-only checks to 15 seconds. Authenticated routes without a workspace offer onboarding or retry instead of mounting private effects indefinitely. This describes current source; verify the deployed revision against the audit.
 - Consult [the comprehensive audit](docs/audits/COMPREHENSIVE_APPLICATION_AUDIT.md) for validated checks and remaining release blockers. Production readiness and defect-free operation are not claimed.
 - Qdrant Free clusters can suspend after inactivity. Check cluster health before diagnosing a gateway failure; reactivation does not establish a production availability SLA.
 - `main` is the canonical source branch. Candidate deployment is manual, main-only, and restricted to the isolated rehearsal backend. Production deployment remains separately guarded; merging code does not deploy production.
@@ -185,14 +186,18 @@ npm run dev
 
 Open **http://localhost:3000** and start uploading documents!
 
-### Docker (Alternative)
+### Docker (optional local/self-managed runtime)
 
 ```bash
 # Copy and configure backend env
 cp backend/.env.example backend/.env
-# Edit backend/.env and add your GOOGLE_API_KEY
-
-docker-compose up --build
+# Use an approved isolated Auth/data project in backend/.env.
+# Private backend/provider credentials stay in that runtime env file.
+# Export only public client configuration before building the frontend:
+export NEXT_PUBLIC_SUPABASE_URL="https://YOUR-ISOLATED-PROJECT.supabase.co"
+export NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY="YOUR-PUBLIC-PUBLISHABLE-KEY"
+# Browser-facing API defaults to http://localhost:8000; it is not Docker DNS.
+docker compose up --build
 ```
 
 ---

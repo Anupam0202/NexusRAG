@@ -1,4 +1,5 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
+import { Profiler } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { getSystemStatus } = vi.hoisted(() => ({
@@ -61,6 +62,7 @@ describe("Header", () => {
     await waitFor(() =>
       expect(useStore.getState().connectionStatus).toBe("data_setup_required")
     );
+    expect(getSystemStatus).toHaveBeenCalledWith({ workspaceId: "synthetic-workspace", expectedUserId: "synthetic-user" });
   });
 
   it("reports sign-in required rather than backend offline for an unauthenticated status request", async () => {
@@ -77,4 +79,48 @@ describe("Header", () => {
     );
   });
 
+  it.each([
+    ["loading", "Checking workspace"],
+    ["missing", "Workspace required"],
+    ["error", "Workspace unavailable"],
+  ] as const)("does not probe private status for %s workspace discovery", (workspaceDiscovery, label) => {
+    useStore.setState({ workspaceId: null, workspaceDiscovery, connectionStatus: "online" });
+    render(<Header />);
+    expect(screen.getByText(label)).toBeInTheDocument();
+    expect(screen.queryByText("Backend offline")).not.toBeInTheDocument();
+    expect(screen.queryByText("Gateway reachable")).not.toBeInTheDocument();
+    expect(getSystemStatus).not.toHaveBeenCalled();
+  });
+
+  it("drops a pending previous-workspace status when its authority is cleared", async () => {
+    let finish!: (status: unknown) => void;
+    getSystemStatus.mockImplementation(() => new Promise(resolve => { finish = resolve; }));
+    render(<Header />);
+    await waitFor(() => expect(getSystemStatus).toHaveBeenCalledOnce());
+    act(() => useStore.setState({ workspaceId: null, workspaceDiscovery: "missing" }));
+    await act(async () => finish({ settings: { anonymous_demo_enabled: true } }));
+    expect(screen.getByText("Workspace required")).toBeInTheDocument();
+    expect(useStore.getState().connectionStatus).toBe("checking");
+    expect(getSystemStatus).toHaveBeenCalledOnce();
+  });
+
+  it("reports an identity-context failure as authentication, not an outage", async () => {
+    getSystemStatus.mockRejectedValue(Object.assign(new Error("Synthetic account changed"), { code: "AUTH_CONTEXT_CHANGED" }));
+    render(<Header />);
+    expect(await screen.findByText("Sign in required")).toBeInTheDocument();
+    expect(screen.queryByText("Backend offline")).not.toBeInTheDocument();
+  });
+
+  it("does not rerender the header for unrelated streaming/document updates", () => {
+    getSystemStatus.mockImplementation(() => new Promise(() => {}));
+    const onRender = vi.fn();
+    render(<Profiler id="header" onRender={onRender}><Header /></Profiler>);
+    const renders = onRender.mock.calls.length;
+    act(() => {
+      useStore.getState().addUserMessage("Synthetic streaming fixture");
+      useStore.setState({ documents: [] });
+    });
+    expect(onRender).toHaveBeenCalledTimes(renders);
+    expect(getSystemStatus).toHaveBeenCalledOnce();
+  });
 });

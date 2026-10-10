@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
+  hydration,
   clearMessages,
   clearSession,
   deleteCurrentWorkspace,
@@ -11,6 +12,7 @@ const {
   setDocuments,
   setStoredWorkspaceId,
 } = vi.hoisted(() => ({
+  hydration: { loading: false },
   clearMessages: vi.fn(),
   clearSession: vi.fn(),
   deleteCurrentWorkspace: vi.fn(),
@@ -25,7 +27,7 @@ vi.mock("@/hooks/useAuthGate", () => ({
   useWorkspaceApiAccess: () => ({
     authMode: "authenticated",
     canAccessWorkspaceApi: true,
-    isWorkspaceLoading: false,
+    isWorkspaceLoading: hydration.loading,
   }),
 }));
 
@@ -53,6 +55,8 @@ vi.mock("@/lib/api", () => ({
   updatePrivacySettings: vi.fn(),
 }));
 
+vi.mock("@/components/settings/ProcessingPolicyPanel", () => ({ ProcessingPolicyPanel: () => <div>Processing policy controls</div> }));
+
 vi.mock("sonner", () => ({
   toast: {
     error: vi.fn(),
@@ -64,6 +68,7 @@ import PrivacyPage from "./page";
 
 describe("PrivacyPage", () => {
   beforeEach(() => {
+    hydration.loading = false;
     clearMessages.mockReset();
     clearSession.mockReset();
     deleteCurrentWorkspace.mockReset();
@@ -84,6 +89,14 @@ describe("PrivacyPage", () => {
       retention_days: 30,
       last_retention_at: null,
     });
+  });
+
+  it("waits for workspace hydration before reading private settings", async () => {
+    hydration.loading = true;
+    const { rerender } = render(<PrivacyPage />);
+    expect(getCurrentWorkspace).not.toHaveBeenCalled(); expect(getPrivacySettings).not.toHaveBeenCalled();
+    hydration.loading = false; rerender(<PrivacyPage />);
+    await waitFor(() => expect(getCurrentWorkspace).toHaveBeenCalledTimes(1));
   });
 
   it("does not offer mutations the bounded gateway cannot execute", async () => {

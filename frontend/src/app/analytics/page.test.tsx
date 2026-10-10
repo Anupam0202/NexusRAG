@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { getAnalytics, getAuditEvents, getSystemStatus, healthCheck } = vi.hoisted(() => ({
@@ -9,6 +9,7 @@ const { getAnalytics, getAuditEvents, getSystemStatus, healthCheck } = vi.hoiste
 }));
 const workspaceAccess = vi.hoisted(() => ({
   value: {
+    workspaceId: "workspace-a",
     authMode: "authenticated",
     canAccessWorkspaceApi: true,
     isWorkspaceLoading: false,
@@ -27,6 +28,7 @@ vi.mock("@/lib/api", () => ({
 }));
 
 import AnalyticsPage from "./page";
+import { useStore } from "@/hooks/useStore";
 
 describe("AnalyticsPage", () => {
   beforeEach(() => {
@@ -34,7 +36,9 @@ describe("AnalyticsPage", () => {
     getAuditEvents.mockReset();
     getSystemStatus.mockReset();
     healthCheck.mockReset();
+    useStore.setState({ authMode: "authenticated", authUser: { id: "user-a", email: null }, workspaceId: "workspace-a" });
     workspaceAccess.value = {
+      workspaceId: "workspace-a",
       authMode: "authenticated",
       canAccessWorkspaceApi: true,
       isWorkspaceLoading: false,
@@ -96,7 +100,9 @@ describe("AnalyticsPage", () => {
   });
 
   it("waits for workspace hydration before requesting workspace analytics", async () => {
+    useStore.setState({ authMode: "authenticated", authUser: { id: "user-a", email: null }, workspaceId: "workspace-a" });
     workspaceAccess.value = {
+      workspaceId: "workspace-a",
       authMode: "authenticated",
       canAccessWorkspaceApi: true,
       isWorkspaceLoading: true,
@@ -110,4 +116,55 @@ describe("AnalyticsPage", () => {
       expect(getSystemStatus).not.toHaveBeenCalled();
     });
   });
+
+  it("passes explicit workspace authority to every private analytics request", async () => {
+    render(<AnalyticsPage />);
+    await screen.findByText("8 chunks indexed");
+    expect(getAnalytics).toHaveBeenCalledWith({ workspaceId: "workspace-a" });
+    expect(getSystemStatus).toHaveBeenCalledWith({ workspaceId: "workspace-a" });
+    expect(getAuditEvents).toHaveBeenCalledWith(8, { workspaceId: "workspace-a" });
+  });
+
+  it("clears old workspace results immediately and ignores pending responses", async () => {
+    let finishOld!: (value: unknown) => void;
+    getAnalytics.mockImplementationOnce(() => new Promise((resolve) => { finishOld = resolve; }));
+    const view = render(<AnalyticsPage />);
+    await waitFor(() => expect(getAnalytics).toHaveBeenCalledTimes(1));
+    workspaceAccess.value.workspaceId = "workspace-b";
+    act(() => useStore.setState({ workspaceId: "workspace-b" }));
+    view.rerender(<AnalyticsPage />);
+    await screen.findByText("8 chunks indexed");
+    await act(async () => finishOld({ total_chunks: 999, total_queries: 999 }));
+    expect(screen.queryByText("999 chunks indexed")).not.toBeInTheDocument();
+    expect(getAuditEvents).toHaveBeenLastCalledWith(8, { workspaceId: "workspace-b" });
+  });
+
+  it("does not mistake configuration or missing usage for verified readiness", async () => {
+    getAnalytics.mockResolvedValue({ total_documents: 1, total_chunks: 8, total_queries: 2,
+      avg_response_time: 0, avg_confidence: 0, cache_hits: 0, cache_misses: 0,
+      measurement_states: { avg_response_time: "NOT_MEASURED", avg_confidence: "NOT_MEASURED", cache: "DISABLED" } });
+    healthCheck.mockResolvedValue({ status: "CONFIGURED", readiness: "NOT_PROBED", total_chunks: 1000 });
+    getSystemStatus.mockResolvedValue({ status: "CONFIGURED", readiness: "NOT_PROBED", settings: {}, capabilities: { semantic_cache: false } });
+    getAuditEvents.mockRejectedValue(new Error("Unavailable"));
+    render(<AnalyticsPage />);
+    expect(await screen.findByText("API responding — dependency readiness is not verified")).toBeInTheDocument();
+    expect(screen.queryByText("All systems operational")).not.toBeInTheDocument();
+    expect(screen.queryByText("1000 chunks indexed")).not.toBeInTheDocument();
+    expect(screen.getAllByText(/Not measured/).length).toBeGreaterThan(3);
+    expect(screen.getByText("Semantic cache is disabled in this runtime")).toBeInTheDocument();
+    expect(screen.getByText("Audit trail could not be loaded. Refresh to retry.")).toBeInTheDocument();
+  });
+
+
+  it("removes rendered private audit records on identity change before replacement loads", async () => {
+    getAuditEvents.mockResolvedValueOnce({ events: [{ action: "private.workspace.a", workspace_id: "workspace-a", metadata: {} }], storage: "supabase" });
+    const view = render(<AnalyticsPage />);
+    await screen.findByText("Private Workspace A");
+    getAnalytics.mockImplementationOnce(() => new Promise(() => {}));
+    act(() => useStore.setState({ authUser: { id: "user-b", email: null } }));
+    view.rerender(<AnalyticsPage />);
+    expect(screen.queryByText("Private Workspace A")).not.toBeInTheDocument();
+    expect(screen.queryByText("8 chunks indexed")).not.toBeInTheDocument();
+  });
+
 });

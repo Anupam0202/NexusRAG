@@ -16,9 +16,10 @@ CREATE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql STABLE AS $$
  SELECT nullif(current_setting('request.jwt.claim.sub',true),'')::uuid
 $$;
 CREATE FUNCTION auth.role() RETURNS text LANGUAGE sql STABLE AS $$
- SELECT nullif(current_setting('request.jwt.claim.role',true),'')
+ SELECT coalesce(nullif(current_setting('request.jwt.claim.role',true),''),
+   nullif(current_setting('request.jwt.claims',true),'')::jsonb ->> 'role')
 $$;
-GRANT USAGE ON SCHEMA auth TO authenticated;
+GRANT USAGE ON SCHEMA auth TO authenticated,service_role;
 GRANT EXECUTE ON FUNCTION auth.uid(),auth.role() TO authenticated,service_role;
 CREATE SCHEMA storage;
 CREATE TABLE storage.buckets (

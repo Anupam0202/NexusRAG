@@ -12,6 +12,8 @@ defaults:
   run:
     shell: bash
 jobs:
+  self-managed-runtime:
+    uses: ./.github/workflows/container-verification.yml
   migration-integrity:
     name: Migration integrity
     runs-on: ubuntu-latest
@@ -21,7 +23,7 @@ jobs:
       - uses: actions/setup-python@v5
         with: {python-version: "3.13"}
       - run: python3 scripts/verify_v6_migrations.py
-      - run: python3 -m unittest discover -s tests/scripts -p 'test_preview_target_isolation.py'
+      - run: python3 -m unittest discover -s tests/scripts -p 'test_*.py'
   backend-isolated:
     name: Backend isolated regressions
     runs-on: ubuntu-latest
@@ -99,7 +101,7 @@ jobs:
   frontend:
     name: Frontend lint, unit, typecheck, build
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -147,7 +149,32 @@ jobs:
           done
           test "$ready" = true || { cat /tmp/nexusrag-browser-server.log; exit 1; }
           npm exec playwright -- test public-smoke.spec.ts visual-regression.spec.ts --workers=2
-          npm exec playwright -- test --config=playwright.cross-browser.config.ts --workers=2
+          npm exec playwright -- test public-smoke.spec.ts --config=playwright.cross-browser.config.ts --workers=2
+      - name: Actual Cloudflare Worker document routing regressions
+        working-directory: frontend
+        env:
+          NEXT_TELEMETRY_DISABLED: "1"
+          NEXT_PUBLIC_SUPABASE_URL: https://supabase.invalid
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: synthetic-public-browser-test-key
+          NEXT_PUBLIC_API_URL: http://localhost:8000
+          WRANGLER_SEND_METRICS: "false"
+        run: |
+          set -euo pipefail
+          npm run cf:build
+          npm exec wrangler -- dev --local --port 3003 > /tmp/nexusrag-worker-server.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          ready=false
+          for attempt in $(seq 1 60); do
+            if curl --fail --silent http://localhost:3003/auth/login >/dev/null; then
+              ready=true
+              break
+            fi
+            sleep 1
+          done
+          test "$ready" = true || { cat /tmp/nexusrag-worker-server.log; exit 1; }
+          E2E_BASE_URL=http://localhost:3003 npm exec playwright -- test worker-routing.spec.ts --workers=2
+          E2E_BASE_URL=http://localhost:3003 npm exec playwright -- test worker-routing.spec.ts --config=playwright.cross-browser.config.ts --workers=2
   dependency-review:
     name: Dependency review (lockfiles)
     runs-on: ubuntu-latest
@@ -196,7 +223,7 @@ jobs:
   required-summary:
     name: Required foundation summary
     if: always()
-    needs: [migration-integrity,backend-isolated,backend-full,evaluation-inventory,cloudflare-foundation,frontend,dependency-review,supply-chain]
+    needs: [migration-integrity,backend-isolated,backend-full,evaluation-inventory,cloudflare-foundation,frontend,dependency-review,supply-chain,self-managed-runtime]
     runs-on: ubuntu-latest
     steps:
       - name: Fail unless required jobs passed
@@ -209,6 +236,7 @@ jobs:
           FRONTEND_RESULT: ${{ needs.frontend.result }}
           DEPENDENCY_RESULT: ${{ needs.dependency-review.result }}
           SUPPLY_CHAIN_RESULT: ${{ needs.supply-chain.result }}
+          CONTAINER_RESULT: ${{ needs.self-managed-runtime.result }}
         run: |
           set -euo pipefail
           printf 'migration=%s backend=%s evaluation=%s cloudflare=%s frontend=%s dependency=%s supply_chain=%s\n' "$MIGRATION_RESULT" "$BACKEND_RESULT" "$EVALUATION_RESULT" "$CLOUDFLARE_RESULT" "$FRONTEND_RESULT" "$DEPENDENCY_RESULT" "$SUPPLY_CHAIN_RESULT"
@@ -220,3 +248,4 @@ jobs:
           test "$FRONTEND_RESULT" = success
           test "$DEPENDENCY_RESULT" = success
           test "$SUPPLY_CHAIN_RESULT" = success
+          test "$CONTAINER_RESULT" = success

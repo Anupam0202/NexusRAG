@@ -6,6 +6,7 @@ import Link from "@/components/layout/StaticLink";
 import { Activity, AlertTriangle, ArrowLeft, Gauge, KeyRound, Loader2, ReceiptText, Zap } from "lucide-react";
 import { getAnalytics, getApiKeyStatus, getBillingUsage, getSystemStatus } from "@/lib/api";
 import { AuthRequiredState } from "@/components/auth/AuthRequiredState";
+import { useStore } from "@/hooks/useStore";
 import { useWorkspaceApiAccess } from "@/hooks/useAuthGate";
 import type {
   AnalyticsSummary,
@@ -14,9 +15,12 @@ import type {
   SystemStatusResponse,
 } from "@/types";
 
-const FREE_WORKSPACE_TOKEN_BUDGET = 250_000;
-
 export default function BillingOrUsagePage() {
+  const identity = useStore((state) => JSON.stringify([state.authMode, state.authUser?.id, state.workspaceId]));
+  return <WorkspaceUsage key={identity} />;
+}
+
+function WorkspaceUsage() {
   const { authMode, canAccessWorkspaceApi, isWorkspaceLoading, workspaceId } = useWorkspaceApiAccess();
   const [analytics, setAnalytics] = useState<AnalyticsSummary | null>(null);
   const [status, setStatus] = useState<SystemStatusResponse | null>(null);
@@ -61,41 +65,31 @@ export default function BillingOrUsagePage() {
     };
   }, [canAccessWorkspaceApi, isWorkspaceLoading, workspaceId]);
 
-  const totalTokens = analytics?.llm_total_tokens ?? 0;
-  const tokensToday = analytics?.usage_tokens_today ?? totalTokens;
+  const totalTokens = analytics?.usage_tokens_today;
   const quota = analytics?.quota;
-  const tokenLimit =
-    quota?.limits?.daily_tokens ??
-    status?.settings.quota_daily_tokens ??
-    FREE_WORKSPACE_TOKEN_BUDGET;
-  const queryLimit =
-    quota?.limits?.daily_queries ??
-    status?.settings.quota_daily_queries ??
-    1000;
-  const documentLimit =
-    quota?.limits?.max_documents ??
-    status?.settings.quota_max_documents ??
-    100;
-  const storageLimit =
-    quota?.limits?.max_storage_bytes ??
-    (status?.settings.quota_max_storage_mb ?? 1024) * 1024 * 1024;
-  const usagePercent = Math.min(100, Math.round((totalTokens / Math.max(tokenLimit, 1)) * 100));
-  const avgLatency = analytics?.usage_avg_latency_ms ?? 0;
-  const fallbackCount = analytics?.llm_fallbacks ?? 0;
-  const failedCalls = analytics?.llm_error_events ?? 0;
+  const tokenLimit = quota?.limits?.daily_tokens ?? status?.settings.quota_daily_tokens;
+  const queryLimit = quota?.limits?.daily_queries ?? status?.settings.quota_daily_queries;
+  const documentLimit = quota?.limits?.max_documents ?? status?.settings.quota_max_documents;
+  const storageLimit = quota?.limits?.max_storage_bytes ??
+    (status?.settings.quota_max_storage_mb === undefined ? undefined : status.settings.quota_max_storage_mb * 1024 * 1024);
+  const usagePercent = totalTokens === undefined || tokenLimit === undefined ? undefined : Math.min(100, Math.round((totalTokens / Math.max(tokenLimit, 1)) * 100));
+  const displayCount = (value: number | undefined) => value === undefined ? "Not measured" : value.toLocaleString();
+  const avgLatency = analytics?.usage_avg_latency_ms;
+  const fallbackCount = analytics?.llm_fallbacks;
+  const failedCalls = analytics?.llm_error_events;
   const byokActive = keyStatus?.workspace_key_configured === true;
   const vectorBackend = deriveVectorBackendLabel(status);
   const providerHealth = status?.provider_health ?? [];
-  const reconciledTokens = billing?.totals.total_tokens ?? 0;
   const estimatedCostMicrousd = billing?.totals.estimated_cost_microusd;
   const estimatedCost = estimatedCostMicrousd == null
     ? "Unknown"
     : `$${(estimatedCostMicrousd / 1_000_000).toFixed(4)}`;
 
   const posture = useMemo(() => {
-    if (fallbackCount > 0 || failedCalls > 0) return "Needs attention";
-    if (usagePercent >= 80) return "Approaching free-tier budget";
-    return "Healthy";
+    if ((fallbackCount ?? 0) > 0 || (failedCalls ?? 0) > 0) return "Needs attention";
+    if (usagePercent !== undefined && usagePercent >= 80) return "Approaching configured budget";
+    if (failedCalls === undefined || fallbackCount === undefined || usagePercent === undefined) return "Usage posture not verified";
+    return "Within configured budget";
   }, [failedCalls, fallbackCount, usagePercent]);
 
   if (!canAccessWorkspaceApi) {
@@ -148,40 +142,40 @@ export default function BillingOrUsagePage() {
         ) : (
           <div className="space-y-5">
             <div className="grid gap-3 md:grid-cols-4">
-              <UsageCard icon={<Zap size={16} />} label="LLM tokens" value={totalTokens.toLocaleString()} detail={`${usagePercent}% of daily budget`} />
-              <UsageCard icon={<Activity size={16} />} label="LLM calls" value={(analytics?.llm_usage_events ?? 0).toLocaleString()} detail={`${analytics?.queries_today ?? 0} today`} />
-              <UsageCard icon={<Gauge size={16} />} label="Avg latency" value={avgLatency ? `${avgLatency}ms` : "-"} detail={`${analytics?.llm_successful_events ?? 0} successful`} />
-              <UsageCard icon={<AlertTriangle size={16} />} label="Fallbacks" value={fallbackCount.toLocaleString()} detail={`${failedCalls} provider errors`} />
+              <UsageCard icon={<Zap size={16} />} label="LLM tokens" value={displayCount(totalTokens)} detail={usagePercent === undefined ? "Daily budget not verified" : `${usagePercent}% of configured daily budget`} />
+              <UsageCard icon={<Activity size={16} />} label="LLM calls" value={displayCount(analytics?.llm_usage_events)} detail={`${displayCount(analytics?.queries_today)} queries today`} />
+              <UsageCard icon={<Gauge size={16} />} label="Avg latency" value={avgLatency === undefined ? "Not measured" : `${avgLatency}ms`} detail={`${displayCount(analytics?.llm_successful_events)} successful calls`} />
+              <UsageCard icon={<AlertTriangle size={16} />} label="Fallbacks" value={displayCount(fallbackCount)} detail={`${displayCount(failedCalls)} provider errors`} />
             </div>
 
             <div className="grid gap-3 md:grid-cols-2">
               <QuotaMeter
                 label="Daily queries"
-                used={quota?.usage?.queries_today ?? analytics?.queries_today ?? 0}
+                used={quota?.usage?.queries_today ?? analytics?.queries_today}
                 limit={queryLimit}
               />
               <QuotaMeter
                 label="Daily tokens"
-                used={quota?.usage?.tokens_today ?? tokensToday}
+                used={quota?.usage?.tokens_today ?? totalTokens}
                 limit={tokenLimit}
               />
               <QuotaMeter
                 label="Documents"
-                used={quota?.usage?.documents ?? analytics?.total_documents ?? 0}
+                used={quota?.usage?.documents ?? analytics?.total_documents}
                 limit={documentLimit}
               />
               <QuotaMeter
                 label="Storage"
-                used={quota?.usage?.storage_bytes ?? 0}
+                used={quota?.usage?.storage_bytes}
                 limit={storageLimit}
                 formatter={formatBytesShort}
               />
             </div>
 
             <div className="grid gap-3 md:grid-cols-3">
-              <StatusPanel label="Provider key" value={byokActive ? "Workspace BYOK active" : "Server default key"} />
+              <StatusPanel label="Provider key" value={!keyStatus ? "Key status unavailable" : byokActive ? "Your BYOK configured" : keyStatus.server_key_configured ? "Server key configured" : "No key configured"} />
               <StatusPanel label="Vector backend" value={vectorBackend} />
-              <StatusPanel label="Cache hits" value={`${analytics?.llm_cache_hits ?? analytics?.cache_hits ?? 0}`} />
+              <StatusPanel label="Cache hits" value={analytics?.measurement_states?.cache === "DISABLED" ? "Disabled" : displayCount(analytics?.llm_cache_hits ?? analytics?.cache_hits)} />
             </div>
 
             <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
@@ -195,8 +189,8 @@ export default function BillingOrUsagePage() {
                 </span>
               </div>
               <div className="mt-3 grid gap-3 sm:grid-cols-3">
-                <StatusPanel label="Reconciled calls" value={(billing?.totals.query_count ?? 0).toLocaleString()} />
-                <StatusPanel label="Reconciled tokens" value={reconciledTokens.toLocaleString()} />
+                <StatusPanel label="Reconciled calls" value={displayCount(billing?.totals.query_count)} />
+                <StatusPanel label="Reconciled tokens" value={displayCount(billing?.totals.total_tokens)} />
                 <StatusPanel label="Estimated cost" value={estimatedCost} />
               </div>
               <p className="mt-3 text-xs leading-relaxed text-[var(--text-muted)]">
@@ -223,7 +217,7 @@ export default function BillingOrUsagePage() {
                 </div>
               ) : (
                 <p className="mt-2 text-xs leading-5 text-[var(--text-muted)]">
-                  No provider failures have been recorded in this runtime.
+                  Provider readiness has not been verified. Missing health observations do not establish availability.
                 </p>
               )}
             </div>
@@ -268,22 +262,22 @@ function QuotaMeter({
   formatter = (value: number) => value.toLocaleString(),
 }: {
   label: string;
-  used: number;
-  limit: number;
+  used?: number;
+  limit?: number;
   formatter?: (value: number) => string;
 }) {
-  const percent = limit > 0 ? Math.min(100, Math.round((used / limit) * 100)) : used > 0 ? 100 : 0;
+  const percent = used === undefined || limit === undefined ? undefined : limit > 0 ? Math.min(100, Math.round((used / limit) * 100)) : used > 0 ? 100 : 0;
   return (
     <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
       <div className="mb-2 flex items-center justify-between gap-3">
         <p className="text-sm font-semibold">{label}</p>
-        <p className="text-xs text-[var(--text-muted)]">{percent}%</p>
+        <p className="text-xs text-[var(--text-muted)]">{percent === undefined ? "Not verified" : `${percent}%`}</p>
       </div>
       <div className="h-2 rounded-full bg-[var(--bg-secondary)]">
-        <div className="h-2 rounded-full bg-brand-500" style={{ width: `${percent}%` }} />
+        <div className="h-2 rounded-full bg-brand-500" style={{ width: `${percent ?? 0}%` }} />
       </div>
       <p className="mt-2 text-xs text-[var(--text-muted)]">
-        {formatter(used)} / {formatter(limit)}
+        {used === undefined ? "Usage not measured" : formatter(used)} / {limit === undefined ? "Limit not configured" : formatter(limit)}
       </p>
     </div>
   );

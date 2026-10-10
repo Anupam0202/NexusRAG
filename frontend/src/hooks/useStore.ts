@@ -4,6 +4,7 @@ import { getStoredWorkspaceId, setStoredWorkspaceId } from "@/lib/api-context";
 import { generateId } from "@/lib/utils";
 
 export type AuthMode = "loading" | "demo" | "signed_out" | "authenticated";
+export type WorkspaceDiscovery = "loading" | "ready" | "missing" | "error";
 const SESSION_STORAGE_KEY = "nexusrag_chat_session_id";
 const SESSION_SCOPE_KEY = "nexusrag_chat_session_scope";
 
@@ -81,6 +82,8 @@ interface AppState {
   authUser: AuthUser | null;
   setAuthState: (mode: AuthMode, user?: AuthUser | null) => void;
   workspaceId: string | null;
+  workspaceDiscovery: WorkspaceDiscovery;
+  setWorkspaceDiscovery: (status: WorkspaceDiscovery) => void;
   setWorkspaceId: (workspaceId: string | null) => void;
 }
 
@@ -174,16 +177,20 @@ export const useStore = create<AppState>((set) => ({
     const reset = signedOut || identityChanged || sessionId !== state.sessionId;
     return {
       authMode: mode, authUser: user, workspaceId, sessionId,
+      ...(signedOut || identityChanged ? { workspaceDiscovery: "loading" as const } : {}),
       ...(reset ? { messages: [], documents: [], userApiKey: null, isQuotaBlocked: false, showApiKeyModal: false } : {}),
     };
   }),
   workspaceId: getStoredWorkspaceId(),
+  workspaceDiscovery: "loading",
+  setWorkspaceDiscovery: (workspaceDiscovery) => set({ workspaceDiscovery }),
   setWorkspaceId: (workspaceId) => {
     setStoredWorkspaceId(workspaceId);
     set((state) => {
-      if (state.workspaceId === workspaceId) return { workspaceId };
+      if (state.workspaceId === workspaceId) return { workspaceId, ...(workspaceId ? { workspaceDiscovery: "ready" as const } : {}) };
       return {
         workspaceId,
+        workspaceDiscovery: workspaceId ? "ready" : "loading",
         sessionId: bindSession(state.authUser?.id ?? null, workspaceId, state.sessionId),
         messages: [], documents: [], userApiKey: null, isQuotaBlocked: false, showApiKeyModal: false,
       };

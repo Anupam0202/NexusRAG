@@ -14,7 +14,7 @@ from typing import Any, Literal
 from uuid import UUID
 
 import httpx
-from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, status
 from pydantic import BaseModel, Field
 
 from config.settings import Settings, get_settings
@@ -86,6 +86,8 @@ class WorkspaceSummaryResponse(BaseModel):
 class WorkspaceListResponse(BaseModel):
     workspaces: list[WorkspaceSummaryResponse]
     total: int
+    next_after: str | None = None
+    total_is_exact: bool = True
 
 
 class WorkspaceMemberResponse(BaseModel):
@@ -98,9 +100,12 @@ class WorkspaceMemberResponse(BaseModel):
 
 
 class WorkspaceMembersResponse(BaseModel):
+    invitation_supported: bool = False
     workspace_id: str
     members: list[WorkspaceMemberResponse]
     total: int
+    next_after: str | None = None
+    total_is_exact: bool = True
 
 
 class WorkspaceMemberCreateRequest(BaseModel):
@@ -159,8 +164,12 @@ def _workspace_summary(
         plan=str(workspace.get("plan") or "free"),
         role=parsed_role,
         owner_id=str(workspace["owner_id"]) if workspace.get("owner_id") else None,
-        created_at=str(workspace["created_at"]) if workspace.get("created_at") else None,
-        updated_at=str(workspace["updated_at"]) if workspace.get("updated_at") else None,
+        created_at=(
+            str(workspace["created_at"]) if workspace.get("created_at") else None
+        ),
+        updated_at=(
+            str(workspace["updated_at"]) if workspace.get("updated_at") else None
+        ),
     )
 
 
@@ -187,10 +196,14 @@ def _member_response(
         user_id=user_id,
         email=profile.get("email") if isinstance(profile.get("email"), str) else None,
         display_name=(
-            profile.get("display_name") if isinstance(profile.get("display_name"), str) else None
+            profile.get("display_name")
+            if isinstance(profile.get("display_name"), str)
+            else None
         ),
         avatar_url=(
-            profile.get("avatar_url") if isinstance(profile.get("avatar_url"), str) else None
+            profile.get("avatar_url")
+            if isinstance(profile.get("avatar_url"), str)
+            else None
         ),
         role=role,
         created_at=created_at,
@@ -283,7 +296,9 @@ def select_workspace_id(
     return workspace_id or None
 
 
-def validate_workspace_id(workspace_id: str, *, header_name: str = WORKSPACE_HEADER) -> None:
+def validate_workspace_id(
+    workspace_id: str, *, header_name: str = WORKSPACE_HEADER
+) -> None:
     try:
         UUID(workspace_id)
     except ValueError as exc:
@@ -321,7 +336,11 @@ def _decode_supabase_jwt(token: str, settings: Settings) -> dict[str, Any]:
                     status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                     detail="Supabase JWKS verification is not configured.",
                 )
-            key = PyJWKClient(settings.supabase_jwks_url).get_signing_key_from_jwt(token).key
+            key = (
+                PyJWKClient(settings.supabase_jwks_url)
+                .get_signing_key_from_jwt(token)
+                .key
+            )
 
         return jwt.decode(
             token,
@@ -405,11 +424,11 @@ async def resolve_workspace_context(
     if workspace_id:
         validate_workspace_id(workspace_id)
         query = (
-            f"select=workspace_id,role&workspace_id=eq.{workspace_id}"
+            f"select=workspace_id,role,workspaces!inner(lifecycle_state)&workspaces.lifecycle_state=eq.active&workspace_id=eq.{workspace_id}"
             f"&user_id=eq.{user.id}&limit=1"
         )
     else:
-        query = f"select=workspace_id,role&user_id=eq.{user.id}&limit=1"
+        query = f"select=workspace_id,role,workspaces!inner(lifecycle_state)&workspaces.lifecycle_state=eq.active&user_id=eq.{user.id}&order=workspace_id.asc&limit=1"
 
     try:
         rows = await supabase.table_select("workspace_members", query=query)
@@ -510,7 +529,9 @@ def require_enterprise_workspace_role(*allowed_roles: WorkspaceRole):
 
 
 @router.get("/me", response_model=CurrentUserResponse)
-async def read_current_user(user: CurrentUser = Depends(get_current_user)) -> CurrentUserResponse:
+async def read_current_user(
+    user: CurrentUser = Depends(get_current_user),
+) -> CurrentUserResponse:
     return CurrentUserResponse(
         id=user.id,
         email=user.email,
@@ -521,17 +542,28 @@ async def read_current_user(user: CurrentUser = Depends(get_current_user)) -> Cu
 
 @workspace_router.get("", response_model=WorkspaceListResponse)
 async def list_workspaces(
+    after: UUID | None = None,
+    limit: int = Query(50, ge=1, le=100),
     user: CurrentUser = Depends(get_current_user),
     supabase: SupabaseClient = Depends(get_supabase_client),
 ) -> WorkspaceListResponse:
     if user.is_demo:
         workspace = _demo_workspace_summary()
-        return WorkspaceListResponse(workspaces=[workspace], total=1)
+        return WorkspaceListResponse(
+            workspaces=(
+                [workspace]
+                if after is None or UUID(workspace.id).int > after.int
+                else []
+            ),
+            total=1,
+        )
 
     from src.repositories.workspaces import WorkspaceRepository
 
     try:
-        rows = await WorkspaceRepository(supabase).list_for_user(user.id)
+        repository = WorkspaceRepository(supabase)
+        total = await repository.count_for_user(user.id)
+        rows = await repository.list_for_user(user.id, after=after, limit=limit)
     except SupabaseNotConfiguredError as exc:
         raise _enterprise_auth_not_configured_error() from exc
     except httpx.HTTPStatusError as exc:
@@ -540,16 +572,46 @@ async def list_workspaces(
             detail="Unable to load workspaces from Supabase.",
         )
 
+    except (ValueError, httpx.RequestError) as exc:
+        raise HTTPException(
+            status_code=503, detail="Exact workspace inventory is unavailable."
+        ) from exc
+
+    if (
+        not isinstance(total, int)
+        or isinstance(total, bool)
+        or not 0 <= total <= 2**53 - 1
+        or not isinstance(rows, list)
+        or len(rows) > limit + 1
+    ):
+        raise HTTPException(
+            status_code=503, detail="Exact workspace inventory is unavailable."
+        )
+    has_more = len(rows) > limit
     workspaces: list[WorkspaceSummaryResponse] = []
     for row in rows:
-        workspace = row.get("workspaces")
-        if isinstance(workspace, dict) and workspace.get("id"):
-            try:
-                workspaces.append(_workspace_summary(workspace, role=row.get("role", "viewer")))
-            except (KeyError, ValueError):
-                continue
+        try:
+            if not isinstance(row, dict):
+                raise ValueError("Invalid active workspace record")
+            workspace = row.get("workspaces")
+            if (
+                not isinstance(workspace, dict)
+                or workspace.get("id") != row.get("workspace_id")
+                or workspace.get("lifecycle_state") != "active"
+            ):
+                raise ValueError("Invalid active workspace record")
+            UUID(workspace["id"])
+            workspaces.append(_workspace_summary(workspace, role=row["role"]))
+        except (KeyError, ValueError, TypeError) as exc:
+            raise HTTPException(
+                status_code=503, detail="Active workspace inventory is invalid."
+            ) from exc
 
-    return WorkspaceListResponse(workspaces=workspaces, total=len(workspaces))
+    return WorkspaceListResponse(
+        workspaces=workspaces[:limit],
+        total=total,
+        next_after=str(rows[limit - 1]["workspace_id"]) if has_more else None,
+    )
 
 
 @workspace_router.post(
@@ -610,6 +672,8 @@ async def read_current_workspace(
 
 @workspace_router.get("/current/members", response_model=WorkspaceMembersResponse)
 async def list_current_workspace_members(
+    after: UUID | None = None,
+    limit: int = Query(100, ge=1, le=100),
     context: WorkspaceContext = Depends(
         require_workspace_role(
             WorkspaceRole.OWNER,
@@ -629,14 +693,32 @@ async def list_current_workspace_members(
         )
         return WorkspaceMembersResponse(
             workspace_id=context.workspace_id,
-            members=[member],
+            members=(
+                [member]
+                if after is None or UUID(member.user_id).int > after.int
+                else []
+            ),
             total=1,
         )
 
     from src.repositories.workspaces import WorkspaceRepository
 
     try:
-        rows = await WorkspaceRepository(supabase).list_members(context.workspace_id)
+        repository = WorkspaceRepository(supabase)
+        rows = await repository.list_members(
+            context.workspace_id, after=after, limit=limit
+        )
+        total = await repository.count_members(context.workspace_id)
+        membership = await repository.get_membership(
+            workspace_id=context.workspace_id,
+            user_id=context.user.id,
+        )
+        if not membership or membership.get("role") not in {
+            role.value for role in WorkspaceRole
+        }:
+            raise HTTPException(
+                status_code=403, detail="Workspace membership is no longer available."
+            )
     except SupabaseNotConfiguredError as exc:
         raise _enterprise_auth_not_configured_error() from exc
     except httpx.HTTPStatusError as exc:
@@ -644,21 +726,52 @@ async def list_current_workspace_members(
             exc,
             detail="Unable to load workspace members from Supabase.",
         )
+    except httpx.RequestError as exc:
+        raise HTTPException(
+            status_code=503, detail="Workspace member service is unavailable."
+        ) from exc
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=503, detail="Exact workspace member inventory is unavailable."
+        ) from exc
 
+    invitation_supported = False
+    try:
+        schema = await supabase.rpc("nexus_invitation_version", {}, service_role=True)
+        invitation_supported = (
+            isinstance(schema, dict)
+            and schema.get("version") == "040"
+            and schema.get("recipient_bound") is True
+            and schema.get("manual_delivery") is True
+        )
+    except (SupabaseNotConfiguredError, httpx.HTTPError, ValueError):
+        # Missing/unavailable invitation authority must not enable controls or
+        # misrepresent the otherwise authorized roster as an empty workspace.
+        pass
+    has_more = len(rows) > limit
+    rows = rows[:limit]
     members: list[WorkspaceMemberResponse] = []
     for row in rows:
         profile = row.get("profiles") if isinstance(row.get("profiles"), dict) else {}
         try:
             role = WorkspaceRole(str(row["role"]))
         except (KeyError, ValueError):
-            continue
+            raise HTTPException(
+                status_code=503, detail="Workspace member inventory is invalid."
+            )
         member_user_id = row.get("user_id") or profile.get("id")
         if not member_user_id:
-            continue
+            raise HTTPException(
+                status_code=503, detail="Workspace member inventory is invalid."
+            )
         members.append(
             WorkspaceMemberResponse(
                 user_id=str(member_user_id),
-                email=profile.get("email") if isinstance(profile.get("email"), str) else None,
+                email=(
+                    profile.get("email")
+                    if isinstance(profile.get("email"), str)
+                    else None
+                ),
                 display_name=(
                     profile.get("display_name")
                     if isinstance(profile.get("display_name"), str)
@@ -677,7 +790,9 @@ async def list_current_workspace_members(
     return WorkspaceMembersResponse(
         workspace_id=context.workspace_id,
         members=members,
-        total=len(members),
+        invitation_supported=invitation_supported,
+        total=total,
+        next_after=str(rows[-1]["user_id"]) if has_more else None,
     )
 
 
@@ -750,7 +865,9 @@ async def add_current_workspace_member(
         user_id=str(profile["id"]),
         role=role,
         profile=profile,
-        created_at=str(membership["created_at"]) if membership.get("created_at") else None,
+        created_at=(
+            str(membership["created_at"]) if membership.get("created_at") else None
+        ),
     )
 
 
@@ -776,7 +893,9 @@ async def update_current_workspace_member(
             user_id=user_id,
         )
         if not membership:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Member not found.")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Member not found."
+            )
         target_role = WorkspaceRole(str(membership["role"]))
         _assert_member_manageable(
             actor_role=context.role,
@@ -819,7 +938,11 @@ async def update_current_workspace_member(
         user_id=user_id,
         role=next_role,
         profile=profile,
-        created_at=str(updated["created_at"]) if updated and updated.get("created_at") else None,
+        created_at=(
+            str(updated["created_at"])
+            if updated and updated.get("created_at")
+            else None
+        ),
     )
 
 
@@ -846,14 +969,18 @@ async def remove_current_workspace_member(
             user_id=user_id,
         )
         if not membership:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Member not found.")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Member not found."
+            )
         target_role = WorkspaceRole(str(membership["role"]))
         _assert_member_manageable(
             actor_role=context.role,
             target_role=target_role,
             action="removed",
         )
-        removed = await repo.remove_member(workspace_id=context.workspace_id, user_id=user_id)
+        removed = await repo.remove_member(
+            workspace_id=context.workspace_id, user_id=user_id
+        )
         await _record_member_audit(
             supabase=supabase,
             context=context,

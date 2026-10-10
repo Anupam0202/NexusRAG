@@ -92,11 +92,19 @@ async function embedText(env, text, taskType, context) {
   return vector;
 }
 
-function qdrantFilter(workspaceId, documentIds = [], versionIds = [], indexGenerations = []) {
+function qdrantFilter(workspaceId, documentIds = [], versionIds = [], indexGenerations = [], chunkIds) {
   const must = [{ key: "workspace_id", match: { value: workspaceId } }];
   if (documentIds.length) must.push({ key: "document_id", match: { any: documentIds.slice(0, 100) } });
   if (versionIds.length) must.push({ key: "version_id", match: { any: versionIds.slice(0, 100) } });
   if (indexGenerations.length) must.push({ key: "index_generation", match: { any: indexGenerations.slice(0, 100) } });
+  // Filtered chunk IDs come from authoritative tenant/version SQL, not cached
+  // vector metadata. has_id requires no additional payload index or migration.
+  if (chunkIds !== undefined) {
+    if (!Array.isArray(chunkIds) || !chunkIds.length || chunkIds.length > 200
+      || chunkIds.some(id => typeof id !== "string" || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)))
+      throw pipelineError("INVALID_SCOPE", "Filtered retrieval requires 1 to 200 authoritative chunk IDs.", 422);
+    must.push({ has_id: [...new Set(chunkIds)] });
+  }
   return { must };
 }
 
@@ -126,10 +134,10 @@ async function deterministicPointId(identity) {
   return `${hex.slice(0,8)}-${hex.slice(8,12)}-${hex.slice(12,16)}-${hex.slice(16,20)}-${hex.slice(20)}`;
 }
 
-async function indexChunks(env, { workspaceId, documentId, versionId, generation, filename, chunks, priority = "background", initializeIndex = true, dataClassification = "unknown", userApiKey, credentialMode }) {
+async function indexChunks(env, { workspaceId, documentId, versionId, generation, filename, chunks, priority = "background", initializeIndex = true, dataClassification = "unknown", actorId, userApiKey, credentialMode }) {
   if (!chunks.length || chunks.length > MAX_INDEX_BATCH_CHUNKS) throw pipelineError("CAPACITY_REACHED", "Indexing accepts a maximum of three chunks per bounded Worker batch.", 413);
   if (dataClassification !== "non_sensitive") throw pipelineError("RIGHTS_BLOCKED", "Only explicitly attested non-sensitive documents may be indexed.", 403);
-  const context = { workspaceId, priority, dataClassification, userApiKey, credentialMode };
+  const context = { workspaceId, priority, dataClassification, actorId, userApiKey, credentialMode };
   const requestAllowance = initializeIndex ? 7 : 2;
   return metered(env, { ...context, provider: "qdrant" }, { requests: requestAllowance, vectors: chunks.length }, async () => {
     const points = [];
@@ -144,17 +152,19 @@ async function indexChunks(env, { workspaceId, documentId, versionId, generation
   });
 }
 
-async function searchChunks(env, { workspaceId, question, documentIds = [], versionIds = [], indexGenerations = [], limit = 8, dataClassification = "unknown", userApiKey, credentialMode }) {
+async function searchChunks(env, { workspaceId, question, documentIds = [], versionIds = [], indexGenerations = [], chunkIds, limit = 8, dataClassification = "unknown", actorId, userApiKey, credentialMode }) {
   if (dataClassification !== "non_sensitive") throw pipelineError("RIGHTS_BLOCKED", "Only non-sensitive questions and document scope may be searched.", 403);
+  const filter = qdrantFilter(workspaceId, documentIds, versionIds, indexGenerations, chunkIds);
   return metered(env, { workspaceId, provider: "qdrant", priority: "interactive" }, { requests: 2 }, async () => {
-  const vector = await embedText(env, question, "RETRIEVAL_QUERY", { workspaceId, priority: "interactive", dataClassification, userApiKey, credentialMode });
+  const vector = await embedText(env, question, "RETRIEVAL_QUERY", { workspaceId, priority: "interactive", dataClassification, actorId, userApiKey, credentialMode });
   const { base, headers } = await ensureQdrant(env, vector.length);
-  const body = { query: vector, limit: Math.min(Math.max(limit, 1), 12), with_payload: true, filter: qdrantFilter(workspaceId, documentIds, versionIds, indexGenerations) };
+  const body = { query: vector, limit: Math.min(Math.max(limit, 1), 12), with_payload: true, filter };
   const result = await providerJson(`${base}/points/query`, { method: "POST", headers, body: JSON.stringify(body) });
   return (result?.result?.points || []).filter((item) => item?.payload?.workspace_id === workspaceId
     && (!documentIds.length || documentIds.includes(item.payload.document_id))
     && (!versionIds.length || versionIds.includes(item.payload.version_id))
-    && (!indexGenerations.length || indexGenerations.includes(item.payload.index_generation)));
+    && (!indexGenerations.length || indexGenerations.includes(item.payload.index_generation))
+    && (chunkIds === undefined || (item.id === item.payload.chunk_id && chunkIds.includes(item.id))));
   });
 }
 

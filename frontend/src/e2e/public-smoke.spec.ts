@@ -191,3 +191,29 @@ test("reduced-motion preference preserves the evidence content", async ({ page }
     page.getByRole("heading", { name: "Evidence Intelligence OS" })
   ).toBeVisible();
 });
+
+
+test("navigation has named collapsed links and a mobile focus loop", async ({ page }) => {
+  await page.goto("/evidence-os", { waitUntil: "networkidle" });
+  if ((page.viewportSize()?.width || 1280) < 1024) {
+    const opener = page.getByRole("button", { name: "Open navigation menu" });
+    await opener.click();
+    const dialog = page.getByRole("dialog", { name: "Navigation menu" });
+    await expect(dialog).toBeVisible();
+    expect(await page.locator("main").evaluate(element => Boolean(element.closest("[inert]")))).toBe(true);
+    await expect(dialog.getByRole("button", { name: "Dismiss navigation menu" })).toBeFocused();
+    for (let index = 0; index < 12; index++) {
+      await page.keyboard.press("Tab");
+      expect(await dialog.evaluate(element => element.contains(document.activeElement))).toBe(true);
+    }
+    await page.keyboard.press("Escape");
+    await expect(dialog).not.toBeVisible();
+    await expect(opener).toBeFocused();
+    expect(await page.locator("main").evaluate(element => Boolean(element.closest("[inert]")))).toBe(false);
+  } else {
+    await page.getByRole("button", { name: "Collapse navigation sidebar" }).click();
+    await expect(page.getByRole("link", { name: "Documents", exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "Expand navigation sidebar" }).click();
+    await expect(page.getByRole("link", { name: "Documents", exact: true })).toBeVisible();
+  }
+});
