@@ -8,6 +8,19 @@ from src.repositories.base import SupabaseRepository, eq_filter, first_row
 
 
 class WorkspaceSettingsRepository(SupabaseRepository):
+    async def claim_workspace_retention(
+        self, *, workspace_id: str, actor_id: str, worker_id: str,
+        lease_seconds: int = 900,
+    ) -> dict[str, Any] | None:
+        result = await self._supabase.rpc(
+            "claim_workspace_retention",
+            {"p_workspace": workspace_id, "p_actor": actor_id,
+             "p_worker_id": worker_id, "p_lease_seconds": lease_seconds},
+        )
+        if result is not None and type(result) is not dict:
+            raise RuntimeError("Invalid manual retention claim response")
+        return result
+
     async def claim_due_retention(
         self,
         *,

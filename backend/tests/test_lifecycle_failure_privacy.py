@@ -130,7 +130,10 @@ async def test_real_route_receipt_or_audit_never_contains_private_cleanup_error(
     docs.list_documents.return_value[0]['created_at']='2000-01-01T00:00:00+00:00'
     service._messages.delete_sessions_before=AsyncMock(return_value=0)
     monkeypatch.setattr(routes,'WorkspaceLifecycleService',lambda **kwargs:service)
-    settings_repo=SimpleNamespace(get_settings=AsyncMock(return_value={'retention_enabled':True,'retention_days':30}),upsert_settings=AsyncMock())
+    async def claim_manual(**scope):
+        return {'workspace_id':scope['workspace_id'],'retention_enabled':True,'retention_days':30,
+                'retention_lease_owner':scope['worker_id'],'retention_lease_expires_at':'2099-01-01T00:00:00+00:00'}
+    settings_repo=SimpleNamespace(claim_workspace_retention=AsyncMock(side_effect=claim_manual),finish_retention_claim=AsyncMock(return_value=True),upsert_settings=AsyncMock())
     monkeypatch.setattr(routes,'WorkspaceSettingsRepository',lambda:settings_repo)
     audit=AsyncMock();monkeypatch.setattr(routes,'_record_audit_event',audit)
     workspace=WorkspaceContext(workspace_id='synthetic-workspace',user=CurrentUser(id='synthetic-owner',email=None,role='authenticated',claims={}),role=WorkspaceRole.OWNER)

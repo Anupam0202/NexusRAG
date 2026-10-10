@@ -23,6 +23,8 @@ class CheckpointTests(unittest.TestCase):
         subprocess.run(['git', 'init', '-q', str(self.root)], check=True)
         self.git('config', 'user.name', 'Synthetic Test')
         self.git('config', 'user.email', 'test@example.invalid')
+        self.git('config', 'core.autocrlf', 'false')
+        self.git('config', 'core.symlinks', 'false')
         (self.root / 'package-lock.json').write_text('{"lockfileVersion":3}\n')
         (self.root / 'RUN-STATE.md').write_text('Reverify after recovery.\n')
         (self.root / '.gitignore').write_text('private.env\n')
@@ -70,8 +72,12 @@ class CheckpointTests(unittest.TestCase):
         with self.assertRaises(ValueError): MODULE.export(self.root, self.archive, [self.log, self.log])
 
     def test_tracked_symlink_is_not_silently_exported(self):
-        (self.root / 'link').symlink_to('RUN-STATE.md')
-        self.git('add', 'link');self.git('commit', '-qm', 'symlink fixture')
+        # Git's symlink object is portable even without Windows symlink privileges.
+        (self.root / 'link').write_bytes(b'RUN-STATE.md')
+        oid = self.git('hash-object', '-w', 'link').decode().strip()
+        self.git('update-index', '--add', '--cacheinfo', f'120000,{oid},link')
+        self.git('commit', '-qm', 'symlink fixture')
+        self.assertIn(b'120000 blob', self.git('ls-tree', 'HEAD', 'link'))
         with self.assertRaises(ValueError): MODULE.export(self.root, self.archive, [])
 
     def test_tampering_and_unexpected_entries_are_rejected(self):

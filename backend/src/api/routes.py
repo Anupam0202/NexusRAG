@@ -104,6 +104,7 @@ from src.repositories.settings import WorkspaceSettingsRepository
 from src.retrieval.vector_store import VectorStoreManager
 from src.telemetry.events import estimate_tokens, get_telemetry_recorder
 from src.tenancy.lifecycle import WorkspaceLifecycleService
+from src.tenancy.manual_retention import ManualRetentionError, run_manual_retention
 from src.tenancy.quotas import QuotaExceededError, TenantQuotaEnforcer
 from src.utils.layered_cache import get_layered_cache
 from src.utils.logger import get_logger
@@ -2768,25 +2769,17 @@ async def run_retention(
     if not _should_persist_workspace_event(workspace, settings):
         raise HTTPException(403, "Demo mode cannot run durable retention.")
     workspace_id = _context_workspace_id(workspace)
-    row = await WorkspaceSettingsRepository().get_settings(workspace_id=workspace_id)
-    retention_days = _safe_int((row or {}).get("retention_days"))
-    if not (row or {}).get("retention_enabled") or retention_days < 1:
-        raise HTTPException(409, "Enable a retention schedule before running cleanup.")
     qdrant = QdrantVectorStore(settings) if settings.qdrant_configured else None
-    result = await WorkspaceLifecycleService(vector_store=vs, qdrant_store=qdrant).apply_retention(
-        workspace_id=workspace_id,
-        retention_days=retention_days,
-    )
-    now = datetime.now(UTC)
-    if result.failures:
-        await WorkspaceSettingsRepository().upsert_settings(
+    try:
+        result = await run_manual_retention(
+            settings=WorkspaceSettingsRepository(),
+            lifecycle=WorkspaceLifecycleService(vector_store=vs, qdrant_store=qdrant),
             workspace_id=workspace_id,
-            values={
-                "next_retention_at": (now + timedelta(hours=1)).isoformat(),
-                "retention_lease_owner": None,
-                "retention_lease_expires_at": None,
-            },
+            actor_id=workspace.user.id,
+            worker_id=f"manual-retention:{uuid.uuid4().hex}",
         )
+    except ManualRetentionError as exc:
+        result = exc.result
         await _record_audit_event(
             workspace=workspace,
             settings=settings,
@@ -2794,24 +2787,25 @@ async def run_retention(
             resource_type="workspace",
             resource_id=workspace_id,
             metadata={
-                "documents_deleted": result.documents_deleted,
-                "chat_sessions_deleted": result.chat_sessions_deleted,
-                "failures": result.failures,
+                "code": exc.code,
+                "retry_scheduled": exc.retry_scheduled,
+                "documents_deleted": result.documents_deleted if result else 0,
+                "chat_sessions_deleted": result.chat_sessions_deleted if result else 0,
+                "failures": result.failures if result else [],
             },
         )
-        raise HTTPException(
-            502,
-            "Retention cleanup completed with partial failures and was scheduled for retry.",
+        if exc.code == "CLAIM_UNAVAILABLE":
+            raise HTTPException(409, "Retention is disabled or another cleanup is running.") from None
+        if exc.code == "LEASE_LOST":
+            raise HTTPException(409, "Retention authority changed. Cleanup completion was not confirmed.") from None
+        message = (
+            "Retention cleanup completed with partial failures and was scheduled for retry."
+            if exc.retry_scheduled else
+            "Retention could not be confirmed. Retry scheduling and cleanup completion are unverified."
         )
-    await WorkspaceSettingsRepository().upsert_settings(
-        workspace_id=workspace_id,
-        values={
-            "last_retention_at": now.isoformat(),
-            "next_retention_at": (now + timedelta(days=1)).isoformat(),
-            "retention_lease_owner": None,
-            "retention_lease_expires_at": None,
-        },
-    )
+        raise HTTPException(
+            502, message,
+        ) from None
     await _record_audit_event(
         workspace=workspace,
         settings=settings,
