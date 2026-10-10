@@ -1,5 +1,42 @@
 # NexusRAG execution checkpoint
 
+## Active Batch: auth-recovery-006
+
+**Application: PARTIAL_NOT_COMPLETE. Batch: LOCALLY_TESTED authentication routing/redirect recovery. Not deployed or production verified.**
+
+Current architecture is Cloudflare frontend/gateway, Supabase identity and durable authority, Qdrant reconstructible retrieval, and admitted Gemini processing. Vercel/Render/Railway deployment dependencies are not restored. All224 normative requirements and ten products remain accepted. The newly supplied September21 completion report is historical, not current acceptance.
+
+### Trusted starting point and access
+
+- Source501-file archive verified against trusted SHA2566b937c88f7f6b184a083a87710b651a5b600d93cb9ef99080e4724c0b7c3fced. Final evidence archive independently matches98a4db64c800df63a2ae07b748287800af60116e581807a1b8c6494338e6ff84. Clean checkout matched7a5661eeaaefff23866a021e3e5433edba4f40ea before changes.
+- Fresh GitHub connector identity/repository:Anupam0202/1188176563. PR9 remains draft/unmerged at7a5661e, base6e5126; main85b14f remains unchanged. New local branch codex/auth-recovery-006 preserves PR9's existing source. No protection bypass or main/release mutation.
+- Supabase production/application fcjaomiceajcdownarel and rehearsal ukgjygzfhyvnrsecdcuu are ACTIVE_HEALTHY. Rehearsal read-only catalog confirms claim_workspace_retention and finish_retention_claim absent. No hosted migration/write or Auth configuration change.
+- Fresh public identity receipt at2026-10-10T16:31:50Z still shows frontend2fbc5c9 and gateway46bb14f, CONFIGURED/NOT_PROBED, production_verified:false. These are not this source or full provider acceptance.
+- Playwright CLI successfully controls a separate unauthenticated Chrome session. Direct Computer/browser-account/private Cloudflare tools are not exposed. Browser inspection verified Google-before-GitHub/public callback error/workspace sign-in redirect and mobile layout, not real OAuth/private workflows. Qdrant private inventory/independent post-delete query remains unavailable; no resource deletion. No Keycloak source dependency was found; external Keycloak account inventory is not claimed.
+
+### Implemented and reproduced boundary
+
+- Existing workspace guard prevented users without a selected workspace from reaching account security or invitation acceptance. Shared route classification now lets exact /settings/security and /workspaces bootstrap through their own authentication checks, while document/chat/privacy/member/findings and nested workspace-dependent routes remain guarded. Callback uses the same classification and does not require workspace discovery for account security, workspace acceptance or onboarding.
+- Callback session exchange/discovery waits now have the existing15-second bound. Late completion does not publish workspace/navigation from the timed-out callback; a timed-out SDK exchange is not described as canceled or revoked. Provider parameters/code are still scrubbed before asynchronous work. Recovery preserves only the sanitized requested destination; failures/status are accessible.
+- Reproduced an actual sanitizer contract failure: /documents/..//attacker.invalid returned //attacker.invalid, which browser URL resolution sends off-origin. Both normalized paths and bounded decoded variants now reject protocol-relative/backslash/control-character targets. Fallback paths use the same rules. Safe query/hash encoding is preserved. Signed-in login and successful-callback regressions cover the previously off-site result.
+- Existing backend JWT/RLS/RBAC/Storage/workspace authority and Supabase SSR clients are unchanged. No provider password/token handling, new paid infrastructure, or removal of accepted features.
+
+### Fresh verification at source save
+
+- Focused78 auth/redirect/discovery tests PASS; initial targeted tests reproduced12 routing/deadline failures, and separate redirect regressions reproduced12 failures before the sanitizer fix.
+- Full frontend317tests/48files PASS on rerun. The first full run hit a cold ESLint-scope fixture timeout; no timeout/assertion was weakened. Lint/typecheck initially passed and final-source reruns are recorded externally.
+- Next/OpenNext production builds PASS, including25 pre-rendered Worker assets. OpenNext warns Windows runtime compatibility is not fully supported; Linux CI/actual Worker acceptance remains separate.
+- Next public Chromium desktop/emulated-mobile46 checks PASS; final local Cloudflare Worker public/routing50 checks PASS. Firefox/WebKit remains pending at source save. Original visual check failed all4 cases because approved win32 baselines are absent; generated screenshots are not approved replacements. Existing Linux baselines/thresholds remain unchanged. Exact later outcomes belong in the external batch receipt, not prospective PASS claims.
+- Newly installed Python3.12 test environment:489backend+10subtests,57isolated,78scripts PASS. Gateway269/0skips, immutable migration integrity and foundation PASS. Actual locks/specifications unchanged.
+- Ledger remains open. New auth-recovery/redirect entries record scoped local evidence, not complete-product verification. All previous accepted entries remain intact.
+
+### Remaining work and safe restart
+
+- Mandatory image gate remains unresolved: exact parent7a image reported163backend advisory/package matches (57High/50Medium/10Low/46Negligible),frontend0. No new-head image clearance yet. No suppression/threshold change/unstable runtime substitution. Primary Debian trackers confirm the inspected ncurses/glibc issues also affect bookworm, so an untested base-name change would not establish remediation.
+- Source-schema-binding rollout, real Google/GitHub identities/roles/Storage/ingestion/retrieval, provider processing rights/budgets, full products/evaluation, deletion-generation/legal-hold/durable erasure and platform cleanup remain unfinished or specifically gated. This batch is not a substitute for them.
+- No hosted deployment/migration/customer processing, provider vector mutation/deletion, credential/DNS/security configuration, paid-service activation, or consequential shared-resource cleanup occurred.
+- Use docs/implementation/AUTH_RECOVERY_006.md for scoped coverage and actual commands. The final external BATCH006 handoff/manifest will bind the saved commit, complete source archive and fresh recovery results. Restore only to a new directory, recreate dependencies and rerun tests; never inherit archive logs as a fresh pass.
+
 ## Active Batch: manual-retention-005
 
 **Application: PARTIAL_NOT_COMPLETE. Batch: LOCALLY_TESTED Python/manual claim boundary; SQL execution, image clearance and hosted acceptance remain unverified at source save.**

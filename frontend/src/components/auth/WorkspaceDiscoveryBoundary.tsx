@@ -5,11 +5,9 @@ import { Loader2, Building2, RefreshCw } from "lucide-react";
 import { useStore } from "@/hooks/useStore";
 import Link from "@/components/layout/StaticLink";
 import { reloadStatic } from "@/lib/static-navigation";
+import { isWorkspaceRoute } from "@/lib/workspace-discovery";
 
-export function isWorkspaceRoute(path: string) {
-  return path === "/" || ["/chat", "/documents", "/workspaces", "/analytics", "/evaluations", "/settings", "/findings"]
-    .some(prefix => path === prefix || path.startsWith(`${prefix}/`));
-}
+export { isWorkspaceRoute } from "@/lib/workspace-discovery";
 
 /** Do not mount private route effects until a workspace context is available. */
 export function WorkspaceDiscoveryBoundary({ children }: { children: React.ReactNode }) {
