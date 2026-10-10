@@ -2347,7 +2347,7 @@
       "requirement": "Unsuppressed maintained-stable backend runtime image passes the mandatory medium-and-higher gate",
       "normative_source": ".github/workflows/container-verification.yml",
       "status": "FAILED",
-      "environment": "exact77ac1b7afc86ff1d769be751071659dcaa2accbe GitHub image job114170133752",
+      "environment": "exact2ef7f43e108e183c8a7522086bba775ad0eb01dc GitHub image job114192606568",
       "next_action": "Remediate actual installed package findings with compatible maintained components and rerun the real image; reconcile CNA/scanner range discrepancies without changing acceptance policy.",
       "acceptance_evidence": [],
       "observed_failure": {
@@ -2362,9 +2362,9 @@
           "not-fixed": 47,
           "fixed": 2
         },
-        "url": "https://github.com/Anupam0202/NexusRAG/actions/runs/38037218422/job/114170133752",
-        "raw_sha256": "0d8bc9e60069e21be15ca88e0070179562c3c2b8ce0906da6dd337128586e817",
-        "source_identity": "77ac1b7afc86ff1d769be751071659dcaa2accbe",
+        "url": "https://github.com/Anupam0202/NexusRAG/actions/runs/38044988701/job/114192606568",
+        "raw_sha256": "fa955006153502d3d0b259c20def238530586eb0b1f15bed936e35802fbbbb4d",
+        "source_identity": "2ef7f43e108e183c8a7522086bba775ad0eb01dc",
         "frontend_matches": 0
       }
     },
@@ -2524,6 +2524,23 @@
           "source_identity": "parent2ef7f43 plus reviewed authoritative filter source and tests",
           "command_or_url": "npm run test:cloudflare/check:cloudflare; frontend npm ci/lint/test/tsc/build/cf:build and original public/visual/Worker browser suites; tests/postgres/local-rehearsal.sh; backend full/isolated runners",
           "result": "PASS:269gateway/no skips,280frontend,409backend+10subtests,57isolated,59scripts,Next/OpenNext builds,full local PostgreSQL authorization/concurrency/filter rehearsal and two48-check local Chromium desktop/mobile-emulated passes. Dense/lexical scopes share durable filters and hash authority; empty matches make no provider calls; capacity fails before account usage/persistence; current filter fields revalidated. Fixes lexical-only fusion workspace identity without weakening authority. Source restored/hash-checkpointed after platform cancellation/reset and revalidated. Earlier unconfigured/demo public pass failed7of48; no baselines/thresholds weakened. Not hosted/live-role/provider-quality/production acceptance."
+        }
+      ]
+    },
+    {
+      "id": "DEFECT-MISSING-AUTH-CONFIG",
+      "requirement": "Missing public authentication configuration never implicitly authorizes demo behavior or restores private cached actor scope",
+      "normative_source": "Owner OAuth-only fail-closed identity and stale-data mandate",
+      "status": "IN_PROGRESS",
+      "environment": "local auth follow-up to8c221b3313174219efeb07c849905488230bcb45; not hosted",
+      "next_action": "Verify exact-head CI and approved candidate signed-out/configured OAuth behavior; retain real-role and private pipeline acceptance as separate unresolved gates.",
+      "acceptance_evidence": [
+        {
+          "environment": "local frontend actual store and public Chromium/mobile emulation; offline gateway/backend",
+          "observed_at": "2026-10-10T11:31:05.570793+00:00",
+          "source_identity": "parent8c221b3 plus reviewed fail-closed auth fix",
+          "command_or_url": "frontend npm run lint/test/build/cf:build; npm exec tsc -- --noEmit; original public smoke/visual/Worker-routing suites twice; gateway and offline backend runners",
+          "result": "PASS:283frontend/48files,269gateway/no skips,409backend+10subtests,57isolated; Next/OpenNext builds intentionally missing public auth settings; two48-check browser passes without configuration and unchanged visual baselines. Three regressions prove no cached scope/session API/demo fallback and actual private-state reset. Not hosted, live-role/provider or production acceptance."
         }
       ]
     }

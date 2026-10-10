@@ -16,14 +16,15 @@ export function AuthProvider() {
   const setWorkspaceDiscovery = useStore((state) => state.setWorkspaceDiscovery);
 
   useEffect(() => {
+    // Missing deployment configuration is not authorization or a demo session.
+    // The real signed-out transition clears cached private scope and data.
+    if (!hasPublicSupabaseConfig()) {
+      setAuthState("signed_out", null);
+      return;
+    }
     const storedWorkspaceId = getStoredWorkspaceId();
     if (storedWorkspaceId) {
       setWorkspaceId(storedWorkspaceId);
-    }
-
-    if (!hasPublicSupabaseConfig()) {
-      setAuthState("demo", null);
-      return;
     }
 
     const supabase = createSupabaseBrowserClient();
