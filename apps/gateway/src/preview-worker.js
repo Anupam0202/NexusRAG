@@ -14,6 +14,7 @@ import { candidateChunkIds, rehydrateEvidence } from "./retrieval-authority.js";
 import { assessAnswer } from "./answer-evidence.js";
 import { handleWorkbench, listFindings } from "./workbench.js";
 import { handleInvitations } from "./workspace-invitations.js";
+import { readBoundedJsonObject } from "./request-body.js";
 import {
   deleteUserGeminiKey,
   getUserGeminiKeyRecord,
@@ -106,9 +107,8 @@ function configured(env) {
   return Boolean(env.SUPABASE_URL && env.SUPABASE_PUBLISHABLE_KEY && env.SUPABASE_SERVICE_ROLE_KEY);
 }
 async function readJsonBody(request) {
-  try { return await request.json(); } catch {
-    throw Object.assign(new Error("The request body must contain valid JSON."), { status: 400, code: "INVALID_REQUEST" });
-  }
+  // Preserve schema-validation422 for valid JSON with an invalid root shape.
+  return readBoundedJsonObject(request, { objectStatus: 422 });
 }
 async function apiFetch(url, init = {}, timeout = 8_000) {
   return fetch(url, { ...init, signal: AbortSignal.timeout(timeout) });

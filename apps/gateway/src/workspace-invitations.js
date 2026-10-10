@@ -1,33 +1,19 @@
 // Service-mediated, recipient-bound codes. Never place codes in URLs or logs.
+import { readBoundedJsonObject } from "./request-body.js";
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const CODE = /^[A-Za-z0-9_-]{43}$/;
 const invalid = () => Object.assign(new Error("Choose a valid invitation operation."), {status:422,code:"INVALID_SCOPE"});
 async function body(request, allowed) {
-  if (Number(request.headers.get("content-length")) > 4096) throw invalid();
-  const reader=request.body?.getReader();
-  if (!reader) throw invalid();
-  let size=0,timer;
-  const chunks=[];
-  const timeout=new Promise((_,reject)=>{timer=setTimeout(()=>reject(Object.assign(new Error("Invitation request timed out. Retry with the same code."),{status:408,code:"REQUEST_TIMEOUT"})),5000);});
-  try {
-    for (;;) {
-      const {value,done}=await Promise.race([reader.read(),timeout]);
-      if (done) break;
-      size+=value.byteLength;
-      if (size>4096) throw Object.assign(new Error("Invitation request is too large."),{status:413,code:"PAYLOAD_TOO_LARGE"});
-      chunks.push(value);
-    }
-  } finally {
-    clearTimeout(timer);
-    // Transport cancellation is best effort. A stalled cancel hook must not
-    // extend the request's size/deadline bound or prevent a safe denial.
-    void reader.cancel().catch(()=>{});
-  }
-  const bytes=new Uint8Array(size);let offset=0;
-  for(const chunk of chunks){bytes.set(chunk,offset);offset+=chunk.byteLength;}
-  const text=new TextDecoder().decode(bytes);
   let value;
-  try { value = JSON.parse(text); } catch { throw invalid(); }
+  try {
+    value = await readBoundedJsonObject(request, { maxBytes: 4096 });
+  } catch (error) {
+    if (error?.code === "INVALID_REQUEST") throw invalid();
+    if (error?.code === "REQUEST_TIMEOUT")
+      throw Object.assign(new Error("Invitation request timed out. Retry with the same code."),
+        { status: 408, code: "REQUEST_TIMEOUT" });
+    throw error;
+  }
   if (!value || typeof value !== 'object' || Array.isArray(value) || Object.keys(value).some(key => !allowed.includes(key))) throw invalid();
   return value;
 }

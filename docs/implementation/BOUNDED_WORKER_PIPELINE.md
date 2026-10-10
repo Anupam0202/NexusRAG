@@ -4,6 +4,10 @@
 
 `PARTIAL_NOT_COMPLETE` — source/runtime acceptance must be checked against the exact reviewed commit. Historical preview deployments do not prove current source is live. The comprehensive application audit is the authoritative current status.
 
+## Request admission limits
+
+The reviewed gateway source uses a shared streamed UTF-8 JSON object reader before mutation: ordinary JSON and finding writes are bounded to 100,000 bytes / five seconds, invitations to 4,096 bytes / five seconds, with at most 2,048 transport fragments. Actual bytes—not an untrusted Content-Length—determine admission. Malformed JSON/UTF-8, abort, timeout, excessive fragmentation and overflow fail safely without reflecting private input or awaiting a stalled cancellation hook. JSON schema 400/422 contracts remain route-specific. Oversized envelopes (including long client-supplied history) are rejected with an actionable limit, never silently truncated. These are JSON limits, separate from multipart upload/extraction limits. Source tests/dry-run bundling are not proof that the approved candidate currently serves this reader; consult the authoritative audit and exact active source identity.
+
 ## Implemented scope
 
 - `POST /api/v1/documents/upload`

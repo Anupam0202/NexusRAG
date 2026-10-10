@@ -2485,6 +2485,23 @@
           "result": "PASS:399backend+10subtests,57isolated,200gateway/no skips;26new cases include model init/failover, three fallback paths, HTTP/WS validation, actual WebSocket failure/audit, missing SDK and unknown verification failures preventing activation. No provider/network/customer credentials or live log probe."
         }
       ]
+    },
+    {
+      "id": "DEFECT-BOUNDED-JSON-ADMISSION",
+      "requirement": "Ordinary gateway JSON and finding/invitation writes are streamed under byte/deadline/cancellation bounds before mutation",
+      "normative_source": "Owner bounded execution, malicious input and maintainability mandate",
+      "status": "IN_PROGRESS",
+      "environment": "local gateway follow-up to4b6474243db4c09647f34d1f5f711ef88b9107a1; no hosted deployment",
+      "next_action": "Publish reviewed bounded reader, verify exact-head compatibility/build CI and approved candidate runtime/control behavior. Preserve invitation same-code retry and existing400/422 contracts; do not silently truncate long request/history input.",
+      "acceptance_evidence": [
+        {
+          "environment": "offline Node synthetic streams and actual gateway handle paths",
+          "observed_at": "2026-10-10T08:07:35.273475+00:00",
+          "source_identity": "parent4b64742 plus reviewed shared JSON reader",
+          "command_or_url": "npm run test:cloudflare; npm run check:cloudflare; wrangler deploy --dry-run --config apps/gateway/wrangler.preview.jsonc",
+          "result": "PASS:224gateway/no skips,399backend+10subtests/57isolated combined-source rerun,59script tests, foundation and local-only Worker bundle. Covers exact byte/multibyte boundary, forged length, oversized/stalled cancellation, aborts, stalled/empty streams and frozen-clock fragment capacity, safe malformed UTF-8/JSON, no finding mutation or chat account reservation on overflow. Not a deployment, load benchmark or authenticated hosted acceptance."
+        }
+      ]
     }
   ]
 }

@@ -1,5 +1,6 @@
 // Record-authorized durable findings. All identity and policy fields are derived
 // from authenticated server state, never from the caller's JSON.
+import { readBoundedJsonObject } from "./request-body.js";
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const problem = (code, message, status = 422) => Object.assign(new Error(message), { code, status });
 function boundedText(value, name, maximum, minimum = 0) {
@@ -12,15 +13,7 @@ function uuid(value) {
   return value;
 }
 async function body(request) {
-  if (Number(request.headers.get("content-length")) > 100_000)
-    throw problem("PAYLOAD_TOO_LARGE", "The finding is too large.", 413);
-  const text = await request.text();
-  if (new TextEncoder().encode(text).length > 100_000) throw problem("PAYLOAD_TOO_LARGE", "The finding is too large.", 413);
-  try {
-    const value = JSON.parse(text);
-    if (!value || typeof value !== "object" || Array.isArray(value)) throw Error();
-    return value;
-  } catch { throw problem("INVALID_REQUEST", "A JSON object is required.", 400); }
+  return readBoundedJsonObject(request);
 }
 async function digest(value) {
   const bytes = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
