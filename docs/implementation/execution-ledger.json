@@ -2347,7 +2347,7 @@
       "requirement": "Unsuppressed maintained-stable backend runtime image passes the mandatory medium-and-higher gate",
       "normative_source": ".github/workflows/container-verification.yml",
       "status": "FAILED",
-      "environment": "exact2ef7f43e108e183c8a7522086bba775ad0eb01dc GitHub image job114192606568",
+      "environment": "exacta04a01ce74f15369c583fdc0585720034962e0ab GitHub image job114207864203",
       "next_action": "Remediate actual installed package findings with compatible maintained components and rerun the real image; reconcile CNA/scanner range discrepancies without changing acceptance policy.",
       "acceptance_evidence": [],
       "observed_failure": {
@@ -2362,9 +2362,9 @@
           "not-fixed": 47,
           "fixed": 2
         },
-        "url": "https://github.com/Anupam0202/NexusRAG/actions/runs/38044988701/job/114192606568",
-        "raw_sha256": "fa955006153502d3d0b259c20def238530586eb0b1f15bed936e35802fbbbb4d",
-        "source_identity": "2ef7f43e108e183c8a7522086bba775ad0eb01dc",
+        "url": "https://github.com/Anupam0202/NexusRAG/actions/runs/38050262443/job/114207864203",
+        "raw_sha256": "54f31555ac3e6fee1f62619c2fb823a9ec1af9ff07de0702308171b100621164",
+        "source_identity": "a04a01ce74f15369c583fdc0585720034962e0ab",
         "frontend_matches": 0
       }
     },
@@ -2558,6 +2558,23 @@
           "source_identity": "parent37e1603 plus reviewed lifecycle failure privacy source",
           "command_or_url": "backend/scripts/run_full_tests.py; backend/scripts/run_isolated.py; npm run test:cloudflare/check:cloudflare; python3 -m unittest discover -s tests/scripts",
           "result": "PASS initial:425backend+10subtests,57isolated,269gateway/no skips,68scripts and foundation.16new cases cover all document/resource/workspace failure stages, scheduler retries and deletion/retention route receipt/audit consumers. Private exception __str__ deliberately raises; never invoked by fixed handlers. Initial new fixture had wrong deletion confirmation; corrected without changing required confirmation or safety assertions. Final saved-source logs exported separately. Not live authenticated, full legal-hold/erasure or persisted-log acceptance."
+        }
+      ]
+    },
+    {
+      "id": "DEFECT-RETENTION-FAILURE-ISOLATION",
+      "requirement": "Retention processing rejects malformed claims, isolates per-row retry-write failure, preserves partial counts and signals operator failure without private exception disclosure",
+      "normative_source": "Owner lifecycle/recovery/privacy mandate",
+      "status": "IN_PROGRESS",
+      "environment": "local retained Python scheduler/CLI; no hosted retention/deletion",
+      "next_action": "Repeat saved/recovered-source checks and exact-head CI; implement durable lease completion fencing, retry ambiguity recovery and approved live lifecycle authority acceptance before broader closure.",
+      "acceptance_evidence": [
+        {
+          "environment": "denied-network synthetic lifecycle/settings transports and actual scheduler/CLI functions",
+          "observed_at": "2026-10-10T13:21:17.644692+00:00",
+          "source_identity": "parenta04 plus reviewed retention-resilience source",
+          "command_or_url": "backend/scripts/run_full_tests.py; backend/scripts/run_isolated.py; npm run test:cloudflare/check:cloudflare; python3 -m unittest discover -s tests/scripts",
+          "result": "PASS initial:457backend+10subtests,57isolated,269gateway/no skips,68scripts and foundation.32new regressions; invalid rows never mutate, retry-write failures continue, partial counts retained, CLI exits nonzero. Ambiguous writes are not proved scheduled or released. No live role/Storage/deletion/distributed-lease acceptance; final exact source receipts external."
         }
       ]
     }

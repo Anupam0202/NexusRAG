@@ -110,7 +110,8 @@ async def test_scheduler_retry_preserves_failure_state_without_private_logging(m
     else:settings.upsert_settings.side_effect=[PrivateFailure(MARKER),{}]
     summary = await scheduler_module.RetentionScheduler(settings=settings,lifecycle=life).run_due(worker_id='synthetic-worker')
     assert summary.failed == 1 and summary.completed == 0
-    assert summary.documents_deleted == 0 and summary.chat_sessions_deleted == 0
+    assert summary.documents_deleted == (0 if stage == "cleanup" else 2)
+    assert summary.chat_sessions_deleted == (0 if stage == "cleanup" else 1)
     retry=settings.upsert_settings.await_args_list[-1].kwargs['values']
     assert 'last_retention_at' not in retry
     assert retry['next_retention_at'] and retry['retention_lease_owner'] is None and retry['retention_lease_expires_at'] is None

@@ -35,16 +35,24 @@ async def main() -> None:
     )
     args = parser.parse_args()
 
-    settings = get_settings()
-    lifecycle = WorkspaceLifecycleService(
-        vector_store=get_vector_store(),
-        qdrant_store=QdrantVectorStore(settings) if settings.qdrant_configured else None,
-    )
-    summary = await RetentionScheduler(lifecycle=lifecycle).run_due(
-        worker_id=args.worker_id,
-        limit=args.limit,
-    )
+    try:
+        settings = get_settings()
+        lifecycle = WorkspaceLifecycleService(
+            vector_store=get_vector_store(),
+            qdrant_store=QdrantVectorStore(settings) if settings.qdrant_configured else None,
+        )
+        summary = await RetentionScheduler(lifecycle=lifecycle).run_due(
+            worker_id=args.worker_id,
+            limit=args.limit,
+        )
+    except Exception as exc:
+        logger.error("retention_scheduler_aborted", error_type=type(exc).__name__)
+        raise SystemExit(1) from None
     logger.info("retention_scheduler_finished", **summary.__dict__)
+    if summary.failed or summary.invalid:
+        # A recoverable per-row failure is still an unsuccessful operator run.
+        # Retry persistence failures must not become a green cron/process exit.
+        raise SystemExit(1)
 
 
 if __name__ == "__main__":
