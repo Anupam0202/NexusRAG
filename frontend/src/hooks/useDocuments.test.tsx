@@ -76,6 +76,14 @@ describe("document request account fences", () => {
     });
     expect(api.uploadDocument).not.toHaveBeenCalled(); expect(result.current.canMutate).toBe(false);
   });
+  it("fails closed when a legacy gateway omits actor authority", async () => {
+    api.getCurrentWorkspace.mockResolvedValue({ workspace_id: "workspace-a", role: "owner" });
+    const { result } = renderHook(() => useDocuments());
+    await waitFor(() => expect(result.current.mutationDisabledReason).toMatch(/could not be verified/));
+    await act(async () => { await expect(result.current.upload(new File(["synthetic"], "fixture.txt"), "non_sensitive")).rejects.toThrow("could not be verified"); });
+    expect(api.uploadDocument).not.toHaveBeenCalled(); expect(result.current.canMutate).toBe(false);
+    expect(api.listDocuments).toHaveBeenCalled();
+  });
   it("fails closed on foreign authority or role lookup failure without losing read access", async () => {
     api.getCurrentWorkspace.mockResolvedValue({ workspace_id: "workspace-b", user_id: "user-b", role: "owner" });
     const { result } = renderHook(() => useDocuments());

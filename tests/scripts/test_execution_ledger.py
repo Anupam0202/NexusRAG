@@ -41,7 +41,9 @@ class ExecutionLedgerTests(unittest.TestCase):
             MODULE.validate(self.ledger)
 
     def test_missing_requirement_cannot_close(self):
-        self.ledger["entries"] = self.ledger["entries"][1:]
+        self.ledger["entries"] = [
+            row for row in self.ledger["entries"] if row["id"] != "R01"
+        ]
         with self.assertRaises(ValueError):
             MODULE.validate(self.ledger)
 
@@ -53,17 +55,26 @@ class ExecutionLedgerTests(unittest.TestCase):
             MODULE.validate(self.ledger)
 
     def test_rewording_normative_requirements_is_rejected(self):
-        self.ledger["entries"][0]["requirement"] = "Fake replacement"
+        next(row for row in self.ledger["entries"] if row["id"] == "R01")["requirement"] = "Fake replacement"
         with self.assertRaises(ValueError):
             MODULE.validate(self.ledger)
 
     def test_file_presence_is_not_verified_acceptance(self):
-        self.ledger["entries"][0]["status"] = "VERIFIED"
+        next(row for row in self.ledger["entries"] if row["id"] == "R01")["status"] = "VERIFIED"
         with self.assertRaises(ValueError):
             MODULE.validate(self.ledger)
 
     def test_unfinished_code_cannot_be_called_external_without_prerequisite(self):
-        self.ledger["entries"][0]["status"] = "BLOCKED_EXTERNAL"
+        next(row for row in self.ledger["entries"] if row["id"] == "R01")["status"] = "BLOCKED_EXTERNAL"
+        with self.assertRaises(ValueError):
+            MODULE.validate(self.ledger)
+
+    def test_requirement_validation_is_independent_of_entry_order(self):
+        self.ledger["entries"].reverse()
+        self.assertFalse(MODULE.validate(self.ledger)["closure_passed"])
+        self.ledger["entries"] = [
+            row for row in self.ledger["entries"] if row["id"] != "R01"
+        ]
         with self.assertRaises(ValueError):
             MODULE.validate(self.ledger)
 

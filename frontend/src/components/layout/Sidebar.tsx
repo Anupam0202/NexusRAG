@@ -53,15 +53,17 @@ export function Sidebar() {
     const frame = requestAnimationFrame(() => (focusable()[0] || sidebar).focus());
     function handleKey(event: KeyboardEvent) {
       if (event.key === "Escape") { event.preventDefault(); setMobileOpen(false); return; }
-      if (event.key !== "Tab") return;
+      if (event.key !== "Tab" || event.altKey || event.ctrlKey || event.metaKey) return;
       const nodes = focusable();
       if (!nodes.length) { event.preventDefault(); sidebar?.focus(); return; }
-      const active = document.activeElement;
-      if (event.shiftKey && (active === nodes[0] || !sidebar?.contains(active))) {
-        event.preventDefault(); nodes[nodes.length - 1].focus();
-      } else if (!event.shiftKey && (active === nodes[nodes.length - 1] || !sidebar?.contains(active))) {
-        event.preventDefault(); nodes[0].focus();
-      }
+      // Safari can skip links during native Tab navigation. Own the complete
+      // sequence, not only its endpoints, while this modal is open.
+      event.preventDefault();
+      const index = nodes.findIndex(node => node === document.activeElement);
+      const next = event.shiftKey
+        ? (index <= 0 ? nodes.length - 1 : index - 1)
+        : (index + 1) % nodes.length;
+      nodes[next].focus();
     }
     function handleResize() { if (window.innerWidth >= 1024) setMobileOpen(false); }
     document.addEventListener("keydown", handleKey);
