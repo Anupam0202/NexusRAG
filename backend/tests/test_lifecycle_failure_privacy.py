@@ -104,17 +104,18 @@ async def test_workspace_row_failure_does_not_leak_or_invalidate_cache(monkeypat
 @pytest.mark.parametrize('stage', ['cleanup', 'success_schedule_write'])
 async def test_scheduler_retry_preserves_failure_state_without_private_logging(monkeypatch, stage):
     logger = MagicMock();monkeypatch.setattr(scheduler_module, 'logger', logger)
-    settings = SimpleNamespace(claim_due_retention=AsyncMock(return_value=[{'workspace_id':'synthetic-workspace','retention_enabled':True,'retention_days':30}]),upsert_settings=AsyncMock())
+    settings = SimpleNamespace(claim_due_retention=AsyncMock(return_value=[{'workspace_id':'synthetic-workspace','retention_enabled':True,'retention_days':30,'retention_lease_owner':'synthetic-worker','retention_lease_expires_at':'2099-01-01T00:00:00+00:00'}]),finish_retention_claim=AsyncMock(return_value=True),upsert_settings=AsyncMock())
     life = SimpleNamespace(apply_retention=AsyncMock(return_value=SimpleNamespace(failures=[],documents_deleted=2,chat_sessions_deleted=1)))
     if stage == 'cleanup':life.apply_retention.side_effect=PrivateFailure(MARKER)
-    else:settings.upsert_settings.side_effect=[PrivateFailure(MARKER),{}]
+    else:settings.finish_retention_claim.side_effect=[PrivateFailure(MARKER),True]
     summary = await scheduler_module.RetentionScheduler(settings=settings,lifecycle=life).run_due(worker_id='synthetic-worker')
     assert summary.failed == 1 and summary.completed == 0
     assert summary.documents_deleted == (0 if stage == "cleanup" else 2)
     assert summary.chat_sessions_deleted == (0 if stage == "cleanup" else 1)
-    retry=settings.upsert_settings.await_args_list[-1].kwargs['values']
-    assert 'last_retention_at' not in retry
-    assert retry['next_retention_at'] and retry['retention_lease_owner'] is None and retry['retention_lease_expires_at'] is None
+    retry=settings.finish_retention_claim.await_args_list[-1].kwargs
+    assert retry['succeeded'] is False and retry['worker_id']=='synthetic-worker'
+    assert retry['lease_expires_at']=='2099-01-01T00:00:00+00:00'
+    settings.upsert_settings.assert_not_awaited()
     logger.warning.assert_called_once()
     assert logger.warning.call_args.kwargs['error_type']=='PrivateFailure'
     assert MARKER not in str(logger.mock_calls)

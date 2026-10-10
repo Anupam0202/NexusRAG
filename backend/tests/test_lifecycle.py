@@ -123,6 +123,8 @@ class FakeRetentionSettings:
         return [
             {
                 "workspace_id": "workspace-1",
+                "retention_lease_owner": "retention-worker",
+                "retention_lease_expires_at": "2099-01-01T00:00:00+00:00",
                 "retention_enabled": True,
                 "retention_days": 30,
             },
@@ -132,6 +134,10 @@ class FakeRetentionSettings:
                 "retention_days": 7,
             },
         ]
+
+    async def finish_retention_claim(self, *, workspace_id, **claim):
+        self.updated.append((workspace_id, claim))
+        return True
 
     async def upsert_settings(self, *, workspace_id: str, values: dict[str, str]):
         self.updated.append((workspace_id, values))
@@ -298,9 +304,9 @@ async def test_retention_scheduler_runs_due_workspaces_and_advances_schedule() -
     assert summary.failed == 0
     assert lifecycle.runs == [("workspace-1", 30)]
     assert settings.updated[0][0] == "workspace-1"
-    assert settings.updated[0][1]["last_retention_at"]
-    assert settings.updated[0][1]["next_retention_at"]
-    assert settings.updated[0][1]["retention_lease_owner"] is None
+    assert settings.updated[0][1]["succeeded"] is True
+    assert settings.updated[0][1]["worker_id"] == "retention-worker"
+    assert settings.updated[0][1]["lease_expires_at"] == "2099-01-01T00:00:00+00:00"
 
 
 @pytest.mark.asyncio

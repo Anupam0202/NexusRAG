@@ -25,6 +25,30 @@ class WorkspaceSettingsRepository(SupabaseRepository):
         )
         return rows if isinstance(rows, list) else [rows]
 
+    async def finish_retention_claim(
+        self,
+        *,
+        workspace_id: str,
+        worker_id: str,
+        lease_expires_at: str,
+        retention_days: int,
+        succeeded: bool,
+    ) -> bool:
+        """Database-clock, exact-claim completion; no unfenced write fallback."""
+        result = await self._supabase.rpc(
+            "finish_retention_claim",
+            {
+                "p_workspace": workspace_id,
+                "p_worker_id": worker_id,
+                "p_lease_expires_at": lease_expires_at,
+                "p_retention_days": retention_days,
+                "p_succeeded": succeeded,
+            },
+        )
+        if type(result) is not bool:
+            raise RuntimeError("Invalid retention completion response")
+        return result
+
     async def get_settings(self, *, workspace_id: str) -> dict[str, Any] | None:
         rows = await self._supabase.table_select(
             "workspace_settings",

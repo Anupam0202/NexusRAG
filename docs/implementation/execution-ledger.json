@@ -2366,6 +2366,13 @@
         "raw_sha256": "54f31555ac3e6fee1f62619c2fb823a9ec1af9ff07de0702308171b100621164",
         "source_identity": "a04a01ce74f15369c583fdc0585720034962e0ab",
         "frontend_matches": 0
+      },
+      "latest_ci_failure": {
+        "source_identity": "8faaebad5bbcfb70a3e8161dd645a7069ddb9c29",
+        "image_job_url": "https://github.com/Anupam0202/NexusRAG/actions/runs/38055440949/job/114222818422",
+        "summary_job": 114227102083,
+        "conclusion": "FAILED",
+        "detailed_raw_findings": "NOT_REACQUIRED; observed_failure retains independently measured a04 details only"
       }
     },
     {
@@ -2567,7 +2574,7 @@
       "normative_source": "Owner lifecycle/recovery/privacy mandate",
       "status": "IN_PROGRESS",
       "environment": "local retained Python scheduler/CLI; no hosted retention/deletion",
-      "next_action": "Repeat saved/recovered-source checks and exact-head CI; implement durable lease completion fencing, retry ambiguity recovery and approved live lifecycle authority acceptance before broader closure.",
+      "next_action": "Complete manual-run scoped claims, external-deletion fencing/legal hold and durable worker/recovery authority; obtain approved hosted041 parity/acceptance. Schedule-write fencing alone does not close complete retention/erasure.",
       "acceptance_evidence": [
         {
           "environment": "denied-network synthetic lifecycle/settings transports and actual scheduler/CLI functions",
@@ -2575,6 +2582,13 @@
           "source_identity": "parenta04 plus reviewed retention-resilience source",
           "command_or_url": "backend/scripts/run_full_tests.py; backend/scripts/run_isolated.py; npm run test:cloudflare/check:cloudflare; python3 -m unittest discover -s tests/scripts",
           "result": "PASS initial:457backend+10subtests,57isolated,269gateway/no skips,68scripts and foundation.32new regressions; invalid rows never mutate, retry-write failures continue, partial counts retained, CLI exits nonzero. Ambiguous writes are not proved scheduled or released. No live role/Storage/deletion/distributed-lease acceptance; final exact source receipts external."
+        },
+        {
+          "environment": "new isolated test venv; denied-network fixtures; disposable PostgreSQL17 baseline+026\u2013041 and logical restore",
+          "observed_at": "2026-10-10T14:03:21.331180+00:00",
+          "source_identity": "restored parent8faa plus reviewed041/scheduler/RPC source",
+          "command_or_url": "backend full/isolated; gateway; scripts/foundation/immutable integrity; tests/postgres/local-rehearsal.sh and backup-restore.sh",
+          "result": "PASS initial475backend+10subtests,57isolated,269gateway/no skips,68scripts.18new cases; exact claim schedule writes, replay, concurrent winner/post-lock expiry SQL tests pass. Final saved/recovered-source repeats external. No atomic external cleanup/manual authority/legal-hold/hosted acceptance."
         }
       ]
     }

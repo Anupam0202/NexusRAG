@@ -1,49 +1,46 @@
 # NexusRAG execution checkpoint
 
-## Batch: retention-resilience-003
+## Batch: retention-lease-004
 
-**Application: PARTIAL_NOT_COMPLETE. Batch: LOCALLY_TESTED retention failure isolation; no hosted operation or production verification.**
+**Application: PARTIAL_NOT_COMPLETE. Batch: LOCALLY_TESTED schedule-write fencing; no hosted operation or production verification.**
 
-The full accepted scope remains unchanged. Normative registers and `docs/implementation/execution-ledger.json` remain authoritative for product closure.
+Full accepted scope is unchanged; the normative registers and execution-ledger.json determine closure, not a local test count.
 
-### Source identity and continuation inspection
+### Recovery and source identity
 
-- Started from clean published a04a01ce74f15369c583fdc0585720034962e0ab, review branch release/production-candidate-redaction, PR8 unmerged.
-- Verified trusted batch002 ZIP SHA25619bb189ea39d5002727f301dd7aa0a9e9afac3b203a188b607e0ad606c134ee2 and all489 checkout hashes before edits. No reset or summary-based source reconstruction.
-- Final ZIP manifest records the exact saved commit and every tracked hash/size/mode. Existing dependency specifications and frontend/package-lock.json are unchanged; no invented backend lockfile.
-- Protected main85b14f131f5eacb07082a32c7173f20be472772f remains untouched; no force push or protection bypass.
+- Workspace reset to preceding a04. Retrieved exported batch003 ZIP and verified trusted SHA256212226bc808b23b52899aaf3e13496096ae8429b5fb520204b1d530b4a9de047, then restored its bytes into /data/NexusRAG-batch004. All490 source hashes/modes matched exact8faaebad5bbcfb70a3e8161dd645a7069ddb9c29. Associated fetched git metadata with reset --mixed; no overwriting recovered code or conversational reconstruction.
+- Before new edits freshly reran457backend+10subtests,57isolated,269gateway/no skips,68scripts and foundation on that restored source. Historical receipt logs were not treated as fresh passes.
+- Review branch release/production-candidate-redaction / PR8 remains unmerged. Main85b14f131f5eacb07082a32c7173f20be472772f unchanged; no protection bypass. Final ZIP manifest binds saved commit and all tracked hashes/modes.
+- Source retains unchanged dependency specifications/lockfiles, including frontend/package-lock.json. Created a new isolated test venv from backend/requirements-test.txt; resolved transitive versions are an external receipt, not an invented production lockfile.
 
 ### Completed changes
 
-- Retention claims require plain dict records, explicit boolean enablement, a nonempty whitespace-normalized workspace string and positive integer retention days; malformed records are counted, not coerced, and never reach cleanup/settings mutation. Disabled rows skip safely.
-- Each retry-persistence failure is isolated so later claimed workspaces still run. Counters distinguish invalid claims, failed cleanup/completion and failed retry scheduling. Ambiguous writes prove neither retry scheduling nor lease release.
-- Lifecycle-reported partial document/chat counts are retained even when cleanup receipts or completion scheduling fail; completed increments only after successful completion scheduling. Counts are service reports, not independent live deletion evidence.
-- CLI returns nonzero for failed/invalid runs, including failed retry scheduling; settings/vector/claim failures handled inside main log exception type only and exit without raw private exception text. Cancellation propagates; import-time failures remain outside this wrapper.
-- Added32 synthetic regressions covering malformed records, unsafe conversion hooks, disabled rows, retries, partial counts, claim failure, cancellation and CLI success/failure. An existing lifecycle test now requires truthful partial counts; safety/privacy assertions remain.
+- Added forward-only migration041 finish_retention_claim RPC, service-role-only permission and runtime auth.role guard, fixed search_path, SECURITY INVOKER. No applied baseline or migration history edited.
+- Completion/retry locks the settings row and requires the exact worker, original claim expiry, current enabled policy/days and unexpired database time after lock acquisition. Same-worker stale claims and committed-success retry replays cannot overwrite a newer/released schedule. Success schedules one day and records completion; retry preserves prior completion and schedules one hour. Denials return false without mutation; invalid arguments/auth fail with static codes.
+- Scheduler requires matching owner and valid future aware expiry before cleanup, then uses only the fenced RPC. Missing/unexpected responses fail closed; there is no legacy/unfenced upsert fallback. Lease loss and ambiguous retry failure remain unsuccessful and explicitly counted; later rows continue and partial lifecycle-reported counts remain visible.
+- Added18backend cases for bad claims, stale/ambiguous completion and strict RPC results. Updated existing scheduler fixtures to guarded calls without removing privacy/fail-closed assertions. PostgreSQL tests cover authority/policy/expiry/replay, exactly one concurrent finish and expiration while waiting for a row lock. Local/CI rehearsal includes041; original baseline remains immutable.
 
-### Fresh verification / scope
+### Fresh checks / scope
 
-| Check | Local result | Qualification |
+| Check | Result | Qualification |
 | --- | --- | --- |
-| Full offline backend | PASS:457tests +10subtests | Denied networking, synthetic transports |
+| Full offline backend | PASS:475tests +10subtests | New clean test venv; denied network fixtures |
 | Isolated backend | PASS:57tests | No live provider/Storage |
-| Gateway | PASS:269tests, no skips | Unchanged gateway freshly rerun |
-| Script tests | PASS:68tests | Checkpoint/source fixtures |
-| Foundation and ledger validator | PASS validation; closure false | Not release acceptance |
-| Frontend/install/build/browser/PostgreSQL/live role/Storage/provider/local image | NOT RUN in this batch | No inherited passes |
-| Exact parent a04 remote CI | FAILED mandatory image and summary;12successes/2intentional deployment skips | Independently inspected completed full raw job; not new batch scan |
-| Saved-source and ZIP recovery repeats | Required before handoff | Exported results identify exact source, commands, exits and hashes; prior logs are not recovered-source passes |
+| Gateway | PASS:269tests/no skips | Unchanged executable gateway, rerun |
+| Scripts / foundation / immutable migration integrity | PASS:68scripts; validators pass | Ledger closure false |
+| PostgreSQL17 baseline +026–041 / locking / backup-restore | PASS | Disposable local SQL/Auth/Storage stand-ins, real pgcrypto/pgvector; database dropped and server stopped |
+| Parent8faa completed CI |12successes/2intentional deployment skips; image + mandatory summary FAILED | Detailed new raw image findings NOT reacquired; do not borrow a04 counts |
+| Frontend/clean npm install/build/browser/live roles/Storage/provider/local images | NOT RUN in this batch | No inherited passes |
+| Final saved-source and ZIP recovery checks | Repeat before handoff; external receipts record actual exits/hashes | Restore all source bytes and freshly run selected checks; no historical pass inheritance |
 
-Final repeated checks must bind to the saved clean commit. Restored source must be hash/mode checked and selected checks freshly reexecuted; reuse of the existing declared test environment is not a fresh dependency installation.
+Final clean commit and recovered source must independently pass selected checks including fresh disposable SQL replay/restore. Logs identify exact source and environment; exported helper verification alone does not execute tests.
 
 ### Unfinished work / next bounded batch
 
-- Ledger247rows:234OPEN_ENGINEERING,9IN_PROGRESS,1FAILED,2BLOCKED_EXTERNAL,1narrow VERIFIED. Accepted product requirements remain open at actual scope.
-- Exact a04 image job114207864203 still fails:163backend package/version/advisory matches (57High/50Medium/10Low/46Negligible), frontend0. Raw SHA25654f31555ac3e6fee1f62619c2fb823a9ec1af9ff07de0702308171b100621164; original runtime markers passed but do not establish image clearance. No suppression, threshold change, prerelease substitution or merge. New source needs independent exact-head CI.
-- Next implement durable retention completion fencing/retry ambiguity recovery and live lifecycle authority tests; legal hold, complete erasure receipts and remaining private-log surfaces remain unfinished. This batch does not establish distributed lease ownership or a durable deployed Python worker.
-- Ten complete products, research/quality, accurate extraction/progressive execution, lawful connectors and real-role/Storage/pipeline acceptance remain engineering work, not external blockers.
-- Hosted040 migration/exact candidate rollout requires scoped approval and fresh parity checks. Production authorization and processing-rights decisions remain separate. No hosted retention/deletion/migration/deployment occurred.
-- Production-connected shared Preview, PR3 recovery, queues/DLQs, provider/customer data, credentials/security/DNS/paid services and contributor attribution remain untouched.
+- Schedule-write fencing is not atomic external cleanup, durable deletion fencing, legal-hold enforcement, complete privacy/erasure acceptance or a deployed durable Python worker. Manual retention route still has separate unfenced schedule writes and must be integrated with scoped claim authority; running cleanup may outlive a lease or race policy changes. Do not call broader retention complete.
+- Exact completed8faa image job114222818422 and summary114227102083 FAILED. Obtain and remediate actual compatible runtime findings without suppression/threshold reduction/unstable runtime substitution. New head requires independent exact-head checks and review before merge.
+- Ledger247rows remains234OPEN_ENGINEERING/9IN_PROGRESS/1FAILED/2BLOCKED_EXTERNAL/1narrow VERIFIED. Full ten products, research/quality, extraction/progressive execution, lawful connectors, real-role/Storage/pipeline and cleanup inventory are unfinished engineering, not external blockers.
+- Hosted040/041 migration and exact isolated candidate deployment require scoped approval and fresh drift/recovery checks. Production release/processing-rights/shared destructive cleanup/security/credentials/DNS/paid/contributor operations remain separately gated and untouched.
 
 ## Exact continuation commands
 
@@ -51,7 +48,7 @@ First obtain the latest exported ZIP and its trusted SHA256 from the handoff/che
 
 ```bash
 # Run from the currently trusted source checkout, before changing code.
-cd /data/NexusRAG-current
+cd /data/NexusRAG-batch004
 python3 scripts/checkpoint_source.py verify --archive "$ZIP" --expected-sha256 "$SHA256"
 git rev-parse HEAD
 git status --porcelain
@@ -61,7 +58,7 @@ Compare the ZIP manifest commit and file hashes with the checkout. If the checko
 
 ```bash
 # Use a new directory; never overwrite unrelated work.
-python3 /data/NexusRAG-current/scripts/checkpoint_source.py recover \
+python3 /data/NexusRAG-batch004/scripts/checkpoint_source.py recover \
   --archive "$ZIP" --expected-sha256 "$SHA256" \
   --destination /data/NexusRAG-recovered-next
 cd /data/NexusRAG-recovered-next
@@ -120,17 +117,18 @@ For next remote inspection use GitHub MCP `pull_request_read` methods `get` and 
 Update this file with the actual completed/unfinished work and passed/failed/not-run checks. Save source and dependency specifications/locks, verify the clean saved tree, then export outside the repository. Select only sanitized verification logs, never private tokens, signed log URLs, customer data or credential-bearing command payloads.
 
 ```bash
-cd /data/NexusRAG-current
+cd /data/NexusRAG-batch004
 python3 scripts/checkpoint_source.py export \
-  --archive /data/nexusrag-checkpoints/retention-resilience-003.zip \
-  --log /data/nexusrag-checkpoints/retention-resilience-003-logs/results.json \
-  --log /data/nexusrag-checkpoints/retention-resilience-003-logs/scripts-final.log \
-  --log /data/nexusrag-checkpoints/retention-resilience-003-logs/gateway-final.log \
-  --log /data/nexusrag-checkpoints/retention-resilience-003-logs/backend-final.log \
-  --log /data/nexusrag-checkpoints/retention-resilience-003-logs/isolated-final.log \
-  --log /data/nexusrag-checkpoints/retention-resilience-003-logs/foundation-final.log \
-  --log /data/nexusrag-checkpoints/retention-resilience-003-logs/ledger-final.json
-sha256sum /data/nexusrag-checkpoints/retention-resilience-003.zip
+  --archive /data/nexusrag-checkpoints/retention-lease-004.zip \
+  --log /data/nexusrag-checkpoints/retention-lease-004-logs/results.json \
+  --log /data/nexusrag-checkpoints/retention-lease-004-logs/scripts-final.log \
+  --log /data/nexusrag-checkpoints/retention-lease-004-logs/gateway-final.log \
+  --log /data/nexusrag-checkpoints/retention-lease-004-logs/backend-final.log \
+  --log /data/nexusrag-checkpoints/retention-lease-004-logs/isolated-final.log \
+  --log /data/nexusrag-checkpoints/retention-lease-004-logs/foundation-final.log \
+  --log /data/nexusrag-checkpoints/retention-lease-004-logs/ledger-final.json \
+  --log /data/nexusrag-checkpoints/retention-lease-004-logs/postgres-final.log
+sha256sum /data/nexusrag-checkpoints/retention-lease-004.zip
 ```
 
 Export the ZIP and final verification/checksum receipts as session files. Preserve each prior checkpoint until the newer checkpoint is verified and durably exported. Logs inside a recovered ZIP are historical evidence only. The next batch must rerun its acceptance checks against its saved/recovered source.

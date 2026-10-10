@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 
 from src.repositories.settings import WorkspaceSettingsRepository
 from src.tenancy.lifecycle import WorkspaceLifecycleService
@@ -20,8 +20,13 @@ class RetentionSchedulerSummary:
     failed: int = 0
     invalid: int = 0
     retry_schedule_failed: int = 0
+    lease_lost: int = 0
     documents_deleted: int = 0
     chat_sessions_deleted: int = 0
+
+
+class RetentionLeaseLost(RuntimeError):
+    """The current durable claim could not authorize its schedule write."""
 
 
 class RetentionScheduler:
@@ -41,7 +46,6 @@ class RetentionScheduler:
         limit: int = 100,
         lease_seconds: int = 900,
     ) -> RetentionSchedulerSummary:
-        now = datetime.now(UTC)
         rows = await self._settings.claim_due_retention(
             worker_id=worker_id,
             limit=limit,
@@ -73,6 +77,22 @@ class RetentionScheduler:
                 summary.invalid += 1
                 logger.warning("retention_record_invalid", code="INVALID_RETENTION_RECORD")
                 continue
+            lease_expires_at = row.get("retention_lease_expires_at")
+            valid_lease = False
+            if (
+                type(row.get("retention_lease_owner")) is str
+                and row["retention_lease_owner"] == worker_id
+                and type(lease_expires_at) is str
+            ):
+                try:
+                    expires = datetime.fromisoformat(lease_expires_at.replace("Z", "+00:00"))
+                    valid_lease = expires.tzinfo is not None and expires > datetime.now(UTC)
+                except (ValueError, TypeError):
+                    pass
+            if not valid_lease:
+                summary.invalid += 1
+                logger.warning("retention_record_invalid", code="INVALID_RETENTION_RECORD")
+                continue
             try:
                 result = await self._lifecycle.apply_retention(
                     workspace_id=workspace_id,
@@ -84,30 +104,35 @@ class RetentionScheduler:
                 summary.chat_sessions_deleted += result.chat_sessions_deleted
                 if result.failures:
                     raise RuntimeError(f"{len(result.failures)} retention cleanup failures")
-                await self._settings.upsert_settings(
+                if not await self._settings.finish_retention_claim(
                     workspace_id=workspace_id,
-                    values={
-                        "last_retention_at": now.isoformat(),
-                        "next_retention_at": (now + timedelta(days=1)).isoformat(),
-                        "retention_lease_owner": None,
-                        "retention_lease_expires_at": None,
-                    },
-                )
+                    worker_id=worker_id,
+                    lease_expires_at=lease_expires_at,
+                    retention_days=retention_days,
+                    succeeded=True,
+                ):
+                    raise RetentionLeaseLost()
                 summary.completed += 1
+            except RetentionLeaseLost:
+                summary.failed += 1
+                summary.lease_lost += 1
+                logger.warning("retention_lease_lost", workspace_id=workspace_id)
             except Exception as exc:
                 summary.failed += 1
                 try:
-                    await self._settings.upsert_settings(
+                    scheduled = await self._settings.finish_retention_claim(
                         workspace_id=workspace_id,
-                        values={
-                            "next_retention_at": (now + timedelta(hours=1)).isoformat(),
-                            "retention_lease_owner": None,
-                            "retention_lease_expires_at": None,
-                        },
+                        worker_id=worker_id,
+                        lease_expires_at=lease_expires_at,
+                        retention_days=retention_days,
+                        succeeded=False,
                     )
+                    if not scheduled:
+                        summary.lease_lost += 1
+                        raise RetentionLeaseLost()
                 except Exception as retry_exc:
                     # Failed/ambiguous writes prove neither retry scheduling
-                    # nor lease release. Record uncertainty and continue rows.
+                    # nor lease release. Never fall back to an unfenced upsert.
                     summary.retry_schedule_failed += 1
                     logger.warning(
                         "retention_retry_schedule_failed",
