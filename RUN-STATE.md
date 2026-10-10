@@ -19,7 +19,7 @@ Full accepted scope remains all 224 normative requirements and all ten connected
 
 - Added forward-only042 scoped manual-retention claim RPC. It requires service_role, a confirmed owner/admin in the exact active workspace, locks the parent workspace used by member changes and the settings row, then observes database time. Disabled policies or an active scheduler/manual lease return no claim. Browser roles cannot execute it; fixed search_path and SECURITY INVOKER are retained.
 - Manual /privacy/retention/run now acquires that scope and finishes/retries only through041's exact worker/expiry/policy fence. Removed both unfenced upserts. Malformed/foreign/expired claims prevent cleanup; cancellation propagates without clearing another worker's lease. Busy/disabled and lost authority return409; ambiguous acquisition/completion return502 without claiming a successful retry. Safe audit metadata preserves partial cleanup counts. Existing admin route protection and demo denial remain.
-- Added nine offline orchestration tests with malformed-claim subcases, thirteen backend RPC/route cases, synthetic SQL authority/replay/exclusion assertions, and separate-session manual/manual and manual/scheduler races. CI/local PostgreSQL rehearsal now includes042. No applied baseline or prior migration changed.
+- Added nine offline orchestration tests with malformed-claim subcases, fourteen backend RPC/route cases, synthetic SQL authority/replay/exclusion assertions, and separate-session manual/manual and manual/scheduler races. Final bypass/regression review corrected the unknown-progress cleanup error wording; it does not claim cleanup completed. CI/local PostgreSQL rehearsal now includes042. No applied baseline or prior migration changed.
 - Windows recovery testing exposed line-ending and symlink-privilege fixture failures. Test fixtures now preserve exact committed bytes and create an actual120000 Git-index symlink without needing filesystem symlink rights; archive refusal is still asserted.
 - Windows asyncio requires a local socket pair. Offline runners now share a guard that permits only its newly allocated ephemeral loopback self-pipe while retaining ordinary AF_INET/AF_INET6 connect/connect_ex, DNS, create_connection and sendto denial. Fresh tests prove self-pipe/asyncio behavior and outbound-call rejection. This is test-process instrumentation, not a hostile-code OS network sandbox.
 - Request121 was correctly denied, but the old test assumed Retry-After stayed60 throughout120 requests. It now bounds the header by measured elapsed time; the production120/minute limit and deterministic middleware tests are unchanged.
@@ -29,7 +29,7 @@ Full accepted scope remains all 224 normative requirements and all ten connected
 
 | Check | Result | Scope |
 | --- | --- | --- |
-| Backend full offline | PASS:488 +10subtests | New clean test venv, synthetic transports; no live provider |
+| Backend full offline | PASS:489 +10subtests | New clean test venv, synthetic transports; no live provider |
 | Backend isolated | PASS:57 | Unchanged capabilities, rerun with shared network guard |
 | Scripts | PASS:78 | Recovery/export safety, manual claims, network guard |
 | Gateway | PASS:269,0skips | Unchanged gateway source, freshly executed |

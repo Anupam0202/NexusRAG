@@ -2798,11 +2798,14 @@ async def run_retention(
             raise HTTPException(409, "Retention is disabled or another cleanup is running.") from None
         if exc.code == "LEASE_LOST":
             raise HTTPException(409, "Retention authority changed. Cleanup completion was not confirmed.") from None
-        message = (
-            "Retention cleanup completed with partial failures and was scheduled for retry."
-            if exc.retry_scheduled else
-            "Retention could not be confirmed. Retry scheduling and cleanup completion are unverified."
-        )
+        if exc.retry_scheduled:
+            message = (
+                "Retention cleanup completed with partial failures and was scheduled for retry."
+                if result is not None else
+                "Retention cleanup failed and was scheduled for retry. Cleanup progress is unverified."
+            )
+        else:
+            message = "Retention could not be confirmed. Retry scheduling and cleanup completion are unverified."
         raise HTTPException(
             502, message,
         ) from None

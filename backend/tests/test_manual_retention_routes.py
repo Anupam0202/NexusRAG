@@ -72,3 +72,23 @@ async def test_manual_route_denies_demo_before_constructing_authority(monkeypatc
         await routes.run_retention(workspace=None, settings=Settings(_env_file=None), vs=object())
     assert raised.value.status_code == 403
     run.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_manual_route_does_not_claim_unknown_cleanup_progress(monkeypatch):
+    monkeypatch.setattr(routes, "run_manual_retention", AsyncMock(
+        side_effect=ManualRetentionError("CLEANUP_FAILED", retry_scheduled=True)))
+    monkeypatch.setattr(routes, "WorkspaceSettingsRepository", lambda: object())
+    monkeypatch.setattr(routes, "WorkspaceLifecycleService", lambda **kwargs: object())
+    audit = AsyncMock()
+    monkeypatch.setattr(routes, "_record_audit_event", audit)
+    workspace = WorkspaceContext(workspace_id="workspace-1", role=WorkspaceRole.OWNER,
+        user=CurrentUser(id="owner-1", email="owner@example.invalid", role="authenticated", claims={}))
+    settings = Settings(_env_file=None, supabase_url="https://example.supabase.co",
+        supabase_anon_key="synthetic-anon", supabase_service_role_key="synthetic-service")
+    with pytest.raises(HTTPException) as raised:
+        await routes.run_retention(workspace=workspace, settings=settings, vs=object())
+    assert raised.value.status_code == 502
+    assert "Cleanup progress is unverified" in raised.value.detail
+    assert "completed" not in raised.value.detail
+    assert audit.await_args.kwargs["metadata"]["retry_scheduled"] is True
