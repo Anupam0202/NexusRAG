@@ -18,10 +18,28 @@ describe("sanitizeAuthNextPath", () => {
     "https://evil.example/steal",
     "//evil.example/steal",
     "/\\evil.example/steal",
+    "/documents/..//evil.example/steal",
+    "/%2f%2fevil.example/steal",
+    "/%252f%252fevil.example/steal",
+    "/%5cevil.example/steal",
+    "/%255cevil.example/steal",
+    "/%2e%2e//evil.example/steal",
+    "/\n/evil.example/steal",
+    "/%0a/evil.example/steal",
+    "/%250a/evil.example/steal",
+    "/%broken",
     "documents",
     "",
   ])("rejects unsafe destination %s", (value) => {
     expect(sanitizeAuthNextPath(value, "/documents")).toBe("/documents");
+  });
+
+  it.each(["https://evil.example", "//evil.example", "/documents/..//evil.example", "/\n/evil.example", "/%2f%2fevil.example"])("validates fallback with the same rules: %s", fallback => {
+    expect(sanitizeAuthNextPath(null, fallback)).toBe("/documents");
+  });
+
+  it("normalizes safe internal paths without decoding query destinations", () => {
+    expect(sanitizeAuthNextPath("/documents/../settings/security?return=https%3A%2F%2Fexample.invalid#sessions", "/documents")).toBe("/settings/security?return=https%3A%2F%2Fexample.invalid#sessions");
   });
 });
 

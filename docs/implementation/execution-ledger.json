@@ -13,6 +13,40 @@
   "interpretation": "OPEN_ENGINEERING includes implemented but not fully accepted requirements; it does not assert that no code or scoped evidence exists. External approvals do not close unfinished internal work.",
   "entries": [
     {
+      "id": "DEFECT-AUTH-RECOVERY",
+      "requirement": "Workspace-independent account security and membership bootstrap remain reachable; callback waits are bounded and recovery preserves a safe destination",
+      "normative_source": "Owner end-user authentication/recovery mandate; accepted A and S registers",
+      "status": "IN_PROGRESS",
+      "environment": "batch006 local frontend/component and public browser; not hosted OAuth/private acceptance",
+      "next_action": "Complete exact saved/recovered-source checks and approved real OAuth/no-workspace account security/invitation acceptance. Preserve workspace tenant guards and hosted040-042 rollout gates.",
+      "acceptance_evidence": [
+        {
+          "environment": "mocked session/discovery component transports; local Next Chromium desktop/emulated mobile",
+          "observed_at": "2026-10-10T16:31:50Z",
+          "source_identity": "parent7a5661e plus auth-recovery-006 source; final manifest binds saved commit",
+          "command_or_url": "frontend focused/full Vitest; public-smoke.spec.ts; Next/OpenNext builds",
+          "result": "PASS initial317frontend/48files,78focused,46public checks and builds. Discovery guards remain for tenant routes. Timeout does not revoke an SDK session. Final recovery/CI outcomes external; real OAuth/private workflows remain NOT_RUN."
+        }
+      ]
+    },
+    {
+      "id": "DEFECT-AUTH-REDIRECT",
+      "requirement": "Authentication destinations and fallback remain internal after URL normalization and bounded decoding",
+      "normative_source": "Owner authentication redirect security mandate",
+      "status": "IN_PROGRESS",
+      "environment": "batch006 source/unit/public browser; deployment not authorized",
+      "next_action": "Verify exact saved/recovered patch security and protected CI; deploy only through approved source/schema release and exercise real login/callback routing. No image-gate bypass.",
+      "acceptance_evidence": [
+        {
+          "environment": "actual WHATWG URL reproduction,29 policy cases, mocked authenticated login/callback, public recovery UI",
+          "observed_at": "2026-10-10T16:31:50Z",
+          "source_identity": "parent7a5661e plus reviewed normalized/decode/fallback sanitizer",
+          "command_or_url": "node sanitizer reproduction; auth-redirect/login/callback tests; public-smoke.spec.ts",
+          "result": "PASS initial regressions after12 redirect failures reproduced pre-fix. Dot-segment protocol-relative escape is rejected; encoded variants/fallback fail closed; query/hash preserved. No production exposure clearance or broad security certification."
+        }
+      ]
+    },
+    {
       "id": "R01",
       "requirement": "Tenant identity is explicit on every authority record",
       "normative_source": "docs/implementation/LEGACY_REPLACEMENT_BASELINE.md",

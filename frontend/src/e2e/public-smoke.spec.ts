@@ -160,9 +160,22 @@ test("auth callback shows a provider-neutral recoverable error state", async ({
   await expect(page.getByText(/sensitive provider details/i)).toHaveCount(0);
   await expect(page.getByRole("link", { name: "Back to sign in" })).toHaveAttribute(
     "href",
-    "/auth/login"
+    "/auth/login?next=%2Fdocuments"
   );
 });
+
+for (const next of ["/settings/security", "https://attacker.invalid/steal", "/documents/..//attacker.invalid"]) {
+  test(`callback recovery retains only a safe destination: ${next}`, async ({ page }) => {
+    await page.goto(`/auth/callback?error=access_denied&error_description=synthetic-private-detail&next=${encodeURIComponent(next)}`);
+    await expect(page.getByRole("alert").filter({ hasText: "Authentication could not be completed" })).toBeVisible();
+    await expect(page).not.toHaveURL(/error_description|access_denied/);
+    await expect(page.getByText("synthetic-private-detail")).toHaveCount(0);
+    const expected = next === "/settings/security" ? next : "/documents";
+    await page.getByRole("link", { name: "Back to sign in" }).click();
+    await expect(page).toHaveURL(new RegExp(`/auth/login\\?next=${encodeURIComponent(expected)}$`));
+    await expect(page.getByRole("button", { name: "Continue with Google" })).toBeVisible();
+  });
+}
 
 test("layout reflows without horizontal overflow", async ({ page }) => {
   await page.goto("/evidence-os");

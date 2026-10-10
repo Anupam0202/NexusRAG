@@ -80,7 +80,7 @@ describe("AuthCallbackPage", () => {
     expect(screen.queryByText(/sensitive provider details/i)).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Back to sign in" })).toHaveAttribute(
       "href",
-      "/auth/login"
+      "/auth/login?next=%2Fdocuments"
     );
   });
 
@@ -162,6 +162,72 @@ describe("AuthCallbackPage", () => {
     expect(screen.queryByText(/sensitive provider details/i)).not.toBeInTheDocument();
     expect(exchangeCodeForSession).not.toHaveBeenCalled();
     expect(navigateStatic).not.toHaveBeenCalled();
+  });
+
+  it.each(["/settings/security", "/workspaces?view=invitations", "/onboarding"])("continues to workspace-independent %s without membership discovery", async next => {
+    window.history.replaceState({}, "", `/auth/callback?code=synthetic-code&next=${encodeURIComponent(next)}`);
+    vi.mocked(getCurrentWorkspace).mockRejectedValue(new Error("Synthetic unavailable membership"));
+    render(<AuthCallbackPage />);
+    await waitFor(() => expect(navigateStatic).toHaveBeenCalledWith(next));
+    expect(getCurrentWorkspace).not.toHaveBeenCalled();
+  });
+
+  it("preserves the safe destination on recovery without reflecting provider errors", async () => {
+    window.history.replaceState({}, "", "/auth/callback?error=access_denied&error_description=private-payload&next=%2Fsettings%2Fsecurity");
+    render(<AuthCallbackPage />);
+    expect(await screen.findByRole("link", { name: "Back to sign in" })).toHaveAttribute("href", "/auth/login?next=%2Fsettings%2Fsecurity");
+    expect(screen.queryByText(/private-payload/)).not.toBeInTheDocument();
+    expect(window.location.search).not.toContain("error_description");
+  });
+
+  it("never forwards an external recovery destination", async () => {
+    window.history.replaceState({}, "", "/auth/callback?error=access_denied&next=https%3A%2F%2Fattacker.invalid");
+    render(<AuthCallbackPage />);
+    expect(await screen.findByRole("link", { name: "Back to sign in" })).toHaveAttribute("href", "/auth/login?next=%2Fdocuments");
+  });
+  it("does not navigate off-site after normalizing an OAuth destination", async () => {
+    window.history.replaceState({}, "", "/auth/callback?code=synthetic-code&next=%2Fdocuments%2F..%2F%2Fattacker.invalid");
+    render(<AuthCallbackPage />);
+    await waitFor(() => expect(navigateStatic).toHaveBeenCalledWith("/documents"));
+    expect(navigateStatic).not.toHaveBeenCalledWith("//attacker.invalid");
+  });
+
+  it("bounds a stalled code exchange without publishing its late result", async () => {
+    vi.useFakeTimers();
+    let finish!: (value: { error: null }) => void;
+    exchangeCodeForSession.mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+    window.history.replaceState({}, "", "/auth/callback?code=synthetic-stalled-code&next=%2Fdocuments");
+    try {
+      const view = render(<AuthCallbackPage />);
+      await act(async () => { await vi.advanceTimersByTimeAsync(15_000); });
+      expect(screen.getByText("Sign-in could not be completed")).toBeVisible();
+      expect(window.location.search).not.toContain("code=");
+      await act(async () => { finish({ error: null }); });
+      expect(setAuthState).not.toHaveBeenCalled();
+      expect(getCurrentWorkspace).not.toHaveBeenCalled();
+      expect(navigateStatic).not.toHaveBeenCalled();
+      view.unmount();
+      expect(vi.getTimerCount()).toBe(0);
+    } finally { vi.useRealTimers(); }
+  });
+
+  it("bounds stalled workspace discovery without accepting its late binding", async () => {
+    vi.useFakeTimers();
+    let finish!: (value: Awaited<ReturnType<typeof getCurrentWorkspace>>) => void;
+    vi.mocked(getCurrentWorkspace).mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+    window.history.replaceState({}, "", "/auth/callback?code=synthetic-code&next=%2Fdocuments");
+    try {
+      const view = render(<AuthCallbackPage />);
+      await act(async () => { await vi.advanceTimersByTimeAsync(0); });
+      expect(getCurrentWorkspace).toHaveBeenCalledOnce();
+      await act(async () => { await vi.advanceTimersByTimeAsync(15_000); });
+      expect(screen.getByText(/workspace discovery is unavailable/)).toBeVisible();
+      await act(async () => { finish({ workspace_id: "late-workspace", role: "owner", user_id: "user-1" }); });
+      expect(setWorkspaceId).not.toHaveBeenCalled();
+      expect(navigateStatic).not.toHaveBeenCalled();
+      view.unmount();
+      expect(vi.getTimerCount()).toBe(0);
+    } finally { vi.useRealTimers(); }
   });
 
 });
