@@ -1,5 +1,19 @@
 # NexusRAG execution checkpoint
 
+## Active Batch: runtime-manifest-008
+
+**Application PARTIAL_NOT_COMPLETE. Source runtime compatibility fix LOCALLY_TESTED, not deployed or production verified.**
+
+- Parent ddecaeb4d90e8f87ff2ee81c60e7fbb246082f20/tree22fd454b72e509d816e10f30e18e8ba4fc21a97a, draft PR11. Batch007503-file source and41-entry evidence ZIP independently recovered; trusted external BATCH007_HANDOFF.md records checksums and late failures. Main/release and earlier open PRs preserved; new codex/runtime-manifest-008 branch.
+- After owner sign-in, Chrome confirms Cloudflare account84e80d9629e0a6e6e5b31dbe85146acf/six Workers, Qdrant accountd452b0e1/clusterfc0c77d2 and both Supabase projects. No secret values, customer payloads/vectors, new access, paid activation, hosted mutations or resource deletion.
+- Fresh bindings differ from history: shared-preview visible Supabase URL now rehearsalukgjygzfhyvnrsecdcuu, Qdrant candidate and candidate origin. Candidate gateway still old46bb14f, rehearsal/candidate and candidate-ingestion queue. Shared/quarantined resources still not disposable. Supabase organization still Vercel Marketplace-managed for billing/access despite retired application runtimes; no integration removal.
+- Independent Qdrant console exact counts legacy17/fourv6 zero, aliases empty, selected candidate indexes/snapshots0 observed. Other complete index/snapshot/orphan provenance and specific deletion ID/generation proof remain NOT_VERIFIED; no cleanup inference from emptiness. Both Supabase catalogs lack invitation/manual-claim/finish RPCs;040-042 not hosted.
+- Candidate metrics showed21frontend Worker errors with0asset4xx/5xx. Sampled favicon exception and recovered007 GETfavicon/unknown route reproduced missing preview-props manifest500. Two new actual Worker regressions failed before fix, including dynamic cross-origin auth rejection500 instead of303.
+- Lock selected Next16.4.0 via caret. Pin exactly16.3.8, latest published16.3 patch and OpenNext's stated security floor; actual regenerated npm lock/SWC integrity entries preserved. Upstream PR1356 remains open, not a released fix. No generated manifest edits, fake keys, exception masking, route/security guard changes or unreviewed upstream installation.
+- Fresh source319frontend/48files, lint/typecheck, Next/OpenNext25assets,489backend+10subtests,57isolated,79scripts,273gateway/0skips, migration/foundation PASS; npm audit reports0 known advisories, distinct from image clearance. Actual Worker54desktop/mobile public/routing and12Firefox/WebKit/mobileWebKit routing PASS, including404GET/HEAD and303dynamic auth rejection. Actual Chrome shows normal404 page. Broad public cross-browser suite pending source save; later exact results external.
+- Exact parent007 Linux CI319frontend/129public/visual and synthetic PostgreSQL/concurrency/backup-restore PASS. Unsuppressed real image gate and required summary FAILED163backend matches(57High/50Medium/10Low/46Negligible),frontend0,ignored0. New008 exact-head CI/recovery pending source save; no inherited image success, suppression, weakened gate or merge/deployment.
+- All224 normative definitions and ten products retained;253ledger entries, closurefalse. Full products/private OAuth/ingestion/retrieval/erasure, image remediation, rights/budgets, source/schema/runtime rollout, deletion-generation/legal-hold/receipts and production SOURCE_COMMIT/RELEASE_SHA/readiness contract remain unfinished. Continue bounded independent work; do not label application COMPLETE.
+
 ## Active Batch: ui-verification-007
 
 **Application: PARTIAL_NOT_COMPLETE. Batch: LOCALLY_TESTED actor-response contract, mobile focus and verification fixtures. Not deployed or production verified.**
