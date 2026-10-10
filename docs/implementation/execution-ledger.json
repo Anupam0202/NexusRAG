@@ -2347,7 +2347,7 @@
       "requirement": "Unsuppressed maintained-stable backend runtime image passes the mandatory medium-and-higher gate",
       "normative_source": ".github/workflows/container-verification.yml",
       "status": "FAILED",
-      "environment": "exact cda71113604d2430eefd6f4e23f863cd797055c3 GitHub image job114051241841",
+      "environment": "exact77ac1b7afc86ff1d769be751071659dcaa2accbe GitHub image job114170133752",
       "next_action": "Remediate actual installed package findings with compatible maintained components and rerun the real image; reconcile CNA/scanner range discrepancies without changing acceptance policy.",
       "acceptance_evidence": [],
       "observed_failure": {
@@ -2362,9 +2362,9 @@
           "not-fixed": 47,
           "fixed": 2
         },
-        "url": "https://github.com/Anupam0202/NexusRAG/actions/runs/37998675093/job/114051241841",
-        "raw_sha256": "a2e5a6281ba37eb6bb616ecf1450cbf68e9384f2333e17874c56529353f73c7b",
-        "source_identity": "cda71113604d2430eefd6f4e23f863cd797055c3",
+        "url": "https://github.com/Anupam0202/NexusRAG/actions/runs/38037218422/job/114170133752",
+        "raw_sha256": "0d8bc9e60069e21be15ca88e0070179562c3c2b8ce0906da6dd337128586e817",
+        "source_identity": "77ac1b7afc86ff1d769be751071659dcaa2accbe",
         "frontend_matches": 0
       }
     },
@@ -2483,6 +2483,13 @@
           "source_identity": "parentcda7111 plus reviewed targeted privacy fix",
           "command_or_url": "python backend/scripts/run_full_tests.py; python backend/scripts/run_isolated.py; npm run test:cloudflare",
           "result": "PASS:399backend+10subtests,57isolated,200gateway/no skips;26new cases include model init/failover, three fallback paths, HTTP/WS validation, actual WebSocket failure/audit, missing SDK and unknown verification failures preventing activation. No provider/network/customer credentials or live log probe."
+        },
+        {
+          "environment": "offline Python telemetry persistence/error and metadata recursion regression",
+          "observed_at": "2026-10-10T10:26:30.070621+00:00",
+          "source_identity": "parent77ac1b7 plus reviewed telemetry privacy fix",
+          "command_or_url": "python backend/scripts/run_full_tests.py; python backend/scripts/run_isolated.py; npm run test:cloudflare",
+          "result": "PASS:409backend+10subtests,57isolated,224gateway/no skips,59scripts. Ten new failures/deep recursion/opaque key-value/error-detail cases. No deployed or persisted-log acceptance."
         }
       ]
     },
