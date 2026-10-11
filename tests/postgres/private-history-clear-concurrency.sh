@@ -6,7 +6,18 @@ w=11111111-1111-4111-8111-111111111111
 actor=33333333-3333-4333-8333-333333333333
 session=c1111111-1111-4111-8111-111111111111
 logs=$(mktemp -d)
-trap 'rm -rf "$logs"' EXIT
+finish() {
+  status=$?
+  if [[ "$status" -ne 0 ]]; then
+    echo "PRIVATE_HISTORY_CLEAR_CONCURRENCY_FAILED stage=${stage:-setup}"
+    for log in "$logs/locker" "$logs/clear"; do
+      if [[ -f "$log" ]]; then tail -n 60 "$log"; fi
+    done
+  fi
+  rm -rf "$logs"
+  exit "$status"
+}
+trap finish EXIT
 sql() { psql -X -q -v ON_ERROR_STOP=1 "$@"; }
 await_lock() {
   for _ in $(seq 1 200); do
@@ -27,12 +38,14 @@ reset_fixture() {
 clear_sql="set role authenticated;set request.jwt.claim.role='authenticated';set request.jwt.claim.sub='$actor';select public.clear_private_history('$w','$session');"
 
 for boundary in membership workspace tombstone; do
+  stage="deny-after-$boundary"
   reset_fixture
   case "$boundary" in
     membership) mutation="delete from public.workspace_members where workspace_id='$w' and user_id='$actor';" ;;
     workspace) mutation="update public.workspaces set lifecycle_state='deleting' where id='$w';" ;;
     tombstone) mutation="update public.chat_sessions set deleted_at=clock_timestamp() where id='$session';" ;;
   esac
+  : >"$logs/locker"
   sql >"$logs/locker" 2>&1 <<SQL &
 begin;
 set request.jwt.claim.role='service_role';
@@ -50,7 +63,9 @@ SQL
 done
 
 # Cleanup first: later revocation must wait; the receipt counts committed deletions.
+stage=cleanup-before-revocation
 reset_fixture
+: >"$logs/locker"
 sql >"$logs/locker" 2>&1 <<SQL &
 begin;
 $clear_sql
@@ -69,7 +84,9 @@ grep -q '^\[\]$' "$logs/clear"
 
 # Exact review interleaving: direct DELETE holds membership while its AFTER
 # revision trigger waits for cleanup's workspace lock. NOWAIT must fail cleanly.
+stage=inverse-membership-lock-order
 reset_fixture
+: >"$logs/locker"
 sql >"$logs/locker" 2>&1 <<SQL &
 begin;
 select 1 from public.workspaces where id='$w' for no key update;
@@ -104,7 +121,9 @@ test "$(sql -At -c "select count(*) from public.chat_messages where session_id='
 test "$(sql -At -c "select count(*) from public.workspace_members where workspace_id='$w' and user_id='$actor'")" = 0
 
 # Existing locked appends serialize with clear; a later turn is not an erasure failure.
+stage=locked-append-before-clear
 reset_fixture
+: >"$logs/locker"
 sql >"$logs/locker" 2>&1 <<SQL &
 begin;
 set request.jwt.claim.role='service_role';
