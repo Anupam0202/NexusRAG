@@ -98,7 +98,7 @@ from src.repositories.documents import (
     compute_sha256,
 )
 from src.repositories.jobs import IngestionJobRepository
-from src.repositories.messages import MessageRepository
+from src.repositories.messages import ConversationUnavailableError, MessageRepository
 from src.repositories.provider_health import persist_provider_health_snapshot
 from src.repositories.settings import WorkspaceSettingsRepository
 from src.retrieval.vector_store import VectorStoreManager
@@ -2253,14 +2253,21 @@ async def clear_session(
 ) -> dict:
     workspace_id = _context_workspace_id(workspace)
     durable_messages_deleted = 0
-    if _should_persist_workspace_event(workspace, settings):
+    if workspace and not workspace.user.is_demo:
+        if not settings.supabase_configured or not workspace.user.access_token:
+            raise HTTPException(status_code=503,
+                detail="Conversation cleanup could not be confirmed.")
         try:
             durable_messages_deleted = await MessageRepository().clear_session(
                 workspace_id=workspace_id,
                 session_id=session_id,
+                access_token=workspace.user.access_token,
             )
             if type(durable_messages_deleted) is not int or durable_messages_deleted < 0:
                 raise ValueError("Unconfirmed cleanup count")
+        except ConversationUnavailableError:
+            raise HTTPException(status_code=404,
+                detail="Conversation is not available.") from None
         except Exception:
             logger.warning(
                 "chat_history_clear_failed",

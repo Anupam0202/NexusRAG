@@ -30,7 +30,7 @@ def history_cleanup_context(monkeypatch):
     workspace = WorkspaceContext(
         workspace_id="workspace-one", role=WorkspaceRole.VIEWER,
         user=CurrentUser(id="actor-one", email="actor@example.invalid",
-                         role="authenticated", claims={}),
+                         role="authenticated", claims={}, access_token="synthetic.user.token"),
     )
     settings = Settings(_env_file=None, supabase_url="https://example.supabase.co",
                         supabase_anon_key="synthetic-anon",
@@ -52,7 +52,7 @@ async def test_history_cleanup_durable_failure_preserves_memory_and_success_audi
     context.chain.clear_session.assert_not_called()
     context.audit.assert_not_awaited()
     context.repository.clear_session.assert_awaited_once_with(
-        workspace_id="workspace-one", session_id="session-one")
+        workspace_id="workspace-one", session_id="session-one", access_token="synthetic.user.token")
     assert context.logger.warning.call_args.kwargs == {
         "workspace_id": "workspace-one", "stage": "durable"}
 
@@ -137,20 +137,20 @@ async def test_history_cleanup_cancellation_never_clears_memory(history_cleanup_
     [{"workspace_id": "workspace-one", "session_id": "other"}],
 ])
 async def test_history_cleanup_repository_rejects_unconfirmed_deleted_rows(rows):
-    transport = SimpleNamespace(table_delete=AsyncMock(return_value=rows))
+    transport = SimpleNamespace(rpc_as_user=AsyncMock(return_value=rows))
     repository = MessageRepository(transport)
     with pytest.raises(ValueError, match="Unconfirmed history cleanup response"):
-        await repository.clear_session(workspace_id="workspace-one", session_id="session-one")
-    transport.table_delete.assert_awaited_once_with("chat_messages",
-        query="workspace_id=eq.workspace-one&session_id=eq.session-one")
+        await repository.clear_session(workspace_id="11111111-1111-4111-8111-111111111111",
+            session_id="a1111111-1111-4111-8111-111111111111", access_token="synthetic.user.token")
+    transport.rpc_as_user.assert_awaited_once()
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("rows", [[], [
-    {"workspace_id": "workspace-one", "session_id": "session-one"},
-    {"workspace_id": "workspace-one", "session_id": "session-one"},
-]])
-async def test_history_cleanup_repository_confirms_exact_scope_and_count(rows):
-    repository = MessageRepository(SimpleNamespace(table_delete=AsyncMock(return_value=rows)))
-    assert await repository.clear_session(workspace_id="workspace-one",
-                                          session_id="session-one") == len(rows)
+@pytest.mark.parametrize("count", [0, 3])
+async def test_history_cleanup_repository_confirms_exact_scope_and_count(count):
+    rows = [{"workspace_id": "11111111-1111-4111-8111-111111111111",
+             "session_id": "a1111111-1111-4111-8111-111111111111", "success": True,
+             "durable_messages_deleted": count}]
+    repository = MessageRepository(SimpleNamespace(rpc_as_user=AsyncMock(return_value=rows)))
+    assert await repository.clear_session(workspace_id=rows[0]["workspace_id"],
+        session_id=rows[0]["session_id"], access_token="synthetic.user.token") == count

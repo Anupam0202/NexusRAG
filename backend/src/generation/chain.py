@@ -22,6 +22,7 @@ from collections import deque
 from collections.abc import AsyncIterator
 from datetime import date
 from typing import Any
+from uuid import UUID
 
 from langchain_core.documents import Document
 from langchain_core.messages import HumanMessage, SystemMessage
@@ -888,6 +889,11 @@ class RAGChain:
 
     @staticmethod
     def _session_key(workspace_id: str | None, session_id: str | None) -> str:
+        if session_id:
+            try:
+                session_id = str(UUID(session_id))
+            except (ValueError, TypeError, AttributeError):
+                pass  # Non-UUID local/demo sessions retain their existing keys.
         return f"{normalize_workspace_id(workspace_id)}:{session_id or 'default'}"
 
     def clear_session(self, session_id: str, *, workspace_id: str | None = None) -> None:

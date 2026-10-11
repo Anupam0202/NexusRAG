@@ -796,7 +796,33 @@ async function handle(request, env = {}) {
       if(action==="delete"&&request.method==="POST")return json(request,env,await deleteDocument(request,env,user,id,member,documentId));
     }
     const sessionRoute=url.pathname.match(/^\/api\/v1\/chat\/sessions\/([0-9a-f-]{36})\/(messages|clear)$/i);
-    if(sessionRoute){const id=workspaceId(request);await membership(env,user.id,id);const sessionId=sessionRoute[1];const sessions=await serviceRequest(env,`chat_sessions?workspace_id=eq.${id}&id=eq.${sessionId}&user_id=eq.${user.id}&deleted_at=is.null&select=*&limit=1`);if(!sessions?.[0]&&sessionRoute[2]==="messages")return json(request,env,{session_id:sessionId,messages:[],total:0});if(!sessions?.[0])throw Object.assign(new Error("Chat session not found."),{status:404,code:"SESSION_NOT_FOUND"});if(sessionRoute[2]==="messages"&&(request.method==="GET"||request.method==="HEAD")){const messages=await serviceRequest(env,`chat_messages?workspace_id=eq.${id}&session_id=eq.${sessionId}&select=role,content,sources,metadata,created_at&order=created_at.asc&limit=500`);return json(request,env,{session_id:sessionId,messages,total:messages.length});}if(sessionRoute[2]==="clear"&&request.method==="POST"){const messages=await serviceRequest(env,`chat_messages?workspace_id=eq.${id}&session_id=eq.${sessionId}&select=id`);await serviceRequest(env,`chat_messages?workspace_id=eq.${id}&session_id=eq.${sessionId}`,{method:"DELETE"});await serviceRequest(env,`chat_sessions?id=eq.${sessionId}`,{method:"PATCH",body:JSON.stringify({updated_at:new Date().toISOString(),revision:Number(sessions[0].revision||1)+1})});return json(request,env,{success:true,durable_messages_deleted:messages.length});}}
+    if(sessionRoute){
+      const id=workspaceId(request);await membership(env,user.id,id);
+      const sessionId=sessionRoute[1].toLowerCase();
+      if(sessionRoute[2]==="clear"&&request.method==="POST"){
+        let rows;
+        try {
+          rows=await userRequest(request,env,"rpc/clear_private_history",{
+            method:"POST",body:JSON.stringify({p_workspace:id.toLowerCase(),p_session:sessionId})});
+        } catch {
+          return fail(request,env,"CLEANUP_UNCONFIRMED","Conversation cleanup could not be confirmed.",503,true);
+        }
+        if(Array.isArray(rows)&&rows.length===0)
+          return fail(request,env,"CONVERSATION_UNAVAILABLE","Conversation is not available.",404);
+        const receipt=Array.isArray(rows)&&rows.length===1?rows[0]:null;
+        if(!receipt||receipt.workspace_id!==id.toLowerCase()||receipt.session_id!==sessionId||receipt.success!==true||
+          !Number.isSafeInteger(receipt.durable_messages_deleted)||receipt.durable_messages_deleted<0)
+          return fail(request,env,"CLEANUP_UNCONFIRMED","Conversation cleanup could not be confirmed.",503,true);
+        return json(request,env,{success:true,durable_messages_deleted:receipt.durable_messages_deleted});
+      }
+      const sessions=await serviceRequest(env,`chat_sessions?workspace_id=eq.${id}&id=eq.${sessionId}&user_id=eq.${user.id}&deleted_at=is.null&select=*&limit=1`);
+      if(!sessions?.[0]&&sessionRoute[2]==="messages")return json(request,env,{session_id:sessionId,messages:[],total:0});
+      if(!sessions?.[0])throw Object.assign(new Error("Chat session not found."),{status:404,code:"SESSION_NOT_FOUND"});
+      if(sessionRoute[2]==="messages"&&(request.method==="GET"||request.method==="HEAD")){
+        const messages=await serviceRequest(env,`chat_messages?workspace_id=eq.${id}&session_id=eq.${sessionId}&select=role,content,sources,metadata,created_at&order=created_at.asc&limit=500`);
+        return json(request,env,{session_id:sessionId,messages,total:messages.length});
+      }
+    }
     if (url.pathname === "/api/v1/chat" && request.method === "POST") {
       const id=workspaceId(request);const member=await membership(env,user.id,id);const result=await chat(request,env,user,id,member);
       if((request.headers.get("accept")||"").includes("text/event-stream")){const encoder=new TextEncoder();const stream=new ReadableStream({start(controller){for(const token of result.answer.match(/.{1,96}/gs)||[])controller.enqueue(encoder.encode(`event: token\ndata: ${JSON.stringify({content:token})}\n\n`));controller.enqueue(encoder.encode(`event: sources\ndata: ${JSON.stringify({sources:result.sources})}\n\nevent: done\ndata: ${JSON.stringify({metadata:result.metadata})}\n\n`));controller.close();}});const output=headers(request,env);output.set("content-type","text/event-stream; charset=utf-8");output.set("connection","keep-alive");return new Response(stream,{status:200,headers:output});}

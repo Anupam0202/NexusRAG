@@ -8,6 +8,10 @@ from uuid import UUID
 from src.repositories.base import SupabaseRepository, and_query, encoded, eq_filter, first_row
 
 
+class ConversationUnavailableError(ValueError):
+    """No live caller-owned conversation was authorized for cleanup."""
+
+
 class MessageRepository(SupabaseRepository):
     async def create_session(
         self,
@@ -127,22 +131,29 @@ class MessageRepository(SupabaseRepository):
             raise ValueError("Unconfirmed history read response")
         return rows
 
-    async def clear_session(self, *, workspace_id: str, session_id: str) -> int:
-        rows = await self._supabase.table_delete(
-            "chat_messages",
-            query=and_query(
-                eq_filter("workspace_id", workspace_id),
-                eq_filter("session_id", session_id),
-            ),
+    async def clear_session(
+        self, *, workspace_id: str, session_id: str, access_token: str
+    ) -> int:
+        workspace_id = str(UUID(workspace_id))
+        session_id = str(UUID(session_id))
+        rows = await self._supabase.rpc_as_user(
+            "clear_private_history",
+            {"p_workspace": workspace_id, "p_session": session_id},
+            access_token=access_token,
         )
-        if not isinstance(rows, list) or any(
-            not isinstance(row, dict)
-            or row.get("workspace_id") != workspace_id
-            or row.get("session_id") != session_id
-            for row in rows
+        if rows == []:
+            raise ConversationUnavailableError("Conversation is not available")
+        if (
+            not isinstance(rows, list) or len(rows) != 1
+            or not isinstance(rows[0], dict)
+            or rows[0].get("workspace_id") != workspace_id
+            or rows[0].get("session_id") != session_id
+            or rows[0].get("success") is not True
+            or type(rows[0].get("durable_messages_deleted")) is not int
+            or not 0 <= rows[0]["durable_messages_deleted"] <= 2**53 - 1
         ):
             raise ValueError("Unconfirmed history cleanup response")
-        return len(rows)
+        return rows[0]["durable_messages_deleted"]
 
     async def delete_sessions_before(self, *, workspace_id: str, created_before: str) -> int:
         rows = await self._supabase.table_delete(

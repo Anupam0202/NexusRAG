@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from typing import Any
+from unittest.mock import AsyncMock
 
 import pytest
 
@@ -569,25 +570,30 @@ async def test_message_repository_ensures_explicit_session_id() -> None:
 @pytest.mark.asyncio
 async def test_message_repository_lists_and_clears_workspace_session_messages() -> None:
     fake = FakeSupabase()
+    workspace_id = "11111111-1111-4111-8111-111111111111"
+    session_id = "a1111111-1111-4111-8111-111111111111"
     fake.rows["chat_messages"] = [{
-        "role": "user", "content": "hello", "workspace_id": "workspace-1",
-        "session_id": "11111111-1111-1111-1111-111111111111",
+        "role": "user", "content": "hello", "workspace_id": workspace_id,
+        "session_id": session_id,
     }]
-    fake.deleted_rows["chat_messages"] = fake.rows["chat_messages"]
+    fake.rpc_as_user = AsyncMock(return_value=[{"workspace_id": workspace_id,
+        "session_id": session_id, "success": True, "durable_messages_deleted": 1}])
     repo = MessageRepository(fake)  # type: ignore[arg-type]
 
     messages = await repo.list_messages(
-        workspace_id="workspace-1",
-        session_id="11111111-1111-1111-1111-111111111111",
+        workspace_id=workspace_id,
+        session_id=session_id,
     )
     deleted = await repo.clear_session(
-        workspace_id="workspace-1",
-        session_id="11111111-1111-1111-1111-111111111111",
+        workspace_id=workspace_id,
+        session_id=session_id,
+        access_token="synthetic.user.token",
     )
 
     assert messages[0]["content"] == "hello"
     assert deleted == 1
-    assert "workspace_id=eq.workspace-1" in fake.calls[0][2]
-    assert "session_id=eq.11111111-1111-1111-1111-111111111111" in fake.calls[0][2]
-    assert "workspace_id=eq.workspace-1" in fake.calls[1][2]
-    assert "session_id=eq.11111111-1111-1111-1111-111111111111" in fake.calls[1][2]
+    assert f"workspace_id=eq.{workspace_id}" in fake.calls[0][2]
+    assert f"session_id=eq.{session_id}" in fake.calls[0][2]
+    assert len(fake.calls) == 1  # No privileged table delete.
+    fake.rpc_as_user.assert_awaited_once_with("clear_private_history",
+        {"p_workspace": workspace_id, "p_session": session_id}, access_token="synthetic.user.token")

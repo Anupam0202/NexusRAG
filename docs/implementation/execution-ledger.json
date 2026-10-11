@@ -13,6 +13,23 @@
   "interpretation": "OPEN_ENGINEERING includes implemented but not fully accepted requirements; it does not assert that no code or scoped evidence exists. External approvals do not close unfinished internal work.",
   "entries": [
     {
+      "id": "DEFECT-PRIVATE-HISTORY-CLEAR-AUTHORITY",
+      "requirement": "Conversation cleanup checks current caller-owned live session authority in the same transaction as deletion and reports only a confirmed exact-scope count before clearing local state",
+      "normative_source": "Owner private-session authority and independently verified destructive-workflow mandate",
+      "status": "IN_PROGRESS",
+      "environment": "batch012 retained FastAPI and Cloudflare source; new caller-bound clear RPC not hosted",
+      "next_action": "Verify exact-head disposable PostgreSQL authority/lock waits/restore, fresh independent recovery and review; obtain source-specific rehearsal migration and disposable operation scope. Complete query/append/cache authority, cancellation/legal holds/erasure generations and real hosted-role workflows independently. Do not mark application complete from this narrower boundary.",
+      "acceptance_evidence": [
+        {
+          "environment": "denied-network actual Python route/repository and gateway fetch fixtures; synthetic component store; read-only hosted catalogs and Chrome navigation",
+          "observed_at": "2026-10-11T14:17:13Z",
+          "source_identity": "parent2df6422 plus private-history-clear-012; later manifest binds exact save",
+          "command_or_url": "backend full/focused runner; node --test tests/cloudflare/*.test.mjs; frontend npm test/lint/tsc; tests/postgres/private-history-clear-assertions.sql and private-history-clear-concurrency.sh",
+          "result": "Reproduced24backend and22gateway failures before correction. Fresh585backend+10subtests,295gateway/0skips,354frontend,focused50backend/3UI PASS; owner-only caller JWT RPC, no privileged retry, canonical receipts/UUID memory keys, zero-message reuse, denial retention, cancellation and duplicate protection. SQL execution/restore and final exact CI/recovery pending source save. No hosted mutation, real OAuth/private-role, complete cancellation/erasure or production acceptance. Previous011 exact image/summary failed163backend matches; all gates unchanged."
+        }
+      ]
+    },
+    {
       "id": "DEFECT-PRIVATE-HISTORY-READ-AUTHORITY",
       "requirement": "Persisted REST history reads enforce caller-bound database conversation authority and never restore shared cached history after denial, empty results or failure",
       "normative_source": "Owner private-session authority and comprehensive end-user security mandate",

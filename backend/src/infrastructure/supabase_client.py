@@ -143,7 +143,7 @@ class SupabaseClient:
         *,
         access_token: str,
     ) -> list[dict[str, Any]]:
-        """Call a caller-authorized read RPC, never retry with privileged credentials."""
+        """Call a caller-authorized RPC, never retry with privileged credentials."""
         if not isinstance(access_token, str) or not access_token or re.search(
             r"[\x00-\x20\x7f]", access_token
         ):
