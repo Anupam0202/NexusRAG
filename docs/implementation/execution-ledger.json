@@ -13,6 +13,23 @@
   "interpretation": "OPEN_ENGINEERING includes implemented but not fully accepted requirements; it does not assert that no code or scoped evidence exists. External approvals do not close unfinished internal work.",
   "entries": [
     {
+      "id": "DEFECT-HISTORY-CLEANUP-TRUTH",
+      "requirement": "FastAPI chat-history cleanup never clears local state or reports complete success after unconfirmed durable deletion",
+      "normative_source": "Owner comprehensive user/destructive workflow and privacy mandate",
+      "status": "IN_PROGRESS",
+      "environment": "batch010 local/self-managed FastAPI source, not deployed",
+      "next_action": "Finish exact source, recovery and CI checks; separately implement private-session owner/participant authority across service-role repository and memory paths, legal holds, generations and independent cleanup receipts. Do not treat client validation or a producer success flag as provider erasure proof.",
+      "acceptance_evidence": [
+        {
+          "environment": "denied-network actual route and repository functions with synthetic transports",
+          "observed_at": "2026-10-11T08:32:25Z",
+          "source_identity": "parent80aee46 plus history-cleanup-010; later saved manifest binds exact source",
+          "command_or_url": "backend/tests/test_history_cleanup.py; backend/scripts/run_full_tests.py",
+          "result": "12 route assertions and7 repository receipt assertions reproduced before their corrections. Durable errors/invalid counts/cancellation preserve memory and never audit success; local errors are unconfirmed503, exception detail never rendered. Fresh complete checks pending. Private-session authority and real hosted destructive acceptance remain unverified."
+        }
+      ]
+    },
+    {
       "id": "DEFECT-CLEANUP-CLIENT-RECEIPTS",
       "requirement": "Cleanup UI preserves local data on unconfirmed deletion responses and displays only durable retention completion timestamps",
       "normative_source": "Owner comprehensive end-user and destructive-flow verification mandate",

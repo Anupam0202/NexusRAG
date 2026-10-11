@@ -2252,7 +2252,6 @@ async def clear_session(
     chain: RAGChain = Depends(get_rag_chain),
 ) -> dict:
     workspace_id = _context_workspace_id(workspace)
-    chain.clear_session(session_id, workspace_id=workspace_id)
     durable_messages_deleted = 0
     if _should_persist_workspace_event(workspace, settings):
         try:
@@ -2260,13 +2259,30 @@ async def clear_session(
                 workspace_id=workspace_id,
                 session_id=session_id,
             )
-        except Exception as exc:
+            if type(durable_messages_deleted) is not int or durable_messages_deleted < 0:
+                raise ValueError("Unconfirmed cleanup count")
+        except Exception:
             logger.warning(
                 "chat_history_clear_failed",
                 workspace_id=workspace_id,
-                session_id=session_id,
-                error=str(exc)[:300],
+                stage="durable",
             )
+            raise HTTPException(
+                status_code=503,
+                detail="Conversation cleanup could not be confirmed.",
+            ) from None
+    try:
+        chain.clear_session(session_id, workspace_id=workspace_id)
+    except Exception:
+        logger.warning(
+            "chat_history_clear_failed",
+            workspace_id=workspace_id,
+            stage="memory",
+        )
+        raise HTTPException(
+            status_code=503,
+            detail="Conversation cleanup could not be confirmed.",
+        ) from None
     await _record_audit_event(
         workspace=workspace,
         settings=settings,

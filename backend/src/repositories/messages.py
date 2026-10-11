@@ -108,6 +108,13 @@ class MessageRepository(SupabaseRepository):
                 eq_filter("session_id", session_id),
             ),
         )
+        if not isinstance(rows, list) or any(
+            not isinstance(row, dict)
+            or row.get("workspace_id") != workspace_id
+            or row.get("session_id") != session_id
+            for row in rows
+        ):
+            raise ValueError("Unconfirmed history cleanup response")
         return len(rows)
 
     async def delete_sessions_before(self, *, workspace_id: str, created_before: str) -> int:

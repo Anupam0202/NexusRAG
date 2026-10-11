@@ -28,6 +28,7 @@ class FakeSupabase:
     def __init__(self) -> None:
         self.calls: list[tuple[str, str, Any, dict[str, Any]]] = []
         self.rows: dict[str, list[dict[str, Any]]] = {}
+        self.deleted_rows: dict[str, list[dict[str, Any]]] = {}
         self.counter = 0
 
     def _next_id(self, table: str) -> str:
@@ -108,7 +109,7 @@ class FakeSupabase:
         self.calls.append(
             ("delete", table, query, {"service_role": service_role, "prefer": prefer})
         )
-        return [{"deleted": True}]
+        return self.deleted_rows.get(table, [{"deleted": True}])
 
     async def upload_object(
         self,
@@ -568,7 +569,11 @@ async def test_message_repository_ensures_explicit_session_id() -> None:
 @pytest.mark.asyncio
 async def test_message_repository_lists_and_clears_workspace_session_messages() -> None:
     fake = FakeSupabase()
-    fake.rows["chat_messages"] = [{"role": "user", "content": "hello"}]
+    fake.rows["chat_messages"] = [{
+        "role": "user", "content": "hello", "workspace_id": "workspace-1",
+        "session_id": "11111111-1111-1111-1111-111111111111",
+    }]
+    fake.deleted_rows["chat_messages"] = fake.rows["chat_messages"]
     repo = MessageRepository(fake)  # type: ignore[arg-type]
 
     messages = await repo.list_messages(
