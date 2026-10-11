@@ -815,11 +815,21 @@ async function handle(request, env = {}) {
           return fail(request,env,"CLEANUP_UNCONFIRMED","Conversation cleanup could not be confirmed.",503,true);
         return json(request,env,{success:true,durable_messages_deleted:receipt.durable_messages_deleted});
       }
-      const sessions=await serviceRequest(env,`chat_sessions?workspace_id=eq.${id}&id=eq.${sessionId}&user_id=eq.${user.id}&deleted_at=is.null&select=*&limit=1`);
-      if(!sessions?.[0]&&sessionRoute[2]==="messages")return json(request,env,{session_id:sessionId,messages:[],total:0});
-      if(!sessions?.[0])throw Object.assign(new Error("Chat session not found."),{status:404,code:"SESSION_NOT_FOUND"});
       if(sessionRoute[2]==="messages"&&(request.method==="GET"||request.method==="HEAD")){
-        const messages=await serviceRequest(env,`chat_messages?workspace_id=eq.${id}&session_id=eq.${sessionId}&select=role,content,sources,metadata,created_at&order=created_at.asc&limit=500`);
+        let rows;
+        try {
+          rows=await userRequest(request,env,"rpc/read_gateway_private_history",{
+            method:"POST",body:JSON.stringify({p_workspace:id.toLowerCase(),p_session:sessionId})});
+        } catch {
+          return fail(request,env,"HISTORY_UNCONFIRMED","Conversation history could not be confirmed.",503,true);
+        }
+        if(!Array.isArray(rows)||rows.length>500||rows.some(row=>
+          !row||row.workspace_id!==id.toLowerCase()||row.session_id!==sessionId||
+          !["user","assistant","system"].includes(row.role)||typeof row.content!=="string"||
+          !Array.isArray(row.sources)||!row.metadata||typeof row.metadata!=="object"||Array.isArray(row.metadata)||
+          !(typeof row.created_at==="string"||row.created_at===null)))
+          return fail(request,env,"HISTORY_UNCONFIRMED","Conversation history could not be confirmed.",503,true);
+        const messages=rows.map(({role,content,sources,metadata,created_at})=>({role,content,sources,metadata,created_at}));
         return json(request,env,{session_id:sessionId,messages,total:messages.length});
       }
     }

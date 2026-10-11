@@ -13,13 +13,37 @@
   "interpretation": "OPEN_ENGINEERING includes implemented but not fully accepted requirements; it does not assert that no code or scoped evidence exists. External approvals do not close unfinished internal work.",
   "entries": [
     {
+      "id": "DEFECT-GATEWAY-PRIVATE-HISTORY-READ-AUTHORITY",
+      "requirement": "Gateway conversation-history restoration uses current caller-bound database read authority without privileged private-history fallback while preserving its existing 500-message API window",
+      "normative_source": "Owner private-session authority and comprehensive end-user verification mandate",
+      "status": "IN_PROGRESS",
+      "environment": "batch013 Cloudflare source and proposed SQL; not hosted or deployed",
+      "next_action": "Finish exact saved-source database and required CI, full recovery and fresh reruns. Obtain separate scope before any hosted migration or actual two-user JWT/private workflow. Query/append/cache authority and complete private-session/product acceptance remain separate unfinished work.",
+      "acceptance_evidence": [
+        {
+          "environment": "actual gateway handler with synthetic fetch fixtures; disposable SQL assertions authored, execution pending",
+          "observed_at": "2026-10-11T19:05:00Z",
+          "source_identity": "parentb257271 plus gateway-private-history-read-013; later exact source manifest binds the save",
+          "command_or_url": "node --test tests/cloudflare/private-history-read.test.mjs; node --test tests/cloudflare/*.test.mjs; tests/postgres/gateway-private-history-read-assertions.sql",
+          "result": "28 new gateway assertions failed on the old reader;43 nearby controls passed. Corrected focused28 and full323gateway/zero skips PASS. Caller-JWT/public-key projection, denial/no service fallback, static errors, foreign/malformed projection rejection, participant/legacy DB decisions, preserved500window/HEAD shape/UUID scope. Independent investigator/review cycle completed; review confirmed older read RPC lifecycle bypass statically, new013 migration adds active-workspace check there too without rewriting011 or changing100-bound limit. Both paths have disposable lifecycle assertions; no pre-patch alternate SQL execution/hosted exploit claimed. SQL execution, immutable source/recovery, exact CI and hosted acceptance pending. No migration/deployment/customer/provider operation or gate bypass."
+        }
+      ]
+    },
+    {
       "id": "DEFECT-PRIVATE-HISTORY-CLEAR-AUTHORITY",
       "requirement": "Conversation cleanup checks current caller-owned live session authority in the same transaction as deletion and reports only a confirmed exact-scope count before clearing local state",
       "normative_source": "Owner private-session authority and independently verified destructive-workflow mandate",
       "status": "IN_PROGRESS",
-      "environment": "batch012 retained FastAPI and Cloudflare source; new caller-bound clear RPC not hosted",
-      "next_action": "Verify exact-head disposable PostgreSQL authority/lock waits/restore, fresh independent recovery and review; obtain source-specific rehearsal migration and disposable operation scope. Complete query/append/cache authority, cancellation/legal holds/erasure generations and real hosted-role workflows independently. Do not mark application complete from this narrower boundary.",
+      "environment": "batch012 saved source and approved rehearsal-only RPC installation; no production rollout or positive hosted cleanup",
+      "next_action": "Complete query/append/cache authority, cancellation/legal holds/erasure generations and actual hosted-role/private workflows under specific operation scope. Source/database/recovery pass and rehearsal installation do not establish production acceptance; image and required release gates failed.",
       "acceptance_evidence": [
+        {
+          "environment": "exact b257271 source/recovery, disposable PostgreSQL CI and scoped rehearsal catalog/missing-identity denial",
+          "observed_at": "2026-10-11T18:45:00Z",
+          "source_identity": "b257271ab420ecdfed9d7bea65ac6393139b77ef/treef58563ad08a8b95ec77961dfac3e0a9419315aa5",
+          "command_or_url": "BATCH012_HANDOFF.md; source675e000ad42780c8dfb21452f0b449eb8279d7141b74cbca3c720c529d9a3146; evidence97055a047067272932b96966b63c0dbca41bbecb4244c0122df329bb3ceb5f4e; database38163202148; foundation38163202470",
+          "result": "Final519source/47evidence entries independently recovered; fresh585backend+10,354frontend,295gateway,57isolated,79scripts and builds PASS. Exact database/concurrency/backup restore PASS; image/summary FAILED163backend matches57High/50Medium,frontend0. Owner-approved only20261011140756 mapped to rehearsal20261011182135/private_history_clear: source bodies after newline normalization, authenticated-only execute/no table grants and missing-identity denial verified. No positive cleanup, customer fixtures, production migration/deployment or new013 authorization. Prior source-time pending evidence is historical."
+        },
         {
           "environment": "denied-network actual Python route/repository and gateway fetch fixtures; synthetic component store; read-only hosted catalogs and Chrome navigation",
           "observed_at": "2026-10-11T14:17:13Z",
