@@ -13,6 +13,23 @@
   "interpretation": "OPEN_ENGINEERING includes implemented but not fully accepted requirements; it does not assert that no code or scoped evidence exists. External approvals do not close unfinished internal work.",
   "entries": [
     {
+      "id": "DEFECT-CLEANUP-CLIENT-RECEIPTS",
+      "requirement": "Cleanup UI preserves local data on unconfirmed deletion responses and displays only durable retention completion timestamps",
+      "normative_source": "Owner comprehensive end-user and destructive-flow verification mandate",
+      "status": "IN_PROGRESS",
+      "environment": "batch009 local API and privacy components, not deployed",
+      "next_action": "Verify saved/recovered-source checks and exact candidate CI; approved real-role cleanup and independently bound provider deletion receipts remain required. Never treat an HTTP2xx or local clock as complete erasure evidence.",
+      "acceptance_evidence": [
+        {
+          "environment": "synthetic actual client request/response and privacy component transports",
+          "observed_at": "2026-10-11T07:58:41Z",
+          "source_identity": "parent0c5d712 plus cleanup-receipts-009; saved manifest binds later exact source",
+          "command_or_url": "frontend/src/lib/api-cleanup.test.ts; frontend/src/app/settings/privacy/page.test.tsx",
+          "result": "27 assertions failed before correction; focused37 PASS after. Explicit flags/counts/failures checked, session path encoded, actor/workspace fence preserved, unconfirmed responses retain local data/context. Not private provider erasure or production acceptance."
+        }
+      ]
+    },
+    {
       "id": "DEFECT-WORKER-RUNTIME-MANIFEST",
       "requirement": "Actual Cloudflare server fallbacks and dynamic authentication route rejection must execute without missing-manifest crashes",
       "normative_source": "Owner comprehensive end-user and production runtime mandate",

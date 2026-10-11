@@ -94,6 +94,23 @@ export class ApiRequestError extends Error {
   }
 }
 
+function unconfirmedCleanup(action: string) {
+  return new ApiRequestError(
+    `${action} was not confirmed. Refresh the workspace and inspect its state before retrying.`,
+    "CLEANUP_UNCONFIRMED"
+  );
+}
+
+function isConfirmedLifecycleResponse(value: unknown, workspaceDeleted: boolean): value is WorkspaceLifecycleResponse {
+  if (!value || typeof value !== "object") return false;
+  const receipt = value as Record<string, unknown>;
+  if (receipt.workspace_deleted !== workspaceDeleted || !Array.isArray(receipt.failures) || receipt.failures.length !== 0) return false;
+  return ["documents_deleted", "chat_sessions_deleted", "local_chunks_deleted", "qdrant_chunks_deleted"].every(key => {
+    const count = receipt[key];
+    return typeof count === "number" && Number.isSafeInteger(count) && count >= 0;
+  });
+}
+
 async function request<T>(
   path: string,
   init?: RequestInit,
@@ -176,9 +193,11 @@ export async function listDocuments(context: ApiRequestContext = {}): Promise<Do
 export async function deleteDocument(
   documentIdentifier: string, context: ApiRequestContext = {}
 ): Promise<{ success: boolean; message: string }> {
-  return request(`/api/v1/documents/${encodeURIComponent(documentIdentifier)}/delete`, {
+  const receipt = await request<{ success: boolean; message: string } | null>(`/api/v1/documents/${encodeURIComponent(documentIdentifier)}/delete`, {
     method: "POST",
   }, context);
+  if (receipt?.success !== true || typeof receipt.message !== "string") throw unconfirmedCleanup("Document deletion");
+  return receipt;
 }
 
 export async function getIngestionJob(
@@ -236,9 +255,14 @@ export async function chatQuery(body: QueryRequest, context: ApiRequestContext =
 export async function clearSession(
   sessionId: string, context: ApiRequestContext = {}
 ): Promise<{ success: boolean; durable_messages_deleted?: number }> {
-  return request(`/api/v1/chat/sessions/${sessionId}/clear`, {
+  const receipt = await request<{ success: boolean; durable_messages_deleted?: number } | null>(`/api/v1/chat/sessions/${encodeURIComponent(sessionId)}/clear`, {
     method: "POST",
   }, context);
+  if (receipt?.success !== true || (receipt.durable_messages_deleted !== undefined &&
+    (!Number.isSafeInteger(receipt.durable_messages_deleted) || receipt.durable_messages_deleted < 0))) {
+    throw unconfirmedCleanup("Chat history clearing");
+  }
+  return receipt;
 }
 
 export async function getSessionMessages(
@@ -292,14 +316,18 @@ export async function updatePrivacySettings(body: {
 }
 
 export async function runRetention(context: ApiRequestContext = {}): Promise<WorkspaceLifecycleResponse> {
-  return request("/api/v1/privacy/retention/run", { method: "POST" }, context);
+  const receipt = await request<unknown>("/api/v1/privacy/retention/run", { method: "POST" }, context);
+  if (!isConfirmedLifecycleResponse(receipt, false)) throw unconfirmedCleanup("Retention cleanup");
+  return receipt;
 }
 
 export async function deleteCurrentWorkspace(context: ApiRequestContext = {}): Promise<WorkspaceLifecycleResponse> {
-  return request("/api/v1/workspaces/current/delete", {
+  const receipt = await request<unknown>("/api/v1/workspaces/current/delete", {
     method: "POST",
     body: JSON.stringify({ confirmation: "DELETE WORKSPACE" }),
   }, context);
+  if (!isConfirmedLifecycleResponse(receipt, true)) throw unconfirmedCleanup("Workspace erasure");
+  return receipt;
 }
 
 export async function getAuditEvents(limit = 20, context: ApiRequestContext = {}): Promise<AuditEventListResponse> {

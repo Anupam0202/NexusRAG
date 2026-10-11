@@ -9,6 +9,7 @@ const {
   getCurrentWorkspace,
   getPrivacySettings,
   listDocuments,
+  runRetention,
   setDocuments,
   setStoredWorkspaceId,
 } = vi.hoisted(() => ({
@@ -19,6 +20,7 @@ const {
   getCurrentWorkspace: vi.fn(),
   getPrivacySettings: vi.fn(),
   listDocuments: vi.fn(),
+  runRetention: vi.fn(),
   setDocuments: vi.fn(),
   setStoredWorkspaceId: vi.fn(),
 }));
@@ -51,7 +53,7 @@ vi.mock("@/lib/api", () => ({
   getCurrentWorkspace,
   getPrivacySettings,
   listDocuments,
-  runRetention: vi.fn(),
+  runRetention,
   updatePrivacySettings: vi.fn(),
 }));
 
@@ -65,6 +67,7 @@ vi.mock("sonner", () => ({
 }));
 
 import PrivacyPage from "./page";
+import { toast } from "sonner";
 
 describe("PrivacyPage", () => {
   beforeEach(() => {
@@ -75,6 +78,9 @@ describe("PrivacyPage", () => {
     getCurrentWorkspace.mockReset();
     getPrivacySettings.mockReset();
     listDocuments.mockReset();
+    runRetention.mockReset();
+    vi.mocked(toast.error).mockClear();
+    vi.mocked(toast.success).mockClear();
     setDocuments.mockReset();
     setStoredWorkspaceId.mockReset();
 
@@ -168,5 +174,49 @@ describe("PrivacyPage", () => {
     await waitFor(() => {
       expect(deleteCurrentWorkspace).toHaveBeenCalledTimes(1);
     });
+  });
+
+  it("displays the durable retention completion timestamp rather than the device clock", async () => {
+    const completedAt = "2026-01-02T03:04:05Z";
+    getPrivacySettings.mockResolvedValueOnce({ retention_enabled: true, retention_days: 30, last_retention_at: null })
+      .mockResolvedValueOnce({ retention_enabled: true, retention_days: 30, last_retention_at: completedAt });
+    runRetention.mockResolvedValue({ documents_deleted: 0, failures: [] });
+    render(<PrivacyPage />);
+    fireEvent.click(await screen.findByRole("button", { name: "Run now" }));
+    await waitFor(() => expect(getPrivacySettings).toHaveBeenCalledTimes(2));
+    expect(await screen.findByText(new RegExp(`Last run ${new Date(completedAt).toLocaleString().replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`))).toBeVisible();
+  });
+
+  it("does not invent a retention timestamp when the durable refresh fails", async () => {
+    getPrivacySettings.mockResolvedValueOnce({ retention_enabled: true, retention_days: 30, last_retention_at: null })
+      .mockRejectedValueOnce(new Error("Retention status refresh failed"));
+    runRetention.mockResolvedValue({ documents_deleted: 0, failures: [] });
+    render(<PrivacyPage />);
+    fireEvent.click(await screen.findByRole("button", { name: "Run now" }));
+    await waitFor(() => expect(toast.error).toHaveBeenCalled());
+    expect(screen.queryByText(/Last run/)).not.toBeInTheDocument();
+    expect(toast.success).not.toHaveBeenCalled();
+  });
+
+  it("preserves local history when clearing is unconfirmed", async () => {
+    clearSession.mockRejectedValueOnce(new Error("Chat history clearing was not confirmed"));
+    render(<PrivacyPage />);
+    const button = screen.getByRole("button", { name: "Clear chat" });
+    await waitFor(() => expect(button).not.toBeDisabled());
+    fireEvent.click(button);
+    await waitFor(() => expect(toast.error).toHaveBeenCalled());
+    expect(clearMessages).not.toHaveBeenCalled();
+    expect(toast.success).not.toHaveBeenCalled();
+  });
+
+  it("keeps workspace context when erasure is unconfirmed", async () => {
+    deleteCurrentWorkspace.mockRejectedValueOnce(new Error("Workspace erasure was not confirmed"));
+    render(<PrivacyPage />);
+    const confirmation = await screen.findByLabelText("Confirm workspace deletion");
+    fireEvent.change(confirmation, { target: { value: "DELETE WORKSPACE" } });
+    fireEvent.click(screen.getByRole("button", { name: "Delete workspace" }));
+    await waitFor(() => expect(toast.error).toHaveBeenCalled());
+    expect(setStoredWorkspaceId).not.toHaveBeenCalled();
+    expect(toast.success).not.toHaveBeenCalled();
   });
 });

@@ -197,11 +197,11 @@ function PrivacyWorkbench() {
     try {
       const result = await runRetention(context);
       if (!alive.current) return;
-      const documents = await listDocuments(context);
+      const [documents, privacy] = await Promise.all([listDocuments(context), getPrivacySettings(context)]);
       if (!alive.current) return;
       setDocuments(documents.documents);
       setDocumentCount(documents.total);
-      setLastRetentionAt(new Date().toISOString());
+      setLastRetentionAt(privacy.last_retention_at ?? null);
       if (result.failures.length) {
         toast.error(`${result.documents_deleted} documents deleted; ${result.failures.length} failed.`);
       } else {

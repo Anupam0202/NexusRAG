@@ -1,5 +1,16 @@
 # NexusRAG execution checkpoint
 
+## Active Batch: cleanup-receipts-009
+
+**Application PARTIAL_NOT_COMPLETE. Scoped cleanup-client fixes TESTED_FOCUSED, not deployed or production verified.**
+
+- Parent0c5d7129c4ec7d200fe62c3ef4c23b8f680477d9/tree237325518531e694e9e80cc1ff652c2121774b5b. Complete504-file batch008 source and43-entry evidence archives recovered; BATCH008_HANDOFF.md records trusted hashes and actual limits. Exact008 image and required summary FAILED163backend matches(57High/50Medium),frontend0; no waiver.
+- Owner-requested GitHub consolidation verified predecessor ancestry/no unique lost work. PR12 is now the single draft against protected main; PR8-11 closed as superseded, three intermediate codex branches removed with Restore available. All source/check history retained in canonical ancestry and complete checkpoints. Remote branches main85b14f, active candidate0c5d712 and release6e5126; release-triggered live-provider boundary preserved. No merge, rewrite, dispatch or deployment. Continue on existing candidate branch, not another remote PR/branch.
+- Fresh read-only Chrome privacy/settings inspection uses a new tab after old control detached. Deployed privacy shows available history/document controls and unavailable bounded retention/workspace erasure; these are not accepted complete features. No destructive action or provider/customer mutation performed.
+- Reproduced27 failing API/component assertions: any2xx body was accepted as deletion/history success, false or malformed workspace/retention receipts were trusted, session-clear ID was not encoded, and retention UI fabricated a device-clock completion timestamp. Added strict explicit success and lifecycle failure/count validation, safe CLEANUP_UNCONFIRMED messages, encoded session path, and durable privacy-settings refresh for last_retention_at. No automatic mutation retry, backend authority weakening or erasure proof fabrication.
+- Focused37 and full351frontend/49files PASS; lint/typecheck, Next/OpenNext25assets,489backend+10subtests,79scripts,273gateway/0skips, migration/ledger and direct installed-Python Cloudflare verifier PASS. npm wrapper initially failed on Windows missing python3 alias; log retained, same verifier rerun with python. Local data/context is preserved when cleanup is unconfirmed; partial/negative/non-integer counts and missing/false flags reject. Actual provider receipts, deletion-generation fencing/legal holds and independent post-delete verification remain separate unfinished work. Immutable security review, post-save recovery and exact-head/main-base CI remain pending; later outcomes belong in final external receipts.
+- All224 normative definitions and ten products retained. Hosted040-042/old runtime mismatch, image remediation, real two-user OAuth/private ingestion/retrieval/erasure/products, rights/budgets and release/readiness contract remain unfinished. No paid activation, credential/DNS/security/billing change, hosted migration/deployment or shared resource deletion. Never label application COMPLETE.
+
 ## Active Batch: runtime-manifest-008
 
 **Application PARTIAL_NOT_COMPLETE. Source runtime compatibility fix LOCALLY_TESTED, not deployed or production verified.**
