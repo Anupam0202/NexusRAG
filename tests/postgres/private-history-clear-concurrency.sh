@@ -93,6 +93,7 @@ select 1 from public.workspaces where id='$w' for no key update;
 \echo LOCKED
 do \$\$ declare waiting boolean=false; begin
  for i in 1..200 loop
+  perform pg_stat_clear_snapshot();
   select exists(select 1 from pg_stat_activity where application_name='private-clear-revocation-test'
    and wait_event_type='Lock') into waiting;
   exit when waiting;
