@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from typing import Any
+from uuid import UUID
 
 from src.repositories.base import SupabaseRepository, and_query, encoded, eq_filter, first_row
 
@@ -99,6 +100,32 @@ class MessageRepository(SupabaseRepository):
                 f"limit={limit}",
             ),
         )
+
+    async def list_authorized_messages(
+        self,
+        *,
+        workspace_id: str,
+        session_id: str,
+        access_token: str,
+        limit: int = 50,
+    ) -> list[dict[str, Any]]:
+        workspace_id = str(UUID(workspace_id))
+        session_id = str(UUID(session_id))
+        if isinstance(limit, bool) or not isinstance(limit, int) or not 1 <= limit <= 100:
+            raise ValueError("Invalid history read limit")
+        rows = await self._supabase.rpc_as_user(
+            "read_private_history",
+            {"p_workspace": workspace_id, "p_session": session_id, "p_limit": limit},
+            access_token=access_token,
+        )
+        if not isinstance(rows, list) or len(rows) > limit or any(
+            not isinstance(row, dict)
+            or row.get("workspace_id") != workspace_id
+            or row.get("session_id") != session_id
+            for row in rows
+        ):
+            raise ValueError("Unconfirmed history read response")
+        return rows
 
     async def clear_session(self, *, workspace_id: str, session_id: str) -> int:
         rows = await self._supabase.table_delete(

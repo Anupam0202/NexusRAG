@@ -8,7 +8,7 @@ chat session, and setting will be scoped by the returned workspace context.
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Any, Literal
 from uuid import UUID
@@ -45,6 +45,7 @@ class CurrentUser:
     role: str
     claims: dict[str, Any]
     is_demo: bool = False
+    access_token: str | None = field(default=None, repr=False, compare=False)
 
 
 @dataclass(frozen=True)
@@ -382,6 +383,7 @@ def authenticate_supabase_token(token: str, settings: Settings) -> CurrentUser:
         email=claims.get("email") if isinstance(claims.get("email"), str) else None,
         role=str(claims.get("role") or ""),
         claims=claims,
+        access_token=token,
     )
 
 
@@ -503,7 +505,7 @@ def require_enterprise_workspace_role(*allowed_roles: WorkspaceRole):
         settings: Settings = Depends(get_settings),
         supabase: SupabaseClient = Depends(get_supabase_client),
     ) -> WorkspaceContext | None:
-        if settings.enable_anonymous_demo:
+        if settings.enable_anonymous_demo and authorization is None:
             request.state.workspace_id = DEFAULT_WORKSPACE_ID
             return None
         if not settings.supabase_configured or not settings.supabase_auth_configured:

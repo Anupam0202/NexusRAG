@@ -13,6 +13,23 @@
   "interpretation": "OPEN_ENGINEERING includes implemented but not fully accepted requirements; it does not assert that no code or scoped evidence exists. External approvals do not close unfinished internal work.",
   "entries": [
     {
+      "id": "DEFECT-PRIVATE-HISTORY-READ-AUTHORITY",
+      "requirement": "Persisted REST history reads enforce caller-bound database conversation authority and never restore shared cached history after denial, empty results or failure",
+      "normative_source": "Owner private-session authority and comprehensive end-user security mandate",
+      "status": "IN_PROGRESS",
+      "environment": "batch011 retained FastAPI source only; no hosted rollout",
+      "next_action": "Verify exact-head disposable two-identity SQL, source/recovery and protected CI. Independently implement full query/append/clear and memory/cache authority, legal holds, generations and real hosted-role workflows. The narrower read boundary is not complete private-session or product acceptance.",
+      "acceptance_evidence": [
+        {
+          "environment": "denied-network actual Python route/repository/transport, read-only hosted policy catalogs and Chrome product navigation",
+          "observed_at": "2026-10-11T12:28:43Z",
+          "source_identity": "parent8c514b7 plus private-history-read-011; later source manifest binds exact save",
+          "command_or_url": "backend/tests/test_private_history_read.py; backend/scripts/run_full_tests.py; tests/postgres/private-history-read-assertions.sql",
+          "result": "29 assertions reproduced before correction; independent reviewer found missing table grant, demo bearer bypass and UUID regression. Replaced SELECT with caller-bound narrow RPC/private authorizer; no new table grants. Corrected dependency and UUID parsing. Fresh557backend+10subtests,57isolated,79scripts,273gateway,351frontend,lint/typecheck PASS;46 new cases. SQL rehearsal/recovery/exact-head CI pending at source save. Proposed migration is unapplied on hosted projects. Unknown hosted route Worker1101 persists on old source; ten products remain incomplete."
+        }
+      ]
+    },
+    {
       "id": "DEFECT-HISTORY-CLEANUP-TRUTH",
       "requirement": "FastAPI chat-history cleanup never clears local state or reports complete success after unconfirmed durable deletion",
       "normative_source": "Owner comprehensive user/destructive workflow and privacy mandate",

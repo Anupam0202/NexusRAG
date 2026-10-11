@@ -2309,11 +2309,14 @@ async def list_session_messages(
 ) -> ChatHistoryResponse:
     workspace_id = _context_workspace_id(workspace)
     messages: list[ChatHistoryMessage] = []
-    if _should_persist_workspace_event(workspace, settings):
+    if workspace and not workspace.user.is_demo:
         try:
-            rows = await MessageRepository().list_messages(
+            if not settings.supabase_configured or not workspace.user.access_token:
+                raise ValueError("History authority is unavailable")
+            rows = await MessageRepository().list_authorized_messages(
                 workspace_id=workspace_id,
                 session_id=session_id,
+                access_token=workspace.user.access_token,
             )
             messages = [
                 ChatHistoryMessage(
@@ -2325,15 +2328,17 @@ async def list_session_messages(
                 )
                 for row in rows
             ]
-        except Exception as exc:
+        except Exception:
             logger.warning(
                 "chat_history_read_failed",
                 workspace_id=workspace_id,
-                session_id=session_id,
-                error=str(exc)[:300],
             )
+            raise HTTPException(
+                status_code=503,
+                detail="Conversation history is unavailable. Please retry.",
+            ) from None
 
-    if not messages:
+    else:
         messages = [
             ChatHistoryMessage(
                 role=str(message.get("role") or "assistant"),

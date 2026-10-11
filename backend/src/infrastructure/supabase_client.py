@@ -136,6 +136,39 @@ class SupabaseClient:
             data = response.json()
             return data if isinstance(data, list) else [data]
 
+    async def rpc_as_user(
+        self,
+        function: str,
+        payload: dict[str, Any],
+        *,
+        access_token: str,
+    ) -> list[dict[str, Any]]:
+        """Call a caller-authorized read RPC, never retry with privileged credentials."""
+        if not isinstance(access_token, str) or not access_token or re.search(
+            r"[\x00-\x20\x7f]", access_token
+        ):
+            raise ValueError("User credential is required")
+        self.require_configured()
+        if self.config.anon_key.startswith("sb_secret_"):
+            raise SupabaseNotConfiguredError("A public API key is required for user reads")
+        url = f"{self.config.url}/rest/v1/rpc/{function}"
+        async with httpx.AsyncClient(timeout=30) as client:
+            response = await client.request(
+                "POST",
+                url,
+                headers={
+                    "apikey": self.config.anon_key,
+                    "Authorization": f"Bearer {access_token}",
+                    "Content-Type": "application/json",
+                },
+                json=payload,
+            )
+            response.raise_for_status()
+            data = response.json()
+            if not isinstance(data, list):
+                raise ValueError("Unconfirmed user read response")
+            return data
+
     async def table_count(
         self,
         table: str,
