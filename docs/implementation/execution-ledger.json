@@ -13,6 +13,23 @@
   "interpretation": "OPEN_ENGINEERING includes implemented but not fully accepted requirements; it does not assert that no code or scoped evidence exists. External approvals do not close unfinished internal work.",
   "entries": [
     {
+      "id": "ENGINEERING-SUPPORTED-IMAGE-RUNTIME-REMEDIATION",
+      "requirement": "Remediate the unsuppressed actual image gate using supported stable compatible runtime packages while retaining native neural/document/image behavior and installed-package provenance",
+      "normative_source": "Owner complete production acceptance goal and retained mandatory actual-image security/native runtime gate",
+      "status": "IN_PROGRESS",
+      "environment": "batch016 supported same-LTS source candidate only; real image execution not yet accepted",
+      "next_action": "Candidate review identified native Decimal regression and source correction/real image assertion added; finish exact image build/native/neural/stdlib/FAISS/decimal/security gates and full recovery, retain all findings and remediate surviving packages. No merge/deployment or image clearance from metadata/source guards. Continue remaining private authority, hosted and full product engineering.",
+      "acceptance_evidence": [
+        {
+          "environment": "parent015 actual image; current official release/advisory and source contract inspection",
+          "observed_at": "2026-10-12T08:45:00Z",
+          "source_identity": "parent5e2cf9ebbde5b8e5b9354924d569601ef7df18ed plus supported-runtime-remediation-016; later manifest binds save",
+          "command_or_url": "docs/implementation/SUPPORTED_RUNTIME_REMEDIATION_016.md; backend/Dockerfile; scripts/containers/verify-python-runtime.py; image114710618704; BATCH015_HANDOFF.md",
+          "result": "Fresh parent163backend matches across40packages/69advisories(57High/50Medium),frontend0,ignored0. Supported Ubuntu LTS/official stableCPython3.15 source hash and CPUwheel availability checked; zlib still affected. Binary-only cp315 resolution fails on missing PyYAML wheel. Independent review confirmed missing native Decimal build dependency; added guard fails before correction and six container guards pass after system libmpdec/actual image calculation assertions. Fresh source585backend+10/357frontend/371gateway/57isolated/82scripts/lint/typecheck/Next/OpenNext/actual Worker/integrity PASS. Preserve mandatory gate, native packages, pinned model/OpenCV, non-root/temp and full224/ten-product scope. No local Docker/new-runtime proof or hosted operation; exact CI/full recovery pending."
+        }
+      ]
+    },
+    {
       "id": "DEFECT-GATEWAY-REQUEST-IDENTITY-VALIDATION",
       "requirement": "Gateway chat and account admission reject malformed UUID identities without silent conversation substitution or quota/write attempts and normalize valid request identity consistently",
       "normative_source": "Owner comprehensive edge-case and backend workflow verification mandate; existing chat and UUID account-admission contracts",

@@ -6,6 +6,43 @@ ROOT = Path(__file__).resolve().parents[2]
 
 
 class ContainerVerificationTests(unittest.TestCase):
+    def test_custom_interpreter_preserves_native_decimal_calculations(self):
+        dockerfile = (ROOT / 'backend/Dockerfile').read_text(encoding='utf-8')
+        builder, runtime = dockerfile.split('# ── Stage 2: Runtime', 1)
+        self.assertIn('libmpdec-dev', builder)
+        self.assertIn('--with-system-libmpdec', builder)
+        self.assertIn('libmpdec4', runtime)
+        probe = (ROOT / 'scripts/containers/verify-python-runtime.py').read_text()
+        self.assertIn('decimal.Decimal is _decimal.Decimal', probe)
+        self.assertIn('CalculationOperation.ADD', probe)
+        self.assertIn('1000000000000000000000000000001.000000000000000000', probe)
+
+    def test_backend_uses_supported_pinned_lts_and_verified_stable_python(self):
+        dockerfile = (ROOT / 'backend/Dockerfile').read_text(encoding='utf-8')
+        self.assertEqual(dockerfile.count('FROM ubuntu:26.04@sha256:'), 2)
+        self.assertIn('f144425ff09be612d6d9ad965196e9cdc23dae1f42110a8a11a3e9a8198759f7', dockerfile)
+        self.assertIn('ENV PYTHON_VERSION=3.15.0', dockerfile)
+        self.assertIn('ba4bed1ba346b916890b76d9e320451420aa69f6408997d33c66482eeae3d575', dockerfile)
+        self.assertIn('sha256sum --check --strict', dockerfile)
+        self.assertIn('https://www.python.org/ftp/python/', dockerfile)
+        self.assertIn('COPY --from=python-build /opt/python /opt/python', dockerfile)
+        self.assertNotIn('FROM python:3.13-slim', dockerfile)
+        self.assertNotIn('add-apt-repository', dockerfile)
+        self.assertNotRegex(dockerfile, r'\b(?:sid|forky)\b')
+        self.assertIn('torch==2.14.1', dockerfile)
+
+    def test_real_image_requires_interpreter_standard_library_and_faiss_checks(self):
+        script = (ROOT / 'scripts/containers/verify-runtime.sh').read_text()
+        self.assertIn('- < scripts/containers/verify-python-runtime.py', script)
+        probe = (ROOT / 'scripts/containers/verify-python-runtime.py').read_text()
+        for required in ('sys.version_info[:3]', 'ssl.create_default_context',
+                         'sqlite3.connect', 'gzip.decompress', 'lzma.decompress',
+                         'bz2.decompress', 'faiss.write_index', 'faiss.read_index',
+                         'REAL_PYTHON_STDLIB_AND_FAISS_PASSED'):
+            self.assertIn(required, probe)
+        self.assertIn('torch.version.cuda is None', probe)
+        self.assertIn('mode & 0o777 == 0o700', probe)
+
     def test_frontend_compiles_public_configuration_and_runs_non_root(self):
         dockerfile = (ROOT / 'frontend/Dockerfile').read_text()
         self.assertIn('FROM node:24-alpine', dockerfile)

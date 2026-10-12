@@ -43,6 +43,7 @@ done
 
 # Retain complete installed native-package provenance alongside the image scan.
 docker run --rm -i --network none --entrypoint python "$BACKEND" - < scripts/containers/report-os-runtime.py
+docker run --rm -i --network none --entrypoint python "$BACKEND" - < scripts/containers/verify-python-runtime.py
 
 # This deliberately uses the real neural model, not hash embeddings or mocks.
 docker run --rm -i --network none \

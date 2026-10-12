@@ -1,20 +1,35 @@
+# Build a verified stable interpreter on the same supported LTS as the runtime.
+FROM ubuntu:26.04@sha256:f144425ff09be612d6d9ad965196e9cdc23dae1f42110a8a11a3e9a8198759f7 AS python-build
+ENV PYTHON_VERSION=3.15.0
+ENV PYTHON_SOURCE_SHA256=ba4bed1ba346b916890b76d9e320451420aa69f6408997d33c66482eeae3d575
+RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
+    build-essential cmake curl ca-certificates pkg-config xz-utils \
+    libssl-dev zlib1g-dev libbz2-dev libreadline-dev libsqlite3-dev \
+    libffi-dev liblzma-dev libgdbm-dev libgdbm-compat-dev libexpat1-dev \
+    libncurses-dev uuid-dev libzstd-dev libgomp1 libmpdec-dev \
+    && rm -rf /var/lib/apt/lists/*
+RUN curl --fail --show-error --location --proto '=https' --tlsv1.2 \
+        "https://www.python.org/ftp/python/${PYTHON_VERSION}/Python-${PYTHON_VERSION}.tar.xz" -o /tmp/python.tar.xz \
+    && printf '%s  /tmp/python.tar.xz\n' "$PYTHON_SOURCE_SHA256" | sha256sum --check --strict \
+    && mkdir /tmp/python-source && tar -xJf /tmp/python.tar.xz -C /tmp/python-source --strip-components=1 \
+    && cd /tmp/python-source \
+    && LDFLAGS='-Wl,-rpath=/opt/python/lib' ./configure --prefix=/opt/python --enable-shared --with-ensurepip=install --with-system-libmpdec \
+    && make -j2 && make install \
+    && ln -s python3 /opt/python/bin/python \
+    && rm -rf /tmp/python-source /tmp/python.tar.xz
+
 # ── Stage 1: Builder ──────────────────────────────────
-FROM python:3.13-slim AS builder
+FROM python-build AS builder
 
 WORKDIR /app
+ENV PATH="/opt/python/bin:$PATH"
 RUN python -m venv /opt/venv
-ENV PATH="/opt/venv/bin:$PATH"
+ENV PATH="/opt/venv/bin:/opt/python/bin:$PATH"
 
 # Native build tools stay in the disposable builder, never the runtime.
-RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
-    build-essential \
-    libgomp1 \
-    cmake \
-    && rm -rf /var/lib/apt/lists/*
-
 # Install CPU-only PyTorch FIRST (saves ~400MB vs full torch)
 RUN pip install --no-cache-dir --upgrade "pip>=26.2" && \
-    pip install --no-cache-dir "torch>=2.11.0" --index-url https://download.pytorch.org/whl/cpu && \
+    pip install --no-cache-dir "torch==2.14.1" --index-url https://download.pytorch.org/whl/cpu && \
     pip install --no-cache-dir "setuptools>=83.0.0"
 
 # The application performs still-image operations, never video decoding.
@@ -28,24 +43,27 @@ COPY pyproject.toml ./
 RUN pip install --no-cache-dir .
 
 # ── Stage 2: Runtime ──────────────────────────────────
-FROM python:3.13-slim
+FROM ubuntu:26.04@sha256:f144425ff09be612d6d9ad965196e9cdc23dae1f42110a8a11a3e9a8198759f7
 
 WORKDIR /app
 ARG SOURCE_COMMIT=unverified
 LABEL org.opencontainers.image.revision=$SOURCE_COMMIT
 
 # PDF rendering uses PyMuPDF, and image processing uses headless OpenCV.
-# No executable source references Poppler, desktop GL/GLib or curl. Keep only
-# the neural runtime's OpenMP dependency; revalidate real PDF/image fixtures.
+# Preserve interpreter extension libraries and native neural dependencies.
+# Build tools, source downloads and development headers never enter this stage.
 RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
-    libgomp1 \
+    ca-certificates libgomp1 libstdc++6 libssl3t64 zlib1g libbz2-1.0 \
+    libreadline8t64 libsqlite3-0 libffi8 liblzma5 libgdbm6t64 \
+    libgdbm-compat4t64 libexpat1 libncursesw6 libtinfo6 libuuid1 libzstd1 libmpdec4 \
     && rm -rf /var/lib/apt/lists/*
 
 # Avoid overlaying arbitrary site-packages/entrypoints on the base interpreter.
 # The app and verification tools use only the isolated, reviewed runtime venv.
-RUN python -m pip uninstall -y pip setuptools wheel
+COPY --from=python-build /opt/python /opt/python
+RUN /opt/python/bin/python -m pip uninstall -y pip setuptools wheel
 COPY --from=builder /opt/venv /opt/venv
-ENV PATH="/opt/venv/bin:$PATH"
+ENV PATH="/opt/venv/bin:/opt/python/bin:$PATH"
 
 COPY . .
 
