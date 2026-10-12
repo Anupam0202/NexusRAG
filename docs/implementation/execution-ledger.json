@@ -13,13 +13,37 @@
   "interpretation": "OPEN_ENGINEERING includes implemented but not fully accepted requirements; it does not assert that no code or scoped evidence exists. External approvals do not close unfinished internal work.",
   "entries": [
     {
+      "id": "DEFECT-GATEWAY-REQUEST-IDENTITY-VALIDATION",
+      "requirement": "Gateway chat and account admission reject malformed UUID identities without silent conversation substitution or quota/write attempts and normalize valid request identity consistently",
+      "normative_source": "Owner comprehensive edge-case and backend workflow verification mandate; existing chat and UUID account-admission contracts",
+      "status": "IN_PROGRESS",
+      "environment": "batch015 source and synthetic handler/local Worker only; not hosted or deployed",
+      "next_action": "Finish exact source CI/recovery and fresh reruns; separately implement caller-bound conversation creation/append/revision and cancellation/cache/generation fencing. Hosted private workflows and complete product acceptance remain unfinished, release image gate is not waived.",
+      "acceptance_evidence": [
+        {
+          "environment": "actual handler with denied real network/synthetic persistence responses; actual isolated local Worker",
+          "observed_at": "2026-10-12T07:35:00Z",
+          "source_identity": "parent817c5ee plus gateway-request-identity-015; later complete manifest binds exact save",
+          "command_or_url": "tests/cloudflare/chat-request-identity.test.mjs; frontend/scripts/test-gateway-fixtures.mjs; docs/implementation/GATEWAY_REQUEST_IDENTITY_015.md",
+          "result": "20 source tests reproduced19 failures/one existing invalid-key denial control,76 neighboring controls pass. Corrected22 focused/full371gateway,585backend+10/357frontend/57isolated/79scripts/lint/typecheck/build checks pass locally. Synthetic diagnostics show pre-patch admission/write attempts, not real hosted usage. Session invalid422 before persistence/quota, omitted/null create new, valid IDs normalize; admission malformed400 before RPC/storage/writes, shared upload duplicate GET preserved. Two new upload harness failures corrected against actual contract, assertions retained. Actual Worker identity checks pass with synthetic GET-only upstreams. Final exact source CI/recovery pending, no migration/deployment/provider processing/gate change; not caller-bound append/cache/erasure closure."
+        }
+      ]
+    },
+    {
       "id": "DEFECT-WORKER-FIXTURE-EVALUATION-ROUTE",
       "requirement": "The advertised offline evaluation UI receives computed bounded synthetic reports from the gateway without provider/customer processing or fabricated production quality",
       "normative_source": "Owner comprehensive end-user workflow verification and retained fixture evaluation contract",
       "status": "IN_PROGRESS",
       "environment": "batch014 gateway/local Worker and component source only; not hosted or deployed",
-      "next_action": "Complete exact saved-source CI, archives/recovery and fresh reruns; roll out only under approved source/schema and release gates. Full durable audit, actual two-user/private retrieval evaluation and complete product acceptance remain separate unfinished requirements.",
+      "next_action": "Roll out only under approved source/schema and release gates. Exact014 source/recovery/database/frontend passed but actual image/required summary failed. Full durable audit, actual two-user/private retrieval evaluation and complete product acceptance remain unfinished; no production acceptance from offline fixtures.",
       "acceptance_evidence": [
+        {
+          "environment": "exact corrected014 source/new recovery and required container/security CI; sanitized evidence recovery",
+          "observed_at": "2026-10-12T07:35:00Z",
+          "source_identity": "817c5eea3f2ed2072516b787c0d1abc1746c587b/tree45824cd5322ef6f1d9a175b99b3ff9b1270c6e97",
+          "command_or_url": "BATCH014_HANDOFF.md; sourcea9e0b81d99201bb873dc49fcfc9ef9a2ceb1b0e39b1bfe714123485fe9cd6a34; evidence47e9a62970ae5bf108e16d19a43185aca0abc63b2839a25d14a3e35a8be14e7e; database38214517869; foundation38214518186",
+          "result": "528source/76evidence entries recovered/hash/size/actual archive and Git modes verified; fresh dependencies and585backend+10/357frontend/349gateway/57isolated/79scripts/builds passed. Exact database and frontend139public/actual Worker pass. Initial1362c88 image TS2307 failed and was retained/corrected with same JSX assertion, no compiler/Docker/gate weakening. Corrected actual containers/neural/native pass, image114696019985/summary114702720438 failed163backend matches57High/50Medium/10Low/46Negligible,frontend0,ignored0. Both descriptors/all163rows saved. No hosted migration/provider/customer operation or deployment; older candidate and real private/workflow prerequisites remain unaccepted. Source-time pending receipts below are historical."
+        },
         {
           "environment": "actual older candidate Chrome, current handler synthetic fixtures, actual isolated local Cloudflare Worker and component store",
           "observed_at": "2026-10-12T06:25:00Z",

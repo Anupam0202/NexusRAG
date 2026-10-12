@@ -12,6 +12,7 @@ const workspace = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
 const actor = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
 const requests = [];
 let member = true;
+let role = "viewer";
 const authority = createServer((request, response) => {
   const url = new URL(request.url, "http://localhost");
   requests.push({ method: request.method, path: url.pathname });
@@ -20,8 +21,9 @@ const authority = createServer((request, response) => {
   if (url.pathname === "/auth/v1/user") { response.end(JSON.stringify({ id: actor })); return; }
   if (url.pathname === "/rest/v1/workspace_members" && url.searchParams.get("workspace_id") === `eq.${workspace}` &&
       url.searchParams.get("user_id") === `eq.${actor}`) {
-    response.end(JSON.stringify(member ? [{ role: "viewer", workspace_id: workspace, user_id: actor }] : [])); return;
+    response.end(JSON.stringify(member ? [{ role, workspace_id: workspace, user_id: actor }] : [])); return;
   }
+  if (["/rest/v1/workspace_settings", "/rest/v1/documents"].includes(url.pathname)) { response.end("[]"); return; }
   response.writeHead(404); response.end("{}");
 });
 await new Promise(resolve => authority.listen(0, "127.0.0.1", resolve));
@@ -77,10 +79,18 @@ try {
   assert.equal((await call({}, false)).status, 401);
   member = false;
   assert.equal((await call({})).status, 403);
+  member = true; role = "owner";
+  const chat = (sessionId, idempotencyKey) => fetch(`http://127.0.0.1:${port}/api/v1/chat`, {
+    method: "POST", signal: AbortSignal.timeout(10000), headers: { "content-type": "application/json",
+      "X-Nexus-Workspace-Id": workspace, authorization: "Bearer synthetic.user.token", "Idempotency-Key": idempotencyKey },
+    body: JSON.stringify({ question: "Synthetic fixture question", non_sensitive_attested: true, session_id: sessionId }),
+  });
+  assert.equal((await chat("not-a-uuid", "dddddddd-dddd-4ddd-8ddd-dddddddddddd")).status, 422);
+  assert.equal((await chat("cccccccc-cccc-4ccc-8ccc-cccccccccccc", `dddddddd-${"-".repeat(27)}`)).status, 400);
   assert.ok(requests.every(request => request.method === "GET" &&
-    ["/auth/v1/user", "/rest/v1/workspace_members"].includes(request.path)));
+    ["/auth/v1/user", "/rest/v1/workspace_members", "/rest/v1/workspace_settings", "/rest/v1/documents"].includes(request.path)));
   console.log(JSON.stringify({ marker: "ACTUAL_WORKER_FIXTURE_EVALUATION_PASS", cases: 3, modes: 2,
-    transport_authority_checks: 5, upstream_calls: requests.length, customer_records: false,
+    transport_authority_checks: 5, request_identity_checks: 2, upstream_calls: requests.length, customer_records: false,
     provider_processing: false, production_acceptance: false }));
 } finally {
   if (child.exitCode === null) {

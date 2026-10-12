@@ -399,8 +399,8 @@ async function chunkPreviews(request, env, user, workspace, documentId) {
 
 async function enqueueJob(env,job){if(!env.INGESTION_QUEUE?.send)throw Object.assign(new Error("The durable ingestion queue is unavailable."),{status:503,code:"QUEUE_UNAVAILABLE",retryable:true});await env.INGESTION_QUEUE.send({job_id:job.id,workspace_id:job.workspace_id,document_id:job.document_id,version_id:job.version_id,lifecycle_epoch:Number(job.lifecycle_epoch||1)});}
 async function accountAdmission(request, env, user, operation) {
-  const idempotencyKey = request.headers.get("idempotency-key") || "";
-  if (!/^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(idempotencyKey)) {
+  const idempotencyKey = (request.headers.get("idempotency-key") || "").toLowerCase();
+  if (!UUID_PATTERN.test(idempotencyKey)) {
     throw Object.assign(new Error("A valid Idempotency-Key is required."), { status: 400, code: "INVALID_SCOPE" });
   }
   const result = await serviceRequest(env, "rpc/nexus_admit_account_operation", {
@@ -494,6 +494,11 @@ async function deleteDocument(request, env, user, workspace, member, documentId)
 
 async function chat(request, env, user, workspace, member) {
   requireCapability(member,"research:run"); const started=Date.now(); const body=await readJsonBody(request); const question=String(body?.question||"").trim(); if(!question||question.length>10000)throw Object.assign(new Error("Question must contain 1 to 10,000 characters."),{status:422,code:"INVALID_SCOPE"});
+  if (body.session_id != null && (typeof body.session_id !== "string" || !UUID_PATTERN.test(body.session_id))) {
+    throw Object.assign(new Error("Session ID must be a valid UUID, or omitted to start a new conversation."),
+      { status: 422, code: "INVALID_SCOPE" });
+  }
+  const sessionId = body.session_id == null ? crypto.randomUUID() : body.session_id.toLowerCase();
   const filters = normalizeRetrievalFilters(body);
   const chunkScoped = hasChunkFilters(filters);
   if (body.chat_scope !== undefined && !["workspace", "documents"].includes(body.chat_scope)) {
@@ -507,7 +512,7 @@ async function chat(request, env, user, workspace, member) {
   }
   if(body?.non_sensitive_attested!==true)throw Object.assign(new Error("Chat blocked: confirm the question contains no personal, confidential, regulated, or other sensitive information."),{status:403,code:"RIGHTS_BLOCKED"});
   const settings=await readWorkspaceSettings(env,workspace);
-  const documentIds=Array.isArray(body?.document_ids)?body.document_ids.filter(v=>/^[0-9a-f-]{36}$/i.test(v)).slice(0,25):[]; const sessionId=/^[0-9a-f-]{36}$/i.test(String(body?.session_id||""))?body.session_id:crypto.randomUUID();
+  const documentIds=Array.isArray(body?.document_ids)?body.document_ids.filter(v=>/^[0-9a-f-]{36}$/i.test(v)).slice(0,25):[];
   const requestedFilter = documentIds.length ? `&id=in.(${documentIds.join(",")})` : "";
   const documentRows = await serviceRequest(env, `documents?workspace_id=eq.${workspace}&lifecycle_state=eq.active&active_version_id=not.is.null${requestedFilter}${documentFilterQuery(filters)}&select=id,workspace_id,lifecycle_state,active_version_id,filename,content_type,uploaded_by,created_at&order=id.asc&limit=101`);
   if (documentRows.length > 100) throw Object.assign(new Error("Select a smaller document scope; this bounded research request supports at most 100 current matching documents."), { status: 413, code: "CAPACITY_REACHED" });
