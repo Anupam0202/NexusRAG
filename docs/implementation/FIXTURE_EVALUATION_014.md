@@ -48,7 +48,7 @@ systems is not inferred from this offline report.
 ## Verification And Recovery
 
 Focused26 gateway tests, full349 gateway/zero skips,585backend+10subtests,
-357frontend/50files,57isolated and79scripts passed locally. Seven component tests
+357frontend/51files,57isolated and79scripts passed locally. Seven component tests
 include actual computed report rendering, failing gate presentation, no auto
 execution/invented metrics, exact hydrated workspace, old-account response
 discard, pending-control locking/duplicate prevention and retry after failure.
@@ -75,3 +75,19 @@ hosted approval is still required for013 SQL; no new migration, fixture identity
 customer data operation, provider processing, paid activation or deployment was
 performed. Source/schema rollout, real private workflows, full audit/erasure,
 rights/budgets and complete product workflows remain unfinished.
+
+## Frontend-Only Context Regression
+
+Initial saved/published head1362c88 passed whole-repository source, recovery,
+database and frontend CI. Additional inspection of the frontend-only Docker
+context reproduced TS2307: the new computed-report TypeScript test imported
+gateway code absent from that context. The assertion is retained unchanged in
+a separate fixture-response.test.jsx whole-repository integration test. The
+production TypeScript roots no longer acquire the gateway test dependency; no
+compiler configuration, Dockerfile, unit assertion or image gate is weakened.
+Both test files still run in the normal full Vitest suite (357tests/51files).
+Preserve initial source ZIP9ee427742cc7d532d2175396e0cc82ae40d75c6420b197bb45c9bf1c4fd430e9
+and its actual receipts; they are not final corrected-source acceptance. The
+first isolated Next build harness used a node_modules junction rejected by
+Turbopack, so a new frontend-only copy with a real lockfile install is checked
+instead. This fixture-harness failure is not hidden or called a successful build.
