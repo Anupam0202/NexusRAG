@@ -13,13 +13,37 @@
   "interpretation": "OPEN_ENGINEERING includes implemented but not fully accepted requirements; it does not assert that no code or scoped evidence exists. External approvals do not close unfinished internal work.",
   "entries": [
     {
+      "id": "DEFECT-WORKER-FIXTURE-EVALUATION-ROUTE",
+      "requirement": "The advertised offline evaluation UI receives computed bounded synthetic reports from the gateway without provider/customer processing or fabricated production quality",
+      "normative_source": "Owner comprehensive end-user workflow verification and retained fixture evaluation contract",
+      "status": "IN_PROGRESS",
+      "environment": "batch014 gateway/local Worker and component source only; not hosted or deployed",
+      "next_action": "Complete exact saved-source CI, archives/recovery and fresh reruns; roll out only under approved source/schema and release gates. Full durable audit, actual two-user/private retrieval evaluation and complete product acceptance remain separate unfinished requirements.",
+      "acceptance_evidence": [
+        {
+          "environment": "actual older candidate Chrome, current handler synthetic fixtures, actual isolated local Cloudflare Worker and component store",
+          "observed_at": "2026-10-12T06:25:00Z",
+          "source_identity": "parente458d18 plus fixture-evaluation-014; later complete manifest binds exact save",
+          "command_or_url": "tests/cloudflare/fixture-evaluation.test.mjs; frontend/scripts/test-gateway-fixtures.mjs; frontend/src/app/evaluations/page.test.tsx; docs/implementation/FIXTURE_EVALUATION_014.md",
+          "result": "Actual UI Route is not available;24 old-handler failures and50 nearby controls confirmed. Corrected focused26/full349gateway pass;16 synthetic/actual-report cases checked against real Python metrics. Actual local Worker markerPASS for both modes/401/403/422/no-store/permitted synthetic Auth/member reads only. Fresh585backend+10/357frontend/57isolated/79scripts,lint/typecheck/build pass. Default citation gate truthfully fails; no semantic/customer isolation, audit write, provider processing or production claim. Initial new harness lint/import failures corrected, logs retained. Saved-source CI/recovery pending; no hosted migration/deployment or gate changes."
+        }
+      ]
+    },
+    {
       "id": "DEFECT-GATEWAY-PRIVATE-HISTORY-READ-AUTHORITY",
       "requirement": "Gateway conversation-history restoration uses current caller-bound database read authority without privileged private-history fallback while preserving its existing 500-message API window",
       "normative_source": "Owner private-session authority and comprehensive end-user verification mandate",
       "status": "IN_PROGRESS",
       "environment": "batch013 Cloudflare source and proposed SQL; not hosted or deployed",
-      "next_action": "Finish exact saved-source database and required CI, full recovery and fresh reruns. Obtain separate scope before any hosted migration or actual two-user JWT/private workflow. Query/append/cache authority and complete private-session/product acceptance remain separate unfinished work.",
+      "next_action": "Obtain separate exact scope before013 hosted migration or actual two-user JWT/private workflow. Query/append/cache authority and complete private-session/product acceptance remain unfinished. Exact013 database and recovery passed, but image/required release gates failed; no production rollout is justified.",
       "acceptance_evidence": [
+        {
+          "environment": "exact013 source/recovery, disposable PostgreSQL CI and required unsuppressed image CI",
+          "observed_at": "2026-10-12T06:25:00Z",
+          "source_identity": "e458d1826438f15fa8dc486eb00941d73086f3cc/tree2462ccc318f83247e80b0dc18d6ce47e2e32fcd6",
+          "command_or_url": "BATCH013_HANDOFF.md; source8c23839b1a1a49e9d683df0af80d56369fc506cc8908c161e56249ac453b8030; evidencef318b76df1b41ebe7a2ced1bb908c51377f0e5b21d2d12d060cbd5cfa282bdee; database38167027546; foundation38167027856",
+          "result": "Final523source/48evidence entries recovered; fresh dependencies and585backend+10/354frontend/323gateway/57isolated/79scripts/builds passed. Exact database/concurrency/backup restore passed. Image114551604804/requiredsummary114555682443 failed163backend matches57High/50Medium/10Low/46Negligible,frontend0,ignored0; real runtime/neural/native fixtures passed separately. Rehearsal/prod gateway-read RPC absent, no new013 approval/hosted operation. Actual older candidate UI evaluation404 recorded as new014 defect, not fixed by013. Earlier pending evidence is historical, not final acceptance."
+        },
         {
           "environment": "actual gateway handler with synthetic fetch fixtures; disposable SQL assertions authored, execution pending",
           "observed_at": "2026-10-11T19:05:00Z",

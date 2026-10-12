@@ -15,6 +15,7 @@ import { assessAnswer } from "./answer-evidence.js";
 import { handleWorkbench, listFindings } from "./workbench.js";
 import { handleInvitations } from "./workspace-invitations.js";
 import { readBoundedJsonObject } from "./request-body.js";
+import { runFixtureEvaluation } from "./fixture-evaluation.js";
 import { normalizeRetrievalFilters, documentFilterQuery, chunkFilterQuery, hasChunkFilters, matchesDocumentFilters, matchesChunkFilters } from "./retrieval-filters.js";
 import {
   deleteUserGeminiKey,
@@ -622,6 +623,11 @@ async function handle(request, env = {}) {
 
     const invitationResponse = await handleInvitations({request,env,user,serviceRequest,membership,workspaceId,json,fail});
     if (invitationResponse) return invitationResponse;
+
+    if (url.pathname === "/api/v1/evaluations/sample" && request.method === "POST") {
+      const id = workspaceId(request); await membership(env, user.id, id);
+      return json(request, env, runFixtureEvaluation(await readJsonBody(request)));
+    }
 
     if (url.pathname === "/api/v1/workspaces" && request.method === "POST") return json(request, env, await createWorkspace(request, env, user), 201);
     if (url.pathname === "/api/v1/workspaces" && (request.method === "GET" || request.method === "HEAD")) {

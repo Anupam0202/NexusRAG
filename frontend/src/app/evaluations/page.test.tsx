@@ -4,6 +4,7 @@ const { runSampleEvaluation } = vi.hoisted(() => ({ runSampleEvaluation: vi.fn()
 vi.mock("@/lib/api", () => ({ runSampleEvaluation }));
 import { useStore } from "@/hooks/useStore";
 import EvaluationsPage from "./page";
+import { runFixtureEvaluation } from "../../../../apps/gateway/src/fixture-evaluation.js";
 const report = { dataset: "synthetic-fixture.json", mode: "retrieval", generated_at: "2026-09-27T00:00:00Z",
   duration_ms: 10, summary: { total: 1, passed: 1, failed: 0, cross_workspace_leaks: 0, avg_retrieval_recall_at_k: 1, avg_citation_precision: 1, pass_rate: 1 }, gates: { passed: true, checks: {} }, results: [] };
 describe("fixture evaluation authority", () => {
@@ -41,5 +42,42 @@ describe("fixture evaluation authority", () => {
     await act(async () => finish(report));
     expect(screen.queryByText("Fixture gate passed — not production acceptance")).not.toBeInTheDocument();
     expect(screen.getByText("Fixture evaluation not run")).toBeInTheDocument();
+  });
+  it("locks all request controls while pending and permits a retry after failure", async () => {
+    let reject!: (reason: Error) => void;
+    runSampleEvaluation.mockImplementationOnce(() => new Promise((_resolve, fail) => { reject = fail; }));
+    render(<EvaluationsPage />);
+    fireEvent.click(screen.getByRole("button", { name: "Run Fixture Gate" }));
+    expect(screen.getByRole("spinbutton", { name: "Top K" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "retrieval" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "extractive" })).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: "Run Fixture Gate" }));
+    expect(runSampleEvaluation).toHaveBeenCalledTimes(1);
+    await act(async () => reject(new Error("Evaluation temporarily unavailable")));
+    expect(screen.getByText("Evaluation temporarily unavailable")).toBeInTheDocument();
+    expect(screen.getByRole("spinbutton", { name: "Top K" })).toBeEnabled();
+    fireEvent.click(screen.getByRole("button", { name: "Run Fixture Gate" }));
+    await screen.findByText("Fixture gate passed — not production acceptance");
+    expect(runSampleEvaluation).toHaveBeenCalledTimes(2);
+  });
+  it("renders a computed failing report without reporting production success", async () => {
+    runSampleEvaluation.mockResolvedValueOnce({ ...report, summary: { ...report.summary, avg_citation_precision: 0.5 },
+      gates: { passed: false, checks: { citation_precision: { value: 0.5, threshold: 0.95, passed: false } } } });
+    render(<EvaluationsPage />);
+    fireEvent.click(screen.getByRole("button", { name: "Run Fixture Gate" }));
+    await screen.findByText("Fixture gate failed");
+    expect(screen.queryByText("Evaluation unavailable")).not.toBeInTheDocument();
+    expect(screen.queryByText("Fixture gate passed — not production acceptance")).not.toBeInTheDocument();
+  });
+  it("renders the actual gateway's computed case and source projection", async () => {
+    runSampleEvaluation.mockImplementationOnce(async (body) => runFixtureEvaluation(body));
+    render(<EvaluationsPage />);
+    fireEvent.click(screen.getByRole("button", { name: "Run Fixture Gate" }));
+    await screen.findByText("Fixture gate failed");
+    expect(screen.getAllByRole("article")).toHaveLength(3);
+    expect(screen.getByText("What was Alpha Q1 revenue?")).toBeInTheDocument();
+    expect(screen.getByText("What is the Beta launch code?")).toBeInTheDocument();
+    expect(screen.getAllByText(/alpha_revenue_report.txt/).length).toBeGreaterThan(0);
+    expect(screen.queryByText("Evaluation unavailable")).not.toBeInTheDocument();
   });
 });

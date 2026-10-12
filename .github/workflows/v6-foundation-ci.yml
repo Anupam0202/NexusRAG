@@ -117,6 +117,9 @@ jobs:
         working-directory: frontend
       - run: npm exec tsc -- --noEmit
         working-directory: frontend
+      - name: Actual gateway Worker offline fixture workflow
+        run: node scripts/test-gateway-fixtures.mjs
+        working-directory: frontend
       - run: npm run build
         working-directory: frontend
         env:

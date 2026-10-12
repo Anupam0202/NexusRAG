@@ -148,6 +148,7 @@ function WorkspaceEvaluations() {
               <span className="text-[var(--text-muted)]">Top K</span>
               <input
                 type="number"
+                disabled={loading || isWorkspaceLoading}
                 min={1}
                 max={20}
                 value={topK}
