@@ -1,9 +1,9 @@
 # Build a verified stable interpreter on the same supported LTS as the runtime.
 FROM ubuntu:26.04@sha256:f144425ff09be612d6d9ad965196e9cdc23dae1f42110a8a11a3e9a8198759f7 AS python-build
-ENV PYTHON_VERSION=3.15.0
-ENV PYTHON_SOURCE_SHA256=ba4bed1ba346b916890b76d9e320451420aa69f6408997d33c66482eeae3d575
+ENV PYTHON_VERSION=3.14.8
+ENV PYTHON_SOURCE_SHA256=c2215904f02b175596dc49351585104f4bc20341e1c47378b26a2c274360ce73
 RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
-    build-essential cmake curl ca-certificates pkg-config xz-utils patch \
+    build-essential cmake curl ca-certificates pkg-config xz-utils \
     libssl-dev zlib1g-dev libbz2-dev libreadline-dev libsqlite3-dev \
     libffi-dev liblzma-dev libgdbm-dev libgdbm-compat-dev libexpat1-dev \
     libncurses-dev uuid-dev libzstd-dev libgomp1 libmpdec-dev \
@@ -35,16 +35,13 @@ RUN pip install --no-cache-dir --upgrade "pip>=26.2" && \
 # The application performs still-image operations, never video decoding.
 # Build the reviewed headless source with FFmpeg disabled instead of shipping
 # vulnerable unused video libraries inside the upstream binary wheel.
-# Its upstream build markers omit NumPy on 3.15; add only that isolated dependency.
-COPY patches/opencv-numpy315.patch /tmp/opencv-numpy315.patch
 RUN curl --fail --show-error --location --proto '=https' --tlsv1.2 \
         "https://files.pythonhosted.org/packages/1d/99/76b7c80252aa83c1af16393454aafd125a0287101afe8deb0a6821af0e30/opencv_python_headless-5.0.0.93.tar.gz#sha256=b82f9831daab90b725c7c1ee1b36cb5732c367096ac76d119e64e14eb70d5f3c" -o /tmp/opencv-source.tar.gz \
     && printf '%s  /tmp/opencv-source.tar.gz\n' 'b82f9831daab90b725c7c1ee1b36cb5732c367096ac76d119e64e14eb70d5f3c' | sha256sum --check --strict \
     && mkdir /tmp/opencv-source && tar -xzf /tmp/opencv-source.tar.gz -C /tmp/opencv-source --strip-components=1 \
-    && patch --batch --forward --fuzz=0 -p1 -d /tmp/opencv-source < /tmp/opencv-numpy315.patch \
     && ENABLE_HEADLESS=1 CMAKE_ARGS="-DWITH_FFMPEG=OFF" CMAKE_BUILD_PARALLEL_LEVEL=2 \
         pip install --no-cache-dir --no-deps /tmp/opencv-source \
-    && rm -rf /tmp/opencv-source /tmp/opencv-source.tar.gz /tmp/opencv-numpy315.patch
+    && rm -rf /tmp/opencv-source /tmp/opencv-source.tar.gz
 
 COPY pyproject.toml ./
 # Install the rest of the deps (torch already satisfied)

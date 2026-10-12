@@ -22,12 +22,13 @@ import zlib
 
 import faiss
 import numpy as np
+import ormsgpack
 import torch
 
 from src.domain.deterministic_calculations import CalculationOperation, Quantity, calculate
 
 
-assert sys.version_info[:3] == (3, 15, 0)
+assert sys.version_info[:3] == (3, 14, 8)
 assert platform.freedesktop_os_release()["VERSION_ID"] == "26.04"
 assert platform.freedesktop_os_release()["ID"] == "ubuntu"
 assert ssl.create_default_context().cert_store_stats()["x509_ca"] > 0
@@ -71,6 +72,8 @@ with tempfile.TemporaryDirectory() as directory:
     assert restored.ntotal == 2 and ids.tolist() == [[0]]
     assert np.allclose(scores, [[1.0]])
 assert np.allclose(torch.from_numpy(vectors).numpy(), vectors)
+checkpoint = {"messages": [{"role": "user", "content": "synthetic"}], "revision": 2}
+assert ormsgpack.unpackb(ormsgpack.packb(checkpoint)) == checkpoint
 print("REAL_PYTHON_STDLIB_AND_FAISS_PASSED " + json.dumps({
     "python": platform.python_version(), "os": "ubuntu26.04", "torch": torch.__version__,
     "faiss": faiss.__version__, "sqlite": sqlite3.sqlite_version,

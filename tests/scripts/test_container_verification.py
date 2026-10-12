@@ -6,16 +6,21 @@ ROOT = Path(__file__).resolve().parents[2]
 
 
 class ContainerVerificationTests(unittest.TestCase):
-    def test_opencv_build_supplies_missing_python315_numpy_without_disabling_isolation(self):
+    def test_native_interpreter_matches_supported_checkpoint_dependency_abi(self):
         dockerfile = (ROOT / 'backend/Dockerfile').read_text(encoding='utf-8')
-        self.assertIn('COPY patches/opencv-numpy315.patch', dockerfile)
-        opencv = dockerfile.split('COPY patches/opencv-numpy315.patch', 1)[1]
-        self.assertIn('patch --batch --forward --fuzz=0', opencv)
-        self.assertLess(opencv.index('sha256sum --check --strict'), opencv.index('patch --batch'))
+        self.assertIn('ENV PYTHON_VERSION=3.14.8', dockerfile)
+        self.assertNotIn('PYO3_USE_ABI3_FORWARD_COMPATIBILITY', dockerfile)
+        probe = (ROOT / 'scripts/containers/verify-python-runtime.py').read_text()
+        self.assertIn('import ormsgpack', probe)
+        self.assertIn('ormsgpack.unpackb(ormsgpack.packb', probe)
+
+    def test_opencv_uses_verified_unmodified_supported_build_without_disabling_isolation(self):
+        dockerfile = (ROOT / 'backend/Dockerfile').read_text(encoding='utf-8')
+        opencv = dockerfile.split('https://files.pythonhosted.org/', 1)[1]
+        self.assertIn('b82f9831daab90b725c7c1ee1b36cb5732c367096ac76d119e64e14eb70d5f3c', opencv)
+        self.assertLess(opencv.index('sha256sum --check --strict'), opencv.index('tar -xzf'))
         self.assertNotIn('--no-build-isolation', opencv)
-        patch = (ROOT / 'backend/patches/opencv-numpy315.patch').read_text()
-        self.assertIn('+  "numpy==2.5.3; python_version==\'3.15\'",', patch)
-        self.assertEqual(sum(line.startswith('+  "numpy') for line in patch.splitlines()), 1)
+        self.assertNotIn('patch --', opencv)
 
     def test_custom_interpreter_preserves_native_decimal_calculations(self):
         dockerfile = (ROOT / 'backend/Dockerfile').read_text(encoding='utf-8')
@@ -32,8 +37,8 @@ class ContainerVerificationTests(unittest.TestCase):
         dockerfile = (ROOT / 'backend/Dockerfile').read_text(encoding='utf-8')
         self.assertEqual(dockerfile.count('FROM ubuntu:26.04@sha256:'), 2)
         self.assertIn('f144425ff09be612d6d9ad965196e9cdc23dae1f42110a8a11a3e9a8198759f7', dockerfile)
-        self.assertIn('ENV PYTHON_VERSION=3.15.0', dockerfile)
-        self.assertIn('ba4bed1ba346b916890b76d9e320451420aa69f6408997d33c66482eeae3d575', dockerfile)
+        self.assertIn('ENV PYTHON_VERSION=3.14.8', dockerfile)
+        self.assertIn('c2215904f02b175596dc49351585104f4bc20341e1c47378b26a2c274360ce73', dockerfile)
         self.assertIn('sha256sum --check --strict', dockerfile)
         self.assertIn('https://www.python.org/ftp/python/', dockerfile)
         self.assertIn('COPY --from=python-build /opt/python /opt/python', dockerfile)

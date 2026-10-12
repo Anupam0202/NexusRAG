@@ -2,7 +2,7 @@
 
 Application PARTIAL_NOT_COMPLETE. Not deployed or image-security cleared.
 
-## Evidence And Candidate
+## Initial Candidate And Historical Evidence
 
 Exact015 image114710618704 and requiredsummary114717849869 failed163backend
 advisory/package matches across40packages/69advisories, including57High/50Medium;
@@ -96,6 +96,34 @@ source verification and FFmpeg-disabled/native/security gates remain intact.
 Real patch/TOML/PEP508 rehearsal verifies prior3.12/3.13/3.14 constraints unchanged.
 New guard fails before correction; seven focused/83script guards pass afterward.
 Corrected exact-source image/scan and new full recovery are required, not inferred.
+
+## Supported Dependency ABI Correction
+
+Corrected5f8abc5 actual image114801141761 built OpenCV successfully, then failed
+installing ormsgpack1.12.2 through langgraph-checkpoint. Verified upstream source
+SHA256944a2233640273bee67521795a73cf1e959538e0dfb7ac635505010455e53b33
+requires PyO3^0.27.2 and build-config^0.27.0; real build rejects Python3.15.
+Current published wheels/classifiers stop at3.14. No forward-ABI suppression,
+unreviewed vendor port or removal of accepted checkpoint capabilities is used.
+Both actual scan results are UNAVAILABLE, not zero vulnerabilities. Exact
+frontend139public checks/syntheticPG concurrency and new533-source recovery pass.
+
+Current source selects the official supported3.14.8 security maintenance release,
+whose actual tar.xz bytes match published SHA256
+c2215904f02b175596dc49351585104f4bc20341e1c47378b26a2c274360ce73.
+OfficialCPU Torch2.14.1 cp314 Linux wheel metadata inspected. Pinned same-LTS
+builder/runtime and native Decimal correction retained. OpenCV's original3.14
+metadata requires no vendor patch; the3.15-only patch is obsolete in this source,
+but preserved with both failed heads in immutable complete archives. Build
+isolation, FFmpeg exclusion, real model/FAISS/native and unsuppressed image gates
+remain unchanged. Native probe adds real ormsgpack checkpoint serialization.
+The new ABI guard fails before correction, eight focused guards pass after.
+Actual build/runtime/scan and full fresh recovery remain required for this source;
+no security clearance or production acceptance is inferred from supported wheels.
+
+- [Python3.14.8 security release/source checksum](https://www.python.org/downloads/release/python-3148/)
+- [Published ormsgpack releases](https://pypi.org/project/ormsgpack/)
+- [PyO3 supported ABI documentation](https://pyo3.rs/main/features)
 
 - [pip build isolation](https://pip.pypa.io/en/stable/reference/build-system/)
 - [OpenCV manual source builds](https://github.com/opencv/opencv-python#manual-builds)

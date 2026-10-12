@@ -18,7 +18,7 @@
       "normative_source": "Owner complete production acceptance goal and retained mandatory actual-image security/native runtime gate",
       "status": "IN_PROGRESS",
       "environment": "batch016 supported same-LTS source candidate only; real image execution not yet accepted",
-      "next_action": "Initial b68c1ed exact image FAILED before scans on upstream missing NumPy3.15 build marker; explicit zero-fuzz hash-verified metadata correction added with PEP517 isolation intact. Rerun corrected exact image/native/neural/stdlib/FAISS/decimal/security gates and new full recovery, retain failures and surviving findings. No merge/deployment or image clearance from metadata/source guards. Continue remaining private authority, hosted and full product engineering.",
+      "next_action": "Initial b68c1ed image failed NumPy3.15 build marker; corrected5f8abc5 built OpenCV then failed current ormsgpack/PyO3 unsupported3.15. Both failed heads/archives/recoveries preserved. Supported current3.14.8 security release/source verified, no forward-ABI suppression; obsolete3.15-only patch removed, native Decimal and all original native/image gates retained. Run actual exact source build/native/checkpoint serialization/security and full recovery, retain surviving findings. Continue private authority/hosted/full products; no merge/deployment or image clearance from source/wheels.",
       "acceptance_evidence": [
         {
           "environment": "parent015 actual image; current official release/advisory and source contract inspection",
