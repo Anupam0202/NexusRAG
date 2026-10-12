@@ -4,6 +4,29 @@ Status: **PARTIAL_NOT_COMPLETE — locally tested implementation; not production
 
 This receipt supersedes historical status claims only where it records a fresh observation. It does not certify a complete product, production release, provider rights, or absence of all defects.
 
+## Hosted read and exact recovery - bounded batch017
+
+**PARTIAL_NOT_COMPLETE.** Direct user approval was limited to rehearsal
+`ukgjygzfhyvnrsecdcuu` and exact `20261011185509_gateway_private_history_read.sql`
+SHA256c6e67215400eda00a05fa52aef1b09012cfab7ba12ce5183e048eef435a7d17c.
+Installed as hosted20261012131630 after fresh identity/prerequisite/hash preflight.
+All three stored bodies match the approved source, fixed search paths and
+authenticated-only function execution remain, and no history-table privileges
+were added. No customer-history invocation, production/deployment/provider change
+or two-user OAuth acceptance is implied. Approval fulfilled, not transferable.
+
+New checkpoint test reproduced verified-manifest reformatting/Windows newline
+conversion. Recovery now copies original archive bytes;10 focused cases pass.
+Earlier016 evidence recovery verified100 receipt files but normalized metadata;
+retain that attempt and frozen archives, then rehearse all-entry exact recovery
+into a NEW directory. Fresh new saved-source recovery and tests remain pending.
+
+Final016 actual supported native image succeeds separately from FAILED mandatory
+scan/summary:116backend scanner matches1Critical/7High/101Medium/6Low/1Unknown,
+frontend0,ignored0. All224 definitions/tenproducts, private write/revision/cache
+authority, hosted source/schema drift, real two-user flows, complete workflows,
+lifecycle/legal holds/erasure/Qdrant proof and release acceptance remain open.
+
 ## Current retention schedule-write fencing — bounded batch004
 
 **LOCALLY_TESTED; full application PARTIAL_NOT_COMPLETE.** After a workspace reset, trusted batch003 ZIP SHA256212226bc808b23b52899aaf3e13496096ae8429b5fb520204b1d530b4a9de047 was restored byte-for-byte. All490files/hash/modes matched8faa; git metadata was associated without rewriting recovered bytes. Selected suites freshly passed before edits. New isolated test environment installed from the existing requirements-test profile; resolved transitive versions retained externally, dependency source/lockfiles unchanged.

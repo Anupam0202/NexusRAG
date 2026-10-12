@@ -141,7 +141,7 @@ def recover(path: Path, destination: Path, expected_sha256: str) -> dict:
             target.chmod(0o755 if manifest['files'][name]['mode'] == '100755' else 0o644)
         evidence = destination / '.checkpoint'
         evidence.mkdir()
-        (evidence / 'manifest.json').write_text(json.dumps(manifest, indent=2) + '\n')
+        (evidence / 'manifest.json').write_bytes(archive.read(META))
         (evidence / 'logs').mkdir()
         for name in manifest['logs']:
             (evidence / 'logs' / name).write_bytes(archive.read('.checkpoint/logs/' + name))

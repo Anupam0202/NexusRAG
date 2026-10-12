@@ -50,6 +50,20 @@ class CheckpointTests(unittest.TestCase):
         self.assertFalse((recovered / '.git').exists())
         self.assertEqual((recovered / '.checkpoint/logs/test.log').read_bytes(), self.log.read_bytes())
 
+    def test_recovery_preserves_verified_manifest_bytes_without_normalizing_json(self):
+        MODULE.export(self.root, self.archive, [])
+        with zipfile.ZipFile(self.archive) as archive:
+            entries = [(info, archive.read(info.filename)) for info in archive.infolist()]
+        target = self.base / 'noncanonical-manifest.zip'
+        metadata = json.dumps(MODULE.verify(self.archive), separators=(',', ':')).encode() + b'\r\n'
+        with zipfile.ZipFile(target, 'w') as archive:
+            for info, content in entries:
+                archive.writestr(info, metadata if info.filename == MODULE.META else content)
+        trusted = hashlib.sha256(target.read_bytes()).hexdigest()
+        recovered = self.base / 'exact-metadata-recovery'
+        MODULE.recover(target, recovered, trusted)
+        self.assertEqual((recovered / MODULE.META).read_bytes(), metadata)
+
     def test_dirty_and_untracked_source_fail_instead_of_being_omitted(self):
         for name in ['RUN-STATE.md', 'new-source.py']:
             with self.subTest(name=name):

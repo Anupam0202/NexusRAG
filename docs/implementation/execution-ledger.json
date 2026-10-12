@@ -13,13 +13,37 @@
   "interpretation": "OPEN_ENGINEERING includes implemented but not fully accepted requirements; it does not assert that no code or scoped evidence exists. External approvals do not close unfinished internal work.",
   "entries": [
     {
+      "id": "ENGINEERING-EXACT-CHECKPOINT-METADATA-RECOVERY",
+      "requirement": "Recover the externally authenticated checkpoint manifest byte-for-byte alongside every source/log entry without JSON or platform line-ending normalization",
+      "normative_source": "Owner complete recoverable checkpoint, exact manifest and fresh recovery verification mandate",
+      "status": "IN_PROGRESS",
+      "environment": "batch017 checkpoint source and synthetic recovery fixture; full frozen archive recovery pending",
+      "next_action": "Verify all entries including metadata in NEW recoveries, install actual dependencies and freshly rerun relevant checks. Preserve the earlier metadata-normalized attempt, failed regression and frozen archives. This does not close production recovery or the accepted product scope.",
+      "acceptance_evidence": [
+        {
+          "environment": "source checkpoint tooling with isolated Git/archive fixture; no hosted mutation",
+          "observed_at": "2026-10-12T13:24:00Z",
+          "source_identity": "parent26145ca plus hosted-read-and-exact-recovery-017; later source manifest binds save",
+          "command_or_url": "tests/scripts/test_checkpoint_source.py; scripts/checkpoint_source.py; docs/implementation/HOSTED_READ_AND_EXACT_RECOVERY_017.md",
+          "result": "New verified noncanonical JSON/CRLF manifest regression failed before correction while nine neighboring cases passed. Original verified archive metadata bytes now copied directly;10 focused cases pass. No checksum/path/duplicate/dirty-source/symlink assertion removed or weakened; full exact recovery still required."
+        }
+      ]
+    },
+    {
       "id": "ENGINEERING-SUPPORTED-IMAGE-RUNTIME-REMEDIATION",
       "requirement": "Remediate the unsuppressed actual image gate using supported stable compatible runtime packages while retaining native neural/document/image behavior and installed-package provenance",
       "normative_source": "Owner complete production acceptance goal and retained mandatory actual-image security/native runtime gate",
       "status": "IN_PROGRESS",
-      "environment": "batch016 supported same-LTS source candidate only; real image execution not yet accepted",
-      "next_action": "Initial b68c1ed image failed NumPy3.15 build marker; corrected5f8abc5 built OpenCV then failed current ormsgpack/PyO3 unsupported3.15. Both failed heads/archives/recoveries preserved. Supported current3.14.8 security release/source verified, no forward-ABI suppression; obsolete3.15-only patch removed, native Decimal and all original native/image gates retained. Run actual exact source build/native/checkpoint serialization/security and full recovery, retain surviving findings. Continue private authority/hosted/full products; no merge/deployment or image clearance from source/wheels.",
+      "environment": "exact26145ca actual compatible native images and clean fresh source recovery; mandatory image-security and required summary FAILED",
+      "next_action": "Actual supported3.14.8 native/Decimal/ormsgpack/FAISS/pinned neural/PDF/image/startup passes, but116backend scanner matches1Critical/7High/101Medium/6Low/1Unknown remain;frontend0,ignored0. Investigate unused base Pebble/go1.26.7 and supported remaining OS/zlib remediation without suppressions or capability loss. Both failed3.15 heads/archives retained. Continue private authority/hosted/full products; no failed-gate merge or deployment.",
       "acceptance_evidence": [
+        {
+          "environment": "exact26145ca required native/image CI and fresh complete-source recovery",
+          "observed_at": "2026-10-12T13:05:00Z",
+          "source_identity": "26145ca41c13f646471cf5f81ad2845177bbba03/tree624015f1b0af6f1f993b1ee367ee0f496f7e03f4",
+          "command_or_url": "BATCH016_HANDOFF.md; image114815081334/summary114821934534; foundation38250454923; database38250454514; sourceb37db4988f7798c1a5ea562b66bb7eb95ed2e3ac54a8a33a5d537c9c1a84fb23; evidencef908b820a09ed4ec53680abd5c676c7bed458be5cf79830184fe58bdd822a4ef",
+          "result": "Actual native build/runtime PASS Python3.14.8/Ubuntu26.04/CPU Torch2.14.1/FAISS/native Decimal precision/ormsgpack/pinned384neural/PDF/image/non-root/startup/585backend+10. Mandatory scan/summary FAILED116backend matches1Critical/7High/101Medium/6Low/1Unknown,frontend0,ignored0; all rows/descriptors saved. Exact357frontend/139public/syntheticPG60tables98functions authority/concurrency/backuprestore pass; complete532source fresh recovery585+10/357/371/57/84/builds pass. Earlier100-data-file evidence recovery normalized metadata; new017 exact metadata correction/rehearsal preserves historical failure. No production acceptance, gate suppression or deployment."
+        },
         {
           "environment": "parent015 actual image; current official release/advisory and source contract inspection",
           "observed_at": "2026-10-12T08:45:00Z",
@@ -75,9 +99,16 @@
       "requirement": "Gateway conversation-history restoration uses current caller-bound database read authority without privileged private-history fallback while preserving its existing 500-message API window",
       "normative_source": "Owner private-session authority and comprehensive end-user verification mandate",
       "status": "IN_PROGRESS",
-      "environment": "batch013 Cloudflare source and proposed SQL; not hosted or deployed",
-      "next_action": "Obtain separate exact scope before013 hosted migration or actual two-user JWT/private workflow. Query/append/cache authority and complete private-session/product acceptance remain unfinished. Exact013 database and recovery passed, but image/required release gates failed; no production rollout is justified.",
+      "environment": "batch013 retained gateway source; approved exact read migration installed and catalog-verified in rehearsal only; not deployed or real private acceptance",
+      "next_action": "Approval for exact rehearsal013 installation is fulfilled. Verify real two-user OAuth/JWT REST and current-source UI only with named synthetic identities, consent and separately authorized rollout. Query/append/cache authority and full products remain unfinished; no production or additional-migration approval and image/required gates remain failed.",
       "acceptance_evidence": [
+        {
+          "environment": "rehearsal Supabaseukgjygzfhyvnrsecdcuu authenticated migration and read-only system catalogs",
+          "observed_at": "2026-10-12T13:17:00Z",
+          "source_identity": "26145ca41c13f646471cf5f81ad2845177bbba03/tree624015f1b0af6f1f993b1ee367ee0f496f7e03f4; exact migrationSHA256c6e67215400eda00a05fa52aef1b09012cfab7ba12ce5183e048eef435a7d17c",
+          "command_or_url": "hosted20261012131630_gateway_private_history_read; docs/implementation/HOSTED_READ_AND_EXACT_RECOVERY_017.md; batch017/hosted-history-read-receipt.json",
+          "result": "Direct user approved this rehearsal migration only. Fresh identity/prerequisite/source-hash preflight; apply success; all three hosted function bodies equal source. STABLE/jsonb/empty search_path/public INVOKER/private DEFINER/authenticated-only EXECUTE and no table SELECT/INSERT/UPDATE/DELETE grants verified. Security advisor retains only password-protection warning. No stored-history function invocation, production, deployment, customer fixture or provider processing. VERIFIED_REHEARSAL_SCHEMA_ONLY is not live OAuth/private-session acceptance."
+        },
         {
           "environment": "exact013 source/recovery, disposable PostgreSQL CI and required unsuppressed image CI",
           "observed_at": "2026-10-12T06:25:00Z",
