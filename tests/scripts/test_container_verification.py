@@ -6,6 +6,17 @@ ROOT = Path(__file__).resolve().parents[2]
 
 
 class ContainerVerificationTests(unittest.TestCase):
+    def test_opencv_build_supplies_missing_python315_numpy_without_disabling_isolation(self):
+        dockerfile = (ROOT / 'backend/Dockerfile').read_text(encoding='utf-8')
+        self.assertIn('COPY patches/opencv-numpy315.patch', dockerfile)
+        opencv = dockerfile.split('COPY patches/opencv-numpy315.patch', 1)[1]
+        self.assertIn('patch --batch --forward --fuzz=0', opencv)
+        self.assertLess(opencv.index('sha256sum --check --strict'), opencv.index('patch --batch'))
+        self.assertNotIn('--no-build-isolation', opencv)
+        patch = (ROOT / 'backend/patches/opencv-numpy315.patch').read_text()
+        self.assertIn('+  "numpy==2.5.3; python_version==\'3.15\'",', patch)
+        self.assertEqual(sum(line.startswith('+  "numpy') for line in patch.splitlines()), 1)
+
     def test_custom_interpreter_preserves_native_decimal_calculations(self):
         dockerfile = (ROOT / 'backend/Dockerfile').read_text(encoding='utf-8')
         builder, runtime = dockerfile.split('# ── Stage 2: Runtime', 1)

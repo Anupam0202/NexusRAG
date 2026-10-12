@@ -79,6 +79,27 @@ will be labeled fixed before applicable real gates pass.
 
 ## Boundaries
 
+Initial saved b68c1ed/tree295f9f4 complete532-source ZIP SHA256
+ef703a44d4b534bf9f922111a216ac42d2445cdb91c2f4856214170afc86eb4b
+was independently recovered with actual hashes/sizes/archive/index modes, fresh
+dependencies and full tests/builds. Exact public frontend139checks and synthetic
+PostgreSQL concurrency/backuprestore PASS. Actual image114789865462 and required
+summary114796844726 FAILED before both scans: OpenCV CMake could not import NumPy,
+marked python3 unavailable, then packaging failed on missing config-3.py. No new
+image descriptor/findings or native Python3.15 acceptance exists for this head.
+
+The original hash-verified5.0.0.93 pyproject pins NumPy through3.14 but omits3.15.
+An explicit one-line vendor build-metadata patch adds NumPy2.5.3 only for3.15;
+official cp315 Linux wheel metadata inspected. Original source hash checked before
+zero-fuzz, fail-on-mismatch patch application. Normal PEP517 build isolation,
+source verification and FFmpeg-disabled/native/security gates remain intact.
+Real patch/TOML/PEP508 rehearsal verifies prior3.12/3.13/3.14 constraints unchanged.
+New guard fails before correction; seven focused/83script guards pass afterward.
+Corrected exact-source image/scan and new full recovery are required, not inferred.
+
+- [pip build isolation](https://pip.pypa.io/en/stable/reference/build-system/)
+- [OpenCV manual source builds](https://github.com/opencv/opencv-python#manual-builds)
+
 No deployment, hosted migration, provider/customer operation, rights/quota
 change, paid activation, branch-protection bypass or release gate relaxation.
 All224 requirements and ten products remain accepted. Private authority, hosted
