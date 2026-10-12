@@ -4,6 +4,26 @@ Status: **PARTIAL_NOT_COMPLETE — locally tested implementation; not production
 
 This receipt supersedes historical status claims only where it records a fresh observation. It does not certify a complete product, production release, provider rights, or absence of all defects.
 
+## Unused base runtime tool - bounded batch018
+
+**PARTIAL_NOT_COMPLETE; actual candidate image pending.** Parent017 scan/native
+results were acquired exactly: native PASS,116backend matches/failed summary,
+frontend0/ignored0. All nine Go findings locate only/usr/bin/pebble; remaining
+107matches include101Medium. No executable attacker path was demonstrated merely
+by package matching. Exact base layers/config prove one regular unowned launcher
+and no examined aliases/copies/ownership/hooks; repository consumers use Python,
+Uvicorn and preserved native/model libraries, not Pebble.
+
+Candidate final-stage removal is exact-hash/ownership/status/symlink guarded;
+actual probe requires absence and default/nondefault startup. Two new guards
+failed before correction,10focused/87scripts/syntax pass afterward. Fresh
+independent investigator completed; candidate review hit account limit, parent
+separate review recorded without independent candidate-review clearance. Actual
+new native/scan and complete source/recovery still required. No dpkg metadata,
+accepted capability, gate, threshold or provider/production configuration removed.
+All224definitions/tenproducts and remaining private/lifecycle/erasure/product
+engineering stay accepted, not discarded as cleanup or relabeled complete.
+
 ## Hosted read and exact recovery - bounded batch017
 
 **PARTIAL_NOT_COMPLETE.** Direct user approval was limited to rehearsal

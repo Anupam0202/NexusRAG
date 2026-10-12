@@ -12,9 +12,10 @@ if [[ -n "${GITHUB_OUTPUT:-}" ]]; then
   printf 'backend_image=%s\nfrontend_image=%s\n' "$BACKEND" "$FRONTEND" >> "$GITHUB_OUTPUT"
 fi
 backend_container=''
+override_container=''
 frontend_container=''
 cleanup() {
-  for container in "$backend_container" "$frontend_container"; do
+  for container in "$backend_container" "$override_container" "$frontend_container"; do
     if [[ -n "$container" ]]; then docker rm -f "$container" >/dev/null 2>&1 || true; fi
   done
   rm -rf "$WORK"
@@ -145,6 +146,19 @@ import json, sys
 h=json.load(open(sys.argv[1])); assert h['probe']=='liveness' and h['readiness']=='NOT_PROBED'
 assert 'total_chunks' not in h
 print('BACKEND_ANONYMOUS_LIVENESS_PASSED')
+PY
+override_container=$(docker run -d --network none -e PORT=8087 "$BACKEND")
+ready=false
+for attempt in $(seq 1 60); do
+  if docker exec "$override_container" python -c "import urllib.request; print(urllib.request.urlopen('http://127.0.0.1:8087/health', timeout=3).read().decode())" > "$WORK/override-health.json"; then ready=true; break; fi
+  sleep 1
+done
+if [[ "$ready" != true ]]; then docker logs "$override_container"; exit 1; fi
+python3 - "$WORK/override-health.json" <<'PY'
+import json, sys
+h=json.load(open(sys.argv[1])); assert h['probe']=='liveness' and h['readiness']=='NOT_PROBED'
+assert 'total_chunks' not in h
+print('BACKEND_NONDEFAULT_PORT_LIVENESS_PASSED')
 PY
 frontend_container=$(docker run -d --network none "$FRONTEND")
 ready=false

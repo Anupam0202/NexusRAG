@@ -6,6 +6,27 @@ ROOT = Path(__file__).resolve().parents[2]
 
 
 class ContainerVerificationTests(unittest.TestCase):
+    def test_unused_base_binary_removal_is_exact_and_fails_closed(self):
+        dockerfile = (ROOT / 'backend/Dockerfile').read_text(encoding='utf-8')
+        runtime = dockerfile.split('# ── Stage 2: Runtime', 1)[1]
+        self.assertIn('dpkg-query --search /usr/bin/pebble', runtime)
+        self.assertIn('test "$status" -eq 1', runtime)
+        self.assertIn('test ! -L /usr/bin/pebble', runtime)
+        self.assertIn('5e33a1304f207bb275b1b4cc3dc4c05fdd88755f5c705e2fd569924ec72dc061', runtime)
+        self.assertLess(runtime.index('sha256sum --check --strict'), runtime.index('rm /usr/bin/pebble'))
+        self.assertNotIn('rm -rf /var/lib/dpkg', runtime)
+
+    def test_actual_image_rejects_base_binary_and_preserves_port_override_startup(self):
+        probe = (ROOT / 'scripts/containers/verify-python-runtime.py').read_text()
+        self.assertIn('os.path.lexists(path)', probe)
+        self.assertIn('("/usr/bin/pebble", "/bin/pebble")', probe)
+        self.assertIn('shutil.which("pebble") is None', probe)
+        script = (ROOT / 'scripts/containers/verify-runtime.sh').read_text()
+        self.assertIn('--network none -e PORT=8087 "$BACKEND"', script)
+        self.assertIn('BACKEND_NONDEFAULT_PORT_LIVENESS_PASSED', script)
+        self.assertIn('BACKEND_ANONYMOUS_LIVENESS_PASSED', script)
+        self.assertIn('"$override_container"', script)
+
     def test_native_interpreter_matches_supported_checkpoint_dependency_abi(self):
         dockerfile = (ROOT / 'backend/Dockerfile').read_text(encoding='utf-8')
         self.assertIn('ENV PYTHON_VERSION=3.14.8', dockerfile)

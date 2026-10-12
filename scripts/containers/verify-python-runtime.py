@@ -12,6 +12,7 @@ import os
 from pathlib import Path
 import platform
 import readline
+import shutil
 import sqlite3
 import ssl
 import sys
@@ -31,6 +32,8 @@ from src.domain.deterministic_calculations import CalculationOperation, Quantity
 assert sys.version_info[:3] == (3, 14, 8)
 assert platform.freedesktop_os_release()["VERSION_ID"] == "26.04"
 assert platform.freedesktop_os_release()["ID"] == "ubuntu"
+assert all(not os.path.lexists(path) for path in ("/usr/bin/pebble", "/bin/pebble"))
+assert shutil.which("pebble") is None
 assert ssl.create_default_context().cert_store_stats()["x509_ca"] > 0
 assert torch.version.cuda is None and "+cpu" in torch.__version__
 assert decimal.Decimal is _decimal.Decimal
@@ -79,5 +82,6 @@ print("REAL_PYTHON_STDLIB_AND_FAISS_PASSED " + json.dumps({
     "faiss": faiss.__version__, "sqlite": sqlite3.sqlite_version,
     "zlib_runtime": zlib.ZLIB_RUNTIME_VERSION, "provider_processing": False,
     "native_decimal": True, "mpdecimal": _decimal.__libmpdec_version__,
+    "unused_base_pebble": False,
     "production_acceptance": False,
 }))

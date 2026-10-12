@@ -13,13 +13,37 @@
   "interpretation": "OPEN_ENGINEERING includes implemented but not fully accepted requirements; it does not assert that no code or scoped evidence exists. External approvals do not close unfinished internal work.",
   "entries": [
     {
+      "id": "ENGINEERING-UNUSED-BASE-BINARY-REMEDIATION",
+      "requirement": "Remove only a proven unused unowned vulnerable base launcher from the shipped runtime while preserving native capabilities, package provenance and unsuppressed image acceptance gates",
+      "normative_source": "Owner supported exact-image security remediation and dependency-aware cleanup mandate",
+      "status": "IN_PROGRESS",
+      "environment": "batch018 four-file source candidate and independent exact pinned base-layer inspection; actual new image not yet accepted",
+      "next_action": "Save/recover exact source and build real images; verify exact post-upgrade hash/ownership denial, merged path/PATH absence, all nine Go matches absent in full scan, default/nondefault startup and unchanged native controls. Independent candidate reviewer unavailable due account usage limit; no blanket review or release clearance. Remaining OS/zlib/image/private/product criteria stay open.",
+      "acceptance_evidence": [
+        {
+          "environment": "actual parent017 scan and hash-verified base tar/config metadata without extraction/execution; source guards only",
+          "observed_at": "2026-10-12T17:22:00Z",
+          "source_identity": "parent8214d904b410747da697cb432d682da1633414f7/treee2ee6240f3a4cda2ee9c6c439f31fea00c7564db plus unused-base-tool-remediation-018",
+          "command_or_url": "docs/implementation/UNUSED_BASE_TOOL_REMEDIATION_018.md; backend/Dockerfile; scripts/containers/verify-python-runtime.py; scripts/containers/verify-runtime.sh; tests/scripts/test_container_verification.py",
+          "result": "Exact parent image116matches include nine Go at/usr/bin/pebble only; other107remain. Real pinned base proves one unowned regular0755 file SHA2565e33a1304f207bb275b1b4cc3dc4c05fdd88755f5c705e2fd569924ec72dc061, no identical copies/named aliases/inspected service-hook refs, null entrypoint. Narrow final-stage candidate fails closed on unexpected bytes/ownership/status/symlink and retains metadata/native libraries. Two new guards fail before,10focused/87scripts/syntax pass after. Fresh independent investigator completed; candidate reviewer usage-limited, parent separate review done without independent clearance. Actual image/scan/recovery pending; not a fixed finding or production acceptance."
+        }
+      ]
+    },
+    {
       "id": "ENGINEERING-EXACT-CHECKPOINT-METADATA-RECOVERY",
       "requirement": "Recover the externally authenticated checkpoint manifest byte-for-byte alongside every source/log entry without JSON or platform line-ending normalization",
       "normative_source": "Owner complete recoverable checkpoint, exact manifest and fresh recovery verification mandate",
       "status": "IN_PROGRESS",
-      "environment": "batch017 checkpoint source and synthetic recovery fixture; full frozen archive recovery pending",
-      "next_action": "Verify all entries including metadata in NEW recoveries, install actual dependencies and freshly rerun relevant checks. Preserve the earlier metadata-normalized attempt, failed regression and frozen archives. This does not close production recovery or the accepted product scope.",
+      "environment": "exact017 complete533source and32evidence recoveries including original metadata bytes; fresh tests/builds pass, release image gate failed independently",
+      "next_action": "Maintain exact byte-preserving recovery for every later checkpoint;017 source/evidence hashes/modes/metadata and fresh checks passed, old normalized attempt retained. Full deployed rollback/recovery and product acceptance are distinct unfinished requirements; no need to reapply fulfilled013 hosted approval.",
       "acceptance_evidence": [
+        {
+          "environment": "NEW017 source/evidence recoveries and fresh actual dependency installations; exact CI",
+          "observed_at": "2026-10-12T17:21:00Z",
+          "source_identity": "8214d904b410747da697cb432d682da1633414f7/treee2ee6240f3a4cda2ee9c6c439f31fea00c7564db",
+          "command_or_url": "BATCH017_HANDOFF.md; source5929e838ba6f8e8de2c4d385b7f40e59cd688b2addc676a627dae7de595a40b2; evidence921677bd2cd11ea912381432065873ea00c7211b4c12a6909373d743d6da92f6",
+          "result": "All533source hashes/sizes/archive and index modes plus original metadata bytes match;32evidence datafiles/modes/original metadata match. New dependencies and585backend+10/357frontend/371gateway/57isolated/85scripts/lint/type/build/actual Worker/integrity pass. Exact139public/syntheticPG pass; real native image passes separately from116match mandatory scan/summary failure. Older016100-data recovery normalization retained, NEW exact evidence recovery fixes that gap without changing ZIPs. Hosted013 approved exact install/catalog-only pass; no real private or production acceptance."
+        },
         {
           "environment": "source checkpoint tooling with isolated Git/archive fixture; no hosted mutation",
           "observed_at": "2026-10-12T13:24:00Z",

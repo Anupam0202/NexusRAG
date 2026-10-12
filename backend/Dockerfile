@@ -63,6 +63,13 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-reco
     libgdbm-compat4t64 libexpat1 libncursesw6 libtinfo6 libuuid1 libzstd1 libmpdec4 \
     && rm -rf /var/lib/apt/lists/*
 
+# The pinned base carries an unowned launcher that NexusRAG never invokes.
+# Reject unexpected ownership/content rather than remove a packaged dependency.
+RUN test -f /usr/bin/pebble && test ! -L /usr/bin/pebble \
+    && if dpkg-query --search /usr/bin/pebble; then exit 1; else status=$?; test "$status" -eq 1; fi \
+    && printf '%s  /usr/bin/pebble\n' '5e33a1304f207bb275b1b4cc3dc4c05fdd88755f5c705e2fd569924ec72dc061' | sha256sum --check --strict \
+    && rm /usr/bin/pebble && test ! -e /usr/bin/pebble
+
 # Avoid overlaying arbitrary site-packages/entrypoints on the base interpreter.
 # The app and verification tools use only the isolated, reviewed runtime venv.
 COPY --from=python-build /opt/python /opt/python

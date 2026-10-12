@@ -9,6 +9,10 @@ in rehearsal only; checkpoint recovery now preserves authenticated metadata byte
 See `HOSTED_READ_AND_EXACT_RECOVERY_017.md` and the execution ledger. Neither closes
 any normative production workflow; all224 definitions and ten products remain.
 
+Latest018 candidate removes only the exact proven unused base launcher, preserves
+native/image gates and awaits real-image acceptance. See
+`UNUSED_BASE_TOOL_REMEDIATION_018.md`; no scope or denominator change.
+
 The V6 prompt defines `Z01–Z32` and adds `S`, `G`, and `P`. The accepted owner-directed `LEGACY_REPLACEMENT_BASELINE.md` defines `R`, `CF`, and `A`; missing historical wording is no longer an unresolved source blocker. This does not establish complete-product acceptance.
 
 The mappings below retain historical source/test evidence. A filename, synthetic fixture, or older preview receipt does not prove the current UI-to-runtime workflow. The current acceptance boundary and unresolved implementation work are maintained in `docs/audits/COMPREHENSIVE_APPLICATION_AUDIT.md`.
