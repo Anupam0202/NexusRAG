@@ -34,6 +34,28 @@ it("authorization denial preserves local history and never claims success", asyn
   expect(fixture.success).not.toHaveBeenCalled();
 });
 
+it("an unavailable first-turn session offers an explicit local-only draft reset", async () => {
+  fixture.clear.mockRejectedValueOnce(new ApiRequestError("Conversation is not available.", "CONVERSATION_UNAVAILABLE"));
+  render(<ChatInterface />);
+  fireEvent.click(screen.getByTitle("Clear chat"));
+  await waitFor(() => expect(fixture.error).toHaveBeenCalled());
+  expect(useStore.getState().messages).toHaveLength(1);
+  fireEvent.click(screen.getByRole("button", { name: "Reset local draft" }));
+  expect(useStore.getState().messages).toHaveLength(0);
+  expect(fixture.clear).toHaveBeenCalledTimes(1);
+  expect(fixture.success).toHaveBeenCalledWith("Local draft reset. Stored history was not changed.");
+  expect(fixture.success).not.toHaveBeenCalledWith("Chat history cleared");
+});
+
+it("ambiguous cleanup does not offer a draft reset or discard history", async () => {
+  fixture.clear.mockRejectedValueOnce(new ApiRequestError("Cleanup unconfirmed", "CLEANUP_UNCONFIRMED"));
+  render(<ChatInterface />);
+  fireEvent.click(screen.getByTitle("Clear chat"));
+  await waitFor(() => expect(fixture.error).toHaveBeenCalled());
+  expect(screen.queryByRole("button", { name: "Reset local draft" })).not.toBeInTheDocument();
+  expect(useStore.getState().messages).toHaveLength(1);
+});
+
 it("confirmed zero-message cleanup preserves the reusable session and next-turn workflow", async () => {
   fixture.clear.mockResolvedValueOnce({ success: true, durable_messages_deleted: 0 });
   render(<ChatInterface />);

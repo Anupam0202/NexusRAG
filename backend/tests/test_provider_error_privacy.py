@@ -229,14 +229,17 @@ async def test_unverified_key_is_not_activated_or_stored(
         monkeypatch.setitem(sys.modules, "google.genai", None)
         monkeypatch.setitem(sys.modules, "google.generativeai", None)
     else:
+        import google
+
         client = SimpleNamespace(
             models=SimpleNamespace(
                 list=MagicMock(side_effect=RuntimeError("network " + MARKER))
             )
         )
-        monkeypatch.setitem(
-            sys.modules, "google.genai", SimpleNamespace(Client=lambda **kwargs: client)
-        )
+        fake_genai = SimpleNamespace(Client=lambda **kwargs: client)
+        monkeypatch.setitem(sys.modules, "google.genai", fake_genai)
+        # Earlier tests can leave the submodule cached on the namespace package.
+        monkeypatch.setattr(google, "genai", fake_genai, raising=False)
     with pytest.raises(HTTPException) as caught:
         await routes.set_api_key(
             routes.ApiKeyRequest(api_key=MARKER, provider="gemini"),
@@ -245,6 +248,8 @@ async def test_unverified_key_is_not_activated_or_stored(
         )
     assert caught.value.status_code == 503
     manager_factory.assert_not_called()
+    if not libraries_missing:
+        client.models.list.assert_called_once_with()
 
 
 @pytest.mark.asyncio

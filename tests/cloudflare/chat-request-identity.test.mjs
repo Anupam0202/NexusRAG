@@ -23,6 +23,13 @@ async function run(fields, idempotencyKey = key) {
     if (url.pathname === "/rest/v1/workspace_settings" || url.pathname === "/rest/v1/documents") return Response.json([]);
     if (url.pathname === "/rest/v1/rpc/nexus_admit_account_operation")
       return Response.json({ state: "READY", credential_mode: "platform_trial", used: 1, limit: 5 });
+    if (url.pathname === "/rest/v1/rpc/read_gateway_private_turn_context")
+      return Response.json([{ workspace_id: body.p_workspace, session_id: body.p_session, revision: 0 }]);
+    if (url.pathname === "/rest/v1/rpc/stage_gateway_private_turn")
+      return Response.json([{ workspace_id: body.p_workspace, session_id: body.p_session, revision: 0, state: "STAGED" }]);
+    if (url.pathname === "/rest/v1/rpc/commit_gateway_private_turn")
+      return Response.json([{ workspace_id: body.p_workspace, session_id: body.p_session,
+        revision: 1, state: "COMMITTED", messages_written: 2 }]);
     if (url.pathname === "/rest/v1/chat_sessions") {
       if (method === "GET") return Response.json([]);
       if (method === "POST") return Response.json(body);
@@ -77,12 +84,13 @@ for (const [index, fields] of [{}, { session_id: null }, { session_id: session }
     if (fields.session_id) assert.equal(selected, session);
     const admission = calls.find(c => c.path.endsWith("nexus_admit_account_operation"));
     assert.equal(admission.body.p_idempotency_key, key);
-    const created = calls.find(c => c.path === "/rest/v1/chat_sessions" && c.method === "POST");
-    assert.equal(created.body[0].id, selected);
-    assert.equal(created.body[0].user_id, user);
-    const messages = calls.filter(c => c.path === "/rest/v1/chat_messages");
-    assert.equal(messages.length, 2);
-    assert.ok(messages.every(c => c.body[0].session_id === selected));
+    const committed = calls.find(c => c.path.endsWith("commit_gateway_private_turn"));
+    assert.equal(committed.body.p_session, selected);
+    assert.equal(committed.body.p_revision, 0);
+    assert.equal(committed.body.p_question, "Synthetic fixture question");
+    assert.equal(committed.body.p_answer, body.answer);
+    assert.equal(body.metadata.session_revision, 1);
+    assert.equal(calls.some(c => /\/(chat_sessions|chat_messages)$/.test(c.path)), false);
     assert.equal(body.sources.length, 0);
     assert.equal(body.metadata.abstained, true);
   });

@@ -4,6 +4,22 @@ Status: **PARTIAL_NOT_COMPLETE — locally tested implementation; not production
 
 This receipt supersedes historical status claims only where it records a fresh observation. It does not certify a complete product, production release, provider rights, or absence of all defects.
 
+## Atomic private Gateway turn - bounded batch019
+
+PARTIAL_NOT_COMPLETE. Synthetic handler reproduction at19285 returned200 and
+wrote an assistant record after stale membership preflights. Candidate replaces
+direct service-role conversation writes with caller-bound owner context and
+atomic turn/revision/admission-consumption RPCs.398 Gateway checks pass; exact
+SQL authority/rollback/concurrency/recovery/CI and hosted acceptance remain required.
+See PRIVATE_TURN_AUTHORITY_019.md; no full private-session closure claimed.
+
+Final018 source/recovery/CI receipts supersede018 pending observations below:
+534source/33evidence exact recoveries and fresh suites pass; native and original
+nine-Go absence pass, full scan/required summary fail107matches101Medium6Low.
+Read-only Qdrant independently confirms legacy17/four0/aliases[]; no exact erasure
+or orphan/binding proof. Older privacy UI lacks valid processing/operator approval.
+All224definitions/tenproducts and remaining lifecycle/private/product gates stay open.
+
 ## Unused base runtime tool - bounded batch018
 
 **PARTIAL_NOT_COMPLETE; actual candidate image pending.** Parent017 scan/native

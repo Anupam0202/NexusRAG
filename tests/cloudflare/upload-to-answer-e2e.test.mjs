@@ -161,6 +161,24 @@ function localAppFixture() {
       if (table === "llm_usage_events" && method === "POST") return json(body, 201);
       if (table.startsWith("rpc/")) {
         const rpc = table.slice("rpc/".length);
+        if (rpc === "stage_gateway_private_turn")
+          return json([{ workspace_id: body.p_workspace, session_id: body.p_session, revision: body.p_revision, state: "STAGED" }]);
+        if (rpc === "read_gateway_private_turn_context") {
+          const session = sessions.get(body.p_session);
+          return json([{ workspace_id: body.p_workspace, session_id: body.p_session, revision: session?.revision || 0 }]);
+        }
+        if (rpc === "commit_gateway_private_turn") {
+          const session = sessions.get(body.p_session);
+          if ((session?.revision || 0) !== body.p_revision)
+            return json([{ workspace_id: body.p_workspace, session_id: body.p_session, state: "CONFLICT" }]);
+          sessions.set(body.p_session, { ...session, id: body.p_session, workspace_id: body.p_workspace,
+            revision: body.p_revision + 1, deleted_at: null });
+          messages.push({ workspace_id: body.p_workspace, session_id: body.p_session, role: "user", content: body.p_question },
+            { workspace_id: body.p_workspace, session_id: body.p_session, role: "assistant", content: body.p_answer,
+              sources: body.p_sources, metadata: body.p_metadata });
+          return json([{ workspace_id: body.p_workspace, session_id: body.p_session,
+            state: "COMMITTED", revision: body.p_revision + 1, messages_written: 2 }]);
+        }
         if (rpc === "nexus_admit_account_operation") {
           const operationKey = `${body.p_user}:${body.p_operation}:${body.p_idempotency_key}`;
           if (accountOperations.has(operationKey)) return json({ state: "READY", replayed: true, credential_mode: "platform_trial" });

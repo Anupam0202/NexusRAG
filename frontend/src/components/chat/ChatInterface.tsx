@@ -9,7 +9,7 @@ import type { SourceChunk } from "@/types";
 import {
   Send, ArrowDown, Sparkles, FileSearch, Brain,
   MessageSquare, Trash2, Zap, BookOpen, Search, Upload, Files,
-  Download, FileJson, SlidersHorizontal, X,
+  Download, FileJson, SlidersHorizontal, X, RotateCcw,
 } from "lucide-react";
 import { AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
@@ -38,6 +38,7 @@ function WorkspaceChat() {
   const alive = useRef(true);
   useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
   const [clearing, setClearing] = useState(false);
+  const [localResetSession, setLocalResetSession] = useState<string | null>(null);
   const [input, setInput] = useState("");
   const [nonSensitiveAttested, setNonSensitiveAttested] = useState(false);
   const [activeSources, setActiveSources] = useState<SourceChunk[] | null>(null);
@@ -191,13 +192,22 @@ function WorkspaceChat() {
       const receipt = await clearSession(sessionId, { workspaceId: store.workspaceId,
         expectedUserId: store.authMode === "authenticated" ? store.authUser?.id ?? null : undefined });
       if (!receipt.success) throw new Error("Chat deletion is not complete.");
-      if (current()) { store.clearMessages(); setActiveSources(null); toast.success("Chat history cleared"); }
+      if (current()) { store.clearMessages(); setActiveSources(null); setLocalResetSession(null); toast.success("Chat history cleared"); }
     } catch (error) {
       if (!current()) return;
       if (error instanceof ApiRequestError && error.code === "SESSION_NOT_FOUND") {
         store.clearMessages(); setActiveSources(null); // No durable session exists.
-      } else toast.error(error instanceof Error ? error.message : "Unable to clear durable chat history. Messages were retained.");
+      } else {
+        if (error instanceof ApiRequestError && error.code === "CONVERSATION_UNAVAILABLE") setLocalResetSession(sessionId);
+        toast.error(error instanceof Error ? error.message : "Unable to clear durable chat history. Messages were retained.");
+      }
     } finally { if (current()) setClearing(false); }
+  };
+
+  const resetLocalDraft = () => {
+    if (!canChat || clearing || isStreaming || localResetSession !== store.sessionId) return;
+    store.clearMessages(); setActiveSources(null); setLocalResetSession(null);
+    toast.success("Local draft reset. Stored history was not changed.");
   };
 
   const downloadChat = (format: "markdown" | "json") => {
@@ -551,6 +561,13 @@ function WorkspaceChat() {
                       <FileJson size={15} />
                     </button>
                   </>
+                )}
+                {messages.length > 0 && localResetSession === store.sessionId && (
+                  <button onClick={resetLocalDraft} disabled={clearing || isStreaming}
+                    aria-label="Reset local draft" title="Reset local draft; stored history is unchanged"
+                    className="flex h-8 w-8 items-center justify-center rounded-lg text-[var(--text-muted)] hover:text-brand-500 transition-all">
+                    <RotateCcw size={15} />
+                  </button>
                 )}
                 {messages.length > 0 && (
                   <button

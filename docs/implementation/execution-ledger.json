@@ -13,6 +13,23 @@
   "interpretation": "OPEN_ENGINEERING includes implemented but not fully accepted requirements; it does not assert that no code or scoped evidence exists. External approvals do not close unfinished internal work.",
   "entries": [
     {
+      "id": "ENGINEERING-GATEWAY-PRIVATE-TURN-AUTHORITY",
+      "requirement": "Atomically authorize private Gateway session creation, history pair and revision against current caller membership/ownership and consume each server admission once",
+      "normative_source": "Owner private session, stale-authority, lifecycle and quota admission mandate",
+      "status": "IN_PROGRESS",
+      "environment": "batch019 source and synthetic Gateway transport; no hosted installation or actual SQL acceptance yet",
+      "next_action": "Save and recover exact source; run disposable SQL authority/rollback/concurrency/backuprestore and exact required CI. Obtain separate019 rehearsal approval only after proof. Retained backend/cache/query/citation/erasure authority and real private users remain independent unfinished work.",
+      "acceptance_evidence": [
+        {
+          "environment": "synthetic invalid-domain transport through actual Gateway handler, not live user or hosted exploitation",
+          "observed_at": "2026-10-13T09:00:00Z",
+          "source_identity": "parent19285fef052e31b3dd7bf4862be818eaf905a8f1 plus gateway-private-turn-authority-019 candidate",
+          "command_or_url": "docs/implementation/PRIVATE_TURN_AUTHORITY_019.md; tests/cloudflare/private-turn-authority.test.mjs; tests/postgres/gateway-private-turn-assertions.sql; tests/postgres/gateway-private-turn-concurrency.sh",
+          "result": "Before200 and assistant service write after simulated revocation; after caller-context/commit denial and no direct chat table writes.31 new Gateway cases and402 all Gateway cases pass. Independent review identified unstaged evidence forgery and absent-first-turn local reset; added protected exact-output attestation and explicit local-only reset.359 frontend and585+10 denied-network backend pass; provider fixture fake-client-called regression retained. SQL not executed locally; no hosted/private OAuth/whole-application clearance from mocked receipts. Batch018 actual image still fails107matches."
+        }
+      ]
+    },
+    {
       "id": "ENGINEERING-UNUSED-BASE-BINARY-REMEDIATION",
       "requirement": "Remove only a proven unused unowned vulnerable base launcher from the shipped runtime while preserving native capabilities, package provenance and unsuppressed image acceptance gates",
       "normative_source": "Owner supported exact-image security remediation and dependency-aware cleanup mandate",

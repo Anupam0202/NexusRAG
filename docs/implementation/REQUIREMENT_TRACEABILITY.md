@@ -4,6 +4,12 @@
 
 Status: `PARTIAL_NOT_COMPLETE_WITH_ACCEPTED_NORMATIVE_BASELINE`
 
+Latest019 candidate moves Gateway history turns to caller-bound, revision-fenced
+transactions with one server-admitted key per commit. See
+`PRIVATE_TURN_AUTHORITY_019.md`; SQL/hosted/private acceptance remains separate.
+Final018 recovered534source/33receipts and actual native PASS/scan FAILED107matches
+are bound in external BATCH018_HANDOFF.md. No normative wording/denominator change.
+
 Latest017 evidence: exact caller-history read SQL is installed and catalog-verified
 in rehearsal only; checkpoint recovery now preserves authenticated metadata bytes.
 See `HOSTED_READ_AND_EXACT_RECOVERY_017.md` and the execution ledger. Neither closes

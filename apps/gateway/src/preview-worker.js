@@ -113,7 +113,8 @@ async function readJsonBody(request) {
   return readBoundedJsonObject(request, { objectStatus: 422 });
 }
 async function apiFetch(url, init = {}, timeout = 8_000) {
-  return fetch(url, { ...init, signal: AbortSignal.timeout(timeout) });
+  const deadline = AbortSignal.timeout(timeout);
+  return fetch(url, { ...init, signal: init.signal ? AbortSignal.any([init.signal, deadline]) : deadline });
 }
 async function authenticate(request, env) {
   const authorization = request.headers.get("authorization") || "";
@@ -398,11 +399,15 @@ async function chunkPreviews(request, env, user, workspace, documentId) {
 }
 
 async function enqueueJob(env,job){if(!env.INGESTION_QUEUE?.send)throw Object.assign(new Error("The durable ingestion queue is unavailable."),{status:503,code:"QUEUE_UNAVAILABLE",retryable:true});await env.INGESTION_QUEUE.send({job_id:job.id,workspace_id:job.workspace_id,document_id:job.document_id,version_id:job.version_id,lifecycle_epoch:Number(job.lifecycle_epoch||1)});}
-async function accountAdmission(request, env, user, operation) {
+function admissionKey(request) {
   const idempotencyKey = (request.headers.get("idempotency-key") || "").toLowerCase();
   if (!UUID_PATTERN.test(idempotencyKey)) {
     throw Object.assign(new Error("A valid Idempotency-Key is required."), { status: 400, code: "INVALID_SCOPE" });
   }
+  return idempotencyKey;
+}
+async function accountAdmission(request, env, user, operation) {
+  const idempotencyKey = admissionKey(request);
   const result = await serviceRequest(env, "rpc/nexus_admit_account_operation", {
     method: "POST",
     body: JSON.stringify({ p_user: user.id, p_operation: operation, p_idempotency_key: idempotencyKey }),
@@ -492,7 +497,36 @@ async function deleteDocument(request, env, user, workspace, member, documentId)
   }catch(error){await serviceRequest(env,`deletion_operations?id=eq.${operationId}`,{method:"PATCH",body:JSON.stringify({state:"blocked"})}).catch(()=>null);throw Object.assign(error,{status:error.status||503,code:error.code||"DELETE_PARTIAL_FAILURE"});}
 }
 
+async function privateTurnRequest(request, env, workspace, sessionId, operation, body) {
+  let rows;
+  try {
+    request.signal.throwIfAborted();
+    rows = await userRequest(request, env, `rpc/${operation}`, {
+      method: "POST", signal: request.signal,
+      body: JSON.stringify({ p_workspace: workspace, p_session: sessionId, ...body }),
+    });
+  } catch {
+    throw Object.assign(new Error("Conversation persistence could not be confirmed. No automatic retry was performed."),
+      { status: 503, code: "TURN_UNCONFIRMED" });
+  }
+  if (Array.isArray(rows) && rows.length === 0)
+    throw Object.assign(new Error("Conversation is not available."), { status: 404, code: "CONVERSATION_UNAVAILABLE" });
+  const row = Array.isArray(rows) && rows.length === 1 ? rows[0] : null;
+  if (!row || row.workspace_id !== workspace || row.session_id !== sessionId)
+    throw Object.assign(new Error("Conversation persistence could not be confirmed."), { status: 503, code: "TURN_UNCONFIRMED" });
+  if (operation === "commit_gateway_private_turn" && row.state === "CONFLICT")
+    throw Object.assign(new Error("Conversation changed during this answer. Refresh before starting a new request."),
+      { status: 409, code: "VERSION_CONFLICT" });
+  if (!Number.isSafeInteger(row.revision) || row.revision < 0 || row.revision >= Number.MAX_SAFE_INTEGER
+      || (operation === "read_gateway_private_turn_context" && row.revision >= Number.MAX_SAFE_INTEGER - 1)
+      || (operation === "commit_gateway_private_turn"
+        && (row.state !== "COMMITTED" || row.messages_written !== 2 || row.revision !== body.p_revision + 1)))
+    throw Object.assign(new Error("Conversation persistence could not be confirmed."), { status: 503, code: "TURN_UNCONFIRMED" });
+  return row;
+}
+
 async function chat(request, env, user, workspace, member) {
+  workspace = workspace.toLowerCase();
   requireCapability(member,"research:run"); const started=Date.now(); const body=await readJsonBody(request); const question=String(body?.question||"").trim(); if(!question||question.length>10000)throw Object.assign(new Error("Question must contain 1 to 10,000 characters."),{status:422,code:"INVALID_SCOPE"});
   if (body.session_id != null && (typeof body.session_id !== "string" || !UUID_PATTERN.test(body.session_id))) {
     throw Object.assign(new Error("Session ID must be a valid UUID, or omitted to start a new conversation."),
@@ -531,9 +565,12 @@ async function chat(request, env, user, workspace, member) {
   const lexicalLimited = lexicalRows.length > 200;
   const lexical = lexicalRows.slice(0, 200).filter(row => matchesChunkFilters(row, filters));
   const chunkIds = chunkScoped ? lexical.map(row => row.id) : undefined;
+  admissionKey(request);
+  // A read-only caller-bound context rejects foreign sessions before metered
+  // admission. The later transaction rechecks authority and fences this revision.
+  const turnContext = await privateTurnRequest(request, env, workspace, sessionId,
+    "read_gateway_private_turn_context", {});
   const admission=await accountAdmission(request,env,user,"chat");
-  let sessions=await serviceRequest(env,`chat_sessions?workspace_id=eq.${workspace}&id=eq.${sessionId}&user_id=eq.${user.id}&deleted_at=is.null&select=*&limit=1`); if(!sessions?.[0])sessions=await serviceRequest(env,"chat_sessions",{method:"POST",body:JSON.stringify([{id:sessionId,workspace_id:workspace,user_id:user.id,title:question.slice(0,120),visibility:"private"}])});
-  await serviceRequest(env,"chat_messages",{method:"POST",body:JSON.stringify([{workspace_id:workspace,session_id:sessionId,role:"user",content:question,sources:[],metadata:{query_type:"general"}}])});
   const vectorHits = activeVersionIds.length && (!chunkScoped || chunkIds.length) ? await searchChunks(env, { workspaceId: workspace, question,
     documentIds: activeDocumentIds, versionIds: activeVersionIds,
     indexGenerations: versions.filter(item => activeVersionIds.includes(item.id)).map(item => item.index_generation).filter(Boolean),
@@ -575,7 +612,29 @@ async function chat(request, env, user, workspace, member) {
     lexical_limit_reached: lexicalLimited, completeness: lexicalLimited ? "PARTIAL_BOUNDED_RETRIEVAL" : "BOUNDED_RETRIEVAL_NOT_EXHAUSTIVE",
     evidence_authority: "SUPABASE_HASH_VERIFIED" };
   response.metadata.account_usage={free_chat_queries_used:admission.credentialMode==="platform_trial"?admission.used:5,free_chat_queries_limit:5,credential_mode:admission.credentialMode};
-  await serviceRequest(env,"chat_messages",{method:"POST",body:JSON.stringify([{workspace_id:workspace,session_id:sessionId,role:"assistant",content:response.answer,sources:response.sources,metadata:{...response.metadata,query_type:response.query_type,confidence:response.confidence,response_time_seconds:response.response_time_seconds}}])}); await serviceRequest(env,`chat_sessions?id=eq.${sessionId}`,{method:"PATCH",body:JSON.stringify({updated_at:new Date().toISOString(),revision:Number(sessions[0].revision||1)+1})}); await audit(env,request,user.id,workspace,"research.run","query"); return response;
+  const turnPayload = {
+    p_key: admissionKey(request), p_revision: turnContext.revision,
+    p_question: question, p_answer: response.answer, p_sources: response.sources,
+    p_metadata: { ...response.metadata, query_type: response.query_type, confidence: response.confidence,
+      response_time_seconds: response.response_time_seconds },
+  };
+  let staged;
+  try {
+    request.signal.throwIfAborted();
+    staged = await serviceRequest(env, "rpc/stage_gateway_private_turn", {
+      method: "POST", signal: request.signal,
+      body: JSON.stringify({ p_actor: user.id, p_workspace: workspace, p_session: sessionId, ...turnPayload }),
+    });
+  } catch {
+    throw Object.assign(new Error("Conversation persistence could not be confirmed."), { status: 503, code: "TURN_UNCONFIRMED" });
+  }
+  const attestation = Array.isArray(staged) && staged.length === 1 ? staged[0] : null;
+  if (!attestation || attestation.state !== "STAGED" || attestation.workspace_id !== workspace
+      || attestation.session_id !== sessionId || attestation.revision !== turnContext.revision)
+    throw Object.assign(new Error("Conversation persistence could not be confirmed."), { status: 503, code: "TURN_UNCONFIRMED" });
+  const committed = await privateTurnRequest(request, env, workspace, sessionId, "commit_gateway_private_turn", turnPayload);
+  response.metadata.session_revision = committed.revision;
+  await audit(env,request,user.id,workspace,"research.run","query"); return response;
 }
 async function handle(request, env = {}) {
   const url = new URL(request.url);
