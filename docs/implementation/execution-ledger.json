@@ -13,13 +13,37 @@
   "interpretation": "OPEN_ENGINEERING includes implemented but not fully accepted requirements; it does not assert that no code or scoped evidence exists. External approvals do not close unfinished internal work.",
   "entries": [
     {
+      "id": "ENGINEERING-QUERY-CACHE-CONTEXT",
+      "requirement": "Bind retained Python answer reuse to actual retrieval context/options/response mode, own nested snapshots and preserve local cached-turn memory",
+      "normative_source": "Owner grounded retrieval, cache isolation, advanced controls and truthful end-to-end workflow mandate",
+      "status": "IN_PROGRESS",
+      "environment": "batch020 retained Python source;597 denied-network backend tests plus10subtests pass; not deployed or production accepted",
+      "next_action": "Save complete source and sanitized evidence, recover into new directory with fresh actual locks/specifications, run exact source/native/image CI. Continue separate caller/session/source/rights fences, atomic backend append, repeated explicit-history/concurrent memory defects and full accepted products; this bounded cache correction closes no production requirement.",
+      "acceptance_evidence": [
+        {
+          "environment": "actual SemanticCache/RAGChain with synthetic embedder/retriever/generation under denied outbound networking",
+          "observed_at": "2026-10-13T10:35:00Z",
+          "source_identity": "parent5fce1b43bf24da3eb88695b31b5e45c3b0925f96 plus query-cache-context-020 candidate",
+          "command_or_url": "backend/tests/test_query_cache_context.py; docs/implementation/QUERY_CACHE_CONTEXT_020.md; backend/scripts/run_full_tests.py",
+          "result": "12 new cases fail before context/options/mode identity, cached-turn memory and deep-copy correction;597backend+10 pass after. Existing workspace/filter/TTL/cache controls preserved. One focused post-fix assertion used the wrong blocking response field and was corrected to the real contract; failures retained. Source/recovery/CI/native/image checks required separately; no hosted/UI/private-session acceptance."
+        }
+      ]
+    },
+    {
       "id": "ENGINEERING-GATEWAY-PRIVATE-TURN-AUTHORITY",
       "requirement": "Atomically authorize private Gateway session creation, history pair and revision against current caller membership/ownership and consume each server admission once",
       "normative_source": "Owner private session, stale-authority, lifecycle and quota admission mandate",
       "status": "IN_PROGRESS",
-      "environment": "batch019 source and synthetic Gateway transport; no hosted installation or actual SQL acceptance yet",
-      "next_action": "Save and recover exact source; run disposable SQL authority/rollback/concurrency/backuprestore and exact required CI. Obtain separate019 rehearsal approval only after proof. Retained backend/cache/query/citation/erasure authority and real private users remain independent unfinished work.",
+      "environment": "batch019 exact539-source/33-evidence fresh recoveries and real disposable SQL; approved019 rehearsal schema-only installation verified; not real hosted private users or production",
+      "next_action": "Fulfilled exact019 rehearsal installation approval must not be repeated or generalized. Continue actual authorized two-user JWT/private journeys and separately approved rollout after gates; retained backend/cache/query/citation/erasure authority and full products remain unfinished. BATCH019_HANDOFF.md records final source/CI/image/hosted receipts; required image still fails107matches.",
       "acceptance_evidence": [
+        {
+          "environment": "exact saved/recovered source; PostgreSQL authority/forgery/rollback/concurrency/backuprestore; rehearsal catalog-only verification",
+          "observed_at": "2026-10-13T10:23:29Z",
+          "source_identity": "5fce1b43bf24da3eb88695b31b5e45c3b0925f96/tree28ba65cf06ac0684720c87ac38fa2c52e7767e71",
+          "command_or_url": "BATCH019_HANDOFF.md; CI38377491618/job115229429298; hosted20261013102154_gateway_private_turn_authority inukgjygzfhyvnrsecdcuu",
+          "result": "All539 source and33 evidence entries recovered exactly, fresh585backend+10/359frontend/402gateway/57isolated/87scripts/builds pass. Real SQL60tables101functions backup/restore and adversarial authority/concurrency pass with Auth stand-ins. Exact019 human approval installed only2e9aa68 SQL, all6stored bodies/grants match, no table access/history invocation/data change/production/deploy/provider action. Native image passes but unsuppressed scan/summary fails107backend matches101Medium6Low,frontend0,ignored0.139public browser checks are not real private acceptance."
+        },
         {
           "environment": "synthetic invalid-domain transport through actual Gateway handler, not live user or hosted exploitation",
           "observed_at": "2026-10-13T09:00:00Z",

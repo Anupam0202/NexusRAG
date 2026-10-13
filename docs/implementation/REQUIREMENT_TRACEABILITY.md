@@ -4,6 +4,13 @@
 
 Status: `PARTIAL_NOT_COMPLETE_WITH_ACCEPTED_NORMATIVE_BASELINE`
 
+Latest020 corrects retained Python answer-cache context/options/mode identity,
+nested response ownership and cache-hit local memory. See QUERY_CACHE_CONTEXT_020.md;
+this is not caller/session or source/rights fencing and closes no production
+requirement. Final019539-source/33-receipt recovery, disposable SQL and exact native
+checks pass separately from107-match failed image gate; exact019 rehearsal schema
+only installation approval fulfilled. All224 exact definitions/tenproducts retained.
+
 Latest019 candidate moves Gateway history turns to caller-bound, revision-fenced
 transactions with one server-admitted key per commit. See
 `PRIVATE_TURN_AUTHORITY_019.md`; SQL/hosted/private acceptance remains separate.

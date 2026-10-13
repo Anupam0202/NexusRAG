@@ -2,6 +2,11 @@
 
 Status: PARTIAL_NOT_COMPLETE. Source candidate; hosted installation and full
 private-session acceptance are not established. No production or provider action.
+Final exact019 source/recovery/SQL/image and approved rehearsal installation
+receipts are summarized in BATCH019_HANDOFF.md and QUERY_CACHE_CONTEXT_020.md.
+The pending-install/test statements below are preserved source-time observations,
+not the current hosted catalog. Six approved019 function bodies/grants now match
+in rehearsal only; no history function was invoked and the image gate still fails.
 
 ## Reproduced Boundary
 

@@ -99,13 +99,17 @@ class RAGChain:
         scoped_workspace_id = normalize_workspace_id(workspace_id)
         scoped_session_id = self._session_key(scoped_workspace_id, session_id)
         safe_filters = self._normalize_retrieval_filters(retrieval_filters)
-        cache_namespace = self._retrieval_namespace(safe_filters)
 
         # Memory
         memory = self._memory_store.get(scoped_session_id)
         if conversation_history:
             for m in conversation_history:
                 memory.add(m["role"], m["content"])
+        history_msgs = memory.get_context_messages()
+        cache_namespace = self._query_cache_namespace(
+            safe_filters, history_msgs, top_k=top_k,
+            use_reranking=use_reranking, mode="query",
+        )
 
         # Cache
         cached = self._cache.get(
@@ -115,12 +119,14 @@ class RAGChain:
         )
         if cached is not None:
             logger.info("cache_hit")
+            memory.add("user", question)
+            memory.add("assistant", cached["answer"][:3000])
             cached["response_time_seconds"] = round(time.perf_counter() - t0, 3)
             cached["from_cache"] = True
+            cached.setdefault("metadata", {})["from_cache"] = True
             return cached
 
         # Retrieve
-        history_msgs = memory.get_context_messages()
         retrieval = self._retriever.retrieve(
             safe_q,
             workspace_id=scoped_workspace_id,
@@ -352,12 +358,16 @@ class RAGChain:
         scoped_workspace_id = normalize_workspace_id(workspace_id)
         scoped_session_id = self._session_key(scoped_workspace_id, session_id)
         safe_filters = self._normalize_retrieval_filters(retrieval_filters)
-        cache_namespace = self._retrieval_namespace(safe_filters)
 
         memory = self._memory_store.get(scoped_session_id)
         if conversation_history:
             for m in conversation_history:
                 memory.add(m["role"], m["content"])
+        history_msgs = memory.get_context_messages()
+        cache_namespace = self._query_cache_namespace(
+            safe_filters, history_msgs, top_k=top_k,
+            use_reranking=use_reranking, mode="stream",
+        )
 
         # Cache check
         cached = self._cache.get(
@@ -366,13 +376,20 @@ class RAGChain:
             namespace=cache_namespace,
         )
         if cached is not None:
+            memory.add("user", question)
+            memory.add("assistant", cached["answer"][:3000])
             yield {"type": "token", "content": cached["answer"]}
             yield {"type": "sources", "sources": cached.get("sources", [])}
-            yield {"type": "done", "metadata": {**cached.get("metadata", {}), "from_cache": True}}
+            yield {
+                "type": "done",
+                "metadata": {
+                    **cached.get("metadata", {}), "from_cache": True,
+                    "response_time_seconds": round(time.perf_counter() - t0, 3),
+                },
+            }
             return
 
         # Retrieve
-        history_msgs = memory.get_context_messages()
         retrieval = self._retriever.retrieve(
             safe_q,
             workspace_id=scoped_workspace_id,
@@ -664,6 +681,26 @@ class RAGChain:
         if not normalized:
             return "workspace"
         return "filtered:" + json.dumps(normalized, sort_keys=True, separators=(",", ":"))
+
+    @classmethod
+    def _query_cache_namespace(
+        cls,
+        filters: dict[str, Any],
+        history: list[dict[str, str]],
+        *,
+        top_k: int | None,
+        use_reranking: bool | None,
+        mode: str,
+    ) -> str:
+        # History affects retrieval, not evidence. Never expose its text in metadata.
+        context = {
+            "filters": cls._retrieval_namespace(filters), "history": history,
+            "top_k": top_k, "use_reranking": use_reranking, "mode": mode,
+        }
+        digest = hashlib.sha256(
+            json.dumps(context, sort_keys=True, separators=(",", ":")).encode()
+        ).hexdigest()
+        return "query-context-v1:" + digest
 
     @staticmethod
     def _answer_history_notice() -> str:
