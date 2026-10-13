@@ -1,5 +1,16 @@
 # NexusRAG execution checkpoint
 
+## Active Batch: backend-private-turn-authority-021
+
+**PARTIAL_NOT_COMPLETE. Retained Python private-turn source/real disposable SQL candidate; not hosted or production accepted.**
+
+- Resume parentf0a70c12/tree10adef8eb5c480098b740a9357e3a3d6b9083e93 and frozen BATCH020_HANDOFF.md, not older prompts. Trusted541-source SHA2566ee7347bf5c220bb8e56017f054f11dd03571ae764095b845b1dbdf231d9022d and33-final-evidence SHA256c6d0d7b8f377c830797db2f8cf5fc85966dbdf6cb8ab761728a4d0c28f1b548d were freshly checked. Existing candidatebranch/sole draftPR12; protected main/release unchanged. All224 exact definitions/tenproducts retained.
+- Actual offline REST/WS persistence-helper/repository reproduction proves foreign-owner split writes and partial-pair false success. New caller-JWT context before effects and recheck after quota await, canonical IDs, request-owned memory/cache scope, protected exact-output staging and atomic caller commit replace unfenced writers. Current membership/session/Auth expiry/revision/history epoch fence mutation; new epoch also covers legacy message and identity mutations without changing revision semantics.
+- One fresh candidate review reported four concrete gaps; confirmed/corrected quota-await revocation, workbench source-withholding projection, generation usage on unconfirmed persistence, and disconnect/accounting. Actual serialized errors/done carry canonical identity and truthful status. Three new usage/protocol regressions fail before correction; all630backend+10subtests pass afterward. No independent final re-review claim or whole-private-boundary closure.
+- Real local PostgreSQL17.11/pgvector0.8.7 baseline/forward migration, existing/new authority/grants, exact-pair rollback and concurrency pass; backup/restore61tables105public/Auth/Storage functions. Unprivileged official signature-verified package extraction, new Unix-socket-only cluster, synthetic Auth/Storage stand-ins, database dropped/server stopped. Not hosted Supabase/OAuth. Fixture claim-role/job-kind and CRLF wrapper failures retained; no guard weakened. See BACKEND_PRIVATE_TURN_AUTHORITY_021.md.
+- New20261013195435_backend_private_turn_authority.sql NOT approved/applied hosted. Fulfilled019 rehearsal-only approval remains scoped. Fresh source publication/complete recovery/real locks/builds/exact CI/image outcomes must be bound in later receipts. No production, deployment, customer/provider/destructive or paid operation. Parent required image gate fails107matches101Medium6Low,frontend0,ignored0.
+- Continue source/rights/version fences, complete idempotent outcome reconciliation, lifecycle/legal holds/independent multi-store erasure, real two-user workflows, all twelve research modes/ten products, quality400+125, rights/budgets/canonical source-schema-origin and safe release/recovery/cleanup. A verified local authority candidate is not PRODUCTION_READY.
+
 ## Active Batch: query-cache-context-020
 
 **PARTIAL_NOT_COMPLETE. Retained Python answer-cache context/snapshot correction; not deployed/private authority or production acceptance.**

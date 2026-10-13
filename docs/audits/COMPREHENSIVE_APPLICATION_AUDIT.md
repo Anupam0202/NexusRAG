@@ -4,6 +4,25 @@ Status: **PARTIAL_NOT_COMPLETE — locally tested implementation; not production
 
 This receipt supersedes historical status claims only where it records a fresh observation. It does not certify a complete product, production release, provider rights, or absence of all defects.
 
+## Retained Python private turns - bounded batch021
+
+PARTIAL_NOT_COMPLETE. Actual synthetic helper/repository reproduction shows
+foreign-owner writes and false success after a split-pair failure. Candidate uses
+caller-bound current context before effects/rechecks after quota, request-owned
+memory, server-attested atomic pair/revision/epoch mutation and confirmed protocol
+receipts. One independent candidate review found four gaps; parent regressions
+and corrections cover authority-await changes, source-bound history withholding,
+generation-usage truth and disconnect/accounting.630backend+10 pass.
+
+Actual unprivileged PostgreSQL17.11/pgvector0.8.7 synthetic baseline/forward
+authority/grant/rollback/concurrency/backuprestore passes61tables105functions;
+the new cluster is stopped and fixture database dropped. Auth/Storage stand-ins
+are not hosted OAuth. See BACKEND_PRIVATE_TURN_AUTHORITY_021.md. New hosted SQL
+approval, complete source recovery/builds/exact CI/image and real private journeys
+remain required. No paid/provider/customer/production/deployment operation.
+All224/tenproducts and general source/rights/lifecycle/legal-hold/erasure/release
+acceptance remain open. Parent required image remains107matches/failed, not waived.
+
 ## Context-bound answer cache - bounded batch020
 
 PARTIAL_NOT_COMPLETE. Twelve actual Python cache/chain regressions fail before

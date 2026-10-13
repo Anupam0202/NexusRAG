@@ -47,6 +47,7 @@ from config.settings import Settings, get_settings
 from evals.run_eval import DEFAULT_DATASET, run_evaluation
 from src.api.auth import WorkspaceContext, WorkspaceRole, require_enterprise_workspace_role
 from src.api.dependencies import get_rag_chain, get_vector_store, verify_api_key
+from src.api.private_turn import prepare_private_turn, persist_private_turn, revalidate_private_turn
 from src.api.models import (
     AnalyticsSummary,
     AuditEventListResponse,
@@ -353,88 +354,6 @@ async def _workspace_chunk_count(
                 error=str(exc)[:300],
             )
     return max(candidates)
-
-
-def _valid_chat_session_id(session_id: str | None) -> str | None:
-    if not session_id:
-        return str(uuid.uuid4())
-    try:
-        uuid.UUID(session_id)
-    except ValueError:
-        return None
-    return session_id
-
-
-def _chat_title(question: str) -> str:
-    title = " ".join(question.split())
-    return (title[:77] + "...") if len(title) > 80 else title
-
-
-async def _persist_chat_turn(
-    *,
-    workspace: WorkspaceContext | None,
-    settings: Settings,
-    session_id: str | None,
-    question: str,
-    answer: str,
-    sources: list[SourceChunk],
-    metadata: dict,
-) -> str | None:
-    if not _should_persist_workspace_event(workspace, settings):
-        return session_id
-
-    durable_session_id = _valid_chat_session_id(session_id)
-    if durable_session_id is None:
-        logger.warning(
-            "chat_history_invalid_session_id",
-            workspace_id=_context_workspace_id(workspace),
-            session_id=session_id,
-        )
-        return session_id
-
-    workspace_id = _context_workspace_id(workspace)
-    user_id = _context_user_id(workspace)
-    source_payload = [source.model_dump(mode="json") for source in sources]
-    try:
-        repo = MessageRepository()
-        await repo.ensure_session(
-            workspace_id=workspace_id,
-            session_id=durable_session_id,
-            user_id=user_id,
-            title=_chat_title(question),
-        )
-        await repo.add_message(
-            workspace_id=workspace_id,
-            session_id=durable_session_id,
-            role="user",
-            content=question,
-            metadata={"source": "chat_api"},
-        )
-        await repo.add_message(
-            workspace_id=workspace_id,
-            session_id=durable_session_id,
-            role="assistant",
-            content=answer,
-            sources=source_payload,
-            metadata={
-                "source": "chat_api",
-                "query_type": metadata.get("query_type"),
-                "confidence": metadata.get("confidence"),
-                "response_time_seconds": metadata.get("response_time_seconds"),
-                "model": metadata.get("model"),
-                "from_cache": metadata.get("from_cache"),
-                "generation_fallback": metadata.get("generation_fallback"),
-            },
-        )
-    except Exception as exc:
-        logger.warning(
-            "chat_history_persist_failed",
-            workspace_id=workspace_id,
-            session_id=durable_session_id,
-            error=str(exc)[:300],
-        )
-        return session_id
-    return durable_session_id
 
 
 def _preflight_upload_limits(filename: str, content: bytes, settings: Settings) -> None:
@@ -870,7 +789,9 @@ async def query_chat_with_durable_fallback(
     retrieval_filters: dict[str, Any],
     persist_event: bool,
     settings: Settings,
+    isolated_context: str | None = None,
 ) -> dict[str, Any]:
+    private_options = {"isolated_context": isolated_context} if isolated_context else {}
     result = chain.query(
         question,
         workspace_id=workspace_id,
@@ -879,6 +800,7 @@ async def query_chat_with_durable_fallback(
         top_k=top_k,
         use_reranking=use_reranking,
         retrieval_filters=retrieval_filters or None,
+        **private_options,
     )
     if persist_event and not result.get("sources"):
         durable_docs = await _durable_chunk_documents_for_filters(
@@ -2097,6 +2019,13 @@ async def chat(
     telemetry = get_telemetry_recorder()
     persist_event = _should_persist_workspace_event(workspace, settings)
     retrieval_filters = _chat_retrieval_filters(body)
+    repository = MessageRepository()
+    turn_context = await prepare_private_turn(workspace=workspace, settings=settings,
+        session_id=body.session_id, repository=repository)
+    session_id = turn_context.session_id if turn_context else body.session_id
+    if turn_context and not history:
+        history = [dict(message) for message in turn_context.history]
+        history_token_parts = [message["content"] for message in history]
     estimated_input_tokens = estimate_tokens(body.question, *history_token_parts)
 
     try:
@@ -2123,18 +2052,20 @@ async def chat(
         )
         raise HTTPException(status_code=429, detail=str(exc)) from exc
 
+    await revalidate_private_turn(context=turn_context, repository=repository)
     try:
         result = await query_chat_with_durable_fallback(
             chain=chain,
             question=body.question,
             workspace_id=workspace_id,
-            session_id=body.session_id,
+            session_id=session_id,
             conversation_history=history if history else None,
             top_k=body.top_k,
             use_reranking=body.use_reranking,
             retrieval_filters=retrieval_filters,
             persist_event=persist_event,
             settings=settings,
+            isolated_context=turn_context.cache_authority if turn_context else None,
         )
     except Exception as exc:
         await telemetry.record_llm_usage(
@@ -2182,6 +2113,7 @@ async def chat(
     metadata["response_time_seconds"] = result.get("response_time_seconds", 0.0)
     answer = result["answer"]
     latency_ms = int(float(result.get("response_time_seconds", 0.0) or 0.0) * 1000)
+    metadata["session_id"] = session_id
 
     await telemetry.record_llm_usage(
         workspace_id=workspace_id,
@@ -2202,6 +2134,14 @@ async def chat(
         workspace_id=workspace_id,
         persist=persist_event,
     )
+    try:
+        await persist_private_turn(context=turn_context, repository=repository, question=body.question,
+            answer=answer, sources=[source.model_dump(mode="json") for source in sources], metadata=metadata)
+    except HTTPException as exc:
+        await _record_audit_event(workspace=workspace, settings=settings,
+            action="chat.turn_unconfirmed", resource_type="chat_session", resource_id=session_id,
+            metadata={"status": exc.status_code, "generation_completed": True})
+        raise
     await _record_audit_event(
         workspace=workspace,
         settings=settings,
@@ -2222,16 +2162,6 @@ async def chat(
             "latency_ms": latency_ms,
         },
     )
-    persisted_session_id = await _persist_chat_turn(
-        workspace=workspace,
-        settings=settings,
-        session_id=body.session_id,
-        question=body.question,
-        answer=answer,
-        sources=sources,
-        metadata=metadata,
-    )
-    metadata["session_id"] = persisted_session_id or body.session_id
     return QueryResponse(
         answer=answer,
         sources=sources,

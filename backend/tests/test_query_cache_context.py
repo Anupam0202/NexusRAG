@@ -128,3 +128,25 @@ def test_semantic_cache_owns_nested_response_snapshots(mutated_side):
     assert cache.get("question", workspace_id="workspace") == {
         "answer": "original", "sources": [{"metadata": {"document_id": "original"}}]
     }
+
+
+def test_private_context_never_reads_or_mutates_shared_session_memory(cached_chain):
+    chain, calls = cached_chain
+    shared = chain._memory_store.get("synthetic-workspace:private-session")
+    shared.add("user", "uncommitted shared marker")
+    shared.add("assistant", "stale local answer")
+    snapshot = [{"role": "user", "content": "durable snapshot marker"}]
+    before = chain.get_session_history("private-session", workspace_id="synthetic-workspace")
+    first = chain.query("What does it say?", workspace_id="synthetic-workspace", session_id="private-session",
+                        conversation_history=snapshot, isolated_context="owned-authority-epoch1")
+    hit = chain.query("What does it say?", workspace_id="synthetic-workspace", session_id="private-session",
+                      conversation_history=snapshot, isolated_context="owned-authority-epoch1")
+    changed = chain.query("What does it say?", workspace_id="synthetic-workspace", session_id="private-session",
+                          conversation_history=snapshot, isolated_context="owned-authority-epoch2")
+    assert "durable snapshot marker" in first["answer"]
+    assert "uncommitted shared marker" not in first["answer"]
+    assert hit["metadata"]["from_cache"] is True
+    assert len(calls) == 2
+    assert first["metadata"]["cache_namespace"] != changed["metadata"]["cache_namespace"]
+    assert chain.get_session_history("private-session", workspace_id="synthetic-workspace") == before
+    assert snapshot == [{"role": "user", "content": "durable snapshot marker"}]

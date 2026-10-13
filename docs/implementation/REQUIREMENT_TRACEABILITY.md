@@ -4,6 +4,14 @@
 
 Status: `PARTIAL_NOT_COMPLETE_WITH_ACCEPTED_NORMATIVE_BASELINE`
 
+Latest021 adds locally exercised retained Python caller-bound private turn context,
+server attestation, atomic pair/revision/history epoch and truthful REST/WS outcomes.
+See BACKEND_PRIVATE_TURN_AUTHORITY_021.md.630backend+10 and real disposable
+PostgreSQL17 authority/rollback/concurrency/backuprestore pass; new hosted approval,
+full recovery/exact CI/image/private production criteria remain separate. No
+normative meaning, denominator, accepted role/read/clear contract or product scope
+is removed; all224/tenproducts remain unfinished at complete acceptance scope.
+
 Latest020 corrects retained Python answer-cache context/options/mode identity,
 nested response ownership and cache-hit local memory. See QUERY_CACHE_CONTEXT_020.md;
 this is not caller/session or source/rights fencing and closes no production

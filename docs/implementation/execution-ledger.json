@@ -13,6 +13,23 @@
   "interpretation": "OPEN_ENGINEERING includes implemented but not fully accepted requirements; it does not assert that no code or scoped evidence exists. External approvals do not close unfinished internal work.",
   "entries": [
     {
+      "id": "ENGINEERING-BACKEND-PRIVATE-TURN-AUTHORITY",
+      "requirement": "Authorize retained Python private chat before history/cache/model effects and atomically confirm caller-owned session creation, complete turn, revision/epoch and server-attested output",
+      "normative_source": "Owner retained private turn, compatibility, stale-authority, truthful completion and quota mandate",
+      "status": "IN_PROGRESS",
+      "environment": "batch021 source;630denied-network backend+10subtests and actual synthetic PostgreSQL17.11/pgvector0.8.7 authority/concurrency/61table105function backuprestore pass; not hosted/private production acceptance",
+      "next_action": "Save/publish the reviewed source through existing PR12, export complete real locks/specifications, recover into new directories with fresh dependencies/checks and exact CI/image. Obtain separately scoped approval for the exact new hosted SQL only after gates; preserve fulfilled019 receipt. Continue source/rights/lifecycle/erasure, idempotent reconciliation and all224/tenproducts without false completion.",
+      "acceptance_evidence": [
+        {
+          "environment": "denied-network actual REST/serialized WS/repository/cache tests; unprivileged new Unix-socket PostgreSQL17.11 cluster with synthetic Auth/Storage stand-ins",
+          "observed_at": "2026-10-13T20:40:00Z",
+          "source_identity": "parentf0a70c12e2a29296fe8a970e18294459dbdfec47 plus backend-private-turn-authority-021 candidate",
+          "command_or_url": "docs/implementation/BACKEND_PRIVATE_TURN_AUTHORITY_021.md; backend/tests/test_private_turn_authority.py; tests/postgres/backend-private-turn-assertions.sql; tests/postgres/backend-private-turn-concurrency.sh; tests/postgres/backup-restore.sh",
+          "result": "Original foreign-owner/partial-pair defects reproduced offline. Candidate preflight/recheck/request-owned memory/strict atomic receipts pass630backend+10. One reviewer found four confirmed gaps corrected with regressions. Actual SQL role/grant/forgery/second-row rollback/source withholding and concurrent append/clear/legacy/revocation/expiry/inverse-lock checks pass; backup/restore61tables105functions, database dropped/server stopped. Fixture and wrapper failures retained. New source/recovery/CI/image/hosted acceptance pending; no normative or product closure claimed."
+        }
+      ]
+    },
+    {
       "id": "ENGINEERING-QUERY-CACHE-CONTEXT",
       "requirement": "Bind retained Python answer reuse to actual retrieval context/options/response mode, own nested snapshots and preserve local cached-turn memory",
       "normative_source": "Owner grounded retrieval, cache isolation, advanced controls and truthful end-to-end workflow mandate",

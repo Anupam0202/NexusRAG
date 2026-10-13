@@ -29,7 +29,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 
 from config.settings import Settings, get_settings
 from src.generation.llm import get_llm_provider
-from src.generation.memory import SessionMemoryStore
+from src.generation.memory import ConversationMemory, SessionMemoryStore
 from src.generation.prompts import PromptManager
 from src.retrieval.cache import SemanticCache
 from src.retrieval.retriever import HybridRetriever, QueryType
@@ -92,6 +92,7 @@ class RAGChain:
         top_k: int | None = None,
         use_reranking: bool | None = None,
         retrieval_filters: dict[str, Any] | None = None,
+        isolated_context: str | None = None,
     ) -> dict[str, Any]:
         """Full blocking RAG query → returns structured response dict."""
         t0 = time.perf_counter()
@@ -101,7 +102,9 @@ class RAGChain:
         safe_filters = self._normalize_retrieval_filters(retrieval_filters)
 
         # Memory
-        memory = self._memory_store.get(scoped_session_id)
+        # Private turns use an owned, caller-authorized snapshot. Failed/cleared
+        # turns cannot publish uncommitted history to shared process memory.
+        memory = ConversationMemory(self._settings) if isolated_context else self._memory_store.get(scoped_session_id)
         if conversation_history:
             for m in conversation_history:
                 memory.add(m["role"], m["content"])
@@ -110,6 +113,8 @@ class RAGChain:
             safe_filters, history_msgs, top_k=top_k,
             use_reranking=use_reranking, mode="query",
         )
+        if isolated_context:
+            cache_namespace = hashlib.sha256(f"{isolated_context}:{cache_namespace}".encode()).hexdigest()
 
         # Cache
         cached = self._cache.get(
