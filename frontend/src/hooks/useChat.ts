@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ApiRequestError, chatQuery, getSessionMessages } from "@/lib/api";
 import { useStore } from "@/hooks/useStore";
 import { canUseWorkspaceApi } from "@/hooks/useAuthGate";
@@ -22,6 +22,7 @@ export type ChatSendOptions = {
 };
 
 export function useChat() {
+  const [documentSelectionRequest, setDocumentSelectionRequest] = useState<{ question: string; requestId: string } | null>(null);
   const store = useStore();
   const canAccessWorkspaceApi = canUseWorkspaceApi(store.authMode) && (store.authMode !== "authenticated" || !!store.workspaceId);
   // Use ref to always have latest messages for history
@@ -90,6 +91,12 @@ export function useChat() {
     } catch (err: unknown) {
       if (!isCurrentContext()) return;
       const message = err instanceof Error ? err.message : "Failed to reach the backend";
+      if (err instanceof ApiRequestError && err.code === "DOCUMENT_SELECTION_REQUIRED") {
+        setDocumentSelectionRequest({ question: req.question, requestId: id });
+        store.setError(id, message);
+        store.setConnectionStatus("online");
+        return;
+      }
       if (err instanceof ApiRequestError && err.code === "BYOK_REQUIRED") {
         store.setIsQuotaBlocked(true);
         store.setShowApiKeyModal(true);
@@ -126,6 +133,7 @@ export function useChat() {
       return;
     }
     store.addUserMessage(text);
+    setDocumentSelectionRequest(null);
     const asstId = generateId();
     store.addAssistantMessage(asstId);
 
@@ -158,5 +166,7 @@ export function useChat() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [store.sessionId, runRestFallback, canAccessWorkspaceApi]);
 
-  return { sendMessage, messages: store.messages };
+  return { sendMessage, messages: store.messages, documentSelectionRequest:
+    documentSelectionRequest && store.messages.some(message => message.id === documentSelectionRequest.requestId)
+      ? documentSelectionRequest : null };
 }

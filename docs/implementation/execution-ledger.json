@@ -13,6 +13,23 @@
   "interpretation": "OPEN_ENGINEERING includes implemented but not fully accepted requirements; it does not assert that no code or scoped evidence exists. External approvals do not close unfinished internal work.",
   "entries": [
     {
+      "id": "ENGINEERING-SUMMARY-TARGETING",
+      "requirement": "Resolve literal summary targets within the current document scope, persist matching citations and provide deliberate ordinary UI selection recovery",
+      "normative_source": "Owner cover-letter/resume retrieval defect and complete functional user journeys; R19/R20",
+      "status": "IN_PROGRESS",
+      "environment": "isolated batch023 functional checkout based on810e592; production Gateway/client/components with synthetic transports and local desktop/mobile-emulated light/dark browsers; no hosted changes",
+      "next_action": "Bind exact saved-source complete recovery and ordinary CI evidence to existing draftPR12 without paused022 paths. Obtain separately scoped test-fixture/hosted rollout approvals before real private/provider journeys. Continue complete durable research/product execution and quality; literal targeting is not full summarization, entailment or production acceptance.",
+      "acceptance_evidence": [
+        {
+          "environment": "offline actual Gateway handler, real React store/hooks/components, isolated browser fixture REST responses and local workerd",
+          "observed_at": "2026-10-14T18:53:31Z",
+          "source_identity": "parent810e5922602f0c42b1a059a8878b7500f19ffc8b plus summary-targeting-023 candidate; batch022 excluded",
+          "command_or_url": "tests/cloudflare/document-summary-scope.test.mjs; tests/cloudflare/upload-to-answer-e2e.test.mjs; frontend/src/e2e/summary-selection.spec.ts; docs/implementation/SUMMARY_TARGETING_023.md",
+          "result": "Original3/4 regressions fail before scope resolution. Final review reproduces two missing-title/sole-unrelated-document failures; corrected fallback and preserved empty-library quota contract pass final422Gateway/no skips. Initial363frontend,630backend+10subtests,57isolated,88scripts,lint/typecheck,Next/OpenNext25assets and actual Worker fixtures pass; four synthetic desktop/mobile light/dark UI journeys pass. Explicit IDs/exact filename retained, ambiguity makes no provider/admission writes, scope persists in sources/metadata. No hosted OAuth/durable hosted SQL/provider quality/security/production acceptance. Failed attempts preserved; final exact-source/recovery/CI receipt separate."
+        }
+      ]
+    },
+    {
       "id": "ENGINEERING-BACKEND-PRIVATE-TURN-AUTHORITY",
       "requirement": "Authorize retained Python private chat before history/cache/model effects and atomically confirm caller-owned session creation, complete turn, revision/epoch and server-attested output",
       "normative_source": "Owner retained private turn, compatibility, stale-authority, truthful completion and quota mandate",

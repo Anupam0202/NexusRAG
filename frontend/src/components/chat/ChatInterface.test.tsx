@@ -5,12 +5,13 @@ import { useStore } from "@/hooks/useStore";
 
 const fixture = vi.hoisted(() => ({
   sendMessage: vi.fn(), error: vi.fn(), messages: [],
+  documentSelectionRequest: null as { question: string; requestId: string } | null,
   documents: [{ document_id: "33333333-3333-4333-8333-333333333333",
     filename: "report.txt", file_type: "txt", file_size_bytes: 25, page_count: 0,
     chunk_count: 1, status: "ready", created_at: "2026-01-02T12:00:00Z",
     processing_time_seconds: 0, extraction_method: "synthetic", extra: {} }],
 }));
-vi.mock("@/hooks/useChat", () => ({ useChat: () => ({ sendMessage: fixture.sendMessage, messages: fixture.messages }) }));
+vi.mock("@/hooks/useChat", () => ({ useChat: () => ({ sendMessage: fixture.sendMessage, messages: fixture.messages, documentSelectionRequest: fixture.documentSelectionRequest }) }));
 vi.mock("@/hooks/useDocuments", () => ({ useDocuments: () => ({ documents: fixture.documents, loading: false, error: null }) }));
 vi.mock("sonner", () => ({ toast: { error: fixture.error } }));
 
@@ -23,6 +24,7 @@ function prepareSend() {
 }
 beforeEach(() => {
   vi.clearAllMocks();
+  fixture.documentSelectionRequest = null;
   Element.prototype.scrollIntoView = vi.fn();
   useStore.setState({ ...useStore.getInitialState(), authMode: "authenticated",
     authUser: { id: "22222222-2222-4222-8222-222222222222", email: null },
@@ -31,6 +33,28 @@ beforeEach(() => {
 afterEach(() => { cleanup(); useStore.setState(useStore.getInitialState()); });
 
 describe("chat filter controls (synthetic component state, not live OAuth acceptance)", () => {
+  it("restores an ambiguous summary into explicit selection without automatically replaying it", () => {
+    fixture.documentSelectionRequest = { question: "Summarize this document", requestId: "fixture-request" };
+    render(<ChatInterface />);
+    fireEvent.click(screen.getByRole("button", { name: "Choose summary documents" }));
+    expect(screen.getByLabelText("Chat message")).toHaveValue("Summarize this document");
+    expect(screen.getByRole("checkbox", { name: "report.txt" })).not.toBeChecked();
+    expect(screen.getByRole("button", { name: "Send message" })).toBeDisabled();
+    expect(fixture.sendMessage).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("checkbox", { name: "report.txt" }));
+    fireEvent.click(screen.getByRole("checkbox", { name: /This question contains no personal/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Send message" }));
+    expect(fixture.sendMessage).toHaveBeenCalledWith("Summarize this document", expect.objectContaining({
+      chatScope: "documents", documentIds: ["33333333-3333-4333-8333-333333333333"],
+    }));
+  });
+  it("choosing summary documents does not overwrite a newer typed draft", () => {
+    fixture.documentSelectionRequest = { question: "Summarize this document", requestId: "fixture-request" };
+    render(<ChatInterface />); change("Chat message", "A new question");
+    fireEvent.click(screen.getByRole("button", { name: "Choose summary documents" }));
+    expect(screen.getByLabelText("Chat message")).toHaveValue("A new question");
+    expect(fixture.sendMessage).not.toHaveBeenCalled();
+  });
   it("sends exact selected filters and inclusive UTC end dates through the actual controls", () => {
     render(<ChatInterface />);
     fireEvent.click(screen.getByRole("button", { name: "Filters" }));

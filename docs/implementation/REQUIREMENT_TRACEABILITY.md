@@ -4,6 +4,14 @@
 
 Status: `PARTIAL_NOT_COMPLETE_WITH_ACCEPTED_NORMATIVE_BASELINE`
 
+Latest023 exercises R19/R20 ordinary summary document targeting and selection
+recovery:literal names and explicit filters share current retrieval/citation scope;
+ambiguous targets request a deliberate UI choice instead of arbitrary evidence.
+See SUMMARY_TARGETING_023.md for final422Gateway/363frontend/four synthetic browser
+journeys and exact limits. All224 normative meanings/tenproducts/twelve modes stay
+unchanged. Paused022 and known release gates remain separately scoped prerequisites,
+not waived or included in this isolated functional source.
+
 Latest021 adds locally exercised retained Python caller-bound private turn context,
 server attestation, atomic pair/revision/history epoch and truthful REST/WS outcomes.
 See BACKEND_PRIVATE_TURN_AUTHORITY_021.md.630backend+10 and real disposable

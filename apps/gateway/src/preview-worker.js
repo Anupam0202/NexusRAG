@@ -12,6 +12,7 @@ import { deleteQdrantDocument, hybridFuse } from "./worker-lifecycle.js";
 import { handleQueue, sweepJobs } from "./worker-jobs.js";
 import { candidateChunkIds, rehydrateEvidence } from "./retrieval-authority.js";
 import { assessAnswer } from "./answer-evidence.js";
+import { resolveSummaryDocuments } from "./document-summary-scope.js";
 import { handleWorkbench, listFindings } from "./workbench.js";
 import { handleInvitations } from "./workspace-invitations.js";
 import { readBoundedJsonObject } from "./request-body.js";
@@ -541,8 +542,8 @@ async function chat(request, env, user, workspace, member) {
   if (body.document_ids !== undefined && (!Array.isArray(body.document_ids) || body.document_ids.length > 25 || body.document_ids.some(id => typeof id !== "string" || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)))) {
     throw Object.assign(new Error("Document scope must contain at most 25 valid document IDs."), { status: 422, code: "INVALID_SCOPE" });
   }
-  if (body.chat_scope === "documents" && !body.document_ids?.length) {
-    throw Object.assign(new Error("Select at least one document for document-scoped chat."), { status: 422, code: "INVALID_SCOPE" });
+  if (body.chat_scope === "documents" && !body.document_ids?.length && !filters.filename) {
+    throw Object.assign(new Error("Select a document or provide its exact filename for document-scoped chat."), { status: 422, code: "INVALID_SCOPE" });
   }
   if(body?.non_sensitive_attested!==true)throw Object.assign(new Error("Chat blocked: confirm the question contains no personal, confidential, regulated, or other sensitive information."),{status:403,code:"RIGHTS_BLOCKED"});
   const settings=await readWorkspaceSettings(env,workspace);
@@ -554,7 +555,10 @@ async function chat(request, env, user, workspace, member) {
   const requestedVersions = activeDocuments.map(item => item.active_version_id);
   const versions = requestedVersions.length ? await serviceRequest(env, `document_versions?workspace_id=eq.${workspace}&id=in.(${requestedVersions.join(",")})&publication_state=eq.ready&data_classification=eq.non_sensitive&select=id,document_id,index_generation&limit=100`) : [];
   const eligibleVersionIds = new Set(versions.map(item => item.id));
-  const eligibleDocuments = activeDocuments.filter(item => eligibleVersionIds.has(item.active_version_id));
+  const summaryScope = resolveSummaryDocuments(question,
+    activeDocuments.filter(item => eligibleVersionIds.has(item.active_version_id)),
+    Boolean(documentIds.length || filters.filename));
+  const eligibleDocuments = summaryScope.documents;
   const activeDocumentIds = eligibleDocuments.map(item => item.id);
   const activeVersionIds = eligibleDocuments.map(item => item.active_version_id);
   const topK = settings.retrieval_top_k;
@@ -612,6 +616,7 @@ async function chat(request, env, user, workspace, member) {
     lexical_limit_reached: lexicalLimited, completeness: lexicalLimited ? "PARTIAL_BOUNDED_RETRIEVAL" : "BOUNDED_RETRIEVAL_NOT_EXHAUSTIVE",
     evidence_authority: "SUPABASE_HASH_VERIFIED" };
   response.metadata.account_usage={free_chat_queries_used:admission.credentialMode==="platform_trial"?admission.used:5,free_chat_queries_limit:5,credential_mode:admission.credentialMode};
+  response.metadata.document_selection = { reason: summaryScope.reason, document_ids: summaryScope.document_ids };
   const turnPayload = {
     p_key: admissionKey(request), p_revision: turnContext.revision,
     p_question: question, p_answer: response.answer, p_sources: response.sources,

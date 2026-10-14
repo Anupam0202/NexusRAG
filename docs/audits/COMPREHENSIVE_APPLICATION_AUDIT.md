@@ -4,6 +4,40 @@ Status: **PARTIAL_NOT_COMPLETE — locally tested implementation; not production
 
 This receipt supersedes historical status claims only where it records a fresh observation. It does not certify a complete product, production release, provider rights, or absence of all defects.
 
+## Functional summary targeting - bounded batch023
+
+Actual parent810 Gateway synthetic regressions reproduce named cover-letter/resume
+mixing and false success for ambiguous/missing targets:3fail/1pass. Independent
+functional checkout adds literal unique targeting before quota/provider admission,
+shares the resolved document/version scope across dense/lexical context and saved
+citations, and preserves explicit caller selection/exact filename filters.
+Ordinary UI recovery opens the existing document picker, preserves a newer draft,
+requires deliberate selection/attestation/retry and dismisses obsolete recovery.
+
+Fresh420Gateway,363frontend,630backend+10subtests,57isolated,88scripts,
+lint/typecheck/Next/OpenNext25assets/actual local Worker fixtures pass. Four local
+browser journeys use real production components/client/hooks and synthetic REST
+responses:desktop/mobile-emulated,light/dark,focus,draft recovery,exact chosen source
+text and viewport bounds. Not real hosted OAuth, durable hosted SQL, Gemini quality
+or production acceptance. Chrome extension blocked local origins; no bypass.
+Fixture middleware/environment and one incorrect hook-field assertion failures
+are retained in separate logs. Existing required CI gates remain unchanged;
+functional browser test is added to ordinary CI. Exact saved/recovered source and
+remote CI outcomes are bound in later external receipts.
+
+Final functional review independently reproduces two additional absent-title
+failures with only an unrelated resume. The resolver no longer falls back to it.
+An empty-library quota-status compatibility regression was caught and corrected
+without changing its402gate; fresh422Gateway/no skips pass. No remote branch was
+advanced before that correction. Failed follow-up logs remain.
+
+Owner's batch022 PAUSED_BY_OWNER_SCOPE is preserved in the original checkout and
+complete frozen WIP, excluded here. No investigation/remediation of its findings or
+the failed107-match image gate. Fresh read-only rehearsal metadata confirms latest
+021 registry; no hosted changes. All224/tenproducts/twelve modes, representative
+400+125 quality and complete private/lifecycle/release acceptance remain unfinished.
+See SUMMARY_TARGETING_023.md; an isolated functional fix is not PRODUCTION_READY.
+
 ## Retained Python private turns - bounded batch021
 
 PARTIAL_NOT_COMPLETE. Actual synthetic helper/repository reproduction shows

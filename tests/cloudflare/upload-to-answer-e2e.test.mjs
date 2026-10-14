@@ -57,6 +57,7 @@ function localAppFixture() {
   const generationTemperatures = [];
   let expectedGeminiApiKey = null;
   let onGenerate = null;
+  let generatedAnswer = "The evidence describes a 30-day retention policy. [S1]";
   const matchesFilter = (point, filter) => (filter?.must || []).every((condition) => {
     if (condition.has_id) return condition.has_id.includes(point.id);
     const actual = point.payload?.[condition.key];
@@ -256,7 +257,7 @@ function localAppFixture() {
       assert.equal(url.searchParams.get("key"), null, "Gemini API keys must never be placed in provider URLs");
       if (expectedGeminiApiKey) assert.equal(new Headers(init.headers || {}).get("x-goog-api-key"), expectedGeminiApiKey);
       if (url.pathname.endsWith(":embedContent")) { embeddingCalls += 1; return json({ embedding: { values: Array(768).fill(0.01) } }); }
-      if (url.pathname.endsWith(":generateContent")) { outbound.push(body); onGenerate?.(); generationCalls += 1; generationTemperatures.push(body?.generationConfig?.temperature); return json({ candidates: [{ content: { parts: [{ text: "The evidence describes a 30-day retention policy. [S1]" }] } }], usageMetadata: { promptTokenCount: 42, candidatesTokenCount: 12 } }); }
+      if (url.pathname.endsWith(":generateContent")) { outbound.push(body); onGenerate?.(); generationCalls += 1; generationTemperatures.push(body?.generationConfig?.temperature); return json({ candidates: [{ content: { parts: [{ text: generatedAnswer }] } }], usageMetadata: { promptTokenCount: 42, candidatesTokenCount: 12 } }); }
     }
     if (url.hostname === "qdrant.invalid") {
       if (url.pathname.endsWith("/points/delete")) { for (const [id, point] of points) if (matchesFilter(point, body.filter)) points.delete(id); return json({ result: { status: "completed" } }); }
@@ -268,7 +269,7 @@ function localAppFixture() {
     }
     throw new Error(`Unexpected synthetic network request: ${method} ${url.href}`);
   };
-  return { env, user, member, setOnGenerate(callback) { onGenerate = callback; }, source, expectedChunks, docs, versions, jobs, chunks, extractionManifests, extractionChunks, objects, points, sessions, messages, outbound, auditEvents, deletionReceipts, deletionTargets, events, queue, accountUsage, userKeys, qdrantQueryLimits, qdrantQueryFilters, restQueries, generationTemperatures, fetch, setExpectedGeminiApiKey(value) { expectedGeminiApiKey = value; }, get deletionOperation() { return deletionOperation; }, get embeddingCalls() { return embeddingCalls; }, get generationCalls() { return generationCalls; } };
+  return { env, user, member, setGeneratedAnswer(value) { generatedAnswer = value; }, setOnGenerate(callback) { onGenerate = callback; }, source, expectedChunks, docs, versions, jobs, chunks, extractionManifests, extractionChunks, objects, points, sessions, messages, outbound, auditEvents, deletionReceipts, deletionTargets, events, queue, accountUsage, userKeys, qdrantQueryLimits, qdrantQueryFilters, restQueries, generationTemperatures, fetch, setExpectedGeminiApiKey(value) { expectedGeminiApiKey = value; }, get deletionOperation() { return deletionOperation; }, get embeddingCalls() { return embeddingCalls; }, get generationCalls() { return generationCalls; } };
 }
 
 // Independently model the small PostgREST subset used by filtered chat. These
@@ -511,6 +512,86 @@ async function seededResearchFixture(t) {
     headers: { authorization: "Bearer synthetic-oauth-token", "x-nexus-workspace-id": workspace, "content-type": "application/json", "idempotency-key": crypto.randomUUID() },
     body: JSON.stringify({ question: "What is the retention policy?", non_sensitive_attested: true, document_ids: [documentId] }) }) };
 }
+
+async function summaryFixture(t, question, explicitIds) {
+  const value = await seededResearchFixture(t), { fixture, documentId: resumeId } = value;
+  const coverId = "60606060-6060-4060-8060-606060606060";
+  const versionId = "70707070-7070-4070-8070-707070707070", chunkId = "80808080-8080-4080-8080-808080808080";
+  fixture.docs.get(resumeId).filename = "Resume.txt";
+  fixture.docs.set(coverId, { ...fixture.docs.get(resumeId), id: coverId,
+    filename: "Cover_Letter.txt", active_version_id: versionId });
+  fixture.versions.set(versionId, { ...[...fixture.versions.values()][0], id: versionId, document_id: coverId });
+  const content = "Dear hiring team. This application describes laboratory collaboration and research plans.";
+  fixture.chunks.set(versionId, [{ id: chunkId, workspace_id: workspace, document_id: coverId, version_id: versionId,
+    content, original_text: content, original_content_hash: await sha256(content), chunk_index: 0, page_number: 0 }]);
+  fixture.points.set(chunkId, { id: chunkId, payload: { chunk_id: chunkId, workspace_id: workspace,
+    document_id: coverId, version_id: versionId, index_generation: "synthetic-generation", content } });
+  fixture.setGeneratedAnswer("This application describes laboratory collaboration and research plans. [S1]");
+  const request = new Request(value.request.url, { method: "POST", headers: value.request.headers,
+    body: JSON.stringify({ question, non_sensitive_attested: true,
+      ...(explicitIds ? { document_ids: explicitIds, chat_scope: "documents" } : { chat_scope: "workspace" }) }) });
+  return { fixture, coverId, resumeId, request };
+}
+
+test("named cover-letter summary confines both retrieval and persisted evidence to that document", async t => {
+  const { fixture, coverId, request } = await summaryFixture(t, "Summarize the cover letter");
+  const response = await handle(request, fixture.env), body = await response.json();
+  assert.equal(response.status, 200, JSON.stringify(body));
+  assert.ok(body.sources.length > 0);
+  assert.ok(body.sources.every(source => source.metadata.document_id === coverId));
+  assert.equal(body.metadata.document_selection.reason, "NAMED_DOCUMENT");
+  assert.equal(body.metadata.coverage.scope_documents, 1);
+  assert.match(JSON.stringify(fixture.outbound), /laboratory collaboration/);
+  assert.doesNotMatch(JSON.stringify(fixture.outbound), /retention policy/);
+  assert.ok(fixture.messages.filter(m => m.role === "assistant").every(m =>
+    m.sources.every(s => s.metadata.document_id === coverId)));
+  assert.deepEqual(fixture.qdrantQueryFilters[0].must.find(c => c.key === "document_id").match.any, [coverId]);
+});
+
+for (const question of ["Summarize this document", 'Summarize "Missing_Letter.txt"']) {
+  test(`unclear summary target preserves quota and prompts explicit selection: ${question}`, async t => {
+    const { fixture, request } = await summaryFixture(t, question);
+    const response = await handle(request, fixture.env), body = await response.json();
+    assert.equal(response.status, 422);
+    assert.equal(body.error.code, "DOCUMENT_SELECTION_REQUIRED");
+    assert.equal(fixture.accountUsage.free_chat_queries, 0);
+    assert.equal(fixture.generationCalls, 0); assert.equal(fixture.embeddingCalls, 0);
+    assert.equal(fixture.qdrantQueryFilters.length, 0);
+    assert.equal(fixture.sessions.size, 0); assert.equal(fixture.messages.length, 0);
+  });
+}
+
+test("an explicit selected summary does not widen to another named workspace file", async t => {
+  const resumeId = "30303030-3030-4030-8030-303030303030";
+  const { fixture, request } = await summaryFixture(t, "Summarize the cover letter", [resumeId]);
+  const response = await handle(request, fixture.env), body = await response.json();
+  assert.equal(response.status, 200);
+  assert.ok(body.sources.length > 0 && body.sources.every(s => s.metadata.document_id === resumeId));
+  assert.deepEqual(fixture.qdrantQueryFilters[0].must.find(c => c.key === "document_id").match.any, [resumeId]);
+});
+
+test("selected summary scope accepts the UI's exact filename without requiring document IDs", async t => {
+  const { fixture, coverId, request } = await summaryFixture(t, "Summarize this document");
+  const body = await request.json();
+  const selectedRequest = new Request(request.url, { method: "POST", headers: request.headers,
+    body: JSON.stringify({ ...body, chat_scope: "documents", filename: "Cover_Letter.txt" }) });
+  const response = await handle(selectedRequest, fixture.env), answer = await response.json();
+  assert.equal(response.status, 200, JSON.stringify(answer));
+  assert.equal(answer.metadata.document_selection.reason, "EXPLICIT_SCOPE");
+  assert.ok(answer.sources.length > 0 && answer.sources.every(source => source.metadata.document_id === coverId));
+  assert.deepEqual(fixture.qdrantQueryFilters[0].must.find(c => c.key === "document_id").match.any, [coverId]);
+});
+
+test("a missing named cover letter cannot summarize the sole available resume", async t => {
+  const { fixture, coverId, request } = await summaryFixture(t, "Summarize the cover letter");
+  fixture.docs.delete(coverId);
+  const response = await handle(request, fixture.env), answer = await response.json();
+  assert.equal(response.status, 422);
+  assert.equal(answer.error.code, "DOCUMENT_SELECTION_REQUIRED");
+  assert.equal(fixture.accountUsage.free_chat_queries, 0);
+  assert.equal(fixture.generationCalls, 0);
+  assert.equal(fixture.sessions.size, 0);
+});
 
 test("a document tombstone during generation blocks answer persistence and return", async t => {
   const { fixture, documentId, request } = await seededResearchFixture(t);

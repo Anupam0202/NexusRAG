@@ -34,7 +34,7 @@ export default function ChatInterface() {
   return <WorkspaceChat key={identity} />;
 }
 function WorkspaceChat() {
-  const { sendMessage, messages } = useChat();
+  const { sendMessage, messages, documentSelectionRequest } = useChat();
   const alive = useRef(true);
   useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
   const [clearing, setClearing] = useState(false);
@@ -542,6 +542,18 @@ function WorkspaceChat() {
               />
 
               <div className="flex items-center gap-1 shrink-0 pb-0.5">
+                {documentSelectionRequest && (
+                  <button type="button" aria-label="Choose summary documents" title="Choose summary documents"
+                    disabled={isStreaming || clearing}
+                    onClick={() => {
+                      setChatScope("documents"); setShowFilters(true);
+                      setInput(current => current.trim() ? current : documentSelectionRequest.question);
+                      inputRef.current?.focus();
+                    }}
+                    className="flex h-8 w-8 items-center justify-center rounded-lg text-brand-500 hover:bg-[var(--bg-hover)]">
+                    <Files size={15} />
+                  </button>
+                )}
                 {messages.length > 0 && (
                   <>
                     <button
