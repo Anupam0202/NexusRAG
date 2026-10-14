@@ -170,6 +170,20 @@ jobs:
           done
           test "$ready" = true || { cat /tmp/nexusrag-summary-fixture.log; exit 1; }
           E2E_SUMMARY_COMPONENT_FIXTURE=1 E2E_BASE_URL=http://127.0.0.1:3023 npm exec playwright -- test summary-selection.spec.ts --workers=2
+      - name: Synthetic research planning UI and Gateway journey
+        working-directory: frontend
+        run: |
+          set -euo pipefail
+          node scripts/research-browser-fixture.mjs 3024 > /tmp/nexusrag-research-fixture.log 2>&1 &
+          fixture_pid=$!
+          trap 'kill "$fixture_pid" 2>/dev/null || true' EXIT
+          ready=false
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:3024/ >/dev/null; then ready=true; break; fi
+            sleep 1
+          done
+          test "$ready" = true || { cat /tmp/nexusrag-research-fixture.log; exit 1; }
+          E2E_RESEARCH_COMPONENT_FIXTURE=1 E2E_BASE_URL=http://127.0.0.1:3024 npm exec playwright -- test research-plans.spec.ts --workers=2
       - name: Actual Cloudflare Worker document routing regressions
         working-directory: frontend
         env:

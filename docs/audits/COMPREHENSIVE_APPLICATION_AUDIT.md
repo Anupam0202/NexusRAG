@@ -4,6 +4,33 @@ Status: **PARTIAL_NOT_COMPLETE — locally tested implementation; not production
 
 This receipt supersedes historical status claims only where it records a fresh observation. It does not certify a complete product, production release, provider rights, or absence of all defects.
 
+## Durable Functional Research Drafts - Bounded Batch024
+
+Parent4696a51 isolated source implements the previously404 create/list/read journey
+through a reviewed new SQL/RPC, actual Gateway/API client and private Research UI.
+Immutable drafts preserve all twelve mode limits and accepted fields. Confirmed
+receipts, stable idempotent retry, bounded keyset paging/storage, source selection,
+read/copy/refresh and truthful draft-only status are exercised. Planning reserves
+no provider processing and starts no execution. No paused022 files are included.
+
+Fresh444Gateway/375frontend/631backend+10subtests/57isolated/92scripts and lint/
+typecheck/Next/OpenNext26assets/actual Worker fixtures pass. Six synthetic browser
+journeys cover desktop/mobile light/dark save/reload/read/copy/focus and interrupted
+save recovery through production page/client/Gateway with simulated Supabase peers.
+Separate actual PostgreSQL17.11/pgvector0.8.7 persistence/calendar/paging/capacity/
+mode parity/concurrent retry/62table108function backuprestore passes. Not hosted
+OAuth/private users, representative model quality, complete modes or production.
+
+Failed fixture/syntax/label/packaging/CI assertions remain in external sanitized
+receipts; constraints/rate limits/test assertions/required image gates are intact.
+Current PR12 draft/three branches/main/release identities revalidated. Chrome
+candidate still presents incomplete products; public Gateway is older46bb14f
+CONFIGURED/NOT_PROBED production_verified:false. Rehearsal ends at021. No024 hosted
+approval/application/deployment/provider/customer/destructive operation. Prior023
+runtime and required summary now failed; no new finding investigation. Full224/
+tenproducts/twelve-mode execution/quality and excluded prerequisites stay open.
+Exact saved-source recovery, manifests and final CI bind in external handoff.
+
 ## Functional summary targeting - bounded batch023
 
 Actual parent810 Gateway synthetic regressions reproduce named cover-letter/resume

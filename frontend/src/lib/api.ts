@@ -35,6 +35,7 @@ import type {
 } from "@/types";
 import { getApiHeaders } from "@/lib/api-context";
 import { buildBackendUrl } from "@/lib/backend-url";
+import { modeLimits, researchModes, type ResearchPlanInput, type ResearchPlanRecord } from "@/lib/research-plan";
 
 export interface ApiRequestContext {
   expectedUserId?: string | null;
@@ -401,6 +402,40 @@ export async function getCurrentWorkspace(context: ApiRequestContext = {}): Prom
   user_id: string;
 }> {
   return request("/api/v1/workspaces/current", undefined, context);
+}
+
+function confirmedResearchPlan(value: unknown): value is ResearchPlanRecord {
+  if (!value || typeof value !== "object") return false;
+  const row = value as ResearchPlanRecord;
+  return typeof row.id === "string" && typeof row.workspace_id === "string" && typeof row.owner_id === "string" &&
+    row.schema_version === "research-plan/1" && row.persistence_state === "PERSISTED" && row.state === "planned" &&
+    row.execution_supported === false && typeof row.plan?.question === "string" && typeof row.plan.plan_id === "string" &&
+    researchModes.includes(row.plan.mode) &&
+    (["subquestions", "private_source_ids", "public_provider_ids", "entity_scope", "rights_constraints", "expected_calculations", "completion_criteria"] as const)
+      .every(key => Array.isArray(row.plan[key]) && row.plan[key].every(item => typeof item === "string")) &&
+    !!row.limits && (Object.keys(modeLimits.QUICK_LOOKUP) as Array<keyof typeof modeLimits.QUICK_LOOKUP>)
+      .every(key => row.limits[key] === modeLimits[row.plan.mode][key]);
+}
+export async function listResearchPlans(context: ApiRequestContext, after?: string) {
+  const result = await request<{ items: ResearchPlanRecord[]; next_after: string | null }>(
+    `/api/v2/research/plans?limit=20${after ? `&after=${encodeURIComponent(after)}` : ""}`, undefined, context);
+  if (!result || !Array.isArray(result.items) || result.items.some(item => !confirmedResearchPlan(item)) ||
+    (result.next_after !== null && typeof result.next_after !== "string"))
+    throw new ApiRequestError("Research plan list was not confirmed.", "PERSISTENCE_UNCONFIRMED");
+  return result;
+}
+export async function readResearchPlan(id: string, context: ApiRequestContext) {
+  const result = await request<ResearchPlanRecord>(`/api/v2/research/plans/${encodeURIComponent(id)}`, undefined, context);
+  if (!confirmedResearchPlan(result)) throw new ApiRequestError("Research plan could not be confirmed.", "PERSISTENCE_UNCONFIRMED");
+  return result;
+}
+export async function createResearchPlan(body: ResearchPlanInput, key: string, context: ApiRequestContext) {
+  const result = await request<ResearchPlanRecord>("/api/v2/research/plans", {
+    method: "POST", headers: { "Idempotency-Key": key }, body: JSON.stringify(body),
+  }, context);
+  if (!confirmedResearchPlan(result) || result.plan.plan_id !== body.plan_id)
+    throw new ApiRequestError("Research plan save was not confirmed. Refresh before retrying.", "PERSISTENCE_UNCONFIRMED");
+  return result;
 }
 
 export interface FindingSummary {

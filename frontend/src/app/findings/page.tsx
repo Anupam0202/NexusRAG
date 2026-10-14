@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { FileCheck2, RefreshCw } from "lucide-react";
+import Link from "@/components/layout/StaticLink";
 import {
   createFinding, editFinding, exportFinding, listFindings, readFinding,
   removeFinding, reviewFinding, shareFinding, unshareFinding, getCurrentWorkspace, listCurrentWorkspaceMembers,
@@ -113,7 +114,8 @@ function FindingsWorkbench() {
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div><h1 className="flex items-center gap-2 text-2xl font-bold"><FileCheck2 /> Findings & Reviews</h1>
           <p className="mt-2 text-sm text-[var(--text-muted)]">Private, versioned findings. Share explicitly with workspace members for independent review.</p></div>
-        <button className={button} disabled={busy} onClick={() => setReload(value => value + 1)}><RefreshCw size={14} className="mr-2 inline" />Reload</button>
+        <div className="flex flex-wrap gap-2"><Link className={button} href="/research">Research plans</Link>
+          <button className={button} disabled={busy} onClick={() => setReload(value => value + 1)}><RefreshCw size={14} className="mr-2 inline" />Reload</button></div>
       </div>
       {error && <p role="alert" className="mb-4 rounded-lg border border-red-400/40 p-3 text-sm text-red-600">{error}</p>}
       {busy && <p role="status" className="mb-3 text-sm">Working…</p>}

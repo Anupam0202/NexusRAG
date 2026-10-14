@@ -4,6 +4,14 @@
 
 Status: `PARTIAL_NOT_COMPLETE_WITH_ACCEPTED_NORMATIVE_BASELINE`
 
+Latest024 exercises ordinary research-plan persistence/create/list/read/copy/retry
+in the Evidence Workbench. All twelve adopted mode limits and scope/calculation/
+completion fields remain intact. Real local SQL durability/concurrency/backuprestore
+and six synthetic browser journeys are distinct from hosted OAuth or execution.
+See RESEARCH_PLAN_PERSISTENCE_024.md and the external exact-source recovery handoff.
+No normative definition/product/mode is closed by a stored draft; actual execution,
+full quality, hosted workflows and separately scoped release prerequisites remain.
+
 Latest023 exercises R19/R20 ordinary summary document targeting and selection
 recovery:literal names and explicit filters share current retrieval/citation scope;
 ambiguous targets request a deliberate UI choice instead of arbitrary evidence.

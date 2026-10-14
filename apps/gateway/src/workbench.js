@@ -19,7 +19,7 @@ async function digest(value) {
   const bytes = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
   return [...new Uint8Array(bytes)].map(value => value.toString(16).padStart(2, "0")).join("");
 }
-async function context({ serviceRequest, env, workspace, user }) {
+export async function workbenchContext({ serviceRequest, env, workspace, user }) {
   const [workspaces, settings] = await Promise.all([
     serviceRequest(env, `workspaces?id=eq.${workspace}&select=capability_revision,lifecycle_state&limit=1`),
     serviceRequest(env, `workspace_settings?workspace_id=eq.${workspace}&select=active_policy_id,policy_version&limit=1`),
@@ -35,7 +35,7 @@ async function rpc(args, name, values) {
   return args.serviceRequest(args.env, `rpc/${name}`, { method: "POST", body: JSON.stringify(values) });
 }
 async function listFindings(args, limit = 20, after = null) {
-  const result = await rpc(args, "workbench_read", { p_context: await context(args), p_resource: "findings",
+  const result = await rpc(args, "workbench_read", { p_context: await workbenchContext(args), p_resource: "findings",
     p_limit: limit, p_after: after, p_id: null, p_latest: false, p_search: "" });
   return { ...result, limit, workspace_id: args.workspace, capability: "finding:read" };
 }
@@ -58,7 +58,7 @@ async function handleWorkbench(args) {
   }
   const findingId = matched ? uuid(matched[1]) : null;
   const action = matched?.[2];
-  const p_context = await context(args);
+  const p_context = await workbenchContext(args);
   const read = () => rpc(args, "nexus_finding", { p_context, p_operation: "read", p_id: findingId,
     p_command: {}, p_revision: null, p_key: null, p_hash: null });
   if (matched && !action && ["GET", "HEAD"].includes(request.method)) return json(request, env, await projectFinding(args, await read()));

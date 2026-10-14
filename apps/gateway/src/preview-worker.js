@@ -13,6 +13,7 @@ import { handleQueue, sweepJobs } from "./worker-jobs.js";
 import { candidateChunkIds, rehydrateEvidence } from "./retrieval-authority.js";
 import { assessAnswer } from "./answer-evidence.js";
 import { resolveSummaryDocuments } from "./document-summary-scope.js";
+import { handleResearchPlans } from "./research-plans.js";
 import { handleWorkbench, listFindings } from "./workbench.js";
 import { handleInvitations } from "./workspace-invitations.js";
 import { readBoundedJsonObject } from "./request-body.js";
@@ -688,6 +689,12 @@ async function handle(request, env = {}) {
       const id = workspaceId(request); const member = await membership(env, user.id, id);
       return await handleWorkbench({ request, env, user, workspace: id, member, serviceRequest, json })
         || fail(request, env, "NOT_FOUND", "Finding route not found.", 404);
+    }
+
+    if (url.pathname === "/api/v2/research/plans" || url.pathname.startsWith("/api/v2/research/plans/")) {
+      const id = workspaceId(request); const member = await membership(env, user.id, id);
+      return await handleResearchPlans({ request, env, user, workspace: id, member, serviceRequest, json })
+        || fail(request, env, "NOT_FOUND", "Research plan route not found.", 404);
     }
 
     const invitationResponse = await handleInvitations({request,env,user,serviceRequest,membership,workspaceId,json,fail});

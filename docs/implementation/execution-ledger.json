@@ -13,6 +13,30 @@
   "interpretation": "OPEN_ENGINEERING includes implemented but not fully accepted requirements; it does not assert that no code or scoped evidence exists. External approvals do not close unfinished internal work.",
   "entries": [
     {
+      "id": "ENGINEERING-DURABLE-RESEARCH-PLANS",
+      "requirement": "Implement durable ordinary research planning and complete all twelve modes through actual execution, progress/recovery, evidence results and review",
+      "normative_source": "Owner full twelve-mode and connected Evidence Workbench implementation assignment",
+      "status": "IN_PROGRESS",
+      "environment": "functional batch024 based on4696a51; actual Gateway/client/UI plus real disposable PG17.11 draft persistence and synthetic browser peers; no hosted acceptance",
+      "next_action": "Freeze exact source/recovery/CI evidence through existing draftPR12, then complete bounded actual execution/progress/errors/cancel/resume/evidence/results/review for all twelve modes. Draft persistence closes no full product or normative definition. Obtain exact024 hosted schema approval separately; preserve paused022 and existing failed image gate.",
+      "acceptance_evidence": [
+        {
+          "environment": "actual Gateway/React/client with synthetic peers; separate rootless new PostgreSQL17.11/pgvector0.8.7 cluster; no hosted/provider operation",
+          "observed_at": "2026-10-14T20:40:00Z",
+          "source_identity": "parent4696a5184339a75563cc6a56165ac1807d52276b plus reviewed research-plan-persistence-024 source; saved/recovery identity bound in external handoff",
+          "command_or_url": "docs/implementation/RESEARCH_PLAN_PERSISTENCE_024.md; tests/postgres/research-plan-assertions.sql; tests/postgres/research-plan-concurrency.sh; frontend/src/e2e/research-plans.spec.ts",
+          "result": "444Gateway/375frontend/631backend+10subtests/57isolated/92scripts/lint/typecheck/Next/OpenNext26assets/actual Worker fixtures pass. Six synthetic desktop/mobile light/dark UI/client/Gateway journeys pass save/reload/read/copy/focus and interrupted-after-commit retry; actual local SQL confirms stored fields/calendar/paging/capacity/twelve limits/concurrent retry and62table108function backuprestore. Original failed attempts retained; no assertion/limit/gate weakening. No model execution, hosted SQL/OAuth/private-user or production acceptance; all full requirements/products/modes remain open."
+        },
+        {
+          "environment": "Node ordinary input contract and actual Gateway handler with synthetic transport",
+          "observed_at": "2026-10-14T19:30:29Z",
+          "source_identity": "parent4696a5184339a75563cc6a56165ac1807d52276b plus uncommitted024 input contract and desired workflow regression",
+          "command_or_url": "node --test tests/cloudflare/research-plans.test.mjs; docs/implementation/RESEARCH_PLAN_PERSISTENCE_024.md",
+          "result": "14 input cases pass; actual durable create/list regression FAILS404versus201. Gateway route/SQL/UI/execution not implemented. This is an active failing reproduction, not workflow acceptance; frozen023 green results do not describe024. No provider/auth/customer/hosted mutation or security investigation."
+        }
+      ]
+    },
+    {
       "id": "ENGINEERING-SUMMARY-TARGETING",
       "requirement": "Resolve literal summary targets within the current document scope, persist matching citations and provide deliberate ordinary UI selection recovery",
       "normative_source": "Owner cover-letter/resume retrieval defect and complete functional user journeys; R19/R20",

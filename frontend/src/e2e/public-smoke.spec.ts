@@ -15,6 +15,7 @@ const routes = [
   { path: "/settings/security", heading: "Account Security" },
   { path: "/evidence-os", heading: "Evidence Intelligence OS" },
   { path: "/findings", heading: "Sign in to your evidence workbench" },
+  { path: "/research", heading: "Sign in to your research workspace" },
 ];
 
 for (const route of routes) {
