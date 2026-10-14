@@ -47,6 +47,15 @@ works; Gateway and parity tests use that same spec. Limits and gates are unchang
 
 ## Remaining Accepted Work
 
+Initial published78daae8/tree1b661ef571-file source and SHA25667195e807a72a4d5b9ced6ab6e0cc74e74ef9463b3f61c20a9363ed73fbe2cd5
+are frozen. Recovery proves every byte/mode/original manifest in a NEW directory.
+Required database38635178830/job116096375407 passed research assertions but failed
+its old57protected-table inventory count; adding research_plans makes58. Corrected
+expectation includes the new table while preserving all existing checks. This is
+schema-fixture compatibility maintenance, not a new security audit/remediation;
+no local security-specific suite is started. Preserve initial failed CI and source;
+final corrected source/recovery/exact CI must be independently bound.
+
 No hosted installation approval exists for024. Current rehearsal ends at021,
 the active Gateway remains source46bb14f/configured-not-probed, and prior023's
 runtime/required summary failed. Counts were not investigated and existing gates
