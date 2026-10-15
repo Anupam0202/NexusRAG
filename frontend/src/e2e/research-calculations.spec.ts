@@ -4,6 +4,7 @@ test.skip(!process.env.E2E_RESEARCH_COMPONENT_FIXTURE,"Requires isolated synthet
 for(const theme of ["light","dark"])test(`${theme}: calculate, inspect and reload an exact-decimal stored worksheet`,async({page},testInfo)=>{
   const errors:string[]=[];page.on("pageerror",error=>errors.push(error.message));
   await page.goto(`/?theme=${theme}&actor=${randomUUID()}`);
+  let unexpectedNavigations=0;page.on("framenavigated",frame=>{if(frame===page.mainFrame())unexpectedNavigations++;});
   const save=page.getByRole("button",{name:"Save plan",exact:true});await expect(save).toBeEnabled();
   const question=`Synthetic calculation ${theme} ${testInfo.project.name}`;
   await page.getByLabel("Mode").selectOption("CALCULATION");
@@ -20,6 +21,7 @@ for(const theme of ["light","dark"])test(`${theme}: calculate, inspect and reloa
   expect(keys).toHaveLength(2);expect(keys[0]).toBeTruthy();expect(keys[0]).toBe(keys[1]);
   await expect(page.getByText("9007199254740993.1+0.2",{exact:true})).toBeVisible();
   await expect(page.getByText(/Input evidence is caller-supplied, not verified/)).toBeVisible();
+  expect(unexpectedNavigations).toBe(0);
   await page.reload();await page.getByRole("button",{name:`Open research plan: ${question}`,exact:true}).click();
   await expect(page.getByLabel("Calculation result")).toHaveText("9007199254740993.30 USD");
   await expect(page.getByLabel("Calculation result")).toHaveCount(1);

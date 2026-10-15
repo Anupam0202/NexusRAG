@@ -41,6 +41,12 @@ class ResearchWorkflowTests(unittest.TestCase):
         self.assertIn("src/app/research/page", entry)
         self.assertIn("E2E_RESEARCH_COMPONENT_FIXTURE", (ROOT / ".github/workflows/v6-foundation-ci.yml").read_text())
 
+    def test_generated_html_fixture_declares_cold_dependency_entry(self):
+        fixture=(ROOT / "frontend/scripts/research-browser-fixture.mjs").read_text()
+        self.assertIn('entries: ["scripts/fixtures/research-plans.tsx"]',fixture)
+        self.assertIn("force: true, holdUntilCrawlEnd: true",fixture)
+        self.assertIn("unexpectedNavigations",(ROOT / "frontend/src/e2e/research-calculations.spec.ts").read_text())
+
     def test_public_route_and_truthful_draft_only_status_are_exercised(self):
         self.assertIn('path: "/research"', (ROOT / "frontend/src/e2e/public-smoke.spec.ts").read_text())
         page = (ROOT / "frontend/src/app/research/page.tsx").read_text()

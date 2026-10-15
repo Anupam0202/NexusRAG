@@ -71,6 +71,20 @@ production or provider processing. Preserve paused022 and failed required gates.
 
 ## Engine references and remaining scope
 
+Initial saved/published bcf4b62 source583files is preserved separately, not overwritten.
+Fresh recovered browser run8/10 reveals dependency-discovery full-page reloads in
+the middleware-served Vite fixture; two warm reruns pass10/10 but do not resolve
+cold flakiness. The fixture must explicitly declare its TSX entry/dependencies,
+force a cold dependency scan and hold initial results until crawling ends. A real
+browser regression rejects unexpected main-frame navigation during interaction.
+This follows https://vite.dev/config/dep-optimization-options . Keep30second
+timeouts and all assertions, retain initial failure and warm-pass evidence, then
+rerun cold tests and exact corrected source recovery. Production Next/OpenNext is
+not Vite; neither claim a deployed defect nor disregard the failed fixture check.
+Two independent forced-cold fixture starts now pass all10browser journeys with
+zero unexpected navigation and unchanged30second timeouts.94script tests pass.
+Final corrected publication/recovery/CI receipts remain separately required.
+
 PostgreSQL's exact numeric and math operators are the calculation engine:
 https://www.postgresql.org/docs/17/datatype-numeric.html
 https://www.postgresql.org/docs/17/functions-math.html
