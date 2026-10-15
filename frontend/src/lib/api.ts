@@ -36,6 +36,7 @@ import type {
 import { getApiHeaders } from "@/lib/api-context";
 import { buildBackendUrl } from "@/lib/backend-url";
 import { modeLimits, researchModes, type ResearchPlanInput, type ResearchPlanRecord } from "@/lib/research-plan";
+import { confirmedCalculation, type CalculationInput, type CalculationRecord } from "@/lib/research-calculation";
 
 export interface ApiRequestContext {
   expectedUserId?: string | null;
@@ -435,6 +436,23 @@ export async function createResearchPlan(body: ResearchPlanInput, key: string, c
   }, context);
   if (!confirmedResearchPlan(result) || result.plan.plan_id !== body.plan_id)
     throw new ApiRequestError("Research plan save was not confirmed. Refresh before retrying.", "PERSISTENCE_UNCONFIRMED");
+  return result;
+}
+
+export async function listResearchCalculations(planId: string, context: ApiRequestContext) {
+  const result=await request<{items: CalculationRecord[]}>(`/api/v2/research/plans/${encodeURIComponent(planId)}/calculations`,undefined,context);
+  if(!result || !Array.isArray(result.items) || result.items.length>100 || result.items.some(item=>!confirmedCalculation(item,planId)))
+    throw new ApiRequestError("Stored calculations were not confirmed.","PERSISTENCE_UNCONFIRMED");
+  return result;
+}
+export async function createResearchCalculation(planId: string, input: CalculationInput, key: string, context: ApiRequestContext) {
+  const result=await request<CalculationRecord>(`/api/v2/research/plans/${encodeURIComponent(planId)}/calculations`,{
+    method:"POST",headers:{"Idempotency-Key":key},body:JSON.stringify(input),
+  },context);
+  if(!confirmedCalculation(result,planId) || result.input.operation!==input.operation || result.input.precision!==input.precision ||
+    (["left","right"] as const).some(side=>result.input[side].value!==input[side].value || result.input[side].unit!==input[side].unit ||
+      JSON.stringify(result.input[side].evidence_ids)!==JSON.stringify(input[side].evidence_ids)))
+    throw new ApiRequestError("Calculation save was not confirmed. Refresh before retrying.","PERSISTENCE_UNCONFIRMED");
   return result;
 }
 

@@ -6,6 +6,17 @@ import unittest
 ROOT = Path(__file__).resolve().parents[2]
 
 class ResearchWorkflowTests(unittest.TestCase):
+    def test_calculation_execution_and_retries_are_in_the_real_rehearsal(self):
+        rehearsal=(ROOT / "tests/postgres/local-rehearsal.sh").read_text()
+        workflow=(ROOT / ".github/workflows/v6-database-rehearsal.yml").read_text()
+        for name in ("20261015053618_research_calculation_execution.sql", "research-calculation-assertions.sql", "research-calculation-concurrency.sh"):
+            self.assertIn(name,rehearsal)
+        self.assertIn("20261015053618_research_calculation_execution.sql",workflow)
+        self.assertIn("POSTGRES_RESEARCH_CALCULATION_CONCURRENT_RETRY_PASS",workflow)
+        self.assertIn("calculation-parity.py",rehearsal)
+        self.assertIn("RESEARCH_CALCULATION_PYTHON_ENGINE_PARITY_PASS cases=196",workflow)
+        self.assertIn("research-calculations.spec.ts",(ROOT / ".github/workflows/v6-foundation-ci.yml").read_text())
+
     def test_forward_sql_and_ordinary_retries_are_in_the_disposable_rehearsal(self):
         sql = "20261014194036_research_plan_persistence.sql"
         rehearsal = (ROOT / "tests/postgres/local-rehearsal.sh").read_text()

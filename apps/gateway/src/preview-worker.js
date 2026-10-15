@@ -14,6 +14,7 @@ import { candidateChunkIds, rehydrateEvidence } from "./retrieval-authority.js";
 import { assessAnswer } from "./answer-evidence.js";
 import { resolveSummaryDocuments } from "./document-summary-scope.js";
 import { handleResearchPlans } from "./research-plans.js";
+import { handleResearchCalculations } from "./research-calculations.js";
 import { handleWorkbench, listFindings } from "./workbench.js";
 import { handleInvitations } from "./workspace-invitations.js";
 import { readBoundedJsonObject } from "./request-body.js";
@@ -693,7 +694,8 @@ async function handle(request, env = {}) {
 
     if (url.pathname === "/api/v2/research/plans" || url.pathname.startsWith("/api/v2/research/plans/")) {
       const id = workspaceId(request); const member = await membership(env, user.id, id);
-      return await handleResearchPlans({ request, env, user, workspace: id, member, serviceRequest, json })
+      return await handleResearchCalculations({ request, env, user, workspace: id, member, serviceRequest, json })
+        || await handleResearchPlans({ request, env, user, workspace: id, member, serviceRequest, json })
         || fail(request, env, "NOT_FOUND", "Research plan route not found.", 404);
     }
 

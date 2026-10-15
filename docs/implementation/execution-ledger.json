@@ -13,12 +13,29 @@
   "interpretation": "OPEN_ENGINEERING includes implemented but not fully accepted requirements; it does not assert that no code or scoped evidence exists. External approvals do not close unfinished internal work.",
   "entries": [
     {
+      "id": "ENGINEERING-DETERMINISTIC-CALCULATION-WORKSHEET",
+      "requirement": "Execute deterministic precision-preserving calculations with stored inputs, units, formulas, evidence lineage and complete ordinary UI recovery, then complete all accepted calculation/research operations",
+      "normative_source": "P06/P07/P08 and owner complete deterministic calculation/research journey assignment",
+      "status": "IN_PROGRESS",
+      "environment": "isolated functional batch025 based on70593cb; actual PostgreSQL numeric engine and local production UI/client/Gateway with synthetic transport peers, not hosted/private production",
+      "next_action": "Bind final source/recovery/CI to existing draftPR12. Obtain exact separately scoped025 rehearsal migration approval only after source proof. Complete aggregates/grouping/ranking/conversions, authoritative input evidence/review and durable full twelve-mode execution/progress/cancel/resume/results; preserve paused022/excluded work and existing failed gates.",
+      "acceptance_evidence": [
+        {
+          "environment": "real new Unix-socket PostgreSQL17.11/pgvector0.8.7; ordinary synthetic browser/API/SQL fixtures; no hosted/provider/customer operation",
+          "observed_at": "2026-10-15T05:46:45Z",
+          "source_identity": "parent70593cb945009148343b87bb394b0506d9a3bed4 plus research-calculation-execution-025 candidate; saved recovery identity external",
+          "command_or_url": "docs/implementation/RESEARCH_CALCULATION_EXECUTION_025.md; tests/postgres/research-calculation-assertions.sql; tests/postgres/research-calculation-concurrency.sh; frontend/src/e2e/research-calculations.spec.ts",
+          "result": "Original three Gateway regressions fail404. Exact SQL arithmetic/half-even/lineage/retry/conflict/capacity/read and196retained Python Decimal parity cases pass; concurrent retries yield one immutable result;63table111function backuprestore.385frontend/631backend+10subtests/93scripts and10synthetic browser journeys pass. New runtime/migration/source recovery/CI/hosted acceptance pending; input references remain caller-supplied and unverified. No full definition/product/mode closed. Failed attempts retained; no limits/assertions/required gates weakened."
+        }
+      ]
+    },
+    {
       "id": "ENGINEERING-DURABLE-RESEARCH-PLANS",
       "requirement": "Implement durable ordinary research planning and complete all twelve modes through actual execution, progress/recovery, evidence results and review",
       "normative_source": "Owner full twelve-mode and connected Evidence Workbench implementation assignment",
       "status": "IN_PROGRESS",
-      "environment": "functional batch024 based on4696a51; actual Gateway/client/UI plus real disposable PG17.11 draft persistence and synthetic browser peers; no hosted acceptance",
-      "next_action": "Freeze exact source/recovery/CI evidence through existing draftPR12, then complete bounded actual execution/progress/errors/cancel/resume/evidence/results/review for all twelve modes. Draft persistence closes no full product or normative definition. Obtain exact024 hosted schema approval separately; preserve paused022 and existing failed image gate.",
+      "environment": "exact02470593cb source/recovery and approved rehearsal schema-only installation; actual Gateway/client/UI plus disposable PG17.11 and synthetic browser peers; no hosted private-workflow acceptance",
+      "next_action": "Fulfilled exact024 rehearsal approval must not be repeated/generalized: registry20261015052629_research_plan_persistence, all3bodies match approved SQL,0plan rows. BATCH024_HANDOFF.md binds final571source/71evidence recovery and existing failed image/summary. Continue actual bounded execution/progress/errors/cancel/resume/evidence/results/review for all twelve modes; draft persistence closes no full product or definition. Preserve paused022/excluded work and existing gates.",
       "acceptance_evidence": [
         {
           "environment": "actual Gateway/React/client with synthetic peers; separate rootless new PostgreSQL17.11/pgvector0.8.7 cluster; no hosted/provider operation",

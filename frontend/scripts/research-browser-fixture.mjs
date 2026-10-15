@@ -12,6 +12,7 @@ const workspace = "11111111-1111-4111-8111-111111111111", user = "22222222-2222-
 const policy = "44444444-4444-4444-8444-444444444444", document = "60606060-6060-4060-8060-606060606060";
 const env = { SUPABASE_URL: "https://research-peer.invalid", SUPABASE_PUBLISHABLE_KEY: "synthetic-public", SUPABASE_SERVICE_ROLE_KEY: "synthetic-service" };
 const records = new Map(), keys = new Map();
+const calculations = new Map(), calculationKeys = new Map();
 const ordinaryFetch = globalThis.fetch;
 // Only the Supabase peer is simulated. Production page, API client and Gateway
 // dispatch run unchanged. This is not SQL durability, real OAuth or hosted proof.
@@ -24,8 +25,22 @@ globalThis.fetch = async (input, init = {}) => {
   if (url.pathname === "/rest/v1/workspaces") return json([{id: workspace, name: "Synthetic research workspace", lifecycle_state: "active", capability_revision: 1}]);
   if (url.pathname === "/rest/v1/workspace_settings") return json([{active_policy_id: policy, policy_version: 1}]);
   if (url.pathname === "/rest/v1/documents") return json([{id: document, workspace_id: workspace, filename: "Synthetic policy.txt", status: "ready", file_type: "txt", chunk_count: 1, file_size: 100}]);
-  if (url.pathname !== "/rest/v1/rpc/nexus_research_plan") throw new Error(`Unexpected synthetic peer path: ${url.pathname}`);
   const data = JSON.parse(init.body);
+  if (url.pathname === "/rest/v1/rpc/nexus_research_calculation") {
+    if(data.p_operation==="list")return json({items:[...calculations.values()].filter(item=>item.owner_id===data.p_context.user_id && item.plan_id===data.p_plan_id).reverse()});
+    if(calculationKeys.has(data.p_key))return json(calculations.get(calculationKeys.get(data.p_key)));
+    if(data.p_input.right.value==="0")return json({code:"P0001",message:"NR:CALCULATION_INVALID"},400);
+    // Fixed transport response only. Real arithmetic/persistence has separate SQL tests.
+    if(data.p_input.operation!=="ADD" || data.p_input.left.value!=="9007199254740993.1" || data.p_input.right.value!=="0.2" || data.p_input.precision!==2)throw new Error("Unsupported synthetic calculation response");
+    const record={id:randomUUID(),plan_id:data.p_plan_id,workspace_id:workspace,owner_id:data.p_context.user_id,input:data.p_input,
+      result:{operation:"ADD",value:"9007199254740993.30",unit:"USD",formula:"9007199254740993.1+0.2",
+        evidence_ids:[...new Set([...data.p_input.left.evidence_ids,...data.p_input.right.evidence_ids])],precision:2,rounding:"ROUND_HALF_EVEN"},
+      state:"calculated",schema_version:"research-calculation/1",persistence_state:"PERSISTED",input_evidence_state:"CALLER_ASSERTED_NOT_VERIFIED",created_at:new Date().toISOString()};
+    calculations.set(record.id,record);calculationKeys.set(data.p_key,record.id);
+    if(data.p_input.left.evidence_ids.includes("synthetic-interrupted-calculation"))return json({code:"08006",message:"Synthetic interrupted response after commit"},503);
+    return json(record);
+  }
+  if (url.pathname !== "/rest/v1/rpc/nexus_research_plan") throw new Error(`Unexpected synthetic peer path: ${url.pathname}`);
   if (data.p_operation === "create") {
     if (keys.has(data.p_key)) return json(records.get(keys.get(data.p_key)));
     const record = {id: randomUUID(), workspace_id: workspace, owner_id: data.p_context.user_id, plan: data.p_plan,

@@ -4,6 +4,15 @@
 
 Status: `PARTIAL_NOT_COMPLETE_WITH_ACCEPTED_NORMATIVE_BASELINE`
 
+Latest025 advances P06/P07/P08 with actual exact-decimal binary worksheet execution,
+atomic stored inputs/formulas/units/references and ordinary retry/reload UI. Real
+local SQL/196Python-engine parity/concurrent retry/backuprestore are distinct from
+synthetic browser transport and hosted private acceptance. Source references stay
+caller-supplied, not verified. Full aggregates/grouping/ranking/conversion/review
+and complete CALCULATION/all twelve-mode execution remain open. See
+RESEARCH_CALCULATION_EXECUTION_025.md; no normative meaning or denominator changes.
+024draft schema-only rehearsal approval is fulfilled, not025or production approval.
+
 Latest024 exercises ordinary research-plan persistence/create/list/read/copy/retry
 in the Evidence Workbench. All twelve adopted mode limits and scope/calculation/
 completion fields remain intact. Real local SQL durability/concurrency/backuprestore

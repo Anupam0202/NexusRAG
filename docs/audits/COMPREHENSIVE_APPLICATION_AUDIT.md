@@ -4,6 +4,27 @@ Status: **PARTIAL_NOT_COMPLETE — locally tested implementation; not production
 
 This receipt supersedes historical status claims only where it records a fresh observation. It does not certify a complete product, production release, provider rights, or absence of all defects.
 
+## Exact Calculation Worksheet - Bounded Batch025
+
+New ordinary source UI/client/Gateway/SQL journey replaces404 for seven binary
+decimal operations and atomically stored inputs/results/units/formula/references.
+It preserves retry identity and input after ambiguous responses, lists/reloads
+saved results and labels caller-supplied evidence/review limits. Actual PG numeric
+execution/196retained Python Decimal parity/concurrent retry and63table111function
+backuprestore pass. Ten synthetic browser journeys pass desktop/mobile light/dark
+planning plus calculation retry/reload; these do not exercise hosted SQL/OAuth.
+385frontend/631backend+10subtests/93scripts and initial447Gateway pass; final source/
+build/recovery/CI evidence remains external. See RESEARCH_CALCULATION_EXECUTION_025.md.
+
+Exact024approval is now fulfilled schema-only on rehearsalukgjygzfhyvnrsecdcuu,
+registry20261015052629_research_plan_persistence: approved SQLd76b949f,all3stored
+bodies match,10columns/4indexes/0rows. BATCH024_HANDOFF.md binds saved70593cb/treeb4e50c7c,
+571source and71sanitized evidence entries. Final024DB/frontend pass; image/runtime
+and required summary fail, deploy skipped. No new findings investigated; no025
+hosted approval/application. Frozen source-time notes below remain historical.
+No full normative definition/product/mode is closed, no production readiness,
+no paused022/security work or customer/provider/deployment/destructive operation.
+
 ## Durable Functional Research Drafts - Bounded Batch024
 
 Parent4696a51 isolated source implements the previously404 create/list/read journey
