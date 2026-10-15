@@ -1,17 +1,29 @@
 // The production executor commits real PostgreSQL rows; only provider/quota peers
 // and the REST-to-local-SQL transport are controlled. Never run on hosted data.
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
+import { execFile,execFileSync } from "node:child_process";
 import { createHash,randomUUID } from "node:crypto";
 import { processResearchMessage } from "../../apps/gateway/src/research-executor.js";
+import { handleWorkbench } from "../../apps/gateway/src/workbench.js";
 assert.equal(process.env.NEXUS_DISPOSABLE_SQL,"1");
 assert.ok(process.env.PGHOST?.startsWith("/"));
 const ws="11111111-1111-4111-8111-111111111111",actor="22222222-2222-4222-8222-222222222222";
 const doc="d0290000-0000-4000-8000-000000000021",version="d0290000-0000-4000-8000-000000000022",chunk="d0290000-0000-4000-8000-000000000023";
+function sqlArgs(values) {
+  return ["-X","-qAt","-v","ON_ERROR_STOP=1",...Object.entries(values).flatMap(([key,value])=>["-v",`${key}=${typeof value==="string"?value:JSON.stringify(value)}`])];
+}
 function sql(statement,values={}) {
-  const args=["-X","-qAt","-v","ON_ERROR_STOP=1",...Object.entries(values).flatMap(([key,value])=>["-v",`${key}=${typeof value==="string"?value:JSON.stringify(value)}`])];
+  const args=sqlArgs(values);
   const output=execFileSync("psql",args,{input:`set request.jwt.claim.role='service_role';\n${statement}\n`,encoding:"utf8"}).trim();
   return output?JSON.parse(output):null;
+}
+function concurrentSql(statement,values) {
+  return new Promise((resolve,reject)=>{
+    const child=execFile("psql",sqlArgs(values),{encoding:"utf8"},(error,stdout)=>{
+      if(error)reject(error);else try{resolve(JSON.parse(stdout.trim()));}catch(error){reject(error);}
+    });
+    child.stdin.end(`set request.jwt.claim.role='service_role';\n${statement}\n`);
+  });
 }
 const text="The synthetic mass is 1.005 kg.",hash=createHash("sha256").update(text).digest("hex");
 sql(`insert into public.documents(id,workspace_id,uploaded_by,filename,original_filename,status) values(:'doc',:'ws',:'actor','executor.txt','executor.txt','ready');
@@ -27,13 +39,19 @@ const base=sql("select plan from public.research_plans where plan->>'plan_id'='m
 const plan=sql("select public.nexus_research_plan(:'ctx'::jsonb,'create',p_plan=>:'plan'::jsonb,p_key=>'actual-executor-plan');",{ctx:context,
   plan:{...base,plan_id:"actual-executor-plan",question:"What is the synthetic mass?",subquestions:["How much mass is reported?"],private_source_ids:[doc]}});
 const run=sql("select public.nexus_research_run(:'ctx'::jsonb,'create',:'plan'::uuid,p_key=>'actual-executor-start',p_command=>'{\"non_sensitive_attested\":true}');",{ctx:context,plan:plan.id});
-const tables=new Set(["workspaces","workspace_settings","documents","document_versions","document_chunks","research_runs"]),sent=[];
+const tables=new Set(["workspaces","workspace_settings","documents","document_versions","document_chunks","research_runs","finding_versions"]),sent=[];
 async function db(_env,path,init={}) {
   const url=new URL(`https://local.invalid/${path}`),table=url.pathname.slice(1);
   if(table==="rpc/nexus_research_step") {
     const p=JSON.parse(init.body);
     return sql("select public.nexus_research_step(:'ctx'::jsonb,:'op',:'id'::uuid,:'generation'::integer,:'position'::integer,nullif(:'token','')::uuid,nullif(:'result','')::jsonb,nullif(:'error',''));",
       {ctx:p.p_context,op:p.p_operation,id:p.p_id,generation:p.p_generation,position:p.p_position,token:p.p_token||"",result:p.p_result?JSON.stringify(p.p_result):"",error:p.p_error||""});
+  }
+  if(table==="rpc/nexus_research_finding_contract")return sql("select public.nexus_research_finding_contract();");
+  if(table==="rpc/nexus_finding") {
+    const p=JSON.parse(init.body);
+    return sql("select public.nexus_finding(:'ctx'::jsonb,:'op',nullif(:'id','')::uuid,:'command'::jsonb,nullif(:'revision','')::bigint,nullif(:'key',''),nullif(:'hash',''));",
+      {ctx:p.p_context,op:p.p_operation,id:p.p_id||"",command:p.p_command,revision:p.p_revision||"",key:p.p_key||"",hash:p.p_hash||""});
   }
   assert.ok(tables.has(table),table);
   const filters={};
@@ -77,6 +95,21 @@ try {
   const read=sql("select public.nexus_research_run(:'ctx'::jsonb,'read',:'plan'::uuid,:'run'::uuid);",{ctx:context,plan:plan.id,run:run.id});
   assert.equal(read.position,2);assert.equal(read.results.length,2);assert.equal(read.state,"completed");
   for(const result of read.results){assert.equal(result.sources[0].original_content_hash,hash);assert.deepEqual(result.validated_citation_ids,["S1"]);assert.equal(result.claim_state,"REVIEW_REQUIRED");}
+  const create=new Request("https://gateway.invalid/api/v2/findings",{method:"POST",headers:{"Idempotency-Key":"actual-handler-finding"},
+    body:JSON.stringify({title:"Actual executor finding",research_run_id:run.id,result_index:0})});
+  const created=await handleWorkbench({request:create,env,user:{id:actor},workspace:ws,member:{role:"owner"},serviceRequest:db,
+    json:(_request,_env,value,status=200)=>new Response(JSON.stringify(value),{status})});
+  assert.equal(created.status,201);const finding=await created.json();
+  assert.equal(finding.source_research_run_id,run.id);assert.equal(finding.source_research_position,0);
+  assert.equal(finding.generated_markdown,read.results[0].answer);assert.equal(finding.evidence[0].original_text,text);
+  assert.equal(finding.evidence[0].original_content_hash,hash);assert.equal(finding.author_id,actor);
+  const statement="select public.nexus_finding(:'ctx'::jsonb,'create',null,:'command'::jsonb,null,'actual-concurrent-finding',repeat('c',64));";
+  const commands={ctx:context,command:{title:"Concurrent actual answer",authored_markdown:"",research_run_id:run.id,result_index:1}};
+  const [first,second]=await Promise.all([concurrentSql(statement,commands),concurrentSql(statement,commands)]);
+  assert.equal(first.id,second.id);assert.equal(first.generated_markdown,read.results[1].answer);
+  assert.equal(sql("select count(*) from public.findings where workspace_id=:'ws' and create_key='actual-concurrent-finding';",{ws}),1);
+  console.log(JSON.stringify({marker:"REAL_SQL_PRODUCTION_RESEARCH_FINDING_PASS",saved_executor_answer:true,actual_workbench_handler:true,
+    exact_original_hash:hash,independent_concurrent_retry_connections:2,resulting_findings:1,provider_processing:false,hosted_acceptance:false}));
   console.log(JSON.stringify({marker:"REAL_SQL_PRODUCTION_EXECUTOR_PASS",questions:2,stored_answers:2,generation_calls:2,duplicate_replayed:false,
     current_source_hash:hash,node_version:process.version,quota_peer:"CONTROLLED_NOT_SQL_BUDGET_PROOF",provider_processing:false,hosted_acceptance:false}));
 } finally {globalThis.fetch=ordinaryFetch;}

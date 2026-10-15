@@ -2,7 +2,7 @@ import { afterEach, expect, it, vi } from "vitest";
 const getApiHeaders = vi.hoisted(() => vi.fn(async () => ({ Authorization: "Bearer synthetic" })));
 vi.mock("@/lib/api-context", () => ({ getApiHeaders }));
 vi.mock("@/lib/backend-url", () => ({ buildBackendUrl: (path: string) => `https://gateway.invalid${path}` }));
-import { createResearchPlan, listResearchPlans, readResearchPlan, listResearchRuns, researchRunCommand } from "./api";
+import { createResearchPlan, listResearchPlans, readResearchPlan, listResearchRuns, researchRunCommand,createResearchFinding } from "./api";
 import { emptyResearchPlan, modeLimits } from "./research-plan";
 const plan = { ...emptyResearchPlan(), question: "Synthetic plan", completion_criteria: ["Inspect source"] };
 const record = { id: "33333333-3333-4333-8333-333333333333", workspace_id: "workspace-a", owner_id: "user-a",
@@ -38,4 +38,14 @@ it("creates and reloads run receipts without a chat-session identifier",async()=
   await expect(listResearchRuns(id,context)).resolves.toMatchObject({items:[run]});
   respond({...run,state:"completed"});
   await expect(researchRunCommand(id,context,"read",id)).rejects.toMatchObject({code:"PERSISTENCE_UNCONFIRMED"});
+});
+it("saves only a typed reference to the stored research answer, never a copied caller answer",async()=>{
+  const finding={id:record.id,workspace_id:context.workspaceId,source_research_run_id:record.id,source_research_position:0};
+  const fetch=respond(finding);await expect(createResearchFinding("Saved answer",record.id,0,"stable-intent",context)).resolves.toEqual(finding);
+  expect(JSON.parse(fetch.mock.calls[0][1]!.body as string)).toEqual({title:"Saved answer",research_run_id:record.id,result_index:0,authored_markdown:""});
+  expect(fetch.mock.calls[0][1]).toMatchObject({headers:{"Idempotency-Key":"stable-intent"}});
+  respond({...finding,source_research_run_id:null});
+  await expect(createResearchFinding("Saved answer",record.id,0,"stable-intent",context)).rejects.toMatchObject({code:"PERSISTENCE_UNCONFIRMED"});
+  respond({...finding,source_research_position:1});
+  await expect(createResearchFinding("Saved answer",record.id,0,"stable-intent",context)).rejects.toMatchObject({code:"PERSISTENCE_UNCONFIRMED"});
 });

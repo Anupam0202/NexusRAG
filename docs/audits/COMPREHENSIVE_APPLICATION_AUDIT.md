@@ -4,6 +4,29 @@ Status: **PARTIAL_NOT_COMPLETE — locally tested implementation; not production
 
 This receipt supersedes historical status claims only where it records a fresh observation. It does not certify a complete product, production release, provider rights, or absence of all defects.
 
+## Research Answer To Findings - Active Batch030
+
+PARTIAL_NOT_COMPLETE. Actual typed-origin regression fails before implementation.
+New SQL/Gateway/client/UI links the actual saved cited answer to existing versioned
+findings/share/review/audit. Current original hashes/locators are rehydrated, changed
+or missing evidence withholds generated content; removed research runs clear linked
+generated versions without erasing independently authored notes. Independent review
+is revision-scoped, not claim certification or export rights. Older schemas are
+detected before creating an empty manual note. Source-backed export stays blocked;
+manual-note export is retained. This closes no full product/mode/definition.
+
+Actual local PG17.11/pgvector0.8.7 and production executor-to-Workbench handler/
+SQL two-connection retry pass;65tables129functions backuprestore.34cold synthetic
+research browser journeys and actual local Chrome save/retry/hash/deep-link/revision/
+share/separate-review/reload pass before final UI receipt refinements.461frontend,
+536Gateway,631backend+10subtests pass; final owning/build/recovery/CI pending.
+Initial missing-local-member SQL fixture, wrapped-label locators, shared synthetic
+reviewer rate120 and omitted CI migration copy failures are retained, corrected
+without weakening thresholds or assertions. No security investigation, paused022,
+new hosted users, provider/customer/private/production/deployment operations.029
+exact rehearsal approval fulfilled only. See RESEARCH_FINDING_LINEAGE_030.md and
+newest external handoff for exact saved evidence, never inherit historical PASS.
+
 ## Durable Selected-Source Research - Active Batch029
 
 PARTIAL_NOT_COMPLETE. Actual /runs create/list404 regressions precede new SQL,

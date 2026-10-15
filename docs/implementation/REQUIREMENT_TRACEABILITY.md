@@ -4,6 +4,17 @@
 
 Status: `PARTIAL_NOT_COMPLETE_WITH_ACCEPTED_NORMATIVE_BASELINE`
 
+Latest030 connects actual stored research answers to revisioned Findings and ordinary
+independent review with exact original hash/version/locator/source-state projection.
+Real production executor/Workbench-to-SQL persistence and concurrent retry,65table
+129function recovery,34cold browser journeys and actual local Chrome are scoped
+proof, not hosted/private/quality acceptance. Source-backed export remains explicitly
+rights-blocked, not converted to a manual note. Full rights-aware packages, semantic
+support, lifecycle/monitors/products remain accepted incomplete engineering. All224
+exact definitions/denominator are unchanged. See RESEARCH_FINDING_LINEAGE_030.md;
+final saved-source/CI/fresh recovery remain external.029exact rehearsal schema
+approval is fulfilled and not030permission; BATCH029_HANDOFF.md supersedes old notes.
+
 Latest029 adds a functional selected-source QUICK_LOOKUP/EVIDENCE_ANSWER execution
 slice: persisted questions/cursor/results, queue dispatch, progress, cancellation,
 explicit resume, inspectable source/hash/citations and ordinary reload/copy. It is

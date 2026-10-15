@@ -13,6 +13,23 @@
   "interpretation": "OPEN_ENGINEERING includes implemented but not fully accepted requirements; it does not assert that no code or scoped evidence exists. External approvals do not close unfinished internal work.",
   "entries": [
     {
+      "id": "ENGINEERING-RESEARCH-FINDING-LINEAGE",
+      "requirement": "Connect persisted research answers and exact evidence locators to durable revisioned findings, independent review and rights-aware evidence packages",
+      "normative_source": "Owner accepted shared evidence/findings/review/export journeys; all224 normative definitions unchanged",
+      "status": "IN_PROGRESS",
+      "environment": "isolated uncommitted030 on0233bbba46dbbd188963c2299b77965684dc1ddb; actual local PG17.11/Gateway/UI/Chrome with synthetic peers, not hosted acceptance",
+      "next_action": "Bind exact source owning suites/build/Worker/CI/fresh recovery through existing draftPR12 without paused022. Complete rights-aware source exports and full provenance/lifecycle/semantic review/monitor/product workflows; source-backed export is explicitly blocked pending an adopted rights decision.029exact rehearsal approval fulfilled only, no030hosted/deployment/private/provider approval.",
+      "acceptance_evidence": [
+        {
+          "environment": "new rootless disposable PG17.11/pgvector0.8.7, actual production executor/workbench handler, local Chrome and synthetic desktop/mobile peers",
+          "observed_at": "2026-10-15T23:16:30Z",
+          "source_identity": "parent0233bbb/tree3f780805 plus uncommitted research-finding-lineage-030; exact saved identity external",
+          "command_or_url": "docs/implementation/RESEARCH_FINDING_LINEAGE_030.md; tests/postgres/research-finding-assertions.sql; tests/postgres/research-executor-integration.mjs; frontend/src/e2e/research-findings.spec.ts",
+          "result": "Before-fix Gateway drops typed origin; new referenced create/compatibility regressions pass. Real SQL exact original text/hash/locator, replay/share/independent review/new revision/source-change/generated-copy removal and65table129function restore PASS. Actual production executor-to-Workbench handler stores answer finding; two independent concurrent retries produce one finding.34cold desktop/mobile light/dark research journeys and actual Chrome save/retry/deep-link/edit/share/separate-review/reload PASS before final UI receipt refinements.461frontend/536Gateway/631backend+10subtests PASS; final exact owning suites/build/CI/recovery still required. Initial SQL fixture membership, browser label/shared-reviewer rate-limit and CI migration-packaging failures retained; no thresholds/assertions weakened. No full definition/product/mode or production acceptance."
+        }
+      ]
+    },
+    {
       "id": "ENGINEERING-SELECTED-SOURCE-RESEARCH-EXECUTION",
       "requirement": "Complete actual twelve-mode durable research execution, progress/recovery/cancellation, source-backed results and independent review without shrinking accepted scope",
       "normative_source": "Owner accepted full twelve-mode/ten-product functional completion assignment; existing exact definitions unchanged",

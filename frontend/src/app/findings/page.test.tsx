@@ -14,6 +14,7 @@ const finding = { id: "33333333-3333-4333-8333-333333333333", workspace_id: work
   source_unavailable: false, evidence: [], reviews: [], participants: [] };
 describe("Findings workbench", () => {
   beforeEach(() => {
+    window.history.replaceState({},"","/findings");
     Object.values(api).forEach(mock => mock.mockReset());
     useStore.setState({ authMode: "authenticated", authUser: { id: "user-a", email: null }, workspaceId: workspace });
     api.getCurrentWorkspace.mockResolvedValue({ workspace_id: workspace, role: "owner" });
@@ -26,6 +27,24 @@ describe("Findings workbench", () => {
     render(<FindingsPage />);
     expect(screen.getByRole("heading", { name: "Sign in to your evidence workbench" })).toBeInTheDocument();
     expect(api.listFindings).not.toHaveBeenCalled();
+  });
+  it("opens a saved research finding deep link with exact evidence and source export state",async()=>{
+    window.history.replaceState({},"",`/findings?finding=${finding.id}`);
+    api.readFinding.mockResolvedValue({...finding,source_research_run_id:workspace,source_research_position:0,
+      research_origin:{run_id:workspace,result_index:0,plan_id:workspace,question:"Exact synthetic source?",claim_state:"REVIEW_REQUIRED",source_state:"CURRENT"},
+      evidence:[{id:workspace,document_id:workspace,version_id:workspace,available:true,freshness:"current",original_text:"Synthetic evidence",original_content_hash:"a".repeat(64),location:{page:2},citation_id:"S1",filename:"Synthetic.txt"}]});
+    render(<FindingsPage/>);await waitFor(()=>expect(screen.getByLabelText("Title")).toHaveValue(finding.title));
+    expect(api.readFinding).toHaveBeenCalledWith(finding.id,{workspaceId:workspace,expectedUserId:"user-a"});
+    expect(screen.getByText("Exact synthetic source?")).toBeVisible();
+    expect(screen.getByText(`SHA256 ${"a".repeat(64)}`)).toBeVisible();
+    expect(screen.getByRole("button",{name:"Export JSON-LD & receipt"})).toBeDisabled();
+    expect(screen.getByRole("link",{name:"Inspect source document"})).toHaveAttribute("href",`/documents/${workspace}`);
+  });
+  it("keeps accessible findings usable after an invalid deep link",async()=>{
+    window.history.replaceState({},"","/findings?finding=missing-id");render(<FindingsPage/>);
+    expect(await screen.findByRole("alert")).toHaveTextContent("finding link is invalid");
+    fireEvent.click(screen.getByRole("button",{name:/Saved evidence note/}));
+    await waitFor(()=>expect(screen.getByLabelText("Title")).toHaveValue(finding.title));
   });
   it("saves an authored note with explicit workspace and stable retry identity", async () => {
     api.createFinding.mockRejectedValueOnce(new Error("Temporary persistence outage")).mockResolvedValueOnce(finding);

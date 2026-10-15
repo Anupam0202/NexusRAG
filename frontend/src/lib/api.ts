@@ -527,6 +527,8 @@ export interface FindingSummary {
   title: string;
   revision: number;
   source_run_id: string | null;
+  source_research_run_id?: string | null;
+  source_research_position?: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -537,8 +539,11 @@ export interface FindingDetail extends FindingSummary {
   authored_markdown: string;
   generated_markdown: string | null;
   source_unavailable: boolean;
-  evidence: Array<{ id: string; document_id: string; version_id: string; original_text?: string; available: boolean; freshness: string }>;
-  reviews: Array<{ reviewer_id: string; revision: number; decision: string; comment: string }>;
+  research_origin?: {run_id:string|null;result_index:number;plan_id:string|null;question:string|null;claim_state:string;source_state:string};
+  export_state?: "RIGHTS_REVIEW_REQUIRED";
+  evidence: Array<{ id: string; document_id: string; version_id: string; original_text?: string; available: boolean; freshness: string;
+    citation_id?:string;filename?:string;original_content_hash?:string;location?:unknown }>;
+  reviews: Array<{ reviewer_id: string; revision: number; decision: string; comment: string; created_at?:string }>;
   participants: Array<{ user_id: string; permission: "read" | "contribute" }>;
 }
 
@@ -556,6 +561,15 @@ export function createFinding(
 ) {
   return request<FindingSummary>("/api/v2/findings",
     { method: "POST", headers: { "Idempotency-Key": key }, body: JSON.stringify(body) }, context);
+}
+
+export async function createResearchFinding(title:string,runId:string,resultIndex:number,key:string,context:ApiRequestContext) {
+  const result=await request<FindingSummary>("/api/v2/findings",{method:"POST",headers:{"Idempotency-Key":key},
+    body:JSON.stringify({title,research_run_id:runId,result_index:resultIndex,authored_markdown:""})},context);
+  if(!result || !/^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(result.id)
+    || result.workspace_id!==context.workspaceId || result.source_research_run_id!==runId || result.source_research_position!==resultIndex)
+    throw new ApiRequestError("The research finding was not confirmed. Refresh Findings before retrying.","PERSISTENCE_UNCONFIRMED");
+  return result;
 }
 
 export function editFinding(id: string, body: { title: string; authored_markdown: string; revision: number }, context: ApiRequestContext) {

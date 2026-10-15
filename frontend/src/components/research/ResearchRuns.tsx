@@ -5,6 +5,7 @@ import Link from "@/components/layout/StaticLink";
 import { listResearchRuns, researchRunCommand } from "@/lib/api";
 import type { ResearchRun } from "@/lib/research-run";
 import type { ResearchPlanRecord } from "@/lib/research-plan";
+import { ResearchFindingAction } from "./ResearchFindingAction";
 
 const button="inline-flex items-center justify-center gap-2 rounded-lg border border-[var(--border)] px-3 py-2 text-sm disabled:opacity-50";
 export function ResearchRuns({plan,workspaceId,userId,canWrite}:{plan:ResearchPlanRecord;workspaceId:string;userId:string;canWrite:boolean}) {
@@ -79,10 +80,11 @@ export function ResearchRuns({plan,workspaceId,userId,canWrite}:{plan:ResearchPl
         <button className={button} disabled={!selected.results.length} onClick={()=>void navigator.clipboard.writeText(selected.results.map(result=>`${result.question}\n${result.answer}\n${result.sources.map(s=>`[${s.citation_id}] ${s.filename}, chunk ${s.chunk_index}, ${s.original_content_hash}`).join("\n")}`).join("\n\n"))
           .then(()=>setCopied(true)).catch(()=>setError("The clipboard was unavailable."))}><Copy size={16}/>{copied?"Copied":"Copy results"}</button>
       </div>
-      {selected.source_state!=="CURRENT"?<p role="status" className="text-sm text-amber-700 dark:text-amber-300">Evidence was removed or changed. Stored answers are unavailable; create a new plan against current sources.</p>:selected.results.map((result,index)=><article key={index} className="mb-5 min-w-0 border-t border-[var(--border)] pt-4">
+      {selected.source_state!=="CURRENT"?<p role="status" className="text-sm text-amber-700 dark:text-amber-300">Evidence was removed or changed. Stored answers are unavailable; create a new plan against current sources.</p>:selected.results.map((result,index)=><article key={`${selected.id}:${index}`} className="mb-5 min-w-0 border-t border-[var(--border)] pt-4">
         <h4 className="mb-2 whitespace-pre-wrap break-words font-medium">{result.question}</h4>
         <p className="mb-2 text-xs text-[var(--text-muted)]">{result.claim_state==="UNSUPPORTED"?"No supported answer":"Review required; citation presence is not entailment"}</p>
         <p className="mb-3 whitespace-pre-wrap break-words text-sm">{result.answer}</p>
+        <ResearchFindingAction runId={selected.id} index={index} result={result} workspaceId={workspaceId} userId={userId} canWrite={canWrite}/>
         {result.sources.map(source=><details key={source.citation_id} className="mb-2 min-w-0 rounded-lg border border-[var(--border)] p-3">
           <summary className="cursor-pointer break-words text-sm">[{source.citation_id}] {source.filename} / chunk {source.chunk_index}{source.page_number>0?` / page ${source.page_number}`:""}</summary>
           <p className="my-2 whitespace-pre-wrap break-words text-sm">{source.content}</p>

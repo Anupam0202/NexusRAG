@@ -66,7 +66,8 @@ async function handleWorkbench(args) {
     if (!["editor", "admin", "owner"].includes(member.role)) throw problem("FORBIDDEN", "Export capability is required.", 403);
     const finding = await read();
     if (finding.source_unavailable) throw problem("SOURCE_UNAVAILABLE", "Unavailable evidence cannot be exported.", 409);
-    if (finding.source_run_id) throw problem("RIGHTS_BLOCKED", "Source-backed exports require verified export rights.", 403);
+    if (finding.source_run_id || finding.source_research_position != null)
+      throw problem("RIGHTS_BLOCKED", "Source-backed exports require verified export rights.", 403);
     // This is a user-authored finding export, not a provider-rights or standards certification.
     const manifest = { "@context": { "@vocab": "https://schema.org/", "nexus": "urn:nexusrag:ns:" },
       "@type": "CreativeWork", "@id": `urn:nexusrag:finding:${finding.id}:${finding.revision}`,
@@ -89,6 +90,23 @@ async function handleWorkbench(args) {
     command = { title: boundedText(data.title, "Title", 160, 1).trim(),
       authored_markdown: boundedText(data.authored_markdown ?? "", "Finding text", 50_000),
       ...(data.run_id ? { run_id: uuid(data.run_id) } : {}) };
+    if (data.research_run_id !== undefined || data.result_index !== undefined) {
+      if (data.run_id || !Number.isSafeInteger(data.result_index) || data.result_index < 0 || data.result_index > 4)
+        throw problem("INVALID_SCOPE", "Choose one saved research answer (index 0 to 4).");
+      command.research_run_id = uuid(data.research_run_id).toLowerCase();
+      command.result_index = data.result_index;
+      // Older Findings RPCs ignore unknown JSON fields. Confirm the new contract
+      // before a create, otherwise an answer could become an empty manual note.
+      let contract;
+      try { contract = await rpc(args, "nexus_research_finding_contract", {}); }
+      catch (error) {
+        if (["PGRST202", "42883", "42P01"].includes(error.storageCode))
+          throw problem("MIGRATION_REQUIRED", "Research findings require the reviewed research_finding_lineage migration.", 503);
+        throw error;
+      }
+      if (contract?.schema_version !== "research-finding/1")
+        throw problem("MIGRATION_REQUIRED", "The research-finding storage contract is unavailable.", 503);
+    }
     hash = await digest(JSON.stringify(command));
   } else if (matched && !action && request.method === "PATCH") {
     operation = "edit";

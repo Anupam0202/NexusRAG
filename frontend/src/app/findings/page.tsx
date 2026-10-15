@@ -54,9 +54,15 @@ function FindingsWorkbench() {
     if (authMode !== "authenticated" || !workspaceId) return;
     setBusy(true);
     Promise.all([listFindings({ workspaceId, expectedUserId }), getCurrentWorkspace({ workspaceId, expectedUserId }), listCurrentWorkspaceMembers({ workspaceId, expectedUserId })])
-      .then(([response, workspace, membership]) => {
+      .then(async ([response, workspace, membership]) => {
         if (!active) return;
         setItems(response.items); setNextAfter(response.next_after); setRole(workspace.role); setMembers(membership.members); setMemberAfter(membership.next_after ?? null);
+        const requested = new URLSearchParams(window.location.search).get("finding");
+        if (requested && !/^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(requested))
+          throw new Error("The finding link is invalid. Choose a saved finding.");
+        const detail = requested ? await readFinding(requested, { workspaceId, expectedUserId }) : null;
+        if (!active) return;
+        if (detail) { setSelected(detail); setTitle(detail.title); setMarkdown(detail.authored_markdown); }
       })
       .catch(error => { if (active) setError(error instanceof Error ? error.message : "Unable to load findings."); })
       .finally(() => { if (active) setBusy(false); });
@@ -146,7 +152,7 @@ function FindingsWorkbench() {
           <div className="flex flex-wrap gap-2">
             <button className={`${button} bg-brand-600 text-white`} disabled={busy || !canEdit || !title.trim()}
               onClick={() => void operate(save)}>Save finding</button>
-            {selected && <button className={button} disabled={busy || !canWrite || !!selected.source_run_id}
+            {selected && <button className={button} disabled={busy || !canWrite || !!selected.source_run_id || selected.source_research_position != null}
               onClick={() => void operate(download)}>Export JSON-LD & receipt</button>}
             {selected?.permission === "owner" && <button className={button} disabled={busy} onClick={() => {
               if (!window.confirm("Delete and redact this finding and its version text?")) return;
@@ -155,18 +161,32 @@ function FindingsWorkbench() {
           </div>
           {selected && <><section aria-label="Evidence and reviews" className="space-y-2 border-t border-[var(--border)] pt-4">
             <h3 className="font-semibold">Evidence & review history</h3>
+            {selected.research_origin && <div className="space-y-2 text-sm">
+              <p>Saved research answer · question {selected.research_origin.result_index + 1} · not automatically verified</p>
+              {selected.research_origin.question && <p className="whitespace-pre-wrap break-words">{selected.research_origin.question}</p>}
+              <p className="text-xs text-[var(--text-muted)]">Source-backed export requires an approved export-rights decision. Review does not grant source rights or certify the claim.</p>
+            </div>}
             {selected.source_unavailable && <p role="alert">Source evidence is unavailable. Generated content is withheld.</p>}
             <p className="text-sm">{selected.evidence.length} source excerpts · {selected.reviews.length} reviews of this revision</p>
             {selected.generated_markdown && <p className="whitespace-pre-wrap text-sm">{selected.generated_markdown}</p>}
-            {selected.evidence.map(item => <blockquote key={item.id} className="border-l-2 border-brand-400 pl-3 text-sm">
-              {item.available ? item.original_text : "Source unavailable"}<p className="text-xs">{item.freshness} · {item.version_id}</p></blockquote>)}
-            {selected.reviews.map(item => <p key={item.reviewer_id} className="break-words text-sm">{item.decision}: {item.comment}</p>)}
+            {selected.evidence.map(item => <blockquote key={item.id} className="space-y-2 border-l-2 border-brand-400 pl-3 text-sm">
+              <p className="whitespace-pre-wrap break-words">{item.available ? item.original_text : "Source unavailable"}</p>
+              <p className="break-words text-xs">{item.citation_id ? `[${item.citation_id}] ` : ""}{item.filename} · {item.freshness} · {item.version_id}</p>
+              {item.original_content_hash && <p className="break-all font-mono text-xs">SHA256 {item.original_content_hash}</p>}
+              {item.location != null && <p className="break-words text-xs">{JSON.stringify(item.location)}</p>}
+              {item.available && <Link className={button} href={`/documents/${encodeURIComponent(item.document_id)}`}>Inspect source document</Link>}
+            </blockquote>)}
+            {selected.reviews.map(item => <div key={item.reviewer_id} className="space-y-1 break-words text-sm">
+              <p>{item.decision}: {item.comment}</p>
+              <p className="text-xs text-[var(--text-muted)]">{members.find(member => member.user_id === item.reviewer_id)?.display_name || item.reviewer_id} · Revision {item.revision}
+                {item.created_at && <> · <time dateTime={item.created_at}>{new Date(item.created_at).toLocaleString()}</time></>}</p>
+            </div>)}
           </section>
           {canEdit && <section className="space-y-2" aria-label="Independent review">
             <label className="block text-sm">Review comment<textarea className={control} value={reviewComment} maxLength={4000}
               onChange={event => setReviewComment(event.target.value)} disabled={busy} /></label>
             <div className="flex gap-2">{(["approved", "changes_requested"] as const).map(decision =>
-              <button key={decision} className={button} disabled={busy || !selected.author_id || selected.author_id === userId} onClick={() => void operate(async () => {
+              <button key={decision} className={button} disabled={busy || !selected.author_id || selected.author_id === userId || (selected.source_research_position != null && selected.source_unavailable)} onClick={() => void operate(async () => {
                 const reviewed = await reviewFinding(selected.id, { revision: selected.revision, decision, comment: reviewComment }, context);
                 if (current()) setSelected(reviewed);
               })}>{decision === "approved" ? "Approve revision" : "Request changes"}</button>)}</div>
