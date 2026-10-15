@@ -11,6 +11,12 @@ it("sends canonical source locator input and recovers JSONB-ordered receipts",as
   await expect(createResearchQuantity("plan-a",input,"same-key",context)).resolves.toMatchObject({id:record.id});
   expect(fetch).toHaveBeenCalledWith(expect.stringContaining("/quantities"),expect.objectContaining({body:JSON.stringify(input),headers:expect.objectContaining({"Idempotency-Key":"same-key"})}));
 });
+it("canonicalizes equivalent UUID casing before sending and confirming source capture",async()=>{
+  const canonical={...input,document_id:"aaaaaaaa-4444-4444-8444-444444444444",version_id:"bbbbbbbb-5555-4555-8555-555555555555"};
+  const fetch=response({...record,input:canonical,document_id:canonical.document_id,version_id:canonical.version_id});
+  await expect(createResearchQuantity("plan-a",{...canonical,document_id:canonical.document_id.toUpperCase(),version_id:canonical.version_id.toUpperCase()},"same-key",context)).resolves.toMatchObject({id:record.id});
+  expect(fetch).toHaveBeenCalledWith(expect.anything(),expect.objectContaining({body:JSON.stringify(canonical)}));
+});
 it("requires persisted and matching capture identity before reporting a save",async()=>{
   response({...record,persistence_state:"NOT_PERSISTED"});await expect(createResearchQuantity("plan-a",input,"same-key",context)).rejects.toMatchObject({code:"PERSISTENCE_UNCONFIRMED"});
   response({...record,input:{...input,chunk_index:1}});await expect(createResearchQuantity("plan-a",input,"same-key",context)).rejects.toMatchObject({code:"PERSISTENCE_UNCONFIRMED"});

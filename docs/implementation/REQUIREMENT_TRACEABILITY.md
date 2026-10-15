@@ -9,7 +9,9 @@ unit captures, Unicode locators/hash/version lineage, source-state recovery and
 checked reuse across worksheets. Span match is not semantic entailment, independent
 review, full mode or lifecycle acceptance.64table122function synthetic restore and
 22browser journeys do not establish hosted/private production acceptance. Current
-028source remains uncommitted pending exact source/recovery/CI. See
+028source-time candidate includes published intermediate checkpoints and subsequent
+ordinary UUID-case normalization, with448frontend and complete local SQL passing.
+Final exact source/build/recovery/CI must bind the refinement externally. See
 RESEARCH_SOURCE_QUANTITIES_028.md; all224meanings/denominator remain unchanged.
 
 Latest027 advances P06/P07/P08 with durable supplied-factor decimal conversion,

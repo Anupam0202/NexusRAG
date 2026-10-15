@@ -90,6 +90,20 @@ The corrected existing complete local PostgreSQL rehearsal now passes through
 all retained assertions/concurrency, quantity capacity/retry and64table122function
 backup/restore; its owned rootless server stopped. No hosted resources were used.
 
+Intermediate inventory-corrected8596969/tree2aa2a33/624source archive SHA256
+24ee24c423668cd18aa66333896031bc51f04bc6f7981b92f497244821ec9678 recovers all
+source bytes/modes/original manifest in NEW recovered028. Required database CI
+38772973204 passes on executed267f34ac with equal tree, not identical commit
+attestation. Subsequent ordinary UUID-case review reproduced a false SQL retry
+conflict and mismatched actual old-source client canonical input. Both client and
+SQL now normalize document/version UUIDs before transport/hash/storage; one new
+API regression raises the full frontend count to448, and corrected complete local
+SQL/concurrency/restore passes. The first client test overlapped the edit and
+passed, so only the separately retained old-source check and SQL failure count as
+before-fix evidence. Final migration SHA2563360bf1cb8f9524874c3f323eccbe4df1b7be63dd4d01921383c4c729f715d28
+is not approved/applied hosted. Final current saved source/build/recovery/CI must
+bind this refinement; intermediate passes are not substituted for that proof.
+
 Failures retained: initial404, synthetic chunk missing required embedding-space
 metadata, duplicate test registration, inaccessible focusable pre element corrected
 to a read-only multiline text control without lint suppressions, ambiguous browser

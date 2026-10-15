@@ -17,7 +17,7 @@
       "requirement": "Execute deterministic precision-preserving calculations with stored inputs, units, formulas, evidence lineage and complete ordinary UI recovery, then complete all accepted calculation/research operations",
       "normative_source": "P06/P07/P08 and owner complete deterministic calculation/research journey assignment",
       "status": "IN_PROGRESS",
-      "environment": "isolated functional uncommitted batch028 frombbdb4c8/tree3a21392; actual PG17.11 source capture and UI/client/Gateway with synthetic peers; no hosted/private production acceptance",
+      "environment": "isolated functional batch028: published intermediate8596969/tree2aa2a33 plus source-time ordinary UUID-case normalization;448frontend and full local PG pass; final exact source/recovery/CI still required; no hosted/private production acceptance",
       "next_action": "Bind exact028source/full suites/builds/recovery/CI through existing draftPR12 without paused022. Completed027611source/85evidence recovery/checksums in external handoff. No025/026/027/028hosted approval;024fulfilled only. Finish source availability/lifecycle/independent review and full durable twelve-mode/product execution/progress/cancel/resume/results. Deployed old5db33e20 manifest exception remains; no unauthorized rollout or excluded security work.",
       "acceptance_evidence": [
         {

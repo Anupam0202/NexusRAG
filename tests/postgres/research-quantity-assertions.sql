@@ -29,6 +29,8 @@ begin
     then raise exception 'Exact source quantity/Unicode locator/receipt mismatch';end if;
   replay=public.nexus_research_quantity(ctx,'create',plan_id,command,'source-quantity');
   if receipt<>replay then raise exception 'Quantity retry duplicated or changed record';end if;
+  replay=public.nexus_research_quantity(ctx,'create',plan_id,jsonb_set(command,'{document_id}',to_jsonb(upper(doc::text))),'source-quantity');
+  if receipt<>replay then raise exception 'Equivalent source UUID casing changed the stored capture';end if;
   begin
     perform public.nexus_research_quantity(ctx,'create',plan_id,jsonb_set(command,'{value_span,start}',to_jsonb((command->'value_span'->>'start')::integer+1)),'numeric-fragment');
     raise exception 'Numeric fragment was offered as the complete source number';

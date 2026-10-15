@@ -91,6 +91,7 @@ begin
   unit_start=(p_input->'unit_span'->>'start')::integer;unit_end=(p_input->'unit_span'->>'end')::integer;
   if value_end-value_start not between 1 and 270 or unit_end-unit_start not between 1 and 64
     or (value_start<unit_end and unit_start<value_end) then raise exception 'NR:INVALID_SCOPE';end if;
+  p_input=p_input||jsonb_build_object('document_id',capture_document_id,'version_id',capture_version_id);
   request_hash=encode(sha256(convert_to(p_plan_id::text||p_input::text,'UTF8')),'hex');
   select * into stored from public.research_quantities where workspace_id=ws and owner_id=actor and idempotency_key=p_key;
   if found then

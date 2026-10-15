@@ -10,7 +10,7 @@ export interface QuantityCaptureRecord {
   source_state:"SOURCE_SPANS_MATCHED_REVIEW_REQUIRED"|"SOURCE_UNAVAILABLE";freshness:"current"|"stale"|"unavailable";
 }
 export function canonicalQuantityCapture(input:QuantityCaptureInput):QuantityCaptureInput {
-  return {document_id:input.document_id,version_id:input.version_id,chunk_index:input.chunk_index,original_content_hash:input.original_content_hash,
+  return {document_id:input.document_id.toLowerCase(),version_id:input.version_id.toLowerCase(),chunk_index:input.chunk_index,original_content_hash:input.original_content_hash,
     value_span:{start:input.value_span.start,end:input.value_span.end},unit_span:{start:input.unit_span.start,end:input.unit_span.end}};
 }
 export function confirmedQuantityCapture(value:unknown,planId:string):value is QuantityCaptureRecord {
