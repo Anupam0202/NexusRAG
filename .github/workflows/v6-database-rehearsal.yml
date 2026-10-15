@@ -75,6 +75,7 @@ jobs:
           cp "$GITHUB_WORKSPACE/supabase/migrations/20261013195435_backend_private_turn_authority.sql" "$source_dir/supabase/migrations/"
           cp "$GITHUB_WORKSPACE/supabase/migrations/20261014194036_research_plan_persistence.sql" "$source_dir/supabase/migrations/"
           cp "$GITHUB_WORKSPACE/supabase/migrations/20261015053618_research_calculation_execution.sql" "$source_dir/supabase/migrations/"
+          cp "$GITHUB_WORKSPACE/supabase/migrations/20261015063813_research_aggregate_execution.sql" "$source_dir/supabase/migrations/"
           chmod -R a+rX "$source_dir"
           cleanup() {
             sudo -u postgres dropdb --if-exists -h /var/run/postgresql -p "$port" "$db" >/dev/null 2>&1 || true
@@ -102,6 +103,9 @@ jobs:
             grep -F 'RESEARCH_PLAN_SQL_PASS' "$log"
             grep -F 'RESEARCH_CALCULATION_SQL_PASS' "$log"
             grep -F 'RESEARCH_CALCULATION_PYTHON_ENGINE_PARITY_PASS cases=196' "$log"
+            grep -F 'RESEARCH_AGGREGATION_PYTHON_ENGINE_PARITY_PASS cases=756' "$log"
+            grep -F 'RESEARCH_AGGREGATION_SQL_PASS' "$log"
+            grep -F 'POSTGRES_RESEARCH_AGGREGATION_CONCURRENT_RETRY_PASS' "$log"
             grep -F 'POSTGRES_RESEARCH_CALCULATION_CONCURRENT_RETRY_PASS' "$log"
             grep -F 'POSTGRES_RESEARCH_PLAN_CONCURRENT_RETRY_PASS' "$log"
             grep -E 'GATEWAY_PRIVATE_HISTORY_AUTHORITY_PASS|PRIVATE_HISTORY_CLEAR_CONCURRENT_AUTHORITY_PASS|PRIVATE_HISTORY_CLEAR_AUTHORITY_PASS|PRIVATE_HISTORY_RPC_TWO_IDENTITY_PASS|POSTGRES_RETENTION_SCHEDULE_FENCE_PASS|POSTGRES_RETENTION_CONCURRENT_FENCE_PASS|POSTGRES_RECIPIENT_INVITATION_AUTHORITY_PASS|POSTGRES_INVITATION_CONCURRENT_ACCEPT_CAPACITY_PASS|postgres_durable_extraction_stage_pass|concurrent_reservation_settlement_pass|concurrent_account_trial_limit_pass|account_trial_byok_assertions_pass|account_trial_rollback_pass|storage_rls_two_identity_pass|reindex_original_storage_reuse_pass|LOCAL_POSTGRES_REHEARSAL_PASS|POSTGRES_BACKUP_RESTORE_PASS' "$log"

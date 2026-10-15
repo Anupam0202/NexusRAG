@@ -17,9 +17,16 @@
       "requirement": "Execute deterministic precision-preserving calculations with stored inputs, units, formulas, evidence lineage and complete ordinary UI recovery, then complete all accepted calculation/research operations",
       "normative_source": "P06/P07/P08 and owner complete deterministic calculation/research journey assignment",
       "status": "IN_PROGRESS",
-      "environment": "isolated functional batch025 based on70593cb; actual PostgreSQL numeric engine and local production UI/client/Gateway with synthetic transport peers, not hosted/private production",
-      "next_action": "Bind final source/recovery/CI to existing draftPR12. Obtain exact separately scoped025 rehearsal migration approval only after source proof. Complete aggregates/grouping/ranking/conversions, authoritative input evidence/review and durable full twelve-mode execution/progress/cancel/resume/results; preserve paused022/excluded work and existing failed gates.",
+      "environment": "isolated functional batch026 based onc6c5c75/tree23295867; real PG17.11 numeric binary/aggregate engine and production UI/client/Gateway with synthetic peers; no hosted/private production acceptance",
+      "next_action": "Bind exact026source/recovery/CI to existing draftPR12 without paused022.025/026hosted migration approval is absent;024approval fulfilled only. Reproduce deployed /research1101 in provider logs when access allows; no unauthorized rollout. Complete authoritative evidence-backed inputs/conversions/dates/review and durable full twelve-mode/product execution/progress/cancel/resume/results; preserve excluded work and failed gates.",
       "acceptance_evidence": [
+        {
+          "environment": "actual disposable PG17.11/pgvector0.8.7 and synthetic desktop/mobile light/dark UI/API/Gateway; separate read-only Chrome observation of older deployment",
+          "observed_at": "2026-10-15T07:10:00Z",
+          "source_identity": "parentc6c5c7508add50420f699d395b359033976548f5 plus research-aggregate-execution-026 candidate; final exact identity external",
+          "command_or_url": "docs/implementation/RESEARCH_AGGREGATE_EXECUTION_026.md; tests/postgres/aggregation-parity.py; frontend/src/e2e/research-aggregations.spec.ts",
+          "result": "756real aggregate/196binary Decimal-engine parity, both ordinary retry races, paging/shared-capacity and63table116function backuprestore PASS.14synthetic browser journeys/413frontend/631backend+10subtests/95scripts PASS; final exact-source builds/recovery/CI pending. Source refs caller-supplied/unverified. Deployed /research Cloudflare1101 raya4ad00557b2c5412; Settings reachable is not acceptance. Existing025image116277595894/summary116284389446 FAIL, findings NOT_READ_IN_FUNCTIONAL_SCOPE. No full requirement/mode/product closed; no hosted025/026/deploy/provider/customer/new-user operation."
+        },
         {
           "environment": "real new Unix-socket PostgreSQL17.11/pgvector0.8.7; ordinary synthetic browser/API/SQL fixtures; no hosted/provider/customer operation",
           "observed_at": "2026-10-15T05:46:45Z",

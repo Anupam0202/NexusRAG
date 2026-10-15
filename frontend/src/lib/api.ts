@@ -37,6 +37,7 @@ import { getApiHeaders } from "@/lib/api-context";
 import { buildBackendUrl } from "@/lib/backend-url";
 import { modeLimits, researchModes, type ResearchPlanInput, type ResearchPlanRecord } from "@/lib/research-plan";
 import { confirmedCalculation, type CalculationInput, type CalculationRecord } from "@/lib/research-calculation";
+import { canonicalAggregationInput, confirmedAggregation, type AggregationInput, type AggregationRecord } from "@/lib/research-aggregation";
 
 export interface ApiRequestContext {
   expectedUserId?: string | null;
@@ -453,6 +454,23 @@ export async function createResearchCalculation(planId: string, input: Calculati
     (["left","right"] as const).some(side=>result.input[side].value!==input[side].value || result.input[side].unit!==input[side].unit ||
       JSON.stringify(result.input[side].evidence_ids)!==JSON.stringify(input[side].evidence_ids)))
     throw new ApiRequestError("Calculation save was not confirmed. Refresh before retrying.","PERSISTENCE_UNCONFIRMED");
+  return result;
+}
+
+export async function listResearchAggregations(planId:string,context:ApiRequestContext,after?:string) {
+  const result=await request<{items:AggregationRecord[];next_after:string|null}>(
+    `/api/v2/research/plans/${encodeURIComponent(planId)}/aggregations?limit=20${after?`&after=${encodeURIComponent(after)}`:""}`,undefined,context);
+  if(!result || !Array.isArray(result.items) || result.items.some(item=>!confirmedAggregation(item,planId)) ||
+    (result.next_after!==null && typeof result.next_after!=="string"))throw new ApiRequestError("Stored aggregate list was not confirmed.","PERSISTENCE_UNCONFIRMED");
+  return result;
+}
+export async function createResearchAggregation(planId:string,input:AggregationInput,key:string,context:ApiRequestContext) {
+  const body=canonicalAggregationInput(input);
+  const result=await request<AggregationRecord>(`/api/v2/research/plans/${encodeURIComponent(planId)}/aggregations`,{
+    method:"POST",headers:{"Idempotency-Key":key},body:JSON.stringify(body),
+  },context);
+  if(!confirmedAggregation(result,planId) || JSON.stringify(canonicalAggregationInput(result.input))!==JSON.stringify(body))
+    throw new ApiRequestError("Aggregate save was not confirmed. Refresh before retrying.","PERSISTENCE_UNCONFIRMED");
   return result;
 }
 

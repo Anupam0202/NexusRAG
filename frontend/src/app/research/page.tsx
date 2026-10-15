@@ -8,7 +8,7 @@ import { createResearchPlan, getCurrentWorkspace, listResearchPlans, readResearc
 import { emptyResearchPlan, modeLabel, modeLimits, researchModes, type ResearchMode, type ResearchPlanInput, type ResearchPlanRecord } from "@/lib/research-plan";
 import { useStore } from "@/hooks/useStore";
 import { useDocuments } from "@/hooks/useDocuments";
-import { CalculationWorksheet } from "@/components/research/CalculationWorksheet";
+import { CalculationTools } from "@/components/research/CalculationTools";
 
 const control = "w-full min-w-0 rounded-lg border border-[var(--border)] bg-[var(--bg-primary)] px-3 py-2 text-sm";
 const button = "inline-flex items-center justify-center gap-2 rounded-lg border border-[var(--border)] px-3 py-2 text-sm font-medium disabled:opacity-50";
@@ -105,7 +105,7 @@ function ResearchWorkbench() {
             {[["Private source IDs", selected.plan.private_source_ids.join("\n")], ["Start date", selected.plan.date_from], ["End date", selected.plan.date_to], ["Jurisdiction", selected.plan.jurisdiction]].map(([label, value]) =>
               <div key={label}><dt className="text-xs font-semibold text-[var(--text-muted)]">{label}</dt><dd className="mt-1 whitespace-pre-wrap break-words text-sm">{value || "-"}</dd></div>)}
           </dl></details>
-          {selected.plan.mode==="CALCULATION" && <CalculationWorksheet key={selected.id} planId={selected.id} workspaceId={workspaceId} userId={userId!} canWrite={canWrite}/>}
+          {selected.plan.mode==="CALCULATION" && <CalculationTools key={selected.id} planId={selected.id} workspaceId={workspaceId} userId={userId!} canWrite={canWrite}/>}
           </> : <form onSubmit={event => { event.preventDefault(); if (canWrite && !busy) void save(); }} className="space-y-4">
           <div className="grid min-w-0 gap-4 sm:grid-cols-2"><label className="text-sm">Mode<select aria-label="Mode" className={`${control} mt-1`} value={draft.mode} disabled={busy || !canWrite}
             onChange={event => setDraft({ ...draft, mode: event.target.value as ResearchMode })}>{researchModes.map(mode => <option key={mode} value={mode}>{modeLabel(mode)}</option>)}</select></label>

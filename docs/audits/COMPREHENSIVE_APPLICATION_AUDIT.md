@@ -4,6 +4,26 @@ Status: **PARTIAL_NOT_COMPLETE — locally tested implementation; not production
 
 This receipt supersedes historical status claims only where it records a fresh observation. It does not certify a complete product, production release, provider rights, or absence of all defects.
 
+## Exact Aggregate Worksheet - Bounded Batch026
+
+Two ordinary Gateway aggregate regressions fail404 before source implementation.
+Actual SQL/Gateway/client/Research worksheet now cover nine aggregate operations,
+weighted/grouped inputs, explicit missing-value policy and retained exclusions,
+ranked unrounded source-index rows, five descriptive metrics, atomic immutable
+save/retry/read/paging and binary-v1 compatibility.756real SQL/retained Decimal
+engine parity cases plus196binary cases/concurrency/shared capacity/63table116
+function restore pass.14synthetic desktop/mobile light/dark journeys pass;413
+frontend/631backend+10subtests/95scripts pass. Final saved-source/build/recovery/CI
+belongs in external receipts. References remain caller-supplied, not verified.
+
+Fresh Chrome actual candidate /research reproduces Cloudflare1101, ray
+a4ad00557b2c5412 at2026-10-15T07:09:58Z; Settings settles Gateway reachable.
+The active deployment is not these locally tested journeys. Existing025image/
+summary now FAIL; findings not investigated under owner functional-only scope.
+No025/026hosted approval/application, protected merge, deploy, provider/customer
+operation or new identity. All224/tenproducts/twelvemodes/400+125quality and existing
+release prerequisites remain unfinished. See RESEARCH_AGGREGATE_EXECUTION_026.md.
+
 ## Exact Calculation Worksheet - Bounded Batch025
 
 New ordinary source UI/client/Gateway/SQL journey replaces404 for seven binary

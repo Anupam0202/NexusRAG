@@ -4,6 +4,15 @@
 
 Status: `PARTIAL_NOT_COMPLETE_WITH_ACCEPTED_NORMATIVE_BASELINE`
 
+Latest026 advances P06/P07/P08 with actual durable nine-operation aggregate
+worksheets, explicit grouped/weighted/missing-input lineage, ranking, five
+descriptive metrics and ordinary save/retry/read/paging UI.756actual SQL/retained
+Decimal parity cases and14synthetic browser journeys are not hosted/private or
+production acceptance. Full evidence-backed inputs/conversions/review/mode
+execution and all224/tenproducts/twelvemodes/quality remain open. Actual deployed
+/research fails Cloudflare1101; no unauthorized rollout or025/026hosted migration.
+See RESEARCH_AGGREGATE_EXECUTION_026.md; normative definitions remain unchanged.
+
 Latest025 advances P06/P07/P08 with actual exact-decimal binary worksheet execution,
 atomic stored inputs/formulas/units/references and ordinary retry/reload UI. Real
 local SQL/196Python-engine parity/concurrent retry/backuprestore are distinct from

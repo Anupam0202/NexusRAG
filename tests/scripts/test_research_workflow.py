@@ -6,6 +6,16 @@ import unittest
 ROOT = Path(__file__).resolve().parents[2]
 
 class ResearchWorkflowTests(unittest.TestCase):
+    def test_aggregate_execution_parity_and_browser_are_in_required_ci(self):
+        rehearsal=(ROOT / "tests/postgres/local-rehearsal.sh").read_text()
+        workflow=(ROOT / ".github/workflows/v6-database-rehearsal.yml").read_text()
+        for name in ("20261015063813_research_aggregate_execution.sql", "research-aggregation-assertions.sql", "aggregation-parity.py", "research-aggregation-concurrency.sh"):
+            self.assertIn(name,rehearsal)
+        self.assertIn("20261015063813_research_aggregate_execution.sql",workflow)
+        self.assertIn("RESEARCH_AGGREGATION_PYTHON_ENGINE_PARITY_PASS cases=756",workflow)
+        self.assertIn("POSTGRES_RESEARCH_AGGREGATION_CONCURRENT_RETRY_PASS",workflow)
+        self.assertIn("research-aggregations.spec.ts",(ROOT / ".github/workflows/v6-foundation-ci.yml").read_text())
+
     def test_calculation_execution_and_retries_are_in_the_real_rehearsal(self):
         rehearsal=(ROOT / "tests/postgres/local-rehearsal.sh").read_text()
         workflow=(ROOT / ".github/workflows/v6-database-rehearsal.yml").read_text()
