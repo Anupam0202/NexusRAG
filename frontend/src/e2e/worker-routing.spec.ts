@@ -39,6 +39,17 @@ test("missing assets and unknown routes return 404 instead of crashing the serve
   expect(icon.headers()["content-type"]).toContain("image/svg+xml");
 });
 
+test("ordinary unsupported methods reach the dynamic adapter without a manifest exception", async ({ request }) => {
+  for (const method of ["GET", "HEAD"]) {
+    const response = await request.fetch("/auth/confirm/verify", { method });
+    expect(response.status()).toBe(405);
+    const body = await response.text();
+    expect(body).not.toContain("Unexpected loadManifest");
+    expect(body).not.toContain("Worker threw exception");
+    if (method === "HEAD") expect(body).toBe("");
+  }
+});
+
 test("the dynamic legacy auth verifier rejects cross-origin posts without an adapter crash", async ({ request }) => {
   const response = await request.post("/auth/confirm/verify", {
     headers: { Origin: "https://cross-origin.synthetic.invalid" },

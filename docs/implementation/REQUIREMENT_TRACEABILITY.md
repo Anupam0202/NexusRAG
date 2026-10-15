@@ -4,6 +4,16 @@
 
 Status: `PARTIAL_NOT_COMPLETE_WITH_ACCEPTED_NORMATIVE_BASELINE`
 
+Latest027 advances P06/P07/P08 with durable supplied-factor decimal conversion,
+explicit units/factor date/formula/reference lineage and ordinary save/retry/read/
+copy/paging UI.140real SQL/retained Decimal comparisons and18synthetic research
+journeys pass; input evidence remains caller-asserted/unverified. Hosted025/026/027
+approval and private/deployed acceptance are absent. Read-only Cloudflare logs
+confirm deployed /research fails preview-props.json manifest initialization on
+older version5db33e20. No rollout/configuration mutation. See
+RESEARCH_CONVERSION_EXECUTION_027.md. No full requirement/product/mode is closed;
+all224exact definitions and accepted scope remain unchanged.
+
 Latest026 advances P06/P07/P08 with actual durable nine-operation aggregate
 worksheets, explicit grouped/weighted/missing-input lineage, ranking, five
 descriptive metrics and ordinary save/retry/read/paging UI.756actual SQL/retained

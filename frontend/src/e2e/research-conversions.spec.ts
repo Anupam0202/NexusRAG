@@ -1,0 +1,22 @@
+import {expect,test} from "@playwright/test";
+import {randomUUID} from "node:crypto";
+test.skip(!process.env.E2E_RESEARCH_COMPONENT_FIXTURE,"Requires isolated synthetic UI/API/Gateway transport, not a hosted origin.");
+for(const theme of ["light","dark"])test(`${theme}: convert with explicit factor, retry, inspect and reload`,async({page},testInfo)=>{
+  const errors:string[]=[];page.on("pageerror",error=>errors.push(error.message));await page.goto(`/?theme=${theme}&actor=${randomUUID()}`);
+  let unexpectedNavigations=0;page.on("framenavigated",frame=>{if(frame===page.mainFrame())unexpectedNavigations++;});
+  const question=`Synthetic conversion ${theme} ${testInfo.project.name}`;
+  await page.getByLabel("Mode").selectOption("CALCULATION");await page.getByLabel("Question",{exact:true}).fill(question);
+  await page.getByLabel("Completion criteria").fill("Review supplied factor, effective date and source units");await page.getByRole("button",{name:"Save plan",exact:true}).click();
+  await page.getByRole("radio",{name:"Convert",exact:true}).check();const execute=page.getByRole("button",{name:"Convert and save",exact:true});await expect(execute).toBeEnabled();
+  for(const [label,value] of [["Conversion value","1.005"],["Source unit","kg"],["Supplied factor","1000"],["Target unit","g"],["Factor evidence reference","synthetic-factor-a"],["Factor effective date","2026-10-15"],["Conversion decimal places","2"],["Conversion evidence references","synthetic-quantity-a"]])await page.getByLabel(label,{exact:true}).fill(value);
+  await page.getByRole("radio",{name:"Pair",exact:true}).check();await page.getByRole("radio",{name:"Convert",exact:true}).check();await expect(page.getByLabel("Supplied factor")).toHaveValue("1000");
+  const keys:string[]=[];page.on("request",request=>{if(request.method()==="POST" && new URL(request.url()).pathname.endsWith("/conversions"))keys.push(request.headers()["idempotency-key"]);});
+  await execute.click();await expect(page.getByRole("alert")).toBeVisible();await expect(page.getByLabel("Factor effective date")).toHaveValue("2026-10-15");await expect(page.getByLabel("Conversion result")).toHaveCount(0);
+  await execute.click();await expect(page.getByLabel("Conversion result")).toHaveText("1005.00 g");expect(keys).toHaveLength(2);expect(keys[0]).toBeTruthy();expect(keys[0]).toBe(keys[1]);
+  await expect(page.getByText("1.005*1000",{exact:true})).toBeVisible();await expect(page.getByText("2026-10-15",{exact:true})).toBeVisible();expect(unexpectedNavigations).toBe(0);
+  await page.reload();await page.getByRole("button",{name:`Open research plan: ${question}`,exact:true}).click();await page.getByRole("radio",{name:"Convert",exact:true}).check();
+  await expect(page.getByLabel("Conversion result")).toHaveText("1005.00 g");await expect(page.getByLabel("Conversion result")).toHaveCount(1);
+  await page.getByRole("button",{name:"Use conversion inputs",exact:true}).click();await expect(page.getByLabel("Conversion value")).toBeFocused();await expect(page.getByLabel("Factor effective date")).toHaveValue("2026-10-15");
+  await page.getByLabel("Conversion result").scrollIntoViewIfNeeded();expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);expect(errors).toEqual([]);
+  await page.screenshot({path:testInfo.outputPath("conversion-stored.png")});
+});

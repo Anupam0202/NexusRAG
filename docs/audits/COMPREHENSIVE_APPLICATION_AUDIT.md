@@ -4,6 +4,28 @@ Status: **PARTIAL_NOT_COMPLETE — locally tested implementation; not production
 
 This receipt supersedes historical status claims only where it records a fresh observation. It does not certify a complete product, production release, provider rights, or absence of all defects.
 
+## Supplied-Factor Conversion And Deployed Failure - Bounded Batch027
+
+Actual new SQL/Gateway/client/Convert worksheet replaces two404regressions with
+atomic exact decimal conversion/input/date/unit/formula/reference persistence,
+ordinary retry/conflict/paging/shared capacity and three-form draft preservation.
+140real SQL retained-engine parity plus196binary/756aggregate/concurrency and
+63table119function backuprestore pass.493Gateway/434frontend/96scripts/lint/typecheck
+and18cold synthetic browser journeys pass; saved exact-source recovery/CI remains
+separate. Caller-supplied evidence is not verified source support or complete mode.
+
+Owner-restored Cloudflare Chrome access confirms100%candidate version5db33e20,
+configured source2fbc5c98; variable identity is not a bundle attestation. Existing
+read-only live log captures /research1101/raya4ae6d1dfee1e1f1 at11:18:59.546Z:
+Unexpected loadManifest(/.next/server/preview-props.json) call during NextNodeServer
+initialization. Logging/configuration unchanged; live view stopped. New local
+static success cannot establish dynamic-path repair or deployed acceptance.
+
+Existing026image/requiredsummary FAILED, findings not investigated. No hosted
+025/026/027, deployment/provider/customer/new-user/destructive operation;024exact
+rehearsal approval fulfilled only. All224/tenproducts/twelvemodes/quality and known
+release blockers remain. See RESEARCH_CONVERSION_EXECUTION_027.md.
+
 ## Exact Aggregate Worksheet - Bounded Batch026
 
 Two ordinary Gateway aggregate regressions fail404 before source implementation.

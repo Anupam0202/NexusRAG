@@ -38,6 +38,7 @@ import { buildBackendUrl } from "@/lib/backend-url";
 import { modeLimits, researchModes, type ResearchPlanInput, type ResearchPlanRecord } from "@/lib/research-plan";
 import { confirmedCalculation, type CalculationInput, type CalculationRecord } from "@/lib/research-calculation";
 import { canonicalAggregationInput, confirmedAggregation, type AggregationInput, type AggregationRecord } from "@/lib/research-aggregation";
+import {canonicalConversionInput,confirmedConversion,type ConversionInput,type ConversionRecord} from "@/lib/research-conversion";
 
 export interface ApiRequestContext {
   expectedUserId?: string | null;
@@ -471,6 +472,22 @@ export async function createResearchAggregation(planId:string,input:AggregationI
   },context);
   if(!confirmedAggregation(result,planId) || JSON.stringify(canonicalAggregationInput(result.input))!==JSON.stringify(body))
     throw new ApiRequestError("Aggregate save was not confirmed. Refresh before retrying.","PERSISTENCE_UNCONFIRMED");
+  return result;
+}
+
+export async function listResearchConversions(planId:string,context:ApiRequestContext,after?:string) {
+  const result=await request<{items:ConversionRecord[];next_after:string|null}>(
+    `/api/v2/research/plans/${encodeURIComponent(planId)}/conversions?limit=20${after?`&after=${encodeURIComponent(after)}`:""}`,undefined,context);
+  if(!result || !Array.isArray(result.items) || result.items.some(item=>!confirmedConversion(item,planId)) ||
+    (result.next_after!==null && typeof result.next_after!=="string"))throw new ApiRequestError("Stored conversion list was not confirmed.","PERSISTENCE_UNCONFIRMED");
+  return result;
+}
+export async function createResearchConversion(planId:string,input:ConversionInput,key:string,context:ApiRequestContext) {
+  const body=canonicalConversionInput(input);
+  const result=await request<ConversionRecord>(`/api/v2/research/plans/${encodeURIComponent(planId)}/conversions`,{
+    method:"POST",headers:{"Idempotency-Key":key},body:JSON.stringify(body)},context);
+  if(!confirmedConversion(result,planId) || JSON.stringify(canonicalConversionInput(result.input))!==JSON.stringify(body))
+    throw new ApiRequestError("Conversion save was not confirmed. Refresh before retrying.","PERSISTENCE_UNCONFIRMED");
   return result;
 }
 

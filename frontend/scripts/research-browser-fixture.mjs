@@ -14,6 +14,7 @@ const env = { SUPABASE_URL: "https://research-peer.invalid", SUPABASE_PUBLISHABL
 const records = new Map(), keys = new Map();
 const calculations = new Map(), calculationKeys = new Map();
 const aggregations = new Map(), aggregationKeys = new Map();
+const conversions = new Map(), conversionKeys = new Map();
 const ordinaryFetch = globalThis.fetch;
 // Only the Supabase peer is simulated. Production page, API client and Gateway
 // dispatch run unchanged. This is not SQL durability, real OAuth or hosted proof.
@@ -27,6 +28,19 @@ globalThis.fetch = async (input, init = {}) => {
   if (url.pathname === "/rest/v1/workspace_settings") return json([{active_policy_id: policy, policy_version: 1}]);
   if (url.pathname === "/rest/v1/documents") return json([{id: document, workspace_id: workspace, filename: "Synthetic policy.txt", status: "ready", file_type: "txt", chunk_count: 1, file_size: 100}]);
   const data = JSON.parse(init.body);
+  if (url.pathname === "/rest/v1/rpc/nexus_research_conversion") {
+    if(data.p_operation==="list")return json({items:[...conversions.values()].filter(item=>item.owner_id===data.p_context.user_id && item.plan_id===data.p_plan_id).reverse(),next_after:null});
+    if(conversionKeys.has(data.p_key))return json(conversions.get(conversionKeys.get(data.p_key)));
+    const command=data.p_input;
+    // Fixed transport response; real conversion arithmetic/persistence is tested in SQL.
+    if(command.quantity.value!=="1.005" || command.quantity.unit!=="kg" || command.factor!=="1000" || command.target_unit!=="g" ||
+      command.precision!==2 || command.factor_effective_on!=="2026-10-15")throw new Error("Unsupported synthetic conversion response");
+    const record={id:randomUUID(),plan_id:data.p_plan_id,workspace_id:workspace,owner_id:data.p_context.user_id,input:command,
+      result:{operation:"CONVERT_UNIT",value:"1005.00",unit:"g",formula:"1.005*1000",evidence_ids:[...new Set([...command.quantity.evidence_ids,command.conversion_evidence_id])],precision:2,rounding:"ROUND_HALF_EVEN"},
+      schema_version:"research-conversion/1",state:"calculated",persistence_state:"PERSISTED",input_evidence_state:"CALLER_ASSERTED_NOT_VERIFIED",created_at:new Date().toISOString()};
+    conversions.set(record.id,record);conversionKeys.set(data.p_key,record.id);
+    return json({code:"08006",message:"Synthetic interrupted conversion response after commit"},503);
+  }
   if (url.pathname === "/rest/v1/rpc/nexus_research_aggregation") {
     if(data.p_operation==="list")return json({items:[...aggregations.values()].filter(item=>item.owner_id===data.p_context.user_id && item.plan_id===data.p_plan_id).reverse(),next_after:null});
     if(aggregationKeys.has(data.p_key))return json(aggregations.get(aggregationKeys.get(data.p_key)));

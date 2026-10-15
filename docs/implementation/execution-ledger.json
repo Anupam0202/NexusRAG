@@ -17,9 +17,16 @@
       "requirement": "Execute deterministic precision-preserving calculations with stored inputs, units, formulas, evidence lineage and complete ordinary UI recovery, then complete all accepted calculation/research operations",
       "normative_source": "P06/P07/P08 and owner complete deterministic calculation/research journey assignment",
       "status": "IN_PROGRESS",
-      "environment": "isolated functional batch026 based onc6c5c75/tree23295867; real PG17.11 numeric binary/aggregate engine and production UI/client/Gateway with synthetic peers; no hosted/private production acceptance",
-      "next_action": "Bind exact026source/recovery/CI to existing draftPR12 without paused022.025/026hosted migration approval is absent;024approval fulfilled only. Reproduce deployed /research1101 in provider logs when access allows; no unauthorized rollout. Complete authoritative evidence-backed inputs/conversions/dates/review and durable full twelve-mode/product execution/progress/cancel/resume/results; preserve excluded work and failed gates.",
+      "environment": "isolated functional batch027 based on5c4e04b/tree85625d66; real PG17.11 numeric binary/aggregate/conversion and actual UI/client/Gateway with synthetic peers; no hosted/private production acceptance",
+      "next_action": "Bind exact027source/full recovery/CI to existing draftPR12 without paused022.025/026/027hosted approval absent;024fulfilled only. Read-only live logs confirm deployed /research preview-props manifest initialization failure on5db33e20; validate actual Workerd dynamic/fallback paths without unauthorized rollout. Complete authoritative evidence-backed inputs/review and durable full twelve-mode/product execution/progress/cancel/resume/results; preserve excluded work and failed gates.",
       "acceptance_evidence": [
+        {
+          "environment": "actual disposable PG17.11/pgvector0.8.7; synthetic desktop/mobile light/dark browser; separate read-only Cloudflare Chrome diagnosis",
+          "observed_at": "2026-10-15T11:18:59Z",
+          "source_identity": "parent5c4e04bd31ac3e2347044b34d2269dc27b1e10a2 plus research-conversion-execution-027; final saved identity external",
+          "command_or_url": "docs/implementation/RESEARCH_CONVERSION_EXECUTION_027.md; tests/postgres/conversion-parity.py; frontend/src/e2e/research-conversions.spec.ts",
+          "result": "140conversion/196binary/756aggregate Decimal parity, ordinary conversion retry race, paging/shared capacity and63table119function backuprestore PASS.493Gateway/434frontend/96scripts/lint/typecheck/18cold synthetic research journeys PASS; final source/full recovery/CI pending. Source refs unverified, no complete mode/product/definition closure. Deployed5db33e20 /research1101 captures Unexpected loadManifest(/.next/server/preview-props.json) call on ordinary reload, raya4ae6d1dfee1e1f1. Live stopped/configuration unchanged; no rollout.026existing image/summary FAILED, findings NOT_READ_IN_FUNCTIONAL_SCOPE. No new hosted/provider/customer/user operations."
+        },
         {
           "environment": "actual disposable PG17.11/pgvector0.8.7 and synthetic desktop/mobile light/dark UI/API/Gateway; separate read-only Chrome observation of older deployment",
           "observed_at": "2026-10-15T07:10:00Z",
