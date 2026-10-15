@@ -3,7 +3,7 @@ import react from "@vitejs/plugin-react";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createHash, randomUUID } from "node:crypto";
-import { handle } from "../../apps/gateway/src/preview-worker.js";
+import { handle, queue } from "../../apps/gateway/src/preview-worker.js";
 import { RESEARCH_MODE_LIMITS } from "../../apps/gateway/src/research-plans.js";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -16,6 +16,9 @@ const calculations = new Map(), calculationKeys = new Map();
 const aggregations = new Map(), aggregationKeys = new Map();
 const conversions = new Map(), conversionKeys = new Map();
 const quantities = new Map(), quantityKeys = new Map();
+const runs=new Map(),runKeys=new Map(),interruptedQuestions=new Set();
+env.GOOGLE_API_KEY="synthetic-local-not-a-key";env.QDRANT_URL="https://research-qdrant.invalid";env.QDRANT_API_KEY="synthetic-local";
+env.INGESTION_QUEUE={send:async body=>{setTimeout(()=>void queue({messages:[{body,ack(){},retry(){throw Error("Unexpected automatic generation retry");}}]},env).catch(error=>console.error(error)),runs.get(body.run_id)?.questions[0]?.includes("cancel")?2500:500);}};
 const sourceVersion="70707070-7070-4070-8070-707070707070",sourceChunk="80808080-8080-4080-8080-808080808080";
 const sourceText="\u{1F4CA} mass: 1.005 kg; other mass 9 kg",sourceHash=createHash("sha256").update(sourceText).digest("hex");
 const ordinaryFetch = globalThis.fetch;
@@ -23,6 +26,14 @@ const ordinaryFetch = globalThis.fetch;
 // dispatch run unchanged. This is not SQL durability, real OAuth or hosted proof.
 globalThis.fetch = async (input, init = {}) => {
   const url = new URL(input);
+  const result=value=>new Response(JSON.stringify(value));
+  if(url.hostname==="generativelanguage.googleapis.com") {
+    if(url.pathname.endsWith(":embedContent"))return result({embedding:{values:Array(8).fill(0.1)}});
+    const body=JSON.parse(init.body),question=body.contents[0].parts[0].text.split("QUESTION:\n")[1]?.split("\n\nEVIDENCE:")[0];
+    if(question?.includes("Synthetic interrupted execution")&&!interruptedQuestions.has(question)){interruptedQuestions.add(question);return new Response("synthetic provider interruption",{status:503});}
+    return result({candidates:[{finishReason:"STOP",content:{parts:[{text:"The mass is 1.005 kg [S1]."}]}}],usageMetadata:{promptTokenCount:20,candidatesTokenCount:12}});
+  }
+  if(url.hostname==="research-qdrant.invalid")return result(url.pathname.endsWith("/points/query")?{result:{points:[{id:sourceChunk,score:0.9,payload:{workspace_id:workspace,document_id:document,version_id:sourceVersion,index_generation:"synthetic-source-generation",chunk_id:sourceChunk}}]}}:{});
   if (url.hostname !== "research-peer.invalid") return ordinaryFetch(input, init);
   const json = (value, status = 200) => new Response(JSON.stringify(value), { status });
   if (url.pathname === "/auth/v1/user") return json({id: new Headers(init.headers).get("authorization")?.split(":").at(-1) || user});
@@ -30,9 +41,39 @@ globalThis.fetch = async (input, init = {}) => {
   if (url.pathname === "/rest/v1/workspaces") return json([{id: workspace, name: "Synthetic research workspace", lifecycle_state: "active", capability_revision: 1}]);
   if (url.pathname === "/rest/v1/workspace_settings") return json([{active_policy_id: policy, policy_version: 1}]);
   if (url.pathname === "/rest/v1/documents") return json([{id: document, workspace_id: workspace, filename: "Synthetic policy.txt", status: "ready", file_type: "txt", chunk_count: 1, file_size: 100,lifecycle_state:"active",lifecycle_epoch:1,active_version_id:sourceVersion}]);
-  if (url.pathname === "/rest/v1/document_versions") return json([{id:sourceVersion,workspace_id:workspace,document_id:document,publication_state:"ready",index_generation:"synthetic-source-generation",lifecycle_epoch:1}]);
+  if (url.pathname === "/rest/v1/document_versions") return json([{id:sourceVersion,workspace_id:workspace,document_id:document,publication_state:"ready",data_classification:"non_sensitive",index_generation:"synthetic-source-generation",lifecycle_epoch:1}]);
   if (url.pathname === "/rest/v1/document_chunks") return json([{id:sourceChunk,workspace_id:workspace,document_id:document,version_id:sourceVersion,chunk_index:0,original_text:sourceText,content:sourceText,original_content_hash:sourceHash,page_number:2,location:{page:2},metadata:{}}]);
+  if(url.pathname==="/rest/v1/research_runs")return json([runs.get(url.searchParams.get("id")?.slice(3))].filter(Boolean));
   const data = JSON.parse(init.body);
+  if(url.pathname==="/rest/v1/rpc/v6_reserve_many")return json({state:"READY",reservations:Object.entries(data.p_dimensions).map(([,amount])=>({id:randomUUID(),amount,replayed:false}))});
+  if(url.pathname==="/rest/v1/rpc/v6_settle_many")return json({state:"SETTLED"});
+  if(url.pathname==="/rest/v1/rpc/nexus_research_step") {
+    const run=runs.get(data.p_id);
+    if(!run||run.position!==data.p_position||run.generation!==data.p_generation||!["queued","running"].includes(run.state))return json({claimed:false,run});
+    if(data.p_operation==="claim") {
+      if(run.state!=="queued")return json({claimed:false,run});
+      run.state="running";run.deadline=new Date(Date.now()+90000).toISOString();run.token=randomUUID();return json({claimed:true,token:run.token,run});
+    }
+    if(data.p_token!==run.token)return json({claimed:false,run});
+    if(data.p_operation==="commit"){run.results.push(data.p_result);run.position++;run.state=run.position===run.questions.length?"completed":"queued";}
+    else {run.state="interrupted";run.error_code=data.p_error;}
+    return json({claimed:false,run});
+  }
+  if(url.pathname==="/rest/v1/rpc/nexus_research_run") {
+    if(data.p_operation==="list")return json({items:[...runs.values()].filter(run=>run.owner_id===data.p_context.user_id&&run.plan_id===data.p_plan).reverse(),next_after:null});
+    if(data.p_operation==="create") {
+      if(runKeys.has(data.p_key))return json(runs.get(runKeys.get(data.p_key)));
+      const draft=records.get(data.p_plan).plan;
+      const run={id:randomUUID(),plan_id:data.p_plan,workspace_id:workspace,owner_id:data.p_context.user_id,schema_version:"research-run/1",persistence_state:"PERSISTED",state:"queued",
+        generation:1,position:0,questions:[draft.question,...draft.subquestions],results:[],source_state:"CURRENT",error_code:null,created_at:new Date().toISOString(),
+        source_snapshot:[{document_id:document,version_id:sourceVersion,index_generation:"synthetic-source-generation",lifecycle_epoch:1}],admission:{credential_mode:"platform_trial"}};
+      runs.set(run.id,run);runKeys.set(data.p_key,run.id);return json(run);
+    }
+    const run=runs.get(data.p_id);
+    if(data.p_operation==="cancel")run.state="cancelled";
+    if(data.p_operation==="resume"){run.state="queued";run.generation++;run.error_code=null;}
+    return json(run);
+  }
   if (url.pathname === "/rest/v1/rpc/nexus_research_quantity") {
     if(data.p_operation==="list")return json({items:[...quantities.values()].filter(item=>item.owner_id===data.p_context.user_id && item.plan_id===data.p_plan_id).reverse(),next_after:null});
     if(quantityKeys.has(data.p_key))return json(quantities.get(quantityKeys.get(data.p_key)));

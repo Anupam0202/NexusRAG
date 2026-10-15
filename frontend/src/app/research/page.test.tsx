@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, expect, it, vi } from "vitest";
 import { emptyResearchPlan, modeLimits } from "@/lib/research-plan";
-const api = vi.hoisted(() => ({ createResearchPlan: vi.fn(), listResearchPlans: vi.fn(), readResearchPlan: vi.fn(), getCurrentWorkspace: vi.fn() }));
+const api = vi.hoisted(() => ({ createResearchPlan: vi.fn(), listResearchPlans: vi.fn(), readResearchPlan: vi.fn(), getCurrentWorkspace: vi.fn(),listResearchRuns:vi.fn(),researchRunCommand:vi.fn() }));
 vi.mock("@/lib/api", () => api);
 vi.mock("@/hooks/useDocuments", () => ({ useDocuments: () => ({ documents: [{document_id: "document-one", filename: "Synthetic policy.txt", status: "ready"}], loading: false, error: null }) }));
 import { useStore } from "@/hooks/useStore";
@@ -15,6 +15,7 @@ beforeEach(() => {
   useStore.setState({authMode: "authenticated", authUser: {id: "user-a", email: null}, workspaceId: workspace});
   api.getCurrentWorkspace.mockResolvedValue({role: "owner"});
   api.listResearchPlans.mockResolvedValue({items: [], next_after: null});
+  api.listResearchRuns.mockResolvedValue({items:[],next_after:null});
   api.createResearchPlan.mockResolvedValue(record); api.readResearchPlan.mockResolvedValue(record);
 });
 it("shows all twelve modes, saves selected sources, and reports only draft persistence", async () => {
@@ -25,7 +26,7 @@ it("shows all twelve modes, saves selected sources, and reports only draft persi
   fireEvent.change(screen.getByLabelText("Completion criteria"), {target: {value: "Inspect the source."}});
   fireEvent.click(screen.getByRole("checkbox", {name: "Synthetic policy.txt"}));
   fireEvent.click(screen.getByRole("button", {name: "Save plan"}));
-  expect(await screen.findByRole("status")).toHaveTextContent("Saved draft. Execution has not started.");
+  expect(await screen.findByRole("status")).toHaveTextContent("Saved plan. Executions are tracked separately.");
   expect(api.createResearchPlan.mock.calls[0][0].private_source_ids).toEqual(["document-one"]);
   expect(api.createResearchPlan.mock.calls[0][2]).toEqual({workspaceId: workspace, expectedUserId: "user-a"});
 });

@@ -77,10 +77,14 @@ class ResearchWorkflowTests(unittest.TestCase):
         self.assertIn("force: true, holdUntilCrawlEnd: true",fixture)
         self.assertIn("unexpectedNavigations",(ROOT / "frontend/src/e2e/research-calculations.spec.ts").read_text())
 
-    def test_public_route_and_truthful_draft_only_status_are_exercised(self):
+    def test_public_route_and_separate_plan_execution_status_are_exercised(self):
         self.assertIn('path: "/research"', (ROOT / "frontend/src/e2e/public-smoke.spec.ts").read_text())
         page = (ROOT / "frontend/src/app/research/page.tsx").read_text()
-        self.assertIn("Saved draft. Execution has not started.", page)
+        self.assertIn("Saved plan. Executions are tracked separately.", page)
+        self.assertIn("<ResearchRuns", page)
+        runs = (ROOT / "frontend/src/components/research/ResearchRuns.tsx").read_text()
+        self.assertIn("completion criteria still require review", runs)
+        self.assertIn("No processing will start", runs)
         self.assertIn("not currently available", page)
 
 if __name__ == "__main__":

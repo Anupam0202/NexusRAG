@@ -9,6 +9,7 @@ import { emptyResearchPlan, modeLabel, modeLimits, researchModes, type ResearchM
 import { useStore } from "@/hooks/useStore";
 import { useDocuments } from "@/hooks/useDocuments";
 import { CalculationTools } from "@/components/research/CalculationTools";
+import { ResearchRuns } from "@/components/research/ResearchRuns";
 
 const control = "w-full min-w-0 rounded-lg border border-[var(--border)] bg-[var(--bg-primary)] px-3 py-2 text-sm";
 const button = "inline-flex items-center justify-center gap-2 rounded-lg border border-[var(--border)] px-3 py-2 text-sm font-medium disabled:opacity-50";
@@ -97,7 +98,7 @@ function ResearchWorkbench() {
       <section aria-label={selected ? "Stored research plan" : "Draft research plan"} className="min-w-0">
         {selected ? <><div className="mb-4 flex flex-wrap items-center justify-between gap-3"><h2 ref={storedHeading} tabIndex={-1} className="text-lg font-semibold break-words">{modeLabel(selected.plan.mode)}</h2>
           <button className={button} disabled={busy || !canWrite} onClick={() => newDraft(selected.plan)}><Copy size={16} />Copy to a new plan</button></div>
-          <p role="status" className="mb-4 text-sm text-emerald-700 dark:text-emerald-300">{selected.plan.mode==="CALCULATION"?"Saved plan. Calculations are tracked separately.":"Saved draft. Execution has not started."}</p>
+          <p role="status" className="mb-4 text-sm text-emerald-700 dark:text-emerald-300">{selected.plan.mode==="CALCULATION"?"Saved plan. Calculations are tracked separately.":"Saved plan. Executions are tracked separately."}</p>
           <p className="mb-4 whitespace-pre-wrap break-words">{selected.plan.question}</p>
           <details open={selected.plan.mode!=="CALCULATION"} className="mb-4"><summary className="mb-3 cursor-pointer text-sm font-semibold">Plan details</summary>
           <dl className="grid min-w-0 gap-4 sm:grid-cols-2">{fields.map(([key, label]) => <div key={key}><dt className="text-xs font-semibold text-[var(--text-muted)]">{label}</dt>
@@ -106,6 +107,7 @@ function ResearchWorkbench() {
               <div key={label}><dt className="text-xs font-semibold text-[var(--text-muted)]">{label}</dt><dd className="mt-1 whitespace-pre-wrap break-words text-sm">{value || "-"}</dd></div>)}
           </dl></details>
           {selected.plan.mode==="CALCULATION" && <CalculationTools key={selected.id} planId={selected.id} workspaceId={workspaceId} userId={userId!} canWrite={canWrite} documents={documents} privateSourceIds={selected.plan.private_source_ids}/>}
+          {selected.plan.mode!=="CALCULATION" && <ResearchRuns key={selected.id} plan={selected} workspaceId={workspaceId} userId={userId!} canWrite={canWrite}/>}
           </> : <form onSubmit={event => { event.preventDefault(); if (canWrite && !busy) void save(); }} className="space-y-4">
           <div className="grid min-w-0 gap-4 sm:grid-cols-2"><label className="text-sm">Mode<select aria-label="Mode" className={`${control} mt-1`} value={draft.mode} disabled={busy || !canWrite}
             onChange={event => setDraft({ ...draft, mode: event.target.value as ResearchMode })}>{researchModes.map(mode => <option key={mode} value={mode}>{modeLabel(mode)}</option>)}</select></label>

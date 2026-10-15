@@ -13,6 +13,23 @@
   "interpretation": "OPEN_ENGINEERING includes implemented but not fully accepted requirements; it does not assert that no code or scoped evidence exists. External approvals do not close unfinished internal work.",
   "entries": [
     {
+      "id": "ENGINEERING-SELECTED-SOURCE-RESEARCH-EXECUTION",
+      "requirement": "Complete actual twelve-mode durable research execution, progress/recovery/cancellation, source-backed results and independent review without shrinking accepted scope",
+      "normative_source": "Owner accepted full twelve-mode/ten-product functional completion assignment; existing exact definitions unchanged",
+      "status": "IN_PROGRESS",
+      "environment": "isolated uncommitted029 functional candidate after35f66a1; actual local PG17.11 and UI/Gateway/queue/executor controlled peers; no hosted029/private/provider/deployment acceptance",
+      "next_action": "Complete exact-source suites/builds/recovery/CI and review through existing draftPR12, preserve paused022 and failed gates. Then complete constraint-aware/public/temporal/graph/review/export/lifecycle and remaining research/product workflows.025-028 rehearsal approvals fulfilled and catalog matched in frozen028 addendum, not authorization029 or private processing.",
+      "acceptance_evidence": [
+        {
+          "environment": "local production implementations with synthetic peers, separate real disposable PostgreSQL17.11/pgvector0.8.7, actual local Chrome",
+          "observed_at": "2026-10-15T18:03:00Z",
+          "source_identity": "parent35f66a156545e17c3460baa56f4f0a87bc9459b2 plus uncommitted research-answer-execution-029; final exact identity external",
+          "command_or_url": "tests/cloudflare/research-executor.test.mjs; tests/postgres/research-run-assertions.sql; frontend/src/e2e/research-runs.spec.ts; docs/implementation/RESEARCH_ANSWER_EXECUTION_029.md",
+          "result": "Actual missing create/list404 reproduced,20focused owning Gateway/executor cases pass. Real SQL start/replay/account-once/paging/question checkpoints/cancel/resume/deadline/source change, independent double-submit/claim concurrency and65table126function restore pass before final refinements. New numeric citation contract regression fails before scoped correction;14fresh restarted-server desktop/mobile journeys and actual Chrome save/run/hash/reload/copy succeed. Initial/stale-server/resource-overlap failures retained, no thresholds weakened;452frontend bounded-workers full rerun passes before four added component tests. Not full mode/product/definition, representative quality or hosted/private/production acceptance. Final exact source/build/recovery/CI pending."
+        }
+      ]
+    },
+    {
       "id": "ENGINEERING-DETERMINISTIC-CALCULATION-WORKSHEET",
       "requirement": "Execute deterministic precision-preserving calculations with stored inputs, units, formulas, evidence lineage and complete ordinary UI recovery, then complete all accepted calculation/research operations",
       "normative_source": "P06/P07/P08 and owner complete deterministic calculation/research journey assignment",

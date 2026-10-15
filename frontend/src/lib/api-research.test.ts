@@ -2,7 +2,7 @@ import { afterEach, expect, it, vi } from "vitest";
 const getApiHeaders = vi.hoisted(() => vi.fn(async () => ({ Authorization: "Bearer synthetic" })));
 vi.mock("@/lib/api-context", () => ({ getApiHeaders }));
 vi.mock("@/lib/backend-url", () => ({ buildBackendUrl: (path: string) => `https://gateway.invalid${path}` }));
-import { createResearchPlan, listResearchPlans, readResearchPlan } from "./api";
+import { createResearchPlan, listResearchPlans, readResearchPlan, listResearchRuns, researchRunCommand } from "./api";
 import { emptyResearchPlan, modeLimits } from "./research-plan";
 const plan = { ...emptyResearchPlan(), question: "Synthetic plan", completion_criteria: ["Inspect source"] };
 const record = { id: "33333333-3333-4333-8333-333333333333", workspace_id: "workspace-a", owner_id: "user-a",
@@ -27,4 +27,15 @@ it("encodes the read path and rejects incomplete pagination", async () => {
   expect(fetch.mock.calls[0][0]).toBe("https://gateway.invalid/api/v2/research/plans/id%2Fwith%20space");
   respond({items: [record]});
   await expect(listResearchPlans(context)).rejects.toMatchObject({code: "PERSISTENCE_UNCONFIRMED"});
+});
+it("creates and reloads run receipts without a chat-session identifier",async()=>{
+  const id=record.id,run={id,plan_id:id,workspace_id:id,owner_id:id,schema_version:"research-run/1",persistence_state:"PERSISTED",state:"queued",generation:1,
+    position:0,questions:["Synthetic question?"],results:[],source_state:"CURRENT",error_code:null,created_at:"2026-10-15T00:00:00Z"};
+  const fetch=respond(run);
+  await expect(researchRunCommand(id,context,"create",undefined,"stable-run-key")).resolves.toEqual(run);
+  expect(fetch.mock.calls[0][1]).toMatchObject({method:"POST",headers:{"Idempotency-Key":"stable-run-key"},body:JSON.stringify({non_sensitive_attested:true})});
+  respond({items:[run],next_after:null});
+  await expect(listResearchRuns(id,context)).resolves.toMatchObject({items:[run]});
+  respond({...run,state:"completed"});
+  await expect(researchRunCommand(id,context,"read",id)).rejects.toMatchObject({code:"PERSISTENCE_UNCONFIRMED"});
 });

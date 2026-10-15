@@ -36,6 +36,7 @@ import type {
 import { getApiHeaders } from "@/lib/api-context";
 import { buildBackendUrl } from "@/lib/backend-url";
 import { modeLimits, researchModes, type ResearchPlanInput, type ResearchPlanRecord } from "@/lib/research-plan";
+import { confirmedResearchRun, type ResearchRun } from "@/lib/research-run";
 import { confirmedCalculation, type CalculationInput, type CalculationRecord } from "@/lib/research-calculation";
 import { canonicalAggregationInput, confirmedAggregation, type AggregationInput, type AggregationRecord } from "@/lib/research-aggregation";
 import {canonicalConversionInput,confirmedConversion,type ConversionInput,type ConversionRecord} from "@/lib/research-conversion";
@@ -439,6 +440,19 @@ export async function createResearchPlan(body: ResearchPlanInput, key: string, c
   }, context);
   if (!confirmedResearchPlan(result) || result.plan.plan_id !== body.plan_id)
     throw new ApiRequestError("Research plan save was not confirmed. Refresh before retrying.", "PERSISTENCE_UNCONFIRMED");
+  return result;
+}
+
+export async function listResearchRuns(planId:string,context:ApiRequestContext,after?:string) {
+  const result=await request<{items:ResearchRun[];next_after:string|null}>(`/api/v2/research/plans/${encodeURIComponent(planId)}/runs?limit=20${after?`&after=${encodeURIComponent(after)}`:""}`,undefined,context);
+  if(!result||!Array.isArray(result.items)||result.items.length>50||result.items.some(item=>!confirmedResearchRun(item,planId))
+    ||(result.next_after!==null&&typeof result.next_after!=="string"))throw new ApiRequestError("Research run list was not confirmed.","PERSISTENCE_UNCONFIRMED");
+  return result;
+}
+export async function researchRunCommand(planId:string,context:ApiRequestContext,operation:"create"|"read"|"cancel"|"resume",runId?:string,key?:string) {
+  const result=await request<ResearchRun>(`/api/v2/research/plans/${encodeURIComponent(planId)}/runs${runId?`/${encodeURIComponent(runId)}`:""}${["cancel","resume"].includes(operation)?`/${operation}`:""}`,
+    operation==="read"?undefined:{method:"POST",headers:key?{"Idempotency-Key":key}:undefined,body:JSON.stringify({non_sensitive_attested:true})},context);
+  if(!confirmedResearchRun(result,planId)||(runId&&result.id!==runId))throw new ApiRequestError("Research run was not confirmed. Refresh before retrying.","PERSISTENCE_UNCONFIRMED");
   return result;
 }
 

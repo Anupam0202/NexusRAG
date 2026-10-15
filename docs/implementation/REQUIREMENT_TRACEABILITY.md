@@ -4,6 +4,18 @@
 
 Status: `PARTIAL_NOT_COMPLETE_WITH_ACCEPTED_NORMATIVE_BASELINE`
 
+Latest029 adds a functional selected-source QUICK_LOOKUP/EVIDENCE_ANSWER execution
+slice: persisted questions/cursor/results, queue dispatch, progress, cancellation,
+explicit resume, inspectable source/hash/citations and ordinary reload/copy. It is
+not full two-mode or twelve-mode/ten-product acceptance: constraints/public sources,
+semantic entailment, independent review/findings, streaming, lifecycle and full
+quality remain open. All224exact definitions and denominator are unchanged. Real
+PG65table126function recovery, controlled-peer browser and actual local Chrome
+proof are not hosted/private/provider acceptance. New citation boundary regression
+precedes correction; final source/build/recovery/CI pending. See
+RESEARCH_ANSWER_EXECUTION_029.md.028exact rehearsal schema approvals are fulfilled
+in the external frozen addendum, superseding historical pending notes below.
+
 Latest028 advances P06/P07/P08 and exact-source inspection with durable numeric/
 unit captures, Unicode locators/hash/version lineage, source-state recovery and
 checked reuse across worksheets. Span match is not semantic entailment, independent

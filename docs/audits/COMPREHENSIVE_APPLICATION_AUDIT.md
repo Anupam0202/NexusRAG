@@ -4,6 +4,34 @@ Status: **PARTIAL_NOT_COMPLETE — locally tested implementation; not production
 
 This receipt supersedes historical status claims only where it records a fresh observation. It does not certify a complete product, production release, provider rights, or absence of all defects.
 
+## Durable Selected-Source Research - Active Batch029
+
+PARTIAL_NOT_COMPLETE. Actual /runs create/list404 regressions precede new SQL,
+Gateway, typed existing queue, production executor, client and UI. Owned immutable
+question/source scope, account-once start/replay, bounded runtime/rows/paging,
+committed-question progress/results, cancel/explicit resume/dispatch recovery and
+source availability are implemented for a QUICK_LOOKUP/EVIDENCE_ANSWER selected
+private non-sensitive slice. Other accepted modes/constraints/products remain open;
+no public connector activation, hosted processing or deployment.
+
+Actual new PG17.11/pgvector0.8.7 passes transitions, ordinary independent retry/
+claim concurrency and65table126function restore before final refinements. Browser
+finds numeric citation IDs incompatible with the new client's S1 contract. New
+regression fails before boundary-only normalization; fresh restarted server14
+desktop/mobile journeys and actual Chrome save/run/hash/reload/copy succeed. Old
+fixture API/status failures and stale Node-server rerun preserved. Resource-heavy
+overlapped frontend run has two timeouts; bounded-worker fresh full452pass before
+four additional component regressions. No timeout/assertion/gate weakened. Final
+exact current source/tests/build/recovery/CI must be bound in external receipts.
+
+028exact025-028 rehearsal schema approvals fulfilled and independent catalog
+matched, frozen addendum e57680f99fe3bb5cb4a354ad52ae2fc64144861aa76eaaaf09ae4ad847ef656b.
+This is not hosted user-workflow acceptance or029approval. Existing old deployed
+1101/source drift/required gates/paused022, real approved private quality/lifecycle/
+erasure/rights/budget/canonical-origin/rollout/recovery remain unmet. No new security
+investigation or owner-excluded remediation. Full224/tenproducts/twelvemodes/400+125
+remain unchanged and incomplete. See RESEARCH_ANSWER_EXECUTION_029.md.
+
 ## Exact Source Quantity Capture - Active Batch028
 
 Two desired actual Gateway quantity capture/read requests return404 before new

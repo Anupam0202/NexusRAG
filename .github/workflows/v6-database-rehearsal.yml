@@ -21,6 +21,9 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
       - name: Verify immutable candidate identity
         run: |
           set -euo pipefail
@@ -44,10 +47,14 @@ jobs:
           port="$(pg_lsclusters --no-header | awk '$1 == "17" && $2 == "main" { print $3; exit }')"
           test -n "$port"
           db=nexusrag_candidate_rehearsal
+          node_bin="$(command -v node)"
           log="$RUNNER_TEMP/postgres-rehearsal.log"
           source_dir="$(mktemp -d /tmp/nexusrag-pg-rehearsal.XXXXXX)"
           mkdir -p "$source_dir/tests" "$source_dir/supabase/baseline" "$source_dir/supabase/migrations"
           cp -R "$GITHUB_WORKSPACE/tests/postgres" "$source_dir/tests/"
+          mkdir -p "$source_dir/apps/gateway"
+          cp -R "$GITHUB_WORKSPACE/apps/gateway/src" "$source_dir/apps/gateway/"
+          cp "$GITHUB_WORKSPACE/package.json" "$source_dir/"
           mkdir -p "$source_dir/backend/src/domain"
           cp "$GITHUB_WORKSPACE/backend/src/domain/deterministic_calculations.py" "$source_dir/backend/src/domain/"
           cp "$GITHUB_WORKSPACE/supabase/baseline/001_v6_zero_cost_baseline.sql" "$source_dir/supabase/baseline/"
@@ -78,6 +85,7 @@ jobs:
           cp "$GITHUB_WORKSPACE/supabase/migrations/20261015063813_research_aggregate_execution.sql" "$source_dir/supabase/migrations/"
           cp "$GITHUB_WORKSPACE/supabase/migrations/20261015102115_research_conversion_execution.sql" "$source_dir/supabase/migrations/"
           cp "$GITHUB_WORKSPACE/supabase/migrations/20261015115026_research_source_quantities.sql" "$source_dir/supabase/migrations/"
+          cp "$GITHUB_WORKSPACE/supabase/migrations/20261015173322_research_answer_execution.sql" "$source_dir/supabase/migrations/"
           chmod -R a+rX "$source_dir"
           cleanup() {
             sudo -u postgres dropdb --if-exists -h /var/run/postgresql -p "$port" "$db" >/dev/null 2>&1 || true
@@ -87,6 +95,7 @@ jobs:
           trap cleanup EXIT
           sudo -u postgres createdb -h /var/run/postgresql -p "$port" "$db"
           if sudo -u postgres env \
+            PATH="$(dirname "$node_bin"):$PATH" \
             PGHOST=/var/run/postgresql \
             PGPORT="$port" \
             PGUSER=postgres \

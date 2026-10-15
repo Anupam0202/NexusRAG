@@ -1,6 +1,7 @@
 import { chunkText, indexChunks, MAX_DOCUMENT_CHUNKS, MAX_INDEX_BATCH_CHUNKS, sha256 } from "./worker-pipeline.js";
 import { deleteQdrantGeneration, extractFileText, verifyQdrantGeneration } from "./worker-lifecycle.js";
 import { loadUserGeminiKey } from "./user-gemini-key.js";
+import { processResearchMessage, sweepResearchRuns } from "./research-executor.js";
 
 const iso = () => new Date().toISOString();
 const err = (code, message, retryable = false) => Object.assign(new Error(message), { code, status: 503, retryable });
@@ -272,7 +273,8 @@ async function processIngestionMessage(env, message) {
 async function handleQueue(batch, env) {
   for (const message of batch.messages) {
     try {
-      await processIngestionMessage(env, message.body);
+      if (message.body?.kind === "research") await processResearchMessage(env, message.body, db);
+      else await processIngestionMessage(env, message.body);
       message.ack();
     } catch (error) {
       if (error.retryable) message.retry({ delaySeconds: 15 });
@@ -305,6 +307,10 @@ async function sweepJobs(env) {
     await env.INGESTION_QUEUE.send(queueMessage(job, offset));
     enqueued += 1;
   }
-  return { enqueued };
+  // Older hosted schemas may not contain research runs yet. Existing ingestion
+  // recovery must continue, while a missing new table is not research success.
+  let researchEnqueued = null;
+  try { researchEnqueued = await sweepResearchRuns(env, db); } catch { /* Next cron or explicit start retries dispatch, never generation. */ }
+  return { enqueued, research_enqueued: researchEnqueued, research_dispatch_state: researchEnqueued === null ? "UNAVAILABLE" : "CHECKED" };
 }
 export { handleQueue, processIngestionMessage, sweepJobs };

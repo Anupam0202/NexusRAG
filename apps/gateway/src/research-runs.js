@@ -1,0 +1,62 @@
+import { readBoundedJsonObject } from "./request-body.js";
+import { workbenchContext } from "./workbench.js";
+
+const uuid=/^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i;
+const states=new Set(["queued","running","interrupted","completed","cancelled"]);
+const problem=(code,message,status=422)=>Object.assign(new Error(message),{code,status});
+export const researchMessage = run => ({kind:"research",run_id:run.id,workspace_id:run.workspace_id,generation:run.generation,position:run.position});
+export function confirmedRun(row,{workspace,user},plan) {
+  return Boolean(row && uuid.test(row.id||"") && row.plan_id===plan && row.workspace_id===workspace && row.owner_id===user.id
+    && row.schema_version==="research-run/1" && row.persistence_state==="PERSISTED" && states.has(row.state)
+    && Number.isSafeInteger(row.generation) && row.generation>=1 && row.generation<=10
+    && Number.isSafeInteger(row.position) && row.position>=0 && Array.isArray(row.questions) && row.questions.length>=1 && row.questions.length<=5
+    && row.questions.every(q=>typeof q==="string" && q.length>0 && q.length<=10000) && row.position<=row.questions.length
+    && Array.isArray(row.results) && ["CURRENT","UNAVAILABLE_OR_CHANGED"].includes(row.source_state)
+    && (row.source_state!=="CURRENT" || row.results.length===row.position)
+    && (row.state!=="completed" || row.position===row.questions.length));
+}
+export async function handleResearchRuns(args) {
+  const {request,env,member,serviceRequest,json}=args, url=new URL(request.url);
+  const match=url.pathname.match(/^\/api\/v2\/research\/plans\/([0-9a-f-]{36})\/runs(?:\/([0-9a-f-]{36})(?:\/(cancel|resume))?)?$/i);
+  if(!match)return null;
+  const [,rawPlan,rawRun,action]=match,plan=rawPlan.toLowerCase(),run=rawRun?.toLowerCase();
+  if(!uuid.test(plan)||(run&&!uuid.test(run)))throw problem("INVALID_SCOPE","Choose a valid research plan and run.");
+  const reading=["GET","HEAD"].includes(request.method);
+  if(!(reading&&!action || request.method==="POST"&&(!run||action)))throw problem("METHOD_NOT_ALLOWED","Use create, list, read, cancel or resume.",405);
+  if(!reading&&!["editor","admin","owner"].includes(member.role))throw problem("FORBIDDEN","Running research requires editor access.",403);
+  const operation=reading?(run?"read":"list"):action||"create";
+  const command=reading?{}:await readBoundedJsonObject(request);
+  if(["create","resume"].includes(operation)&&command.non_sensitive_attested!==true)
+    throw problem("RIGHTS_BLOCKED","Confirm that these selected documents and all questions contain only non-sensitive information.",403);
+  const key=operation==="create"?request.headers.get("idempotency-key"):null;
+  if(operation==="create"&&(!key||key.length>128))throw problem("INVALID_SCOPE","A stable Idempotency-Key is required.");
+  if(["create","resume"].includes(operation)&&!env.INGESTION_QUEUE?.send)throw problem("CONFIGURATION_ERROR","The research queue is not configured.",503);
+  const limit=Number(url.searchParams.get("limit")||20), after=url.searchParams.get("after");
+  if(!Number.isInteger(limit)||limit<1||limit>50||after&&!uuid.test(after))throw problem("INVALID_SCOPE","Choose a valid research run page.");
+  let result;
+  try {
+    result=await serviceRequest(env,"rpc/nexus_research_run",{method:"POST",body:JSON.stringify({p_context:await workbenchContext(args),
+      p_operation:operation,p_plan:plan,p_id:run||null,p_key:key,p_command:{non_sensitive_attested:command.non_sensitive_attested===true},p_limit:limit,p_after:after?.toLowerCase()||null})});
+  } catch(error) {
+    if(["PGRST202","42883","42P01"].includes(error.storageCode))throw problem("MIGRATION_REQUIRED","Research execution requires the reviewed research_answer_execution migration.",503);
+    const messages={MODE_NOT_EXECUTABLE:"This mode has no completed execution workflow yet. The saved plan is unchanged.",
+      PLAN_CONSTRAINTS_UNSUPPORTED:"Execution cannot yet honor the public providers, dates, jurisdiction, entities, rights constraints or calculations in this plan. Copy it to a new plan with a supported scope.",
+      SOURCE_UNAVAILABLE:"Select current, ready, non-sensitive documents. The original run scope cannot be silently replaced.",
+      BYOK_REQUIRED:"Research needs an available account query allowance or a configured, consented Gemini key.",
+      TENANT_QUOTA_EXCEEDED:"Research run storage is full (10 runs per plan, 100 per workspace).",
+      NOT_FOUND:"This research plan or run is unavailable."};
+    if(messages[error.code])throw problem(error.code,messages[error.code],error.code==="NOT_FOUND"?404:error.code==="TENANT_QUOTA_EXCEEDED"?429:error.code==="BYOK_REQUIRED"?402:422);
+    throw error;
+  }
+  if(operation==="list") {
+    if(!result||!Array.isArray(result.items)||result.items.some(row=>!confirmedRun(row,args,plan))||(result.next_after!==null&&!uuid.test(result.next_after||"")))
+      throw problem("PERSISTENCE_UNCONFIRMED","Research run list could not be confirmed.",503);
+  } else {
+    if(!confirmedRun(result,args,plan)||(run&&result.id!==run))throw problem("PERSISTENCE_UNCONFIRMED","Research run persistence could not be confirmed. Refresh before retrying.",503);
+    if(["create","resume"].includes(operation)&&result.state==="queued") {
+      try {await env.INGESTION_QUEUE.send(researchMessage(result));result={...result,dispatch_state:"ENQUEUED"};}
+      catch {result={...result,dispatch_state:"PENDING_RECOVERY"};}
+    }
+  }
+  return json(request,env,result,operation==="create"?201:200);
+}

@@ -18,6 +18,8 @@ import { handleResearchCalculations } from "./research-calculations.js";
 import { handleResearchAggregations } from "./research-aggregations.js";
 import { handleResearchConversions } from "./research-conversions.js";
 import { handleResearchQuantities } from "./research-quantities.js";
+import { handleResearchRuns } from "./research-runs.js";
+import { SETTINGS_DEFAULTS, persistedSetting } from "./runtime-options.js";
 import { handleWorkbench, listFindings } from "./workbench.js";
 import { handleInvitations } from "./workspace-invitations.js";
 import { readBoundedJsonObject } from "./request-body.js";
@@ -199,25 +201,7 @@ async function membership(env, userId, workspaceId) {
   return rows[0];
 }
 const SETTINGS_SELECT = "retrieval_top_k,hybrid_search_alpha,llm_temperature,updated_at";
-const SETTINGS_DEFAULTS = Object.freeze({
-  retrieval_top_k: 10,
-  hybrid_search_alpha: 0.6,
-  llm_temperature: 0.1,
-});
 const SETTINGS_PATCH_FIELDS = new Set(Object.keys(SETTINGS_DEFAULTS));
-function persistedSetting(row, key, { min, max, integer = false }) {
-  const value = row?.[key];
-  if (
-    typeof value !== "number"
-    || !Number.isFinite(value)
-    || value < min
-    || value > max
-    || (integer && !Number.isInteger(value))
-  ) {
-    return SETTINGS_DEFAULTS[key];
-  }
-  return value;
-}
 async function readWorkspaceSettings(env, workspaceId) {
   const rows = await serviceRequest(
     env,
@@ -697,7 +681,8 @@ async function handle(request, env = {}) {
 
     if (url.pathname === "/api/v2/research/plans" || url.pathname.startsWith("/api/v2/research/plans/")) {
       const id = workspaceId(request); const member = await membership(env, user.id, id);
-      return await handleResearchQuantities({ request, env, user, workspace: id, member, serviceRequest, json })
+      return await handleResearchRuns({ request, env, user, workspace: id, member, serviceRequest, json })
+        || await handleResearchQuantities({ request, env, user, workspace: id, member, serviceRequest, json })
         || await handleResearchConversions({ request, env, user, workspace: id, member, serviceRequest, json })
         || await handleResearchAggregations({ request, env, user, workspace: id, member, serviceRequest, json })
         || await handleResearchCalculations({ request, env, user, workspace: id, member, serviceRequest, json })
