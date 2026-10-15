@@ -4,11 +4,13 @@ import { useEffect, useRef, useState } from "react";
 import { Calculator, RefreshCw } from "lucide-react";
 import { createResearchCalculation, listResearchCalculations } from "@/lib/api";
 import { calculationOperations, type CalculationInput, type CalculationOperation, type CalculationRecord } from "@/lib/research-calculation";
+import {SourceQuantitySelect} from "./SourceQuantities";
+import type {QuantityCaptureRecord} from "@/lib/research-quantity";
 
 const control="mt-1 w-full min-w-0 rounded-lg border border-[var(--border)] bg-[var(--bg-primary)] px-3 py-2 text-sm";
 const button="inline-flex items-center justify-center gap-2 rounded-lg border border-[var(--border)] px-3 py-2 text-sm disabled:opacity-50";
-export function CalculationWorksheet({planId,workspaceId,userId,canWrite}: {
-  planId:string;workspaceId:string;userId:string;canWrite:boolean;
+export function CalculationWorksheet({planId,workspaceId,userId,canWrite,captures=[]}: {
+  planId:string;workspaceId:string;userId:string;canWrite:boolean;captures?:QuantityCaptureRecord[];
 }) {
   const [operation,setOperation]=useState<CalculationOperation>("ADD"),[precision,setPrecision]=useState(6);
   const [quantities,setQuantities]=useState({left:{value:"",unit:"",references:""},right:{value:"",unit:"",references:""}});
@@ -50,6 +52,7 @@ export function CalculationWorksheet({planId,workspaceId,userId,canWrite}: {
           onChange={event=>setPrecision(event.target.valueAsNumber)}/></label></div>
       <div className="grid min-w-0 gap-4 sm:grid-cols-2">{(["left","right"] as const).map(side=><fieldset key={side} className="min-w-0 space-y-3">
         <legend className="mb-1 text-sm font-semibold">{side==="left"?"Left input":"Right input"}</legend>
+        <SourceQuantitySelect records={captures} label={`${side==="left"?"Left":"Right"} captured quantity`} disabled={busy||!canWrite} onSelect={q=>setQuantities(old=>({...old,[side]:{value:q.value,unit:q.unit,references:q.evidence_ids.join("\n")}}))}/>
         {(["value","unit","references"] as const).map(field=>{
           const label=`${side==="left"?"Left":"Right"} ${field==="references"?"evidence references":field}`;
           return <label className="block text-sm" key={field}>{label}{field==="references"?<textarea aria-label={label} rows={2} maxLength={13000} required className={control} value={quantities[side][field]} disabled={busy||!canWrite}

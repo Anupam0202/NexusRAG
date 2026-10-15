@@ -61,6 +61,8 @@ export interface DocumentUploadResponse {
 export interface DocumentChunkPreview {
   chunk_index: number;
   content: string;
+  original_content_hash?: string;
+  location?: unknown;
   page_number: number;
   section_title?: string | null;
   token_count?: number | null;
@@ -76,6 +78,8 @@ export interface DocumentChunkListResponse {
   total_is_exact?: boolean;
   next_after?: number | null;
   version_id?: string;
+  authority?: string;
+  coverage?: {state:string;maximum_chunks:number};
 }
 
 // ── Chat ─────────────────────────────────────────────────────

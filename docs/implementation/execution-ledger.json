@@ -17,9 +17,16 @@
       "requirement": "Execute deterministic precision-preserving calculations with stored inputs, units, formulas, evidence lineage and complete ordinary UI recovery, then complete all accepted calculation/research operations",
       "normative_source": "P06/P07/P08 and owner complete deterministic calculation/research journey assignment",
       "status": "IN_PROGRESS",
-      "environment": "isolated functional batch027 based on5c4e04b/tree85625d66; real PG17.11 numeric binary/aggregate/conversion and actual UI/client/Gateway with synthetic peers; no hosted/private production acceptance",
-      "next_action": "Bind exact027source/full recovery/CI to existing draftPR12 without paused022.025/026/027hosted approval absent;024fulfilled only. Read-only live logs confirm deployed /research preview-props manifest initialization failure on5db33e20; validate actual Workerd dynamic/fallback paths without unauthorized rollout. Complete authoritative evidence-backed inputs/review and durable full twelve-mode/product execution/progress/cancel/resume/results; preserve excluded work and failed gates.",
+      "environment": "isolated functional uncommitted batch028 frombbdb4c8/tree3a21392; actual PG17.11 source capture and UI/client/Gateway with synthetic peers; no hosted/private production acceptance",
+      "next_action": "Bind exact028source/full suites/builds/recovery/CI through existing draftPR12 without paused022. Completed027611source/85evidence recovery/checksums in external handoff. No025/026/027/028hosted approval;024fulfilled only. Finish source availability/lifecycle/independent review and full durable twelve-mode/product execution/progress/cancel/resume/results. Deployed old5db33e20 manifest exception remains; no unauthorized rollout or excluded security work.",
       "acceptance_evidence": [
+        {
+          "environment": "actual disposable PG17.11/pgvector0.8.7; ordinary synthetic desktop/mobile light/dark browser",
+          "observed_at": "2026-10-15T12:18:34Z",
+          "source_identity": "parentbbdb4c8fdc5e263940400770d9fe7be236b705e9 plus uncommitted research-source-quantities-028; not a saved release checkpoint",
+          "command_or_url": "docs/implementation/RESEARCH_SOURCE_QUANTITIES_028.md; tests/postgres/research-quantity-assertions.sql; frontend/src/e2e/research-quantities.spec.ts",
+          "result": "Exact stored Unicode numeric/unit spans/version/hash/locator capture and checked arithmetic reuse pass, with stale/unavailable states, concurrency, source-copy cascade rollback and64table122function restore.196/756/140existing arithmetic parity preserved.445frontend/510Gateway/97scripts and22synthetic browser journeys pass before final refinements/builds/recovery/CI. Span match is not semantic support/review/full mode; locale normalization and full derivative lifecycle remain open. Failures retained without weakened checks; no hosted/private/provider/customer/deployment operation or full normative/product closure."
+        },
         {
           "environment": "actual disposable PG17.11/pgvector0.8.7; synthetic desktop/mobile light/dark browser; separate read-only Cloudflare Chrome diagnosis",
           "observed_at": "2026-10-15T11:18:59Z",

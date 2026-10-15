@@ -105,7 +105,7 @@ function ResearchWorkbench() {
             {[["Private source IDs", selected.plan.private_source_ids.join("\n")], ["Start date", selected.plan.date_from], ["End date", selected.plan.date_to], ["Jurisdiction", selected.plan.jurisdiction]].map(([label, value]) =>
               <div key={label}><dt className="text-xs font-semibold text-[var(--text-muted)]">{label}</dt><dd className="mt-1 whitespace-pre-wrap break-words text-sm">{value || "-"}</dd></div>)}
           </dl></details>
-          {selected.plan.mode==="CALCULATION" && <CalculationTools key={selected.id} planId={selected.id} workspaceId={workspaceId} userId={userId!} canWrite={canWrite}/>}
+          {selected.plan.mode==="CALCULATION" && <CalculationTools key={selected.id} planId={selected.id} workspaceId={workspaceId} userId={userId!} canWrite={canWrite} documents={documents} privateSourceIds={selected.plan.private_source_ids}/>}
           </> : <form onSubmit={event => { event.preventDefault(); if (canWrite && !busy) void save(); }} className="space-y-4">
           <div className="grid min-w-0 gap-4 sm:grid-cols-2"><label className="text-sm">Mode<select aria-label="Mode" className={`${control} mt-1`} value={draft.mode} disabled={busy || !canWrite}
             onChange={event => setDraft({ ...draft, mode: event.target.value as ResearchMode })}>{researchModes.map(mode => <option key={mode} value={mode}>{modeLabel(mode)}</option>)}</select></label>

@@ -4,6 +4,14 @@
 
 Status: `PARTIAL_NOT_COMPLETE_WITH_ACCEPTED_NORMATIVE_BASELINE`
 
+Latest028 advances P06/P07/P08 and exact-source inspection with durable numeric/
+unit captures, Unicode locators/hash/version lineage, source-state recovery and
+checked reuse across worksheets. Span match is not semantic entailment, independent
+review, full mode or lifecycle acceptance.64table122function synthetic restore and
+22browser journeys do not establish hosted/private production acceptance. Current
+028source remains uncommitted pending exact source/recovery/CI. See
+RESEARCH_SOURCE_QUANTITIES_028.md; all224meanings/denominator remain unchanged.
+
 Latest027 advances P06/P07/P08 with durable supplied-factor decimal conversion,
 explicit units/factor date/formula/reference lineage and ordinary save/retry/read/
 copy/paging UI.140real SQL/retained Decimal comparisons and18synthetic research

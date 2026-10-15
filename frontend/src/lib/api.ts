@@ -39,6 +39,7 @@ import { modeLimits, researchModes, type ResearchPlanInput, type ResearchPlanRec
 import { confirmedCalculation, type CalculationInput, type CalculationRecord } from "@/lib/research-calculation";
 import { canonicalAggregationInput, confirmedAggregation, type AggregationInput, type AggregationRecord } from "@/lib/research-aggregation";
 import {canonicalConversionInput,confirmedConversion,type ConversionInput,type ConversionRecord} from "@/lib/research-conversion";
+import {canonicalQuantityCapture,confirmedQuantityCapture,type QuantityCaptureInput,type QuantityCaptureRecord} from "@/lib/research-quantity";
 
 export interface ApiRequestContext {
   expectedUserId?: string | null;
@@ -489,6 +490,20 @@ export async function createResearchConversion(planId:string,input:ConversionInp
   if(!confirmedConversion(result,planId) || JSON.stringify(canonicalConversionInput(result.input))!==JSON.stringify(body))
     throw new ApiRequestError("Conversion save was not confirmed. Refresh before retrying.","PERSISTENCE_UNCONFIRMED");
   return result;
+}
+
+export async function listResearchQuantities(planId:string,context:ApiRequestContext,after?:string){
+  const page=await request<{items:QuantityCaptureRecord[];next_after:string|null}>(`/api/v2/research/plans/${encodeURIComponent(planId)}/quantities?limit=20${after?`&after=${encodeURIComponent(after)}`:""}`,undefined,context);
+  if(!page || !Array.isArray(page.items) || page.items.some(row=>!confirmedQuantityCapture(row,planId)) || (page.next_after!==null && typeof page.next_after!=="string"))
+    throw new ApiRequestError("Stored source quantities were not confirmed.","PERSISTENCE_UNCONFIRMED");
+  return page;
+}
+export async function createResearchQuantity(planId:string,input:QuantityCaptureInput,key:string,context:ApiRequestContext){
+  const body=canonicalQuantityCapture(input),row=await request<QuantityCaptureRecord>(`/api/v2/research/plans/${encodeURIComponent(planId)}/quantities`,{
+    method:"POST",headers:{"Idempotency-Key":key},body:JSON.stringify(body)},context);
+  if(!confirmedQuantityCapture(row,planId) || JSON.stringify(canonicalQuantityCapture(row.input))!==JSON.stringify(body))
+    throw new ApiRequestError("Source quantity capture was not confirmed. Refresh before retrying.","PERSISTENCE_UNCONFIRMED");
+  return row;
 }
 
 export interface FindingSummary {

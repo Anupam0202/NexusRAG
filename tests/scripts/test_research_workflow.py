@@ -16,6 +16,16 @@ class ResearchWorkflowTests(unittest.TestCase):
         self.assertIn("POSTGRES_RESEARCH_CONVERSION_CONCURRENT_RETRY_PASS",workflow)
         self.assertIn("research-conversions.spec.ts",(ROOT / ".github/workflows/v6-foundation-ci.yml").read_text())
 
+    def test_source_quantity_capture_and_concurrency_are_in_required_ci(self):
+        rehearsal=(ROOT / "tests/postgres/local-rehearsal.sh").read_text()
+        workflow=(ROOT / ".github/workflows/v6-database-rehearsal.yml").read_text()
+        for name in ("20261015115026_research_source_quantities.sql", "research-quantity-assertions.sql", "research-quantity-concurrency.sh"):
+            self.assertIn(name,rehearsal)
+        self.assertIn("20261015115026_research_source_quantities.sql",workflow)
+        self.assertIn("RESEARCH_QUANTITY_SQL_PASS",workflow)
+        self.assertIn("POSTGRES_RESEARCH_QUANTITY_CONCURRENT_RETRY_PASS",workflow)
+        self.assertIn("research-quantities.spec.ts",(ROOT / ".github/workflows/v6-foundation-ci.yml").read_text())
+
     def test_aggregate_execution_parity_and_browser_are_in_required_ci(self):
         rehearsal=(ROOT / "tests/postgres/local-rehearsal.sh").read_text()
         workflow=(ROOT / ".github/workflows/v6-database-rehearsal.yml").read_text()

@@ -1,6 +1,6 @@
 import {fireEvent,render,screen,waitFor} from "@testing-library/react";
 import {expect,it,vi} from "vitest";
-vi.mock("@/lib/api",()=>({listResearchCalculations:vi.fn(async()=>({items:[]})),listResearchAggregations:vi.fn(async()=>({items:[],next_after:null})),listResearchConversions:vi.fn(async()=>({items:[],next_after:null})),createResearchCalculation:vi.fn(),createResearchAggregation:vi.fn(),createResearchConversion:vi.fn()}));
+vi.mock("@/lib/api",()=>({listResearchCalculations:vi.fn(async()=>({items:[]})),listResearchAggregations:vi.fn(async()=>({items:[],next_after:null})),listResearchConversions:vi.fn(async()=>({items:[],next_after:null})),listResearchQuantities:vi.fn(async()=>({items:[],next_after:null})),createResearchCalculation:vi.fn(),createResearchAggregation:vi.fn(),createResearchConversion:vi.fn(),createResearchQuantity:vi.fn(),getDocumentChunks:vi.fn()}));
 import {CalculationTools} from "./CalculationTools";
 it("keeps unsaved pair and series inputs while switching calculation type",async()=>{
   render(<CalculationTools planId="plan-a" workspaceId="workspace-a" userId="user-a" canWrite/>);

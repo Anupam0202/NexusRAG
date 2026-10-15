@@ -3,10 +3,12 @@ import {useEffect,useRef,useState} from "react";
 import {ArrowLeftRight,Copy,Plus,RefreshCw} from "lucide-react";
 import {createResearchConversion,listResearchConversions} from "@/lib/api";
 import {type ConversionInput,type ConversionRecord} from "@/lib/research-conversion";
+import {SourceQuantitySelect} from "./SourceQuantities";
+import type {QuantityCaptureRecord} from "@/lib/research-quantity";
 const control="mt-1 w-full min-w-0 rounded-lg border border-[var(--border)] bg-[var(--bg-primary)] px-3 py-2 text-sm";
 const button="inline-flex items-center justify-center gap-2 rounded-lg border border-[var(--border)] px-3 py-2 text-sm disabled:opacity-50";
 const empty=()=>({value:"",unit:"",references:"",factor:"",target:"",factorReference:"",date:"",precision:6});
-export function ConversionWorksheet({planId,workspaceId,userId,canWrite}:{planId:string;workspaceId:string;userId:string;canWrite:boolean}) {
+export function ConversionWorksheet({planId,workspaceId,userId,canWrite,captures=[]}:{planId:string;workspaceId:string;userId:string;canWrite:boolean;captures?:QuantityCaptureRecord[]}) {
   const [draft,setDraft]=useState(empty),[items,setItems]=useState<ConversionRecord[]>([]),[nextAfter,setNextAfter]=useState<string|null>(null);
   const [busy,setBusy]=useState(true),[executing,setExecuting]=useState(false),[error,setError]=useState<string|null>(null),[reload,setReload]=useState(0);
   const pending=useRef(false),alive=useRef(true),identity=useRef<{body:string;key:string}|null>(null),heading=useRef<HTMLHeadingElement>(null),valueInput=useRef<HTMLInputElement>(null);
@@ -46,6 +48,8 @@ export function ConversionWorksheet({planId,workspaceId,userId,canWrite}:{planId
         <button className={button} disabled={busy||!canWrite} onClick={()=>populate()}><Plus size={16}/>New conversion</button></div></header>
     {error && <div role="alert" className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
     <form onSubmit={event=>{event.preventDefault();void execute();}} className="space-y-4">
+      <SourceQuantitySelect records={captures} label="Conversion captured quantity" disabled={busy||!canWrite} onSelect={q=>setDraft(old=>({...old,value:q.value,unit:q.unit,references:q.evidence_ids.join("\n")}))}/>
+      <SourceQuantitySelect records={captures.filter(row=>row.quantity?.unit===`${draft.target}/${draft.unit}`)} label="Conversion captured factor" disabled={busy||!canWrite||!draft.target||!draft.unit} onSelect={q=>setDraft(old=>({...old,factor:q.value,factorReference:q.evidence_ids[0]}))}/>
       <div className="grid min-w-0 gap-4 sm:grid-cols-2">{([['value','Conversion value',270],['unit','Source unit',64],['factor','Supplied factor',270],['target','Target unit',64],['factorReference','Factor evidence reference',128]] as const).map(([field,label,max])=><label className="text-sm" key={field}>{label}
         <input ref={field==="value"?valueInput:undefined} aria-label={label} type="text" inputMode={field==="value"||field==="factor"?"decimal":undefined} maxLength={max} required className={control} disabled={busy||!canWrite} value={draft[field]} onChange={event=>setDraft({...draft,[field]:event.target.value})}/></label>)}
         <label className="text-sm">Factor effective date<input aria-label="Factor effective date" type="date" min="0001-01-01" max="9999-12-31" className={control} disabled={busy||!canWrite} value={draft.date} onChange={event=>setDraft({...draft,date:event.target.value})}/></label>

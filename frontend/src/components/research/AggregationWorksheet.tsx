@@ -4,6 +4,8 @@ import {useEffect,useRef,useState} from "react";
 import {ChevronDown,ChevronLeft,ChevronRight,Copy,Plus,RefreshCw,Sigma,Trash2} from "lucide-react";
 import {createResearchAggregation,listResearchAggregations} from "@/lib/api";
 import {aggregationOperations,type AggregateGroup,type AggregationInput,type AggregationOperation,type AggregationRecord} from "@/lib/research-aggregation";
+import {SourceQuantitySelect} from "./SourceQuantities";
+import type {QuantityCaptureRecord} from "@/lib/research-quantity";
 
 const control="mt-1 w-full min-w-0 rounded-lg border border-[var(--border)] bg-[var(--bg-primary)] px-3 py-2 text-sm";
 const button="inline-flex items-center justify-center gap-2 rounded-lg border border-[var(--border)] px-3 py-2 text-sm disabled:opacity-50";
@@ -11,7 +13,7 @@ type InputRow={id:string;value:string;unit:string;references:string;weight:strin
 const newRow=(unit=""):InputRow=>({id:crypto.randomUUID(),value:"",unit,references:"",weight:"",group:""});
 const label=(value:string)=>value.toLowerCase().replaceAll("_"," ");
 
-export function AggregationWorksheet({planId,workspaceId,userId,canWrite}:{planId:string;workspaceId:string;userId:string;canWrite:boolean}) {
+export function AggregationWorksheet({planId,workspaceId,userId,canWrite,captures=[]}:{planId:string;workspaceId:string;userId:string;canWrite:boolean;captures?:QuantityCaptureRecord[]}) {
   const [operation,setOperation]=useState<AggregationOperation>("SUM"),[precision,setPrecision]=useState(6);
   const [policy,setPolicy]=useState<"REJECT"|"EXCLUDE">("REJECT"),[grouped,setGrouped]=useState(false);
   const [values,setValues]=useState<InputRow[]>(()=>[newRow(),newRow()]);
@@ -68,6 +70,7 @@ export function AggregationWorksheet({planId,workspaceId,userId,canWrite}:{planI
       <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={grouped} disabled={busy||!canWrite} onChange={event=>setGrouped(event.target.checked)}/>Group results</label>
       <div>{values.map((row,index)=><fieldset key={row.id} className="min-w-0 border-b border-[var(--border)] py-4">
         <legend className="px-1 text-sm font-semibold">Value {index+1}</legend>
+        <SourceQuantitySelect records={captures} label={`Series captured quantity ${index+1}`} disabled={busy||!canWrite} onSelect={q=>setValues(rows=>rows.map(old=>old.id===row.id?{...old,value:q.value,unit:q.unit,references:q.evidence_ids.join("\n")}:old))}/>
         <div className="grid min-w-0 gap-3 sm:grid-cols-2 xl:grid-cols-3">
           <label className="text-sm">Value<input aria-label={`Series value ${index+1}`} ref={element=>{if(element)inputs.current.set(row.id,element);else inputs.current.delete(row.id);}} type="text" inputMode="decimal" required={policy==="REJECT"} maxLength={270} className={control} value={row.value} disabled={busy||!canWrite} onChange={event=>field(row,"value",event.target.value)}/></label>
           <label className="text-sm">Unit<input aria-label={`Series unit ${index+1}`} type="text" maxLength={64} required className={control} value={row.unit} disabled={busy||!canWrite} onChange={event=>field(row,"unit",event.target.value)}/></label>

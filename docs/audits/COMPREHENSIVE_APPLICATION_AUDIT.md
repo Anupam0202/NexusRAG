@@ -4,6 +4,26 @@ Status: **PARTIAL_NOT_COMPLETE — locally tested implementation; not production
 
 This receipt supersedes historical status claims only where it records a fresh observation. It does not certify a complete product, production release, provider rights, or absence of all defects.
 
+## Exact Source Quantity Capture - Active Batch028
+
+Two desired actual Gateway quantity capture/read requests return404 before new
+source implementation. Current uncommitted SQL/Gateway/client/UI persist exact
+numeric/unit spans and version/hash/locator identity, ordinary retry/read/paging,
+source unavailable/stale status and checked reuse across binary/series/conversion
+worksheets. Unicode-codepoint offsets agree between SQL and UI. Partial grouped/
+contiguous numeric fragments are rejected; no hidden locale normalization.
+
+Actual disposable PG17.11 passes source span/hash/locator, bound arithmetic kinds,
+factor/mismatch, stale/unavailable, ordinary retries, source-copy cascade rollback
+and64table122function restore.196/756/140retained arithmetic parity preserved.
+445frontend/510Gateway/97scripts and22synthetic browser journeys pass before final
+refinements/builds/source recovery/CI. Original failed fixtures/test registration/
+a11y/ambiguous label/numeric selector are preserved without weakened checks.
+No automatic source support/review, complete mode/product, hosted/private or
+production claim. No hosted025/026/027/028/deploy/provider/customer operation.
+All224/tenproducts/twelvemodes/quality and known release gates remain incomplete.
+See RESEARCH_SOURCE_QUANTITIES_028.md and completed027external recovery handoff.
+
 ## Supplied-Factor Conversion And Deployed Failure - Bounded Batch027
 
 Actual new SQL/Gateway/client/Convert worksheet replaces two404regressions with

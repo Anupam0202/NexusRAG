@@ -77,6 +77,7 @@ jobs:
           cp "$GITHUB_WORKSPACE/supabase/migrations/20261015053618_research_calculation_execution.sql" "$source_dir/supabase/migrations/"
           cp "$GITHUB_WORKSPACE/supabase/migrations/20261015063813_research_aggregate_execution.sql" "$source_dir/supabase/migrations/"
           cp "$GITHUB_WORKSPACE/supabase/migrations/20261015102115_research_conversion_execution.sql" "$source_dir/supabase/migrations/"
+          cp "$GITHUB_WORKSPACE/supabase/migrations/20261015115026_research_source_quantities.sql" "$source_dir/supabase/migrations/"
           chmod -R a+rX "$source_dir"
           cleanup() {
             sudo -u postgres dropdb --if-exists -h /var/run/postgresql -p "$port" "$db" >/dev/null 2>&1 || true
@@ -109,6 +110,8 @@ jobs:
             grep -F 'POSTGRES_RESEARCH_AGGREGATION_CONCURRENT_RETRY_PASS' "$log"
             grep -F 'RESEARCH_CONVERSION_PYTHON_ENGINE_PARITY_PASS cases=140' "$log"
             grep -F 'RESEARCH_CONVERSION_SQL_PASS' "$log"
+            grep -F 'RESEARCH_QUANTITY_SQL_PASS' "$log"
+            grep -F 'POSTGRES_RESEARCH_QUANTITY_CONCURRENT_RETRY_PASS' "$log"
             grep -F 'POSTGRES_RESEARCH_CONVERSION_CONCURRENT_RETRY_PASS' "$log"
             grep -F 'POSTGRES_RESEARCH_CALCULATION_CONCURRENT_RETRY_PASS' "$log"
             grep -F 'POSTGRES_RESEARCH_PLAN_CONCURRENT_RETRY_PASS' "$log"

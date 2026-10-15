@@ -40,6 +40,7 @@ export async function handleResearchCalculations(args) {
   try {result=await serviceRequest(env,"rpc/nexus_research_calculation",{method:"POST",body:JSON.stringify({
     p_context:await workbenchContext(args),p_operation:creating?"create":"list",p_plan_id:plan,p_input:input,p_key:key})});}
   catch(error){
+    if(error.code==="SOURCE_UNAVAILABLE" || error.code==="QUANTITY_MISMATCH")throw Object.assign(new Error("A captured source quantity changed, is unavailable or no longer matches the input. Refresh the source capture before calculating."),{status:409,code:error.code});
     if(["PGRST202","42883","42P01"].includes(error.storageCode))throw Object.assign(new Error("Calculation storage requires the reviewed research_calculation_execution migration."),{status:503,code:"MIGRATION_REQUIRED"});
     if(error.code==="CALCULATION_INVALID")throw Object.assign(new Error("Calculation is undefined. Check matching units and nonzero denominators."),{status:422,code:"INVALID_CALCULATION"});
     if(error.code==="CALCULATION_MODE_REQUIRED")throw Object.assign(new Error("Choose a saved Calculation plan."),{status:422,code:"INVALID_CALCULATION"});

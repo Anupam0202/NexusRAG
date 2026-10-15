@@ -45,6 +45,7 @@ export async function handleResearchConversions(args){
   try{result=await serviceRequest(env,"rpc/nexus_research_conversion",{method:"POST",body:JSON.stringify({p_context:await workbenchContext(args),
     p_operation:creating?"create":"list",p_plan_id:plan,p_input:input,p_key:key,p_limit:limit,p_after:after?.toLowerCase()||null})});}
   catch(error){
+    if(error.code==="SOURCE_UNAVAILABLE" || error.code==="QUANTITY_MISMATCH")throw Object.assign(new Error("A captured source quantity changed, is unavailable or no longer matches the input. Refresh the source capture before calculating."),{status:409,code:error.code});
     if(["PGRST202","42883","42P01","42703"].includes(error.storageCode))throw Object.assign(new Error("Conversion storage requires the reviewed research_conversion_execution migration."),{status:503,code:"MIGRATION_REQUIRED"});
     if(["INVALID_SCOPE","CALCULATION_INVALID","CALCULATION_MODE_REQUIRED"].includes(error.code))invalid();
     if(error.code==="NOT_FOUND")throw Object.assign(new Error("The saved Calculation plan is unavailable."),{status:404,code:"NOT_FOUND"});
