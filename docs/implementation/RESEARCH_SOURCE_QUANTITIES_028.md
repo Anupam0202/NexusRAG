@@ -78,6 +78,18 @@ directory invocation failed before test loading; the actual repository npm test
 script passes. Preserve both receipts. Exact-source publication/CI/new dependency
 recovery remain required and must be recorded externally, not inferred here.
 
+Initial published0252ced/tree9b11cd40/624source is frozen in complete source ZIP
+SHA2560508c36e1cbcb4c5300acd0deb5ec51e12a9a68928c67c0a6e586c7efbf97147.
+Required DB38735813985/job116424699642 catches an old inventory expectation of59
+instead of60 after adding the source-quantity table. Only the expected count and
+description are corrected; all actual checks/grants/gates remain. This is fixture
+maintenance for the functional table addition, not a new security investigation.
+Keep the failed receipt and original archive; corrected exact-source CI/full new
+dependency recovery remain required.
+The corrected existing complete local PostgreSQL rehearsal now passes through
+all retained assertions/concurrency, quantity capacity/retry and64table122function
+backup/restore; its owned rootless server stopped. No hosted resources were used.
+
 Failures retained: initial404, synthetic chunk missing required embedding-space
 metadata, duplicate test registration, inaccessible focusable pre element corrected
 to a read-only multiline text control without lint suppressions, ambiguous browser
