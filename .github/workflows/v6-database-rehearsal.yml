@@ -54,6 +54,8 @@ jobs:
           cp -R "$GITHUB_WORKSPACE/tests/postgres" "$source_dir/tests/"
           mkdir -p "$source_dir/apps/gateway"
           cp -R "$GITHUB_WORKSPACE/apps/gateway/src" "$source_dir/apps/gateway/"
+          mkdir -p "$source_dir/frontend/src/lib"
+          cp "$GITHUB_WORKSPACE/frontend/src/lib/document-original-policy.json" "$source_dir/frontend/src/lib/"
           cp "$GITHUB_WORKSPACE/package.json" "$source_dir/"
           mkdir -p "$source_dir/backend/src/domain"
           cp "$GITHUB_WORKSPACE/backend/src/domain/deterministic_calculations.py" "$source_dir/backend/src/domain/"

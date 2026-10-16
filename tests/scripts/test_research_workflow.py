@@ -6,6 +6,18 @@ import unittest
 ROOT = Path(__file__).resolve().parents[2]
 
 class ResearchWorkflowTests(unittest.TestCase):
+    def test_original_delivery_policy_is_copied_into_the_real_sql_rehearsal(self):
+        workflow=(ROOT / ".github/workflows/v6-database-rehearsal.yml").read_text()
+        policy_path="frontend/src/lib/document-original-policy.json"
+        self.assertIn('mkdir -p "$source_dir/frontend/src/lib"',workflow)
+        self.assertIn(f'cp "$GITHUB_WORKSPACE/{policy_path}" "$source_dir/frontend/src/lib/"',workflow)
+        self.assertIn("REAL_SQL_ORIGINAL_TRANSFER_QUOTA_PASS",workflow)
+        self.assertIn("../../../"+policy_path,(ROOT / "apps/gateway/src/preview-worker.js").read_text())
+        self.assertIn('./document-original-policy.json',(ROOT / "frontend/src/lib/document-original.ts").read_text())
+        policy=json.loads((ROOT / policy_path).read_text())
+        self.assertEqual(policy["schema_version"],"document-original/1")
+        self.assertEqual(policy["maximum_bytes"],500*1024*1024)
+
     def test_conversion_contract_parity_and_browser_are_in_required_ci(self):
         rehearsal=(ROOT / "tests/postgres/local-rehearsal.sh").read_text()
         workflow=(ROOT / ".github/workflows/v6-database-rehearsal.yml").read_text()
