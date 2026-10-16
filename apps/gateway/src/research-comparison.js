@@ -3,9 +3,12 @@ import { assessAnswer } from "./answer-evidence.js";
 export const COMPARISON_BATCH_SIZE=8;
 const fail=(code,message)=>Object.assign(new Error(message),{code});
 export function comparisonWork(run) {
+  return sourceBatchWork(run,2);
+}
+export function sourceBatchWork(run,minimum=1) {
   const count=run.source_snapshot.length,batches=Math.ceil(count/COMPARISON_BATCH_SIZE);
-  if(count<2||count>40||run.questions.length>9||run.position>=run.questions.length*batches)
-    throw fail("INVALID_SCOPE","The saved comparison scope is invalid.");
+  if(count<minimum||count>40||run.questions.length>9||run.position>=run.questions.length*batches)
+    throw fail("INVALID_SCOPE","The saved research source scope is invalid.");
   const criterion_index=Math.floor(run.position/batches),batch_index=run.position%batches;
   return {criterion_index,batch_index,batch_count:batches,total_documents:count,
     question:run.questions[criterion_index],snapshot:run.source_snapshot.slice(batch_index*COMPARISON_BATCH_SIZE,(batch_index+1)*COMPARISON_BATCH_SIZE)};

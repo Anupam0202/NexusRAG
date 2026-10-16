@@ -45,3 +45,10 @@ it("does not silently ignore date-constrained or unimplemented mode plans",async
   expect(await screen.findByText(/Execution is not implemented for this mode/)).toBeVisible();
   expect(screen.queryByRole("button",{name:"Start research"})).not.toBeInTheDocument();
 });
+it("starts an explicitly confirmed selected-source Timeline using its typed mode",async()=>{
+  render(<ResearchRuns {...props} plan={{...plan,plan:{...plan.plan,mode:"TIMELINE"}}}/>);
+  await waitFor(()=>expect(screen.getByRole("button",{name:"Refresh executions"})).toBeEnabled());
+  fireEvent.click(screen.getByRole("checkbox"));fireEvent.click(screen.getByRole("button",{name:"Start research"}));
+  await waitFor(()=>expect(api.researchRunCommand).toHaveBeenCalledTimes(1));
+  expect(api.researchRunCommand.mock.calls[0][5]).toBe("TIMELINE");
+});

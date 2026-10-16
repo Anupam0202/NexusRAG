@@ -7,14 +7,16 @@ import { generateAnswer, groundedPrompt, searchChunks } from "./worker-pipeline.
 import { assessAnswer } from "./answer-evidence.js";
 import { loadUserGeminiKey } from "./user-gemini-key.js";
 import { persistedSetting } from "./runtime-options.js";
-import { comparisonWork, comparisonPrompt, comparisonResult } from "./research-comparison.js";
+import { comparisonWork, sourceBatchWork, comparisonPrompt, comparisonResult } from "./research-comparison.js";
+import { timelinePrompt, timelineResult } from "./research-timeline.js";
 
 const uuid=/^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i;
 const fail=(code,message)=>Object.assign(new Error(message),{code});
 const columns="id,workspace_id,document_id,version_id,chunk_index,page_number,content,original_text,original_content_hash,location,metadata";
 async function answerQuestion(env,run,db,signal) {
   const read=path=>db(env,path,{signal}), workspace=run.workspace_id;
-  const comparing=run.mode==="COMPARE",work=comparing?comparisonWork(run):null;
+  const comparing=run.mode==="COMPARE",timelining=run.mode==="TIMELINE",batched=comparing||timelining;
+  const work=comparing?comparisonWork(run):timelining?sourceBatchWork(run):null;
   const scope=work?.snapshot||run.source_snapshot;
   const documentIds=scope.map(item=>item.document_id), versionIds=scope.map(item=>item.version_id);
   const load=async()=>{
@@ -29,7 +31,7 @@ async function answerQuestion(env,run,db,signal) {
   const settings=(await read(`workspace_settings?workspace_id=eq.${workspace}&select=retrieval_top_k,hybrid_search_alpha,llm_temperature&limit=1`))?.[0];
   const runtimeOptions={retrieval_top_k:persistedSetting(settings,"retrieval_top_k",{min:1,max:12,integer:true}),
     hybrid_search_alpha:persistedSetting(settings,"hybrid_search_alpha",{min:0,max:1}),llm_temperature:persistedSetting(settings,"llm_temperature",{min:0,max:1})};
-  const selection=comparing?{documents:scope.map(s=>initial.documents.find(d=>d.id===s.document_id)),reason:"COMPARISON_ALL_BATCH_DOCUMENTS"}:resolveSummaryDocuments(question,initial.documents,false);
+  const selection=batched?{documents:scope.map(s=>initial.documents.find(d=>d.id===s.document_id)),reason:comparing?"COMPARISON_ALL_BATCH_DOCUMENTS":"TIMELINE_ALL_BATCH_DOCUMENTS"}:resolveSummaryDocuments(question,initial.documents,false);
   const selectedDocuments=selection.documents.map(d=>d.id), selectedVersions=selection.documents.map(d=>d.active_version_id);
   const lexical=await read(`document_chunks?workspace_id=eq.${workspace}&version_id=in.(${selectedVersions.join(",")})&select=${columns}&order=id.asc&limit=201`);
   if(lexical.length>200)throw fail("CAPACITY_REACHED","Narrow this research plan to at most 200 source chunks.");
@@ -51,21 +53,30 @@ async function answerQuestion(env,run,db,signal) {
   const fuse=(ds,ss,limit)=>hybridFuse(question,ds,ss,limit,runtimeOptions.hybrid_search_alpha);
   // Comparisons reserve a context slot for each document rather than allowing a
   // globally high-ranked source to occupy every cell's evidence budget.
-  const fused=comparing?selectedDocuments.flatMap(id=>fuse(dense.filter(hit=>hit.payload.document_id===id),sparseRows.filter(hit=>hit.document_id===id),1))
+  const fused=batched?selectedDocuments.flatMap(id=>{
+    const ranked=fuse(dense.filter(hit=>hit.payload.document_id===id),sparseRows.filter(hit=>hit.document_id===id),1);
+    // An overview request need not repeat literal event wording. Its explicit
+    // document scope still permits one current, hash-verified source excerpt.
+    return ranked.length||!timelining?ranked:sparse.filter(hit=>hit.payload.document_id===id).slice(0,1);
+  })
     :fuse(dense,sparseRows,runtimeOptions.retrieval_top_k);
   const sources=fused.map((hit,i)=>({citation_id:`S${i+1}`,document_id:hit.payload.document_id,version_id:hit.payload.version_id,
-    chunk_id:hit.payload.chunk_id,filename:hit.payload.filename,content:comparing?Array.from(hit.payload.content).slice(0,1200).join(""):hit.payload.content.slice(0,2400),
-    excerpt:comparing?Array.from(hit.payload.content).length>1200:hit.payload.content.length>2400,
+    chunk_id:hit.payload.chunk_id,filename:hit.payload.filename,content:batched?Array.from(hit.payload.content).slice(0,1200).join(""):hit.payload.content.slice(0,2400),
+    excerpt:batched?Array.from(hit.payload.content).length>1200:hit.payload.content.length>2400,
     original_content_hash:hit.payload.original_content_hash,location:hit.payload.location,page_number:hit.payload.page_number,chunk_index:hit.payload.chunk_index}));
   let checked={answer:"The selected evidence does not provide enough information to answer reliably.",claim_state:"UNSUPPORTED",abstained:true,citations:[]}, generated=null;
   if(sources.length) {
     signal.throwIfAborted();
-    generated=await generateAnswer(env,comparing?comparisonPrompt(work,selection.documents,sources):groundedPrompt(question,fused),{workspaceId:workspace,priority:"interactive",dataClassification:"non_sensitive",
+    generated=await generateAnswer(env,comparing?comparisonPrompt(work,selection.documents,sources):timelining?timelinePrompt(work,selection.documents,sources):groundedPrompt(question,fused),{workspaceId:workspace,priority:"interactive",dataClassification:"non_sensitive",
       actorId:run.owner_id,userApiKey,credentialMode,signal,requireComplete:true,temperature:runtimeOptions.llm_temperature,
-      ...(comparing?{outputTokens:4096}:{})});
-    if(!comparing)checked=assessAnswer(generated.answer,sources);
+      ...(batched?{outputTokens:4096}:{})});
+    if(!batched)checked=assessAnswer(generated.answer,sources);
   }
   const comparison=comparing?comparisonResult(work,selection.documents,sources,generated):null;
+  const timeline=timelining?timelineResult(work,selection.documents,sources,generated):null;
+  if(timeline)checked={answer:timeline.events.length?timeline.events.map(event=>`${event.date_text||"Undated"} (${event.date_role}): ${event.quote} [${event.citation_id}]`).join("\n"):"No source-anchored events were returned from the bounded retrieved evidence.",
+    claim_state:timeline.events.length?"REVIEW_REQUIRED":"UNSUPPORTED",abstained:!timeline.events.length,
+    citations:[...new Set(timeline.events.map(event=>Number(event.citation_id.slice(1))))]};
   if(comparison) {
     const valid=comparison.cells.filter(cell=>!cell.abstained);
     checked={answer:comparison.cells.map(cell=>`${cell.document_id}: ${cell.answer}`).join("\n"),
@@ -77,8 +88,8 @@ async function answerQuestion(env,run,db,signal) {
   return {question,answer:checked.answer,claim_state:checked.claim_state,abstained:checked.abstained,sources,
     validated_citation_ids:checked.citations.map(index=>`S${index}`),model:generated?.model||null,usage:generated?.usage||{},
     selection:{reason:selection.reason,document_ids:selectedDocuments},coverage:{chunks_considered:lexical.length,
-      retrieval:"BOUNDED_DENSE_LEXICAL",completeness:"NOT_EXHAUSTIVE",evidence_authority:"SUPABASE_HASH_VERIFIED"},
-    ...(comparison?{comparison}:{}),runtime_options:runtimeOptions,provider_cost_status:generated?"UNKNOWN":"NOT_CALLED",paid_fallback:false,review_state:"COMPLETION_CRITERIA_NOT_AUTOMATICALLY_VERIFIED"};
+      retrieval:timelining?"BOUNDED_DENSE_LEXICAL_SCOPED_OVERVIEW":"BOUNDED_DENSE_LEXICAL",completeness:"NOT_EXHAUSTIVE",evidence_authority:"SUPABASE_HASH_VERIFIED"},
+    ...(comparison?{comparison}:{}),...(timeline?{timeline}:{}),runtime_options:runtimeOptions,provider_cost_status:generated?"UNKNOWN":"NOT_CALLED",paid_fallback:false,review_state:"COMPLETION_CRITERIA_NOT_AUTOMATICALLY_VERIFIED"};
 }
 
 export async function processResearchMessage(env,message,db) {
@@ -93,7 +104,7 @@ export async function processResearchMessage(env,message,db) {
   if(claimed?.claimed!==true)return;
   const run=claimed.run,token=claimed.token;
   if(!uuid.test(token||"")||run?.id!==record.id||run.generation!==message.generation||run.position!==message.position||run.source_state!=="CURRENT"
-    ||!Array.isArray(run.source_snapshot)||!run.source_snapshot.length||!Array.isArray(run.questions)||!run.questions[run.mode==="COMPARE"?Math.floor(run.position/Math.ceil(run.source_snapshot.length/8)):run.position])
+    ||!Array.isArray(run.source_snapshot)||!run.source_snapshot.length||!Array.isArray(run.questions)||!run.questions[["COMPARE","TIMELINE"].includes(run.mode)?Math.floor(run.position/Math.ceil(run.source_snapshot.length/8)):run.position])
     throw fail("PERSISTENCE_UNCONFIRMED","Run claim was not confirmed.");
   try {
     const remaining=Date.parse(run.deadline)-Date.now();

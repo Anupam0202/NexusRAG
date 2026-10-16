@@ -5,6 +5,9 @@ import { execFile,execFileSync } from "node:child_process";
 import { createHash,randomUUID } from "node:crypto";
 import { processResearchMessage } from "../../apps/gateway/src/research-executor.js";
 import { handleWorkbench } from "../../apps/gateway/src/workbench.js";
+import { timelineDate } from "../../apps/gateway/src/research-timeline.js";
+const mode=process.env.NEXUS_RESEARCH_MODE||"COMPARE",timelining=mode==="TIMELINE";
+assert.ok(["COMPARE","TIMELINE"].includes(mode));
 assert.equal(process.env.NEXUS_DISPOSABLE_SQL,"1");assert.ok(process.env.PGHOST?.startsWith("/"));
 const ws="11111111-1111-4111-8111-111111111111",actor="22222222-2222-4222-8222-222222222222";
 function args(values){return ["-X","-qAt","-v","ON_ERROR_STOP=1",...Object.entries(values).flatMap(([key,v])=>["-v",`${key}=${typeof v==="string"?v:JSON.stringify(v)}`])];}
@@ -18,8 +21,9 @@ function concurrently(statement,values) {return new Promise((resolve,reject)=>{
 });}
 const documents=[];
 for(let i=1;i<=9;i++) {
-  const doc=`d0310000-0000-4000-8100-${String(i).padStart(12,"0")}`,version=`e0310000-0000-4000-8100-${String(i).padStart(12,"0")}`,chunk=`f0310000-0000-4000-8100-${String(i).padStart(12,"0")}`;
-  const text=`Synthetic document ${i} reports retention ${30+i} days.`,hash=createHash("sha256").update(text).digest("hex");documents.push(doc);
+  const prefix=timelining?"033":"031";
+  const doc=`d${prefix}0000-0000-4000-8100-${String(i).padStart(12,"0")}`,version=`e${prefix}0000-0000-4000-8100-${String(i).padStart(12,"0")}`,chunk=`f${prefix}0000-0000-4000-8100-${String(i).padStart(12,"0")}`;
+  const text=timelining?`Synthetic document ${i} took effect on 2024-02-${String(10-i).padStart(2,"0")}.`:`Synthetic document ${i} reports retention ${30+i} days.`,hash=createHash("sha256").update(text).digest("hex");documents.push(doc);
   sql(`insert into public.documents(id,workspace_id,uploaded_by,filename,original_filename,status) values(:'doc',:'ws',:'actor',:'name',:'name','ready');
     insert into public.document_versions(id,workspace_id,document_id,original_bucket,original_key,original_hash,original_bytes,original_verified_at,parser_version,chunker_version,lifecycle_epoch,
       publication_state,index_generation,data_classification,classification_declared_by,classification_declared_at)
@@ -31,11 +35,11 @@ for(let i=1;i<=9;i++) {
 const ctx=sql(`select jsonb_build_object('workspace_id',w.id,'user_id',:'actor','membership_revision',w.capability_revision,'policy_id',s.active_policy_id,
   'policy_version',s.policy_version,'deadline',clock_timestamp()+interval '10 minutes') from public.workspaces w join public.workspace_settings s on s.workspace_id=w.id where w.id=:'ws';`,{actor,ws});
 const base=sql("select plan from public.research_plans where plan->>'plan_id'='mode-COMPARE';");
-const plan=sql("select public.nexus_research_plan(:'ctx'::jsonb,'create',p_plan=>:'plan'::jsonb,p_key=>'actual-comparison-plan');",{ctx,plan:{...base,
-  plan_id:"actual-comparison-plan",mode:"COMPARE",question:"Compare retention periods.",subquestions:["Compare retention duration.","Compare reported days."],
+const plan=sql("select public.nexus_research_plan(:'ctx'::jsonb,'create',p_plan=>:'plan'::jsonb,p_key=>:'key');",{ctx,key:`actual-${mode}-plan`,plan:{...base,
+  plan_id:`actual-${mode}-plan`,mode,question:timelining?"Timeline of synthetic policy changes.":"Compare retention periods.",subquestions:timelining?["Create chronology.","List events."]:["Compare retention duration.","Compare reported days."],
   private_source_ids:documents,public_provider_ids:[],entity_scope:[],rights_constraints:[],expected_calculations:[],date_from:null,date_to:null,jurisdiction:null}});
-const start="select public.nexus_research_run(:'ctx'::jsonb,'create',:'plan'::uuid,p_key=>'actual-comparison-start',p_command=>'{\"non_sensitive_attested\":true}');";
-const starts=await Promise.all([concurrently(start,{ctx,plan:plan.id}),concurrently(start,{ctx,plan:plan.id})]);
+const start="select public.nexus_research_run(:'ctx'::jsonb,'create',:'plan'::uuid,p_key=>:'key',p_command=>'{\"non_sensitive_attested\":true}');";
+const starts=await Promise.all([concurrently(start,{ctx,plan:plan.id,key:`actual-${mode}-start`}),concurrently(start,{ctx,plan:plan.id,key:`actual-${mode}-start`})]);
 assert.equal(starts[0].id,starts[1].id);let run=starts[0];assert.equal(run.total_steps,6);
 const tables=new Set(["workspaces","workspace_settings","documents","document_versions","document_chunks","research_runs","finding_versions"]),sent=[];
 async function db(_env,path,init={}) {
@@ -66,10 +70,12 @@ globalThis.fetch=async(input,init={})=>{
   if(url.hostname==="generativelanguage.googleapis.com") {
     if(url.pathname.endsWith(":embedContent"))return json({embedding:{values:Array(8).fill(0.1)}});
     generations++;const prompt=JSON.parse(init.body).contents[0].parts[0].text;
-    const docs=JSON.parse(prompt.split("COMPARISON_DOCUMENTS:\n")[1].split("\nEVIDENCE:\n")[0]);
+    const docs=JSON.parse(prompt.split(timelining?"TIMELINE_DOCUMENTS:\n":"COMPARISON_DOCUMENTS:\n")[1].split("\nEVIDENCE:\n")[0]);
     const sources=JSON.parse(prompt.split("\nEVIDENCE:\n")[1]);
-    const cells=docs.map(d=>{const s=sources.find(s=>s.document_id===d.document_id);return {document_id:d.document_id,answer:`Retention ${s.content.match(/retention (\d+) days/)[1]} days [${s.citation_id}].`};});
-    return json({candidates:[{finishReason:"STOP",content:{parts:[{text:JSON.stringify({cells})}]}}]});
+    const output=timelining?{documents:docs.map(d=>{const s=sources.find(s=>s.document_id===d.document_id);return {document_id:d.document_id,events:[{citation_id:s.citation_id,
+      quote:s.content,date_text:s.content.match(/\d{4}-\d{2}-\d{2}/)[0],date_role:"EFFECTIVE"}]};})}:
+      {cells:docs.map(d=>{const s=sources.find(s=>s.document_id===d.document_id);return {document_id:d.document_id,answer:`Retention ${s.content.match(/retention (\d+) days/)[1]} days [${s.citation_id}].`};})};
+    return json({candidates:[{finishReason:"STOP",content:{parts:[{text:JSON.stringify(output)}]}}]});
   }
   if(url.hostname==="comparison-qdrant.invalid")return json({result:{points:[]}});
   throw Error(`Unexpected local fixture egress ${url.hostname}`);
@@ -82,19 +88,31 @@ try {
     run=await processResearchMessage(env,message,db);assert.equal(run.position,i+1);
     if(i<5){message=sent.shift();assert.equal(message.position,i+1);}
   }
-  assert.equal(run.state,"completed");assert.equal(generations,6);assert.equal(run.results.flatMap(r=>r.comparison.cells).length,27);
-  assert.equal(run.results[5].comparison.cells[0].document_id,documents[8]);
-  assert.equal(run.results[5].comparison.cells[0].answer,"Retention 39 days [S1].");
+  assert.equal(run.state,"completed");assert.equal(generations,6);
+  if(timelining) {
+    assert.equal(run.results.flatMap(r=>r.timeline.events).length,27);
+    assert.equal(run.results[5].timeline.events[0].document_id,documents[8]);assert.equal(run.results[5].timeline.events[0].date_text,"2024-02-01");
+    const dates=["", "03/04/2024","2024/2025","2025/2024","0000","9999","2024-02-29T09:30:00+05:30","2024-01-01T24:00:00Z","2024-01-01T00:00:60Z","2024-01-01T00:00:00+14:30",
+      "0001-01-01T00:00:00+14:00","0001-01-01T00:00:00Z","9998-12-31T23:30:00-14:00","2024-01-01T00:00:00.123-14:00"];
+    for(const year of ["0067","0100","1900","2000","2023","2024"])for(const month of ["01","02","04","12"])for(const day of ["01","28","29","30","31"])dates.push(`${year}-${month}-${day}`);
+    for(const year of ["0067","1900","2000","2024"])dates.push(year,`${year}-02`,`${year}-12`);
+    const normalized=sql("select jsonb_agg(public.nexus_timeline_date(value) order by ordinal) from jsonb_array_elements_text(:'dates'::jsonb) with ordinality d(value,ordinal);",{dates});
+    assert.deepEqual(normalized,dates.map(timelineDate));
+    console.log(`TIMELINE_NATIVE_DATE_PARITY_PASS cases=${dates.length}`);
+  } else {
+    assert.equal(run.results.flatMap(r=>r.comparison.cells).length,27);
+    assert.equal(run.results[5].comparison.cells[0].document_id,documents[8]);assert.equal(run.results[5].comparison.cells[0].answer,"Retention 39 days [S1].");
+  }
   await processResearchMessage(env,message,db);assert.equal(generations,6);
-  const request=new Request("https://gateway.invalid/api/v2/findings",{method:"POST",headers:{"Idempotency-Key":"comparison-finding-later-batch"},
+  const request=new Request("https://gateway.invalid/api/v2/findings",{method:"POST",headers:{"Idempotency-Key":`${mode}-finding-later-batch`},
     body:JSON.stringify({title:"Later comparison batch",research_run_id:run.id,result_index:5})});
   const response=await handleWorkbench({request,env,user:{id:actor},workspace:ws,member:{role:"owner"},serviceRequest:db,
     json:(_request,_env,value,status=200)=>new Response(JSON.stringify(value),{status})});
   assert.equal(response.status,201);const finding=await response.json();
-  assert.equal(finding.source_research_position,5);assert.equal(finding.research_origin.comparison.criterion_index,2);
-  assert.equal(finding.research_origin.comparison.batch_index,1);assert.equal(finding.evidence.length,1);
+  assert.equal(finding.source_research_position,5);assert.equal(finding.research_origin[timelining?"timeline":"comparison"].criterion_index,2);
+  assert.equal(finding.research_origin[timelining?"timeline":"comparison"].batch_index,1);assert.equal(finding.evidence.length,1);
   assert.equal(finding.evidence[0].document_id,documents[8]);assert.deepEqual(finding.evidence[0].location,{page:2});
-  console.log(JSON.stringify({marker:"REAL_SQL_PRODUCTION_COMPARISON_EXECUTOR_PASS",documents:9,criteria:3,batches:6,cells:27,
+  console.log(JSON.stringify({marker:timelining?"REAL_SQL_PRODUCTION_TIMELINE_EXECUTOR_PASS":"REAL_SQL_PRODUCTION_COMPARISON_EXECUTOR_PASS",documents:9,criteria:3,batches:6,cells_or_events:27,
     independently_concurrent_start_connections:2,starts_saved:1,generation_calls:generations,last_finding_position:5,exact_original_hash: finding.evidence[0].original_content_hash,
     quota_provider_peers:"CONTROLLED_NOT_LIVE_QUALITY_OR_SQL_BUDGET_PROOF",provider_processing:false,hosted_acceptance:false}));
 } finally {globalThis.fetch=ordinaryFetch;}

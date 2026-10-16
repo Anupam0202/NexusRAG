@@ -4,6 +4,19 @@
 
 Status: `PARTIAL_NOT_COMPLETE_WITH_ACCEPTED_NORMATIVE_BASELINE`
 
+Latest033 adds bounded selected-source Timeline execution,persistence and review
+using existing runs/queue/Findings. All40sources/ninecriteria/45batches,source-quoted
+events/date precision/Unicode locators/gaps,combined saved chronology and later
+Finding positions are retained. Maximum720event actual SQL and production executor
+toSQL27events/sixbatches/concurrent-start proof is local/controlled,not hosted or
+live model/quality acceptance. Full constraints/date filters/public/temporal/graph,
+semantic interpretation/contradiction resolution and all224exact meanings/
+tenproducts/twelvemodes/400+125quality remain incomplete. No033hosted approval;
+031approval fulfilled only. New exact-source build/CI/fresh recovery must bind
+later receipts,not inherit old PASS. See RESEARCH_TIMELINE_EXECUTION_033.md.
+Completed032656file source/209entry evidence recovery is frozen externally;
+its image/requiredsummary subsequently FAILED by metadata. No new security work.
+
 Latest032 addresses actual inner Findings mobile clipping that page-wide overflow
 tests missed. Container-level regression fails before min-content grid correction;
 expanded320px/768px/native desktop/mobile light/dark comparison/review cases pass,

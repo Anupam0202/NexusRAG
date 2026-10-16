@@ -33,3 +33,17 @@ it("rejects mismatched questions, unknown citations and unsupported answer state
   for(const bad of [{...result,question:"different"},{...result,claim_state:"SUPPORTED"},{...result,validated_citation_ids:["S99"]},{...result,coverage:null}])
     expect(confirmedResearchRun({...run,state:"completed",position:1,results:[bad]},id)).toBe(false);
 });
+it("confirms exact Timeline quote locators and dates without accepting an ordinary answer receipt",()=>{
+  const source={citation_id:"S1",document_id:id,version_id:id,chunk_id:id,filename:"Synthetic.txt",content:"\u{1F4CA} Issued 2024.",original_content_hash:"a".repeat(64)};
+  const event={document_id:id,filename:source.filename,citation_id:"S1",quote:"Issued 2024.",quote_start:2,quote_end:14,date_text:"2024",date_role:"PUBLISHED",
+    date:{precision:"YEAR",lower:"2024-01-01T00:00:00.000Z",upper:"2024-12-31T23:59:59.999Z"},claim_state:"REVIEW_REQUIRED"};
+  const timeline={schema_version:"research-timeline/1",criterion_index:0,batch_index:0,batch_count:1,total_documents:1,events:[event],gaps:[],
+    interpretation:"REVIEW_REQUIRED_BOUNDS_NOT_CAUSAL_ORDER",coverage:"AT_MOST_TWO_EVENTS_PER_DOCUMENT_PER_CRITERION_NOT_EXHAUSTIVE"};
+  const result={question:run.questions[0],answer:"Issued 2024 [S1].",claim_state:"REVIEW_REQUIRED",abstained:false,sources:[source],validated_citation_ids:["S1"],
+    coverage:{completeness:"NOT_EXHAUSTIVE",chunks_considered:1},provider_cost_status:"UNKNOWN",review_state:"COMPLETION_CRITERIA_NOT_AUTOMATICALLY_VERIFIED",timeline};
+  const complete={...run,mode:"TIMELINE",total_steps:1,source_snapshot:[{document_id:id}],state:"completed",position:1,results:[result]};
+  expect(confirmedResearchRun(complete,id)).toBe(true);
+  for(const bad of [{...result,timeline:undefined},{...result,abstained:true},{...result,validated_citation_ids:[]},
+    {...result,timeline:{...timeline,events:[{...event,quote_start:1}]}},{...result,timeline:{...timeline,events:[{...event,date:{...event.date,upper:"invalid"}}]}}])
+    expect(confirmedResearchRun({...complete,results:[bad]},id)).toBe(false);
+});

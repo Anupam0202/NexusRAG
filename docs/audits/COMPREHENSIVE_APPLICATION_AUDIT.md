@@ -4,6 +4,31 @@ Status: **PARTIAL_NOT_COMPLETE — locally tested implementation; not production
 
 This receipt supersedes historical status claims only where it records a fresh observation. It does not certify a complete product, production release, provider rights, or absence of all defects.
 
+## Source-Anchored Timeline - Active Batch033
+
+PARTIAL_NOT_COMPLETE. Chrome confirms saved Timeline execution missing; actual
+executor before-fix regression has no timeline. New events preserve quoted
+date wording,precision,roles,Unicode locators,current source hashes and explicit
+gaps. Overview retrieval has a failing-before scoped original fallback correction;
+partial date fragments and CE/timezone boundary cases remain independently tested.
+Existing runs/queue/cancel/resume/Findings/separate review are reused. Global saved
+chronology spans batches without confusing reused citation IDs or asserting causal
+order. Full40source/ninecriterion/45batch720event actualSQL,production executor-toSQL
+27events/sixbatches/concurrent-start and65table140function backuprestore pass before
+final boundary refinements.471frontend71files/557Gateway/631backend+10subtests/
+57isolated/97scripts/lint/typecheck pass; final146native-date parity/build/58cold
+research/exact-source CI/full fresh recovery remain separately required.
+
+Ten focused Timeline browser cases and actual local Chrome are synthetic/controlled,
+not hosted private/provider/quality acceptance. No033hosted approval. Exact031
+schema approval fulfilled only; no production/deployment/newuser/customer/provider
+or destructive operation. Original paused022 remains byte-identical. Completed032
+external handoff supersedes source-time pending notes; its image116852230509 and
+requiredsummary116861008881 subsequently FAILED by metadata,no findings read.
+All224/tenproducts/twelvemodes/400+125quality remain accepted/incomplete. Preserve
+scope,rights/source-export blockers,full temporal/graph/constraint/semantic/lifecycle
+work and release gates. See RESEARCH_TIMELINE_EXECUTION_033.md.
+
 ## Findings Inner-Panel Clipping - Active Batch032
 
 PARTIAL_NOT_COMPLETE. Completed031 exact source/recovery is frozen separately in

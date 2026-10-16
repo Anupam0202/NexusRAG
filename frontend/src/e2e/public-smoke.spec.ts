@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { writeFile } from "node:fs/promises";
 
 const providerLabels: Record<string, string> = {
   github: "GitHub",
@@ -19,19 +20,27 @@ const routes = [
 ];
 
 for (const route of routes) {
-  test(`${route.path} renders without console errors`, async ({ page }) => {
+  test(`${route.path} renders without console errors`, async ({ page },testInfo) => {
     const errors: string[] = [];
+    const failedRequests:Array<{resource:string;error:string|null}>=[];
+    page.on("requestfailed",request=>{
+      const url=new URL(request.url());
+      failedRequests.push({resource:url.origin+url.pathname,error:request.failure()?.errorText||null});
+    });
     page.on("console", (message) => {
       if (message.type() === "error") errors.push(message.text());
     });
     page.on("pageerror", (error) => errors.push(error.message));
 
-    await page.goto(route.path);
-    await expect(
-      page.getByRole("heading", { name: route.heading }).first()
-    ).toBeVisible();
-
-    expect(errors).toEqual([]);
+    try {
+      await page.goto(route.path);
+      await expect(
+        page.getByRole("heading", { name: route.heading }).first()
+      ).toBeVisible();
+      expect(errors).toEqual([]);
+    } finally {
+      if(failedRequests.length)await writeFile(testInfo.outputPath("public-request-failures.json"),JSON.stringify(failedRequests,null,2));
+    }
   });
 }
 

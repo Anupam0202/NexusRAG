@@ -88,6 +88,7 @@ jobs:
           cp "$GITHUB_WORKSPACE/supabase/migrations/20261015173322_research_answer_execution.sql" "$source_dir/supabase/migrations/"
           cp "$GITHUB_WORKSPACE/supabase/migrations/20261015230009_research_finding_lineage.sql" "$source_dir/supabase/migrations/"
           cp "$GITHUB_WORKSPACE/supabase/migrations/20261015235533_research_comparison_execution.sql" "$source_dir/supabase/migrations/"
+          cp "$GITHUB_WORKSPACE/supabase/migrations/20261016072408_research_timeline_execution.sql" "$source_dir/supabase/migrations/"
           chmod -R a+rX "$source_dir"
           cleanup() {
             sudo -u postgres dropdb --if-exists -h /var/run/postgresql -p "$port" "$db" >/dev/null 2>&1 || true
@@ -114,6 +115,10 @@ jobs:
             grep -F 'BACKEND_PRIVATE_TURN_AUTHORITY_PASS' "$log"
             grep -F 'BACKEND_PRIVATE_TURN_CONCURRENT_AUTHORITY_PASS' "$log"
             grep -F 'RESEARCH_PLAN_SQL_PASS' "$log"
+            grep -F 'RESEARCH_TIMELINE_SQL_PASS' "$log"
+            grep -F 'TIMELINE_NATIVE_DATE_PARITY_PASS cases=146' "$log"
+            grep -F 'REAL_SQL_PRODUCTION_TIMELINE_EXECUTOR_PASS' "$log"
+            grep -F 'REAL_SQL_PRODUCTION_COMPARISON_EXECUTOR_PASS' "$log"
             grep -F 'RESEARCH_CALCULATION_SQL_PASS' "$log"
             grep -F 'RESEARCH_CALCULATION_PYTHON_ENGINE_PARITY_PASS cases=196' "$log"
             grep -F 'RESEARCH_AGGREGATION_PYTHON_ENGINE_PARITY_PASS cases=756' "$log"

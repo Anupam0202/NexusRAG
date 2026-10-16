@@ -62,6 +62,15 @@ test("comparison execution checks the matching installed contract before queuing
   const response=await handle(request("POST","",{non_sensitive_attested:true,execution_mode:"COMPARE"}),env);
   assert.equal(response.status,201);assert.equal(sent.length,1);
 });
+for(const missing of [false,true])test(`Timeline execution confirms its own schema before queue dispatch: missing=${missing}`,async t=>{
+  const {env,sent,calls,receipt}=fixture(t);Object.assign(receipt,{mode:"TIMELINE",source_snapshot:[{id:plan}],total_steps:1});
+  const original=globalThis.fetch;
+  t.mock.method(globalThis,"fetch",async(input,init)=>new URL(input).pathname==="/rest/v1/rpc/nexus_research_timeline_contract"
+    ?new Response(JSON.stringify(missing?{code:"PGRST202",message:"Function is absent"}:{schema_version:"research-timeline/1",batch_size:8,max_steps:45}),{status:missing?404:200}):original(input,init));
+  const response=await handle(request("POST","",{non_sensitive_attested:true,execution_mode:"TIMELINE"}),env);
+  assert.equal(response.status,missing?503:201);assert.equal(sent.length,missing?0:1);assert.equal(calls.length,missing?0:1);
+  if(missing){const error=(await response.json()).error;assert.equal(error.code,"MIGRATION_REQUIRED");assert.match(error.message,/research_timeline_execution/);}
+});
 test("missing processing confirmation does not create or queue a run",async t=>{
   const {env,calls,sent}=fixture(t);
   assert.equal((await handle(request("POST","",{}),env)).status,403);

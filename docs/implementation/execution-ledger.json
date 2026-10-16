@@ -13,6 +13,21 @@
   "interpretation": "OPEN_ENGINEERING includes implemented but not fully accepted requirements; it does not assert that no code or scoped evidence exists. External approvals do not close unfinished internal work.",
   "entries": [
     {
+      "id": "ENGINEERING-RESEARCH-TIMELINE-EXECUTION",
+      "requirement": "Execute accepted source-evidence Timeline journeys with durable chronology, exact quoted dates/locators, uncertainty, progress/recovery and independent review",
+      "normative_source": "Owner adopted twelve-mode/ten-product functional assignment; exact224definitions unchanged",
+      "status": "IN_PROGRESS",
+      "environment": "isolated functional033 after savedaedbbb4; actual local PostgreSQL17.11/pgvector0.8.7 and production implementations with synthetic peers, no033hosted/private/provider/deployment acceptance",
+      "next_action": "Bind final owning SQL146date parity/full58cold research/build/required exact-source CI/full fresh dependency recovery through draftPR12,then request exact rehearsal-only migration approval. Complete constraint/date-filter/public/temporal/graph/semantic/rights-aware export/monitor/lifecycle and full product workflows.031approval fulfilled only; paused022/new security work excluded.",
+      "acceptance_evidence": [{
+        "environment": "local actual production executor/real disposable SQL and controlled UI/Gateway/provider/queue peers",
+        "observed_at": "2026-10-16T07:37:33Z",
+        "source_identity": "parentaedbbb439a97aa00bc3c5aea67bcca308b04a6e2/treec3420106 plus uncommitted033; saved identity external",
+        "command_or_url": "docs/implementation/RESEARCH_TIMELINE_EXECUTION_033.md; tests/postgres/research-timeline-assertions.sql; tests/postgres/research-comparison-integration.mjs; frontend/src/e2e/research-timelines.spec.ts; external batch033/logs",
+        "result": "Actual Chrome/executor gap and empty overview retrieval reproduced. Full40sources/ninecriteria/45batches720source-quoted events,Unicode spans,retry/cancel/resume300s/list/read/Finding44 and actual executor-toSQL27events/sixbatches/two concurrent starts/Finding5 PASS.142native date parity/65table140function restore before final four boundary cases. Ten focused desktop/mobile/light/dark/320px Timeline save/reload/source/separate-review/resume journeys PASS. Fresh471frontend71files/557Gateway/631backend+10subtests/57isolated/97scripts/lint/typecheck PASS before source save; final exact-source/CI/build/full fresh recovery required. Controlled provider/quota peers are not live quality or SQL budget proof. No full mode/product/definition or hosted/private/provider/production acceptance.032image/summary FAILED by metadata; no findings read,gate bypass or new security investigation."
+      }]
+    },
+    {
       "id": "ENGINEERING-FINDINGS-RESPONSIVE-LAYOUT",
       "requirement": "Keep source-backed Findings, review receipts, exact hashes and comparison matrix accessible within mobile and desktop panels",
       "normative_source": "Owner adopted complete responsive/accessible ordinary user workflows; exact224definitions unchanged",

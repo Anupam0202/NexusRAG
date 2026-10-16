@@ -6,7 +6,7 @@ const ws="11111111-1111-4111-8111-111111111111",user="22222222-2222-4222-8222-22
 const doc="44444444-4444-4444-8444-444444444444",version="55555555-5555-4555-8555-555555555555",chunk="66666666-6666-4666-8666-666666666666";
 const token="77777777-7777-4777-8777-777777777777",message={kind:"research",workspace_id:ws,run_id:id,generation:1,position:0};
 async function fixture(t,options={}) {
-  const text="The synthetic retention period is 30 days.",hash=await sha256(text),calls=[],sent=[],provider=[],reservations=[];
+  const text=options.timeline?"The synthetic policy took effect on 2024-02-29. It was published in 2024-02.":"The synthetic retention period is 30 days.",hash=await sha256(text),calls=[],sent=[],provider=[],reservations=[];
   const run={id,workspace_id:ws,owner_id:user,generation:1,position:0,state:"running",source_state:"CURRENT",questions:["What is the synthetic retention period?"],
     source_snapshot:[{document_id:doc,version_id:version,index_generation:"generation-one",lifecycle_epoch:1}],deadline:new Date(Date.now()+30000).toISOString(),
     admission:{credential_mode:"platform_trial"}};
@@ -15,6 +15,7 @@ async function fixture(t,options={}) {
     run.mode="COMPARE";run.source_snapshot.push({document_id:token,version_id:id,index_generation:"generation-two",lifecycle_epoch:1});
     rows.push({...rows[0],id:token,document_id:token,version_id:id});
   }
+  if(options.timeline){run.mode="TIMELINE";run.questions=["Build a chronology."];}
   const db=async(_env,path,init={})=>{
     if(path.startsWith("research_runs?"))return [run];
     if(path.startsWith("workspaces?"))return [{capability_revision:1,lifecycle_state:"active"}];
@@ -45,10 +46,12 @@ async function fixture(t,options={}) {
     if(url.hostname==="generativelanguage.googleapis.com") {
       if(url.pathname.endsWith(":embedContent"))return json({embedding:{values:Array(8).fill(0.1)}});
       if(options.providerError)return new Response("synthetic provider interruption",{status:503});
-      const answer=options.compare?JSON.stringify({cells:[{document_id:doc,answer:"30 days [S1]."},{document_id:token,answer:"30 days [S2]."}]}):"The retention period is 30 days [S1].";
+      const answer=options.timeline?JSON.stringify({documents:[{document_id:doc,events:[
+        {citation_id:"S1",quote:"The synthetic policy took effect on 2024-02-29.",date_text:"2024-02-29",date_role:"EFFECTIVE"},
+        {citation_id:"S1",quote:"It was published in 2024-02.",date_text:"2024-02",date_role:"PUBLISHED"}]}]}):options.compare?JSON.stringify({cells:[{document_id:doc,answer:"30 days [S1]."},{document_id:token,answer:"30 days [S2]."}]}):"The retention period is 30 days [S1].";
       return json({candidates:[{finishReason:options.incomplete?"MAX_TOKENS":"STOP",content:{parts:[{text:answer}]}}],usageMetadata:{promptTokenCount:20,candidatesTokenCount:12}});
     }
-    if(url.hostname==="qdrant.invalid")return json(url.pathname.endsWith("/points/query")?{result:{points:[{id:chunk,score:0.9,payload:{workspace_id:ws,document_id:doc,version_id:version,index_generation:"generation-one",chunk_id:chunk}}]}}:{});
+    if(url.hostname==="qdrant.invalid")return json(url.pathname.endsWith("/points/query")?{result:{points:options.noDense?[]:[{id:chunk,score:0.9,payload:{workspace_id:ws,document_id:doc,version_id:version,index_generation:"generation-one",chunk_id:chunk}}]}}:{});
     throw Error(`Unapproved fixture egress ${url.hostname}`);
   });
   const env={SUPABASE_URL:"https://supabase.invalid",SUPABASE_SERVICE_ROLE_KEY:"synthetic",GOOGLE_API_KEY:"synthetic-not-a-key",QDRANT_URL:"https://qdrant.invalid",QDRANT_API_KEY:"synthetic",
@@ -77,6 +80,20 @@ test("comparison execution persists one separately cited cell for every selected
   assert.equal(saved.comparison.criterion_index,0);assert.equal(saved.comparison.batch_index,0);
   assert.equal(provider.filter(p=>p.url.endsWith(":generateContent")).length,1);
   assert.equal(JSON.parse(provider.find(p=>p.url.endsWith(":generateContent")).body).generationConfig.maxOutputTokens,4096);
+  assert.equal(reservations.find(value=>value.output_tokens).output_tokens,4096);
+});
+
+test("timeline execution persists source-anchored dates instead of an ordinary answer",async t=>{
+  const {env,db,calls,hash,reservations}=await fixture(t,{timeline:true,noDense:true});
+  await processResearchMessage(env,message,db);
+  const saved=calls.find(c=>c.p_operation==="commit").p_result;
+  assert.equal(saved.timeline?.schema_version,"research-timeline/1");
+  assert.equal(saved.timeline.events.length,2);
+  assert.deepEqual(saved.timeline.events.map(event=>[event.date_text,event.date_role,event.date.precision]),
+    [["2024-02","PUBLISHED","MONTH"],["2024-02-29","EFFECTIVE","DAY"]]);
+  assert.equal(saved.sources[0].original_content_hash,hash);
+  assert.deepEqual(saved.validated_citation_ids,["S1"]);
+  assert.equal(saved.timeline.events[1].quote_start,0);
   assert.equal(reservations.find(value=>value.output_tokens).output_tokens,4096);
 });
 test("a durable next-question cursor is sent only after its result commits",async t=>{
