@@ -4,6 +4,25 @@
 
 Status: `PARTIAL_NOT_COMPLETE_WITH_ACCEPTED_NORMATIVE_BASELINE`
 
+036final pre-save scoped487frontend73files/570Gateway/631backend+10/57isolated/
+97scripts/build/lint/typecheck/source checks, real original quota/65table140function
+restore and78controlled browser journeys PASS (4intentional skips not passed).
+Actual Workerd catches missing length header; native FixedLengthStream fixes it
+without loosening assertions. Unicode filename truncation500 fixed. Keep original
+Next package/layout/locks and one shared public policy; failed packaging attempts
+remain evidence. Exact-source CI/full fresh recovery still separately required;
+no hosted/private/provider/full-product acceptance or paused022/security work.
+
+Latest036 adds exact current-version original download from real detail/drawer,
+not reconstructed chunks. Five actual Gateway404 regressions precede streamed
+private Storage/request-egress admission and browser length/SHA256 verification.
+Eight controlled desktop/mobile/theme saved-file/cancel/interruption cases pass;
+real SQL fixture join correction/full owning/build/CI/new recovery remain pending.
+No new migration/hosted budget activation, original renderer or production claim.
+Frozen035source/recovery and terminal failed gates are externally bound. Exact
+224definitions/tenproducts/twelvemodes/400+125quality remain unchanged/incomplete;
+no security work or paused022 resumption. See DOCUMENT_ORIGINAL_DELIVERY_036.md.
+
 Latest035 exercises actual research-to-document native navigation/full400chunk
 inspection/search/optional hash-version receipt/library drawer and interrupted
 next-page recovery. A failing-before component regression proves loaded originals

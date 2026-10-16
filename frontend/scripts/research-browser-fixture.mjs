@@ -3,6 +3,8 @@ import react from "@vitejs/plugin-react";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createHash, randomUUID } from "node:crypto";
+import { Readable } from "node:stream";
+import { pipeline } from "node:stream/promises";
 import { handle, queue } from "../../apps/gateway/src/preview-worker.js";
 import { RESEARCH_MODE_LIMITS } from "../../apps/gateway/src/research-plans.js";
 
@@ -46,9 +48,15 @@ for(let i=1;i<400;i++) {
   fixtureChunks.push({id:`00340000-0000-4000-8000-${String(i).padStart(12,"0")}`,workspace_id:workspace,document_id:largeDocument,version_id:largeVersion,
     chunk_index:i,original_text:text,content:text,original_content_hash:createHash("sha256").update(text).digest("hex"),page_number:3,location:{page:3},metadata:{}});
 }
+const fixtureOriginals=new Map();
 for(const d of fixtureDocuments) {
   const originals=fixtureChunks.filter(c=>c.document_id===d.id);
-  Object.assign(d,{content_type:"text/plain",file_size_bytes:Buffer.byteLength(originals.map(c=>c.original_text).join("\n")),
+  const bytes=Buffer.from(`\uFEFF${d.filename}\r\n${originals.map(c=>c.original_text).join("\r\n")}\r\nOriginal-file-only footer.\r\n`);
+  const key=`${workspace}/${d.id}/${d.active_version_id}/${d.filename}`;
+  fixtureOriginals.set(key,bytes);
+  Object.assign(fixtureVersions.find(v=>v.id===d.active_version_id),{original_bucket:"documents",original_key:key,
+    original_bytes:bytes.length,original_hash:createHash("sha256").update(bytes).digest("hex"),original_verified_at:"2026-10-01T00:00:00Z"});
+  Object.assign(d,{content_type:"text/plain",file_size_bytes:bytes.length,
     page_count:Math.max(...originals.map(c=>c.page_number)),created_at:"2026-10-01T00:00:00Z",updated_at:"2026-10-01T00:00:00Z"});
 }
 function scoped(rows,url) {
@@ -97,6 +105,18 @@ globalThis.fetch = async (input, init = {}) => {
   if (url.hostname !== "research-peer.invalid") return ordinaryFetch(input, init);
   const json = (value, status = 200) => new Response(JSON.stringify(value), { status });
   if (url.pathname === "/auth/v1/user") {const actor=new Headers(init.headers).get("authorization")?.split(":").at(-1)||user;actors.add(actor);return json({id:actor});}
+  if(url.pathname.startsWith("/storage/v1/object/")) {
+    const key=url.pathname.match(/^\/storage\/v1\/object\/(?:authenticated\/)?documents\/(.+)$/)?.[1];
+    const bytes=key&&fixtureOriginals.get(decodeURIComponent(key));
+    if(!bytes)return json({message:"Synthetic original not found"},404);
+    let cancelled=false;
+    const body=init.method==="HEAD"?null:new ReadableStream({async pull(controller){
+      await new Promise(resolve=>setTimeout(resolve,1500));
+      if(cancelled)return;
+      controller.enqueue(bytes);controller.close();
+    },cancel(){cancelled=true;}});
+    return new Response(body,{headers:{"content-length":String(bytes.length)}});
+  }
   if (url.pathname === "/rest/v1/workspace_members") {
     if(init.method==="HEAD")return new Response(null,{headers:{"content-range":`*/${actors.size}`}});
     const filter=url.searchParams.get("user_id"),actor=filter?.startsWith("eq.")?filter.slice(3):null;
@@ -285,7 +305,10 @@ async function serve(request, response, next, instance) {
     ...(["GET","HEAD"].includes(request.method) ? {} : {body})}), env);
   response.statusCode=result.status;
   result.headers.forEach((value,key) => response.setHeader(key,value));
-  response.end(Buffer.from(await result.arrayBuffer()));
+  response.flushHeaders();
+  if(!result.body){response.end();return;}
+  try { await pipeline(Readable.fromWeb(result.body),response); }
+  catch(error){if(response.destroyed&&error.code==="ERR_STREAM_PREMATURE_CLOSE")return;throw error;}
 }
 await server.listen();
 console.log(`SYNTHETIC_RESEARCH_UI_GATEWAY_FIXTURE http://127.0.0.1:${port}/; no hosted credentials/provider processing`);

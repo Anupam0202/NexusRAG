@@ -5,6 +5,7 @@ import { useEffect, useId, useMemo, useRef } from "react";
 import { createPortal } from "react-dom";
 import { ExternalLink, FileText, X } from "lucide-react";
 import { DocumentChunksExplorer } from "@/components/documents/DocumentChunksExplorer";
+import { OriginalFileDownload } from "@/components/documents/OriginalFileDownload";
 import { formatBytes } from "@/lib/utils";
 import type { DocumentMetadata } from "@/types";
 
@@ -137,6 +138,7 @@ export function DocumentDetailPanel({ document, onClose }: Props) {
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-5">
+          <div className="mb-4"><OriginalFileDownload document={document} /></div>
           <DocumentChunksExplorer
             documentId={document.document_id}
             expectedChunkCount={document.chunk_count}

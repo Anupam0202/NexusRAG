@@ -4,6 +4,29 @@ Status: **PARTIAL_NOT_COMPLETE — locally tested implementation; not production
 
 This receipt supersedes historical status claims only where it records a fresh observation. It does not certify a complete product, production release, provider rights, or absence of all defects.
 
+## Document Original Delivery - Active Batch036
+
+Final pre-save fresh487frontend73files/570Gateway/631backend+10subtests/57isolated/
+97scripts/lint/typecheck/source+baseline, real SQL original quota/concurrent admission
+and65table140function restore PASS.78controlled browser journeys PASS,4intentional
+duplicate-width skips not passed. Unicode filename500 and actual Workerd missing
+Content-Length are reproduced and fixed; nine transfer cases and actual Workerd
+GET/HEAD bytes/hash/headers PASS. Initial Next policy import/root/tracing failures
+preserved; single policy inside existing frontend package and unchanged Next config
+now build successfully with26OpenNext assets. Exact-source CI/new full source and
+fresh dependency recovery remain separately required, not inferred. Manual review
+is not independent/security clearance; no hosted/private/provider/release acceptance.
+
+PARTIAL_NOT_COMPLETE. Actual missing Gateway original-file route reproduced404;
+new private current-version streaming and browser byte/SHA256 verification expose
+native original download in actual detail/drawer. Eight controlled desktop/mobile
+light/dark download/cancel/interruption journeys pass, with saved bytes/hash checked.
+New real SQL quota test first fails due to incomplete local REST join simulation;
+corrected peer must rerun. Full owning/build/current CI/fresh source recovery pending.
+No hosted/provider/private-user/production acceptance, new migration, budget
+activation, security investigation or paused022 resumption. Required035image/summary
+failed by metadata only. All224/tenproducts/twelvemodes/400+125quality remain required.
+
 ## Document Source Inspection - Active Batch035
 
 PARTIAL_NOT_COMPLETE. Failing-before ordinary next-page network regression proves

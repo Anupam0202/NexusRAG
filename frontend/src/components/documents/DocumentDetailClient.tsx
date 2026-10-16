@@ -19,6 +19,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { DocumentChunksExplorer } from "@/components/documents/DocumentChunksExplorer";
+import { OriginalFileDownload } from "@/components/documents/OriginalFileDownload";
 import { AuthRequiredState } from "@/components/auth/AuthRequiredState";
 import {
   ApiRequestError,
@@ -518,6 +519,7 @@ function WorkspaceDocumentDetail() {
               Search the exact text NexusRAG indexed from this document before asking the chatbot.
             </p>
           </div>
+          <div className="mb-4"><OriginalFileDownload document={document} /></div>
           <DocumentChunksExplorer
             documentId={document.document_id}
             expectedChunkCount={document.chunk_count}

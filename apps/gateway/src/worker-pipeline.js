@@ -32,7 +32,7 @@ function safeFilename(value) {
     .replace(/[\\/\u0000-\u001f\u007f]+/g, "_")
     .replace(/\s+/g, " ")
     .trim();
-  return (cleaned || "document.txt").slice(0, 180);
+  return (cleaned || "document.txt").slice(0, 180).replace(/[\uD800-\uDBFF]$/, "");
 }
 
 function chunkText(input, size = 1_600, overlap = 240) {

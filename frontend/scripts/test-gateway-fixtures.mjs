@@ -6,6 +6,7 @@ import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { createHash, randomUUID } from "node:crypto";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const workspace = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
@@ -13,15 +14,35 @@ const actor = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
 const requests = [];
 let member = true;
 let role = "viewer";
-const authority = createServer((request, response) => {
+const originalDocument="d0360000-0000-4000-8100-000000000002",originalVersion="e0360000-0000-4000-8100-000000000002";
+const originalBytes=Buffer.from("\uFEFFActual local Worker original.\r\n"),originalHash=createHash("sha256").update(originalBytes).digest("hex");
+const originalKey=`${workspace}/${originalDocument}/${originalVersion}/Synthetic.txt`;
+const authority = createServer(async(request, response) => {
   const url = new URL(request.url, "http://localhost");
   requests.push({ method: request.method, path: url.pathname });
   response.setHeader("content-type", "application/json");
+  if(request.method==="POST"&&url.pathname==="/rest/v1/rpc/v6_reserve_many") {
+    let text="";for await(const part of request)text+=part;const data=JSON.parse(text);
+    assert.equal(data.p_provider,"supabase_storage");
+    response.end(JSON.stringify({state:"READY",reservations:Object.values(data.p_dimensions).map(amount=>({id:randomUUID(),amount}))}));return;
+  }
+  if(request.method==="POST"&&url.pathname==="/rest/v1/rpc/v6_settle_many") {response.end('{"state":"SETTLED"}');return;}
+  if(["GET","HEAD"].includes(request.method)&&decodeURIComponent(url.pathname)===`/storage/v1/object/${request.method==="HEAD"?"":"authenticated/"}documents/${originalKey}`) {
+    response.setHeader("content-type","application/octet-stream");response.setHeader("content-length",originalBytes.length);
+    response.end(request.method==="HEAD"?undefined:originalBytes);return;
+  }
   if (request.method !== "GET") { response.writeHead(405); response.end("{}"); return; }
   if (url.pathname === "/auth/v1/user") { response.end(JSON.stringify({ id: actor })); return; }
   if (url.pathname === "/rest/v1/workspace_members" && url.searchParams.get("workspace_id") === `eq.${workspace}` &&
       url.searchParams.get("user_id") === `eq.${actor}`) {
     response.end(JSON.stringify(member ? [{ role, workspace_id: workspace, user_id: actor }] : [])); return;
+  }
+  if(url.pathname==="/rest/v1/documents"&&url.searchParams.get("id")===`eq.${originalDocument}`) {
+    response.end(JSON.stringify([{id:originalDocument,workspace_id:workspace,filename:"Synthetic.txt",status:"ready",lifecycle_state:"active",lifecycle_epoch:1,active_version_id:originalVersion}]));return;
+  }
+  if(url.pathname==="/rest/v1/document_versions") {
+    response.end(JSON.stringify([{id:originalVersion,document_id:originalDocument,workspace_id:workspace,publication_state:"ready",lifecycle_epoch:1,
+      original_bucket:"documents",original_key:originalKey,original_bytes:originalBytes.length,original_hash:originalHash,original_verified_at:"2026-10-01T00:00:00Z"}]));return;
   }
   if (["/rest/v1/workspace_settings", "/rest/v1/documents"].includes(url.pathname)) { response.end("[]"); return; }
   response.writeHead(404); response.end("{}");
@@ -92,6 +113,16 @@ try {
   console.log(JSON.stringify({ marker: "ACTUAL_WORKER_FIXTURE_EVALUATION_PASS", cases: 3, modes: 2,
     transport_authority_checks: 5, request_identity_checks: 2, upstream_calls: requests.length, customer_records: false,
     provider_processing: false, production_acceptance: false }));
+  for(const method of ["GET","HEAD"]) {
+    const response=await fetch(`http://127.0.0.1:${port}/api/v1/documents/${originalDocument}/original?version_id=${originalVersion}`,{
+      method,signal:AbortSignal.timeout(10000),headers:{"X-Nexus-Workspace-Id":workspace,authorization:"Bearer synthetic.user.token"}});
+    assert.equal(response.status,200,response.ok?undefined:await response.clone().text());
+    assert.equal(response.headers.get("content-length"),String(originalBytes.length));
+    assert.equal(response.headers.get("x-nexus-original-sha256"),originalHash);
+    assert.deepEqual(Buffer.from(await response.arrayBuffer()),method==="HEAD"?Buffer.alloc(0):originalBytes);
+  }
+  console.log(JSON.stringify({marker:"ACTUAL_WORKER_ORIGINAL_DELIVERY_PASS",get_and_head:true,bytes:originalBytes.length,
+    exact_hash:originalHash,content_length:true,provider_processing:false,hosted_acceptance:false}));
 } finally {
   if (child.exitCode === null) {
     if (process.platform === "win32") spawnSync("taskkill", ["/PID", String(child.pid), "/T", "/F"], { stdio: "ignore" });

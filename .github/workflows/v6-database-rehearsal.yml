@@ -119,6 +119,7 @@ jobs:
             grep -F 'TIMELINE_NATIVE_DATE_PARITY_PASS cases=146' "$log"
             grep -F 'REAL_SQL_PRODUCTION_TIMELINE_EXECUTOR_PASS' "$log"
             grep -F 'REAL_SQL_PRODUCTION_COMPARISON_EXECUTOR_PASS' "$log"
+            grep -F 'REAL_SQL_ORIGINAL_TRANSFER_QUOTA_PASS' "$log"
             grep -F 'RESEARCH_CALCULATION_SQL_PASS' "$log"
             grep -F 'RESEARCH_CALCULATION_PYTHON_ENGINE_PARITY_PASS cases=196' "$log"
             grep -F 'RESEARCH_AGGREGATION_PYTHON_ENGINE_PARITY_PASS cases=756' "$log"

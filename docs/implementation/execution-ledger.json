@@ -13,6 +13,21 @@
   "interpretation": "OPEN_ENGINEERING includes implemented but not fully accepted requirements; it does not assert that no code or scoped evidence exists. External approvals do not close unfinished internal work.",
   "entries": [
     {
+      "id": "ENGINEERING-DOCUMENT-ORIGINAL-DELIVERY",
+      "requirement": "Download exact durable current-version originals from document detail and library drawer with progress, cancellation, retry, receipt verification and ordinary quota outcomes",
+      "normative_source": "Owner functional document original/source inspection and ordinary lifecycle/error/reload journeys; exact224definitions retained",
+      "status": "IN_PROGRESS",
+      "environment": "isolated functional036 from saved035e20ba1b; production Gateway/client/UI, controlled local peers and disposable SQL only",
+      "next_action": "Complete real SQL quota/join/concurrency/restore, fresh owning/build/full browser checks, functional review, exact-source existing PR12 CI and full source/new dependency recovery. No hosted rights/budget activation or production/private/provider operation; paused022 and required failed gates remain excluded prerequisites.",
+      "acceptance_evidence": [{
+        "environment": "actual original handler and browser detail/drawer under lawful synthetic HTTP peers",
+        "observed_at": "2026-10-16T17:58:24Z",
+        "source_identity": "parente20ba1b95399c8cc60459c1cb5dce15426da90cc plus uncommitted036",
+        "command_or_url": "tests/cloudflare/document-original.test.mjs; frontend/src/e2e/document-original.spec.ts; external batch036/logs",
+        "result": "Five failing-before404 regressions, Unicode truncation500 and actual Workerd missing-length regression reproduced. Nine transfer cases, actual Workerd original GET/HEAD exact bytes/hash/headers, real SQL original quota/concurrent admission/65table140function restore PASS. Fresh487frontend73files/570Gateway/631backend+10/57isolated/97scripts/lint/typecheck/source+baseline and final26asset Next/OpenNext build pass.78controlled browser journeys pass,4intentional duplicate-width skips not counted. Failed initial SQL peer join, first frontend interruption and Next import/root/tracing attempts preserved; no timeout/assertion weakening. Single policy now inside existing frontend package; original Next config and locks retained. Full exact saved-source CI/fresh dependency recovery remain externally required after refinements. No original-renderer/full-product/hosted/private/provider/production acceptance claim."
+      }]
+    },
+    {
       "id": "ENGINEERING-DOCUMENT-SOURCE-INSPECTION",
       "requirement": "Complete ordinary research-to-source inspection, bounded full-document chunk search/pagination, exact receipts and interrupted-page recovery",
       "normative_source": "Owner functional document/research/source-inspection and ordinary error/reload journeys; exact224definitions retained",

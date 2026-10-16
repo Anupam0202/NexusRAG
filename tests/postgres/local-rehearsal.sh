@@ -94,4 +94,5 @@ bash "$TESTS/research-run-concurrency.sh"
 NEXUS_DISPOSABLE_SQL=1 node "$TESTS/research-executor-integration.mjs"
 NEXUS_DISPOSABLE_SQL=1 node "$TESTS/research-comparison-integration.mjs"
 NEXUS_DISPOSABLE_SQL=1 NEXUS_RESEARCH_MODE=TIMELINE node "$TESTS/research-comparison-integration.mjs"
+NEXUS_DISPOSABLE_SQL=1 node "$TESTS/document-original-integration.mjs"
 echo 'LOCAL_POSTGRES_REHEARSAL_PASS (not a hosted Supabase verification)'

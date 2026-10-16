@@ -23,6 +23,8 @@ import { SETTINGS_DEFAULTS, persistedSetting } from "./runtime-options.js";
 import { handleWorkbench, listFindings } from "./workbench.js";
 import { handleInvitations } from "./workspace-invitations.js";
 import { readBoundedJsonObject } from "./request-body.js";
+import { metered } from "./quota.js";
+import originalTransfer from "../../../frontend/src/lib/document-original-policy.json" with { type: "json" };
 import { runFixtureEvaluation } from "./fixture-evaluation.js";
 import { normalizeRetrievalFilters, documentFilterQuery, chunkFilterQuery, hasChunkFilters, matchesDocumentFilters, matchesChunkFilters } from "./retrieval-filters.js";
 import {
@@ -386,6 +388,90 @@ async function chunkPreviews(request, env, user, workspace, documentId) {
     total: matches.length, total_is_exact: true, query: query || null,
     next_after: remaining.length > limit ? chunks.at(-1).chunk_index : null,
     authority: "SUPABASE_HASH_VERIFIED", coverage: { state: "COMPLETE_BOUNDED_DOCUMENT", maximum_chunks: 400 } };
+}
+
+async function documentOriginal(request, env, user, workspace, documentId) {
+  workspace = workspace.toLowerCase(); documentId = documentId.toLowerCase();
+  const document = await loadBoundDocument(env, workspace, documentId);
+  const expected = new URL(request.url).searchParams.get("version_id")?.toLowerCase();
+  if (document.lifecycle_state !== "active" || document.status !== "ready" || !expected || expected !== document.active_version_id)
+    throw Object.assign(new Error("The document version changed or is unavailable. Refresh before downloading."), {status:409,code:"VERSION_CONFLICT"});
+  const readVersion = async () => (await serviceRequest(env, `document_versions?workspace_id=eq.${workspace}&document_id=eq.${documentId}&id=eq.${expected}&select=*&limit=1`))?.[0];
+  const version = await readVersion();
+  if (!version || version.workspace_id !== workspace || version.document_id !== documentId || version.id !== expected ||
+      version.publication_state !== "ready" || version.lifecycle_epoch !== document.lifecycle_epoch ||
+      !/^[a-f0-9]{64}$/.test(version.original_hash || "") || !Number.isSafeInteger(version.original_bytes) ||
+      version.original_bytes < 1 || version.original_bytes > originalTransfer.maximum_bytes ||
+      !Number.isFinite(Date.parse(version.original_verified_at)) || typeof version.original_bucket !== "string" || !version.original_bucket ||
+      typeof version.original_key !== "string" || !version.original_key.startsWith(`${workspace}/${documentId}/`))
+    throw Object.assign(new Error("The stored original has no usable version receipt."), {status:409,code:"ORIGINAL_UNAVAILABLE"});
+  const signal = AbortSignal.any([request.signal, AbortSignal.timeout(originalTransfer.timeout_ms)]);
+  const filename = safeFilename(document.filename), encodedFilename = encodeURIComponent(filename);
+  let acquired;
+  const response = await metered(env, {workspaceId:workspace,provider:originalTransfer.quota_provider,priority:"interactive",action:"original_download"},
+    request.method === "HEAD" ? {requests:1} : {requests:1,egress_bytes:version.original_bytes}, async () => {
+      const original = await fetch(`${env.SUPABASE_URL}/storage/v1/object/${request.method === "HEAD" ? "" : "authenticated/"}${encodeURIComponent(version.original_bucket)}/${storagePath(version.original_key)}`, {
+        method:request.method,signal,headers:{apikey:env.SUPABASE_SERVICE_ROLE_KEY,authorization:`Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`},
+      });
+      acquired = original;
+      try {
+        if (!original.ok) throw Object.assign(new Error("The stored original is unavailable. No download was confirmed."), {status:original.status===404?404:503,code:"ORIGINAL_UNAVAILABLE"});
+        const length = original.headers.get("content-length");
+        if ((length !== null && (!/^\d+$/.test(length) || Number(length) !== version.original_bytes)) || (request.method !== "HEAD" && !original.body))
+          throw Object.assign(new Error("The stored original does not match its byte receipt."), {status:409,code:"ORIGINAL_UNAVAILABLE"});
+        await membership(env,user.id,workspace);
+        const fresh = await loadBoundDocument(env,workspace,documentId), current = await readVersion();
+        if (fresh.lifecycle_state !== "active" || fresh.status !== "ready" || fresh.active_version_id !== expected || fresh.lifecycle_epoch !== document.lifecycle_epoch ||
+            !current || current.publication_state !== "ready" || current.lifecycle_epoch !== version.lifecycle_epoch ||
+            ["original_bucket","original_key","original_hash","original_bytes","original_verified_at"].some(key=>current[key]!==version[key]))
+          throw Object.assign(new Error("The original version changed while loading. Refresh before downloading."), {status:409,code:"VERSION_CONFLICT"});
+        return original;
+      } catch(error) { void original.body?.cancel().catch(()=>{}); throw error; }
+    }).catch(error=>{void acquired?.body?.cancel().catch(()=>{});throw error;});
+  const output = headers(request,env);
+  output.set("content-type","application/octet-stream");
+  output.set("content-length",String(version.original_bytes));
+  output.set("content-disposition",`attachment; filename="${filename.replace(/[^\x20-\x7e]|["\\]/g,"_")}"; filename*=UTF-8''${encodedFilename.replace(/[!'()*]/g,c=>`%${c.charCodeAt(0).toString(16).toUpperCase()}`)}`);
+  output.set("x-nexus-original-sha256",version.original_hash);
+  output.set("x-nexus-original-version",version.id);
+  output.set("x-nexus-original-document",documentId);
+  output.set("x-nexus-original-filename",encodedFilename);
+  output.set("access-control-expose-headers","content-length, content-disposition, x-nexus-original-sha256, x-nexus-original-version, x-nexus-original-document, x-nexus-original-filename");
+  if (request.method === "HEAD") { void response.body?.cancel().catch(()=>{}); return new Response(null,{headers:output}); }
+  const reader = response.body.getReader();
+  let received = 0, finished = false;
+  const stop = () => { finished = true; signal.removeEventListener("abort",abort); };
+  let abort;
+  const body = new ReadableStream({
+    start(controller) {
+      abort = () => { if (!finished) { stop(); controller.error(signal.reason); void reader.cancel(signal.reason).catch(()=>{}); } };
+      signal.addEventListener("abort",abort,{once:true});
+      if (signal.aborted) abort();
+    },
+    async pull(controller) {
+      if (finished) return;
+      try {
+        const {done,value} = await reader.read();
+        if (finished) return;
+        if (done) {
+          if (received !== version.original_bytes) throw new Error("Original transfer ended before its declared length.");
+          stop(); controller.close(); return;
+        }
+        received += value.byteLength;
+        if (received > version.original_bytes) throw new Error("Original transfer exceeded its declared length.");
+        controller.enqueue(value);
+      } catch(error) { if (!finished) { stop(); controller.error(error); void reader.cancel(error).catch(()=>{}); } }
+    },
+    cancel(reason) { stop(); void reader.cancel(reason).catch(()=>{}); },
+  });
+  if (typeof globalThis.FixedLengthStream === "function") {
+    // Workers derives Content-Length from the stream, not manually supplied headers.
+    const fixed = new globalThis.FixedLengthStream(version.original_bytes);
+    // pipeTo forwards failures/cancellation to the returned stream as well.
+    void body.pipeTo(fixed.writable).catch(()=>{});
+    return new Response(fixed.readable,{headers:output});
+  }
+  return new Response(body,{headers:output});
 }
 
 async function enqueueJob(env,job){if(!env.INGESTION_QUEUE?.send)throw Object.assign(new Error("The durable ingestion queue is unavailable."),{status:503,code:"QUEUE_UNAVAILABLE",retryable:true});await env.INGESTION_QUEUE.send({job_id:job.id,workspace_id:job.workspace_id,document_id:job.document_id,version_id:job.version_id,lifecycle_epoch:Number(job.lifecycle_epoch||1)});}
@@ -863,10 +949,11 @@ async function handle(request, env = {}) {
       if(jobRoute[2]==="retry"&&request.method==="POST")return json(request,env,await retryExistingJob(env,id,jobRoute[1],member),202);
       if(jobRoute[2]==="cancel"&&request.method==="POST")return json(request,env,await cancelExistingJob(env,id,jobRoute[1],member),202);
     }
-    const documentRoute=url.pathname.match(/^\/api\/v1\/documents\/([0-9a-f-]{36})\/(status|chunks|reindex|delete)$/i);
+    const documentRoute=url.pathname.match(/^\/api\/v1\/documents\/([0-9a-f-]{36})\/(status|chunks|original|reindex|delete)$/i);
     if(documentRoute){const id=workspaceId(request);const member=await membership(env,user.id,id);const documentId=documentRoute[1];const action=documentRoute[2];
       if(action==="status"&&(request.method==="GET"||request.method==="HEAD")){const document=await loadBoundDocument(env,id,documentId);const jobs=await serviceRequest(env,`ingestion_jobs?workspace_id=eq.${id}&document_id=eq.${documentId}&select=*&order=created_at.desc&limit=1`);return json(request,env,jobs?.[0]?jobView(jobs[0],document):{job_id:"",document_id:documentId,filename:document.filename,status:document.status==="ready"?"completed":document.status==="error"?"failed":document.status,stage:document.status,progress:document.status==="ready"?100:0,message:`Document ${document.status}`,error_message:document.error_message,created_at:document.created_at,updated_at:document.updated_at,document:documentView(document)});}
       if(action==="chunks"&&(request.method==="GET"||request.method==="HEAD"))return json(request,env,await chunkPreviews(request,env,user,id,documentId));
+      if(action==="original"&&(request.method==="GET"||request.method==="HEAD"))return await documentOriginal(request,env,user,id,documentId);
       if(action==="reindex"&&request.method==="POST")return json(request,env,await reindexDocument(request,env,user,id,member,documentId),202);
       if(action==="delete"&&request.method==="POST")return json(request,env,await deleteDocument(request,env,user,id,member,documentId));
     }

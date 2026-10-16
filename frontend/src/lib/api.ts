@@ -41,6 +41,7 @@ import { confirmedCalculation, type CalculationInput, type CalculationRecord } f
 import { canonicalAggregationInput, confirmedAggregation, type AggregationInput, type AggregationRecord } from "@/lib/research-aggregation";
 import {canonicalConversionInput,confirmedConversion,type ConversionInput,type ConversionRecord} from "@/lib/research-conversion";
 import {canonicalQuantityCapture,confirmedQuantityCapture,type QuantityCaptureInput,type QuantityCaptureRecord} from "@/lib/research-quantity";
+import { readOriginalDownload, originalTransferPolicy, type OriginalDownloadOptions } from "@/lib/document-original";
 
 export interface ApiRequestContext {
   expectedUserId?: string | null;
@@ -246,6 +247,27 @@ export async function getDocumentChunks(
   if (options.versionId) params.set("version_id", options.versionId);
   const suffix = params.toString() ? `?${params.toString()}` : "";
   return request(`/api/v1/documents/${encodeURIComponent(documentId)}/chunks${suffix}`, undefined, context);
+}
+
+export async function downloadDocumentOriginal(documentId: string, versionId: string,
+  context: ApiRequestContext = {}, options: OriginalDownloadOptions = {}) {
+  const timeout = AbortSignal.timeout(originalTransferPolicy.timeout_ms);
+  const signal = options.signal ? AbortSignal.any([options.signal, timeout]) : timeout;
+  try {
+    const headers = await getApiHeaders({ json: false, workspaceId: context.workspaceId, expectedUserId: context.expectedUserId });
+    const response = await fetch(buildBackendUrl(`/api/v1/documents/${encodeURIComponent(documentId)}/original?version_id=${encodeURIComponent(versionId)}`), {
+      headers, signal, cache: "no-store",
+    });
+    if (!response.ok) {
+      const error = await readErrorMessage(response, "The original file is unavailable.");
+      throw new ApiRequestError(error.message, error.code);
+    }
+    return await readOriginalDownload(response, documentId, versionId, { ...options, signal });
+  } catch (error) {
+    if (timeout.aborted && !options.signal?.aborted) throw new Error("The original transfer timed out. Retry when the connection improves.");
+    if (error instanceof TypeError) throw new Error("The original connection was interrupted. Retry to download it again; transfer quota may still have been charged.");
+    throw error;
+  }
 }
 
 // Chat
