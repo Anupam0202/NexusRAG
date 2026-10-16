@@ -33,6 +33,10 @@ values(:'version',:'ws',:'doc','documents','local-executor',repeat('a',64),1,now
 update public.documents set active_version_id=:'version' where id=:'doc';
 insert into public.document_chunks(id,workspace_id,document_id,version_id,chunk_index,content,original_text,original_content_hash,page_number,location,embedding_space_id)
 values(:'chunk',:'ws',:'doc',:'version',0,:'text',:'text',:'hash',2,'{"page":2}','synthetic-space');`,{doc,ws,actor,version,chunk,text,hash});
+const filler="Unrelated appendix material.",fillerHash=createHash("sha256").update(filler).digest("hex");
+sql(`insert into public.document_chunks(id,workspace_id,document_id,version_id,chunk_index,content,original_text,original_content_hash,page_number,location,embedding_space_id)
+  select ('00340000-0000-4000-8000-'||lpad(i::text,12,'0'))::uuid,:'ws',:'doc',:'version',i,:'text',:'text',:'hash',3,'{"page":3}','synthetic-space'
+  from generate_series(1,399) i;`,{ws,doc,version,text:filler,hash:fillerHash});
 const context=sql(`select jsonb_build_object('workspace_id',w.id,'user_id',:'actor','membership_revision',w.capability_revision,'policy_id',s.active_policy_id,
 'policy_version',s.policy_version,'deadline',clock_timestamp()+interval '5 minutes') from public.workspaces w join public.workspace_settings s on s.workspace_id=w.id where w.id=:'ws';`,{actor,ws});
 const base=sql("select plan from public.research_plans where plan->>'plan_id'='mode-EVIDENCE_ANSWER';");
@@ -62,8 +66,9 @@ async function db(_env,path,init={}) {
     else throw Error(`Unsupported local transport filter ${key}`);
   }
   const limit=Number(url.searchParams.get("limit")||20);assert.ok(Number.isSafeInteger(limit)&&limit>0&&limit<=201);
+  const order=table==="document_chunks"?"order by t.id":"";
   return sql(`select coalesce(jsonb_agg(row_value),'[]') from (select to_jsonb(t) row_value from public.${table} t
-    where not exists(select 1 from jsonb_each(:'filters'::jsonb) f where not (f.value ? (to_jsonb(t)->>f.key))) limit :'limit'::integer) rows;`,{filters,limit});
+    where not exists(select 1 from jsonb_each(:'filters'::jsonb) f where not (f.value ? (to_jsonb(t)->>f.key))) ${order} limit :'limit'::integer) rows;`,{filters,limit});
 }
 let generations=0;
 const ordinaryFetch=globalThis.fetch;
@@ -95,6 +100,8 @@ try {
   const read=sql("select public.nexus_research_run(:'ctx'::jsonb,'read',:'plan'::uuid,:'run'::uuid);",{ctx:context,plan:plan.id,run:run.id});
   assert.equal(read.position,2);assert.equal(read.results.length,2);assert.equal(read.state,"completed");
   for(const result of read.results){assert.equal(result.sources[0].original_content_hash,hash);assert.deepEqual(result.validated_citation_ids,["S1"]);assert.equal(result.claim_state,"REVIEW_REQUIRED");}
+  for(const result of read.results){assert.equal(result.coverage.lexical_limit_reached,true);assert.equal(result.coverage.chunks_considered,200);assert.equal(result.sources[0].chunk_id,chunk);}
+  console.log("RESEARCH_LARGE_SOURCE_SQL_PASS:400stored chunks,bounded200candidate pool,dense hit beyond lexical window,coverage persisted and reread");
   const create=new Request("https://gateway.invalid/api/v2/findings",{method:"POST",headers:{"Idempotency-Key":"actual-handler-finding"},
     body:JSON.stringify({title:"Actual executor finding",research_run_id:run.id,result_index:0})});
   const created=await handleWorkbench({request:create,env,user:{id:actor},workspace:ws,member:{role:"owner"},serviceRequest:db,

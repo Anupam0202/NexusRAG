@@ -4,6 +4,30 @@ Status: **PARTIAL_NOT_COMPLETE — locally tested implementation; not production
 
 This receipt supersedes historical status claims only where it records a fresh observation. It does not certify a complete product, production release, provider rights, or absence of all defects.
 
+## Large-Source Research - Active Batch034
+
+PARTIAL_NOT_COMPLETE. Actual executor rejects accepted201/400chunk documents
+before dense search,despite ingestion400chunk maximum. Failing-before tests prove
+the mismatch. Bounded200unique-original pool now keeps later dense rows and
+deduplicates against the lexical canary without enlarging source/context budgets.
+Explicit limited lexical coverage survives saved result reads/reloads; no complete
+lexical/semantic evidence claim. Missing ranked evidence still abstains.
+
+561Gateway,focused23frontend,97scripts,lint/typecheck,real400chunk SQL-to-production
+executor/Finding and65table140function restore pass;36affected desktop/mobile/theme
+browser cases pass. Actual local Chrome inspects later evidence and reloads with
+retained warning. Native screenshot capture timed out; Playwright evidence exists.
+First browser command omitted fixture env and skipped36; not counted as PASS.
+Full frontend/build/final saved-source/CI/fresh recovery separately pending.
+
+033complete664source/257evidence recovery frozen. Exact033rehearsal approval is
+FULFILLED ONCE,registry20261016115728,17function definitions/configurations and
+sixconstraints match fresh reference; no business/private/provider/customer
+operations. Separate approval/catalog addendum recovered,hashcf31c393e675274e927a4fbe16b8d52c90b4da3899335a8632b5c6ac95464020.
+Required033image/summaryFAILED by metadata only. No new security work/paused022,
+production/deployment or release acceptance. All224/tenproducts/twelvemodes/full
+quality and remaining functional/release prerequisites stay incomplete.
+
 ## Source-Anchored Timeline - Active Batch033
 
 PARTIAL_NOT_COMPLETE. Chrome confirms saved Timeline execution missing; actual

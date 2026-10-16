@@ -1,5 +1,6 @@
 import { expect,test,type Page } from "@playwright/test";
 import { randomUUID } from "node:crypto";
+import { selectWorkspaceReviewer } from "./research-review-helpers";
 test.skip(!process.env.E2E_RESEARCH_COMPONENT_FIXTURE,"Requires controlled local UI/Gateway/queue/provider peers, not hosted identities.");
 async function plan(page:Page,question:string,theme:string,subquestion?:string) {
   const actor=randomUUID(),reviewer=randomUUID();await page.goto(`/?actor=${actor}&reviewer=${reviewer}&theme=${theme}`);
@@ -32,7 +33,7 @@ for(const theme of ["light","dark"])for(const width of [null,320])test(`${theme}
   const link=page.getByRole("link",{name:"Open saved finding",exact:true}),href=await link.getAttribute("href");await link.click();
   await expect(page.getByText("Saved timeline · criterion 1 · batch 1 · not automatically verified",{exact:true})).toBeVisible();
   await expect(page.getByRole("list",{name:"Source events",exact:true}).getByRole("listitem")).toHaveCount(4);
-  await page.getByRole("combobox",{name:"Workspace member",exact:true}).selectOption(reviewer);await page.getByRole("button",{name:"Share for review",exact:true}).click();
+  await selectWorkspaceReviewer(page,reviewer);await page.getByRole("button",{name:"Share for review",exact:true}).click();
   await page.goto(`${href}&actor=${reviewer}&theme=${theme}`);await page.getByRole("textbox",{name:"Review comment",exact:true}).fill("Checked source dates, uncertain order and original evidence.");
   await page.getByRole("button",{name:"Approve revision",exact:true}).click();await page.reload();
   await expect(page.getByText("approved: Checked source dates, uncertain order and original evidence.",{exact:true})).toBeVisible();

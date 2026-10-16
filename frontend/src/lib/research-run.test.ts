@@ -30,6 +30,10 @@ it("rejects mismatched questions, unknown citations and unsupported answer state
   const result={question:run.questions[0],answer:"Mass is 1.005 kg [S1].",claim_state:"REVIEW_REQUIRED",abstained:false,sources:[source],validated_citation_ids:["S1"],
     coverage:{completeness:"NOT_EXHAUSTIVE",chunks_considered:1},provider_cost_status:"UNKNOWN",review_state:"COMPLETION_CRITERIA_NOT_AUTOMATICALLY_VERIFIED"};
   expect(confirmedResearchRun({...run,state:"completed",position:1,results:[result]},id)).toBe(true);
+  for(const limited of [true,false,undefined])expect(confirmedResearchRun({...run,state:"completed",position:1,
+    results:[{...result,coverage:{...result.coverage,lexical_limit_reached:limited}}]},id)).toBe(true);
+  expect(confirmedResearchRun({...run,state:"completed",position:1,
+    results:[{...result,coverage:{...result.coverage,lexical_limit_reached:"yes"}}]},id)).toBe(false);
   for(const bad of [{...result,question:"different"},{...result,claim_state:"SUPPORTED"},{...result,validated_citation_ids:["S99"]},{...result,coverage:null}])
     expect(confirmedResearchRun({...run,state:"completed",position:1,results:[bad]},id)).toBe(false);
 });

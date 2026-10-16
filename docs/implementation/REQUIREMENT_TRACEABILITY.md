@@ -4,6 +4,19 @@
 
 Status: `PARTIAL_NOT_COMPLETE_WITH_ACCEPTED_NORMATIVE_BASELINE`
 
+Latest034 fixes rejection of valid201..400chunk research sources before dense
+search while retaining the200unique original-candidate budget,201lexical canary
+and12vector rows. Later indexed hits remain hash/current-source rehydrated;
+bounded lexical coverage persists and is visible after reload. Real400chunk SQL
+and36affected desktop/mobile/theme browser journeys pass, not full corpus/model
+quality or hosted private acceptance. Full owning/build/source/recovery/CI remain
+pending at source time. Exact224definitions/tenproducts/twelvemodes/400+125quality
+unchanged/incomplete.033complete664source/257evidence recovery and exact rehearsal
+installation registry20261016115728 are recorded in external033handoff/addendum;
+17functions/sixconstraints match fresh reference. Required033image/summary FAILED
+by metadata only. No new security work/paused022/provider/production/deployment.
+See RESEARCH_LARGE_SOURCE_RETRIEVAL_034.md.
+
 Latest033 adds bounded selected-source Timeline execution,persistence and review
 using existing runs/queue/Findings. All40sources/ninecriteria/45batches,source-quoted
 events/date precision/Unicode locators/gaps,combined saved chronology and later

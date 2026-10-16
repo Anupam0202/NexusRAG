@@ -1,5 +1,6 @@
 import { expect,test } from "@playwright/test";
 import { randomUUID } from "node:crypto";
+import { selectWorkspaceReviewer } from "./research-review-helpers";
 test.skip(!process.env.E2E_RESEARCH_COMPONENT_FIXTURE,"Requires isolated ordinary UI/Gateway peers, not hosted users.");
 for(const theme of ["light","dark"])test(`${theme}: saved answer, interrupted finding retry, revision and independent review survive reload`,async({page},testInfo)=>{
   const actor=randomUUID(),reviewer=randomUUID(),question=`Synthetic finding ${testInfo.project.name} ${theme} ${randomUUID()}`;
@@ -25,7 +26,7 @@ for(const theme of ["light","dark"])test(`${theme}: saved answer, interrupted fi
   await page.getByRole("textbox",{name:"Authored finding",exact:true}).fill("Synthetic authored context after checking the original.");
   await page.getByRole("button",{name:"Save finding",exact:true}).click();
   await expect(page.getByRole("heading",{name:/Revision 2/})).toBeVisible();
-  await page.getByRole("combobox",{name:"Workspace member",exact:true}).selectOption(reviewer);
+  await selectWorkspaceReviewer(page,reviewer);
   await page.getByRole("button",{name:"Share for review",exact:true}).click();
   await expect(page.getByText("1 explicitly shared members",{exact:true})).toBeVisible();
   await page.goto(`${href}&actor=${reviewer}&theme=${theme}`);

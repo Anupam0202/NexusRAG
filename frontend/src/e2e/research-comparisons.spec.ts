@@ -1,5 +1,6 @@
 import { expect,test,type Page } from "@playwright/test";
 import { randomUUID } from "node:crypto";
+import { selectWorkspaceReviewer } from "./research-review-helpers";
 
 test.skip(!process.env.E2E_RESEARCH_COMPONENT_FIXTURE,"Requires isolated UI/Gateway/queue/provider peers, not hosted users.");
 async function plan(page:Page,question:string,theme:string,subquestion?:string) {
@@ -38,7 +39,7 @@ for(const theme of ["light","dark"])for(const width of [null,320,768])test(`${th
   const open=page.getByRole("link",{name:"Open saved finding",exact:true});const href=await open.getAttribute("href");await open.click();
   await expect(page.getByText("Saved comparison · criterion 1 · batch 1 · not automatically verified",{exact:true})).toBeVisible();
   await expect(page.getByRole("rowheader",{name:"Synthetic second policy.txt",exact:true})).toBeVisible();
-  await page.getByRole("combobox",{name:"Workspace member",exact:true}).selectOption(reviewer);
+  await selectWorkspaceReviewer(page,reviewer);
   await page.getByRole("button",{name:"Share for review",exact:true}).click();
   await page.goto(`${href}&actor=${reviewer}&theme=${theme}`);
   await page.getByRole("textbox",{name:"Review comment",exact:true}).fill("Reviewed each original comparison cell.");

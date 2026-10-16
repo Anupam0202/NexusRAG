@@ -128,6 +128,7 @@ jobs:
             grep -F 'RESEARCH_CONVERSION_SQL_PASS' "$log"
             grep -F 'RESEARCH_QUANTITY_SQL_PASS' "$log"
             grep -F 'POSTGRES_RESEARCH_QUANTITY_CONCURRENT_RETRY_PASS' "$log"
+            grep -F 'RESEARCH_LARGE_SOURCE_SQL_PASS:400stored chunks' "$log"
             grep -F 'POSTGRES_RESEARCH_CONVERSION_CONCURRENT_RETRY_PASS' "$log"
             grep -F 'POSTGRES_RESEARCH_CALCULATION_CONCURRENT_RETRY_PASS' "$log"
             grep -F 'POSTGRES_RESEARCH_PLAN_CONCURRENT_RETRY_PASS' "$log"

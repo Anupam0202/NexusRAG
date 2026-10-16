@@ -1,14 +1,14 @@
 import { expect,test,type Page } from "@playwright/test";
-import { randomUUID } from "node:crypto";
+import { createHash,randomUUID } from "node:crypto";
 test.skip(!process.env.E2E_RESEARCH_COMPONENT_FIXTURE,"Requires isolated UI/Gateway/queue/provider peers, not a hosted origin.");
-async function savePlan(page:Page,question:string,subquestion?:string,theme="light") {
+async function savePlan(page:Page,question:string,subquestion?:string,theme="light",filename="Synthetic policy.txt") {
   await page.goto(`/?actor=${randomUUID()}&theme=${theme}`);
   await expect(page.getByRole("button",{name:"Save plan",exact:true})).toBeEnabled();
   await page.getByLabel("Mode",{exact:true}).selectOption(subquestion?"EVIDENCE_ANSWER":"QUICK_LOOKUP");
   await page.getByLabel("Question",{exact:true}).fill(question);
   await page.getByLabel("Completion criteria").fill("Inspect and independently review the exact cited source.");
   if(subquestion)await page.getByLabel("Subquestions",{exact:true}).fill(subquestion);
-  await page.getByRole("checkbox",{name:"Synthetic policy.txt",exact:true}).check();
+  await page.getByRole("checkbox",{name:filename,exact:true}).check();
   await page.getByRole("button",{name:"Save plan",exact:true}).click();
   await expect(page.getByRole("heading",{name:"Executions",exact:true})).toBeVisible();
 }
@@ -35,6 +35,26 @@ for(const theme of ["light","dark"])test(`${theme}: execute, inspect citations, 
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
   expect(errors).toEqual([]);
   await page.getByRole("region",{name:"Research executions",exact:true}).screenshot({path:testInfo.outputPath(`research-execution-${theme}.png`)});
+});
+
+for(const theme of ["light","dark"])test(`${theme}: a400chunk document retrieves later evidence and retains its coverage warning after reload`,async({page},testInfo)=>{
+  const question=`Large policy mass ${testInfo.project.name} ${theme}`;
+  await savePlan(page,question,undefined,theme,"Synthetic large policy.txt");
+  await page.getByRole("checkbox",{name:/I confirm that all questions/}).check();
+  await page.getByRole("button",{name:"Start research",exact:true}).click();
+  await expect(page.getByRole("status").filter({hasText:"Execution finished"})).toBeVisible();
+  await expect(page.getByText(/200 candidate chunks considered/)).toBeVisible();
+  await expect(page.getByText(/Lexical candidate limit reached/)).toBeVisible();
+  await page.getByText("[S1] Synthetic large policy.txt / chunk 0 / page 2",{exact:true}).click();
+  const expectedHash=createHash("sha256").update("\u{1F4CA} mass: 1.005 kg; other mass 9 kg").digest("hex");
+  await expect(page.getByText(`SHA256 ${expectedHash}`,{exact:true})).toBeVisible();
+  await page.reload();
+  await page.getByRole("button",{name:`Open research plan: ${question}`,exact:true}).click();
+  await page.getByRole("button",{name:/Open execution/}).click();
+  await expect(page.getByText("The mass is 1.005 kg [S1].",{exact:true})).toBeVisible();
+  await expect(page.getByText(/Lexical candidate limit reached/)).toBeVisible();
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
+  await page.getByRole("region",{name:"Research executions",exact:true}).screenshot({path:testInfo.outputPath(`large-source-${theme}.png`)});
 });
 test("resume preserves a committed answer and executes only the remaining question",async({page},testInfo)=>{
   const scenario=randomUUID();

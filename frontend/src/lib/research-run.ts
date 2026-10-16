@@ -10,7 +10,7 @@ export type ResearchRunResult = {
   question:string;answer:string;claim_state:"REVIEW_REQUIRED"|"UNSUPPORTED";abstained:boolean;
   sources:Array<{citation_id:string;document_id:string;version_id:string;chunk_id:string;filename:string;content:string;
     original_content_hash:string;location:unknown;page_number:number;chunk_index:number;excerpt:boolean}>;
-  validated_citation_ids:string[];model:string|null;coverage:{completeness:string;chunks_considered:number};
+  validated_citation_ids:string[];model:string|null;coverage:{completeness:string;chunks_considered:number;lexical_limit_reached?:boolean};
   provider_cost_status:string;review_state:string;comparison?:ResearchComparison;timeline?:ResearchTimeline;
 };
 export type ResearchRun = {
@@ -37,6 +37,7 @@ export function confirmedResearchRun(value:unknown,planId:string):value is Resea
       &&typeof result.answer==="string"&&result.answer.length>0&&result.answer.length<=16000&&["REVIEW_REQUIRED","UNSUPPORTED"].includes(result.claim_state)
       &&typeof result.abstained==="boolean"&&Array.isArray(result.sources)&&result.sources.length<=12
       &&result.coverage?.completeness==="NOT_EXHAUSTIVE"&&Number.isSafeInteger(result.coverage.chunks_considered)&&result.coverage.chunks_considered>=0&&result.coverage.chunks_considered<=200
+      &&(result.coverage.lexical_limit_reached===undefined||typeof result.coverage.lexical_limit_reached==="boolean")
       &&["UNKNOWN","NOT_CALLED"].includes(result.provider_cost_status)&&result.review_state==="COMPLETION_CRITERIA_NOT_AUTOMATICALLY_VERIFIED"
       &&result.sources.every((source,i)=>source.citation_id===`S${i+1}`&&uuid(source.document_id)&&uuid(source.version_id)&&uuid(source.chunk_id)
         &&typeof source.filename==="string"&&typeof source.content==="string"&&/^[a-f0-9]{64}$/.test(source.original_content_hash))

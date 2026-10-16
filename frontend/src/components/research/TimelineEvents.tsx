@@ -2,7 +2,7 @@ import type { ResearchTimeline,ResearchRun } from "@/lib/research-run";
 
 export function TimelineEvents({timeline,sourcePrefix,sourcePrefixes,combined=false}:{timeline:ResearchTimeline;sourcePrefix:string;sourcePrefixes?:Record<string,string>;combined?:boolean}) {
   return <section aria-label={`Timeline criterion ${timeline.criterion_index+1}, batch ${timeline.batch_index+1}`} className="mb-4 min-w-0">
-    <p className="mb-3 text-xs text-[var(--text-muted)]">Criterion {timeline.criterion_index+1} · {combined?`Combined saved batches (${timeline.batch_count} planned)`:`Batch ${timeline.batch_index+1} of ${timeline.batch_count}`} · {timeline.total_documents} documents · Bounded evidence, not exhaustive</p>
+    <p className="mb-3 text-xs text-[var(--text-muted)]">Criterion {timeline.criterion_index+1} · {combined?`Combined saved batches (${timeline.batch_count} planned)`:`Batch ${timeline.batch_index+1} of ${timeline.batch_count}`} · {timeline.total_documents} {timeline.total_documents===1?"document":"documents"} · Bounded evidence, not exhaustive</p>
     <p className="mb-3 text-sm">Dates and roles require review. Overlapping or unresolved bounds do not establish event order or causation.</p>
     <ol aria-label="Source events" className="divide-y divide-[var(--border)]">{timeline.events.map((event,index)=><li key={index} className="min-w-0 py-3">
       <h5 className="break-words text-sm font-semibold">{event.date_text||"Undated"} <span className="font-normal">/ {event.date_role.toLowerCase()} / {event.date.precision.toLowerCase()}</span></h5>

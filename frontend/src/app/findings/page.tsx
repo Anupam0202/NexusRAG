@@ -169,7 +169,7 @@ function FindingsWorkbench() {
               <p className="text-xs text-[var(--text-muted)]">Source-backed export requires an approved export-rights decision. Review does not grant source rights or certify the claim.</p>
             </div>}
             {selected.source_unavailable && <p role="alert">Source evidence is unavailable. Generated content is withheld.</p>}
-            <p className="text-sm">{selected.evidence.length} source excerpts · {selected.reviews.length} reviews of this revision</p>
+            <p className="text-sm">{selected.evidence.length} source {selected.evidence.length===1?"excerpt":"excerpts"} · {selected.reviews.length} {selected.reviews.length===1?"review":"reviews"} of this revision</p>
             {selected.research_origin?.comparison?<ComparisonMatrix matrix={selected.research_origin.comparison} sourcePrefix={`finding-${selected.id}`}/>:selected.research_origin?.timeline?<TimelineEvents timeline={selected.research_origin.timeline} sourcePrefix={`finding-${selected.id}`}/>:selected.generated_markdown && <p className="whitespace-pre-wrap text-sm">{selected.generated_markdown}</p>}
             {selected.evidence.map(item => <blockquote key={item.id} id={`finding-${selected.id}-${item.citation_id}`} tabIndex={-1} className="space-y-2 border-l-2 border-brand-400 pl-3 text-sm">
               <p className="whitespace-pre-wrap break-words">{item.available ? item.original_text : "Source unavailable"}</p>

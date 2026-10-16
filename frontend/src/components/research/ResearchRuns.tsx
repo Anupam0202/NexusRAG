@@ -97,7 +97,8 @@ export function ResearchRuns({plan,workspaceId,userId,canWrite}:{plan:ResearchPl
           <p className="my-2 break-all font-mono text-xs text-[var(--text-muted)]">SHA256 {source.original_content_hash}</p>
           <Link href={`/documents/${encodeURIComponent(source.document_id)}`} className={button}><ExternalLink size={14}/>Inspect document</Link>
         </details>)}
-        <p className="text-xs text-[var(--text-muted)]">{result.coverage.chunks_considered} chunks considered / bounded retrieval, not exhaustive / provider cost {result.provider_cost_status.toLowerCase()}</p>
+        <p className="text-xs text-[var(--text-muted)]">{result.coverage.chunks_considered} candidate chunks considered / bounded retrieval, not exhaustive / provider cost {result.provider_cost_status.toLowerCase()}</p>
+        {result.coverage.lexical_limit_reached&&<p className="mt-1 text-xs text-amber-700 dark:text-amber-300">Lexical candidate limit reached. Additional chunks were not lexically ranked; dense retrieval may include later evidence.</p>}
       </article>)}
     </div>}
   </section>;

@@ -52,3 +52,15 @@ it("starts an explicitly confirmed selected-source Timeline using its typed mode
   await waitFor(()=>expect(api.researchRunCommand).toHaveBeenCalledTimes(1));
   expect(api.researchRunCommand.mock.calls[0][5]).toBe("TIMELINE");
 });
+it("retains the bounded lexical-coverage warning when a completed result is reopened",async()=>{
+  const result={question:plan.plan.question,answer:"No supported answer.",claim_state:"UNSUPPORTED",abstained:true,sources:[],validated_citation_ids:[],
+    coverage:{completeness:"NOT_EXHAUSTIVE",chunks_considered:200,lexical_limit_reached:true},provider_cost_status:"NOT_CALLED"};
+  const completed={...run,state:"completed",position:1,results:[result]};
+  api.listResearchRuns.mockResolvedValue({items:[completed],next_after:null});api.researchRunCommand.mockResolvedValue(completed);
+  render(<ResearchRuns {...props}/>);fireEvent.click(await screen.findByRole("button",{name:`Open execution ${id}`}));
+  expect(await screen.findByText(/Lexical candidate limit reached/)).toBeVisible();
+  expect(screen.getByText(/200 candidate chunks considered/)).toBeVisible();
+  fireEvent.click(screen.getByRole("button",{name:"Refresh executions"}));
+  await waitFor(()=>expect(api.researchRunCommand).toHaveBeenCalledTimes(2));
+  expect(screen.getByText(/Additional chunks were not lexically ranked/)).toBeVisible();
+});

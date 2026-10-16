@@ -33,17 +33,20 @@ async function answerQuestion(env,run,db,signal) {
     hybrid_search_alpha:persistedSetting(settings,"hybrid_search_alpha",{min:0,max:1}),llm_temperature:persistedSetting(settings,"llm_temperature",{min:0,max:1})};
   const selection=batched?{documents:scope.map(s=>initial.documents.find(d=>d.id===s.document_id)),reason:comparing?"COMPARISON_ALL_BATCH_DOCUMENTS":"TIMELINE_ALL_BATCH_DOCUMENTS"}:resolveSummaryDocuments(question,initial.documents,false);
   const selectedDocuments=selection.documents.map(d=>d.id), selectedVersions=selection.documents.map(d=>d.active_version_id);
-  const lexical=await read(`document_chunks?workspace_id=eq.${workspace}&version_id=in.(${selectedVersions.join(",")})&select=${columns}&order=id.asc&limit=201`);
-  if(lexical.length>200)throw fail("CAPACITY_REACHED","Narrow this research plan to at most 200 source chunks.");
+  const lexicalRows=await read(`document_chunks?workspace_id=eq.${workspace}&version_id=in.(${selectedVersions.join(",")})&select=${columns}&order=id.asc&limit=201`);
+  const lexicalLimited=lexicalRows.length>200;
   let userApiKey;
   const credentialMode=run.admission?.credential_mode;
   if(credentialMode==="user_byok")userApiKey=await loadUserGeminiKey(env,run.owner_id);
   else if(credentialMode!=="platform_trial")throw fail("BYOK_REQUIRED","The run has no confirmed provider admission.");
   signal.throwIfAborted();
-  const hits=lexical.length?await searchChunks(env,{workspaceId:workspace,question,documentIds:selectedDocuments,versionIds:selectedVersions,
+  const hits=lexicalRows.length?await searchChunks(env,{workspaceId:workspace,question,documentIds:selectedDocuments,versionIds:selectedVersions,
     indexGenerations:initial.versions.filter(v=>selectedVersions.includes(v.id)).map(v=>v.index_generation),
     limit:runtimeOptions.retrieval_top_k,dataClassification:"non_sensitive",actorId:run.owner_id,userApiKey,credentialMode,signal}):[];
   const ids=candidateChunkIds(hits), vector=ids.length?await read(`document_chunks?workspace_id=eq.${workspace}&id=in.(${ids.join(",")})&version_id=in.(${selectedVersions.join(",")})&select=${columns}&limit=12`):[];
+  // Keep later dense hits without expanding the unique original-candidate budget.
+  // The extra lexical row detects truncation; it is not a whole-document failure.
+  const lexical=[...new Map([...vector,...lexicalRows].map(row=>[row.id,row])).values()].slice(0,200);
   const current=await load(), generation=new Map(current.versions.map(v=>[v.id,v.index_generation]));
   const dense=await rehydrateEvidence({workspaceId:workspace,candidates:hits,chunks:vector,...current});
   const sparse=await rehydrateEvidence({workspaceId:workspace,candidates:lexical.map(row=>({id:row.id,payload:{chunk_id:row.id,workspace_id:workspace,
@@ -87,7 +90,7 @@ async function answerQuestion(env,run,db,signal) {
   signal.throwIfAborted();
   return {question,answer:checked.answer,claim_state:checked.claim_state,abstained:checked.abstained,sources,
     validated_citation_ids:checked.citations.map(index=>`S${index}`),model:generated?.model||null,usage:generated?.usage||{},
-    selection:{reason:selection.reason,document_ids:selectedDocuments},coverage:{chunks_considered:lexical.length,
+    selection:{reason:selection.reason,document_ids:selectedDocuments},coverage:{chunks_considered:lexical.length,lexical_limit_reached:lexicalLimited,
       retrieval:timelining?"BOUNDED_DENSE_LEXICAL_SCOPED_OVERVIEW":"BOUNDED_DENSE_LEXICAL",completeness:"NOT_EXHAUSTIVE",evidence_authority:"SUPABASE_HASH_VERIFIED"},
     ...(comparison?{comparison}:{}),...(timeline?{timeline}:{}),runtime_options:runtimeOptions,provider_cost_status:generated?"UNKNOWN":"NOT_CALLED",paid_fallback:false,review_state:"COMPLETION_CRITERIA_NOT_AUTOMATICALLY_VERIFIED"};
 }

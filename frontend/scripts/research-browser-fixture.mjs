@@ -20,6 +20,8 @@ const runs=new Map(),runKeys=new Map(),interruptedQuestions=new Set();
 const findings=new Map(),findingKeys=new Map(),actors=new Set([user,"33333333-3333-4333-8333-333333333333"]);
 const reviewer="33333333-3333-4333-8333-333333333333";
 const reviewers=new Set([reviewer]);
+// Ordinary pagination stays exercised even in a fresh isolated fixture process.
+for(let i=1;i<=101;i++)actors.add(`00000034-0000-4000-8000-${String(i).padStart(12,"0")}`);
 env.GOOGLE_API_KEY="synthetic-local-not-a-key";env.QDRANT_URL="https://research-qdrant.invalid";env.QDRANT_API_KEY="synthetic-local";
 env.INGESTION_QUEUE={send:async body=>{setTimeout(()=>void queue({messages:[{body,ack(){},retry(){throw Error("Unexpected automatic generation retry");}}]},env).catch(error=>console.error(error)),runs.get(body.run_id)?.questions[0]?.includes("cancel")?2500:500);}};
 const sourceVersion="70707070-7070-4070-8070-707070707070",sourceChunk="80808080-8080-4080-8080-808080808080";
@@ -27,16 +29,23 @@ const sourceText="\u{1F4CA} mass: 1.005 kg; other mass 9 kg",sourceHash=createHa
 const comparisonDocument="61616161-6161-4161-8161-616161616161",comparisonVersion="71717171-7171-4171-8171-717171717171",comparisonChunk="81818181-8181-4181-8181-818181818181";
 const comparisonText="The synthetic second mass is 2.005 kg.";
 const timelineTexts=["\u{1F4CA} Issued 2024-02. Effective 2024-02-29.","Reviewed 03/04/2024. Open period 2024/2025."];
+const largeDocument="64646464-6464-4464-8464-646464646464",largeVersion="74747474-7474-4474-8474-747474747474",largeChunk="84848484-8484-4484-8484-848484848484";
 const fixtureDocuments=[{id:document,workspace_id:workspace,filename:"Synthetic policy.txt",active_version_id:sourceVersion},
   {id:comparisonDocument,workspace_id:workspace,filename:"Synthetic second policy.txt",active_version_id:comparisonVersion},
-  ...timelineTexts.map((_,i)=>({id:`63636363-6363-4363-8363-63636363636${i}`,workspace_id:workspace,filename:i?"Timeline amendment.txt":"Timeline policy.txt",active_version_id:`73737373-7373-4373-8373-73737373737${i}`}))
-].map(d=>({...d,status:"ready",file_type:"txt",chunk_count:1,file_size:100,lifecycle_state:"active",lifecycle_epoch:1}));
+  ...timelineTexts.map((_,i)=>({id:`63636363-6363-4363-8363-63636363636${i}`,workspace_id:workspace,filename:i?"Timeline amendment.txt":"Timeline policy.txt",active_version_id:`73737373-7373-4373-8373-73737373737${i}`})),
+  {id:largeDocument,workspace_id:workspace,filename:"Synthetic large policy.txt",active_version_id:largeVersion}
+].map(d=>({...d,status:"ready",file_type:"txt",chunk_count:d.id===largeDocument?400:1,file_size:100,lifecycle_state:"active",lifecycle_epoch:1}));
 const fixtureVersions=fixtureDocuments.map(d=>({id:d.active_version_id,workspace_id:workspace,document_id:d.id,publication_state:"ready",data_classification:"non_sensitive",index_generation:"synthetic-source-generation",lifecycle_epoch:1}));
 const fixtureChunks=fixtureDocuments.map((d,i)=>{
-  const text=i<2?i?comparisonText:sourceText:timelineTexts[i-2];
-  return {id:i<2?i?comparisonChunk:sourceChunk:`83838383-8383-4383-8383-83838383838${i}`,workspace_id:workspace,document_id:d.id,version_id:d.active_version_id,
+  const text=i===4?sourceText:i<2?i?comparisonText:sourceText:timelineTexts[i-2];
+  return {id:i===4?largeChunk:i<2?i?comparisonChunk:sourceChunk:`83838383-8383-4383-8383-83838383838${i}`,workspace_id:workspace,document_id:d.id,version_id:d.active_version_id,
     chunk_index:0,original_text:text,content:text,original_content_hash:createHash("sha256").update(text).digest("hex"),page_number:2,location:{page:2},metadata:{}};
 });
+for(let i=1;i<400;i++) {
+  const text="Unrelated appendix material.";
+  fixtureChunks.push({id:`00340000-0000-4000-8000-${String(i).padStart(12,"0")}`,workspace_id:workspace,document_id:largeDocument,version_id:largeVersion,
+    chunk_index:i,original_text:text,content:text,original_content_hash:createHash("sha256").update(text).digest("hex"),page_number:3,location:{page:3},metadata:{}});
+}
 function scoped(rows,url) {
   return rows.filter(row=>[...url.searchParams].every(([key,value])=>{
     if(!Object.hasOwn(row,key))return true;
@@ -75,14 +84,19 @@ globalThis.fetch = async (input, init = {}) => {
     if(question?.includes("Synthetic interrupted execution")&&!interruptedQuestions.has(question)){interruptedQuestions.add(question);return new Response("synthetic provider interruption",{status:503});}
     return result({candidates:[{finishReason:"STOP",content:{parts:[{text:"The mass is 1.005 kg [S1]."}]}}],usageMetadata:{promptTokenCount:20,candidatesTokenCount:12}});
   }
-  if(url.hostname==="research-qdrant.invalid")return result(url.pathname.endsWith("/points/query")?{result:{points:[{id:sourceChunk,score:0.9,payload:{workspace_id:workspace,document_id:document,version_id:sourceVersion,index_generation:"synthetic-source-generation",chunk_id:sourceChunk}}]}}:{});
+  if(url.hostname==="research-qdrant.invalid") {
+    const large=JSON.parse(init.body||"{}").filter?.must?.some(condition=>condition.key==="document_id"&&condition.match?.any?.includes(largeDocument));
+    return result(url.pathname.endsWith("/points/query")?{result:{points:[{id:large?largeChunk:sourceChunk,score:0.9,payload:{workspace_id:workspace,document_id:large?largeDocument:document,
+      version_id:large?largeVersion:sourceVersion,index_generation:"synthetic-source-generation",chunk_id:large?largeChunk:sourceChunk}}]}}:{});
+  }
   if (url.hostname !== "research-peer.invalid") return ordinaryFetch(input, init);
   const json = (value, status = 200) => new Response(JSON.stringify(value), { status });
   if (url.pathname === "/auth/v1/user") {const actor=new Headers(init.headers).get("authorization")?.split(":").at(-1)||user;actors.add(actor);return json({id:actor});}
   if (url.pathname === "/rest/v1/workspace_members") {
     if(init.method==="HEAD")return new Response(null,{headers:{"content-range":`*/${actors.size}`}});
-    const actor=url.searchParams.get("user_id")?.slice(3);
-    return json((actor?[actor]:[...actors]).map(id=>({workspace_id:workspace,user_id:id,role:reviewers.has(id)?"editor":"owner",
+    const filter=url.searchParams.get("user_id"),actor=filter?.startsWith("eq.")?filter.slice(3):null;
+    const ids=actor?[actor]:[...actors].sort().filter(id=>!filter?.startsWith("gt.")||id>filter.slice(3));
+    return json(ids.slice(0,Number(url.searchParams.get("limit")||ids.length)).map(id=>({workspace_id:workspace,user_id:id,role:reviewers.has(id)?"editor":"owner",
       profiles:{display_name:reviewers.has(id)?"Synthetic reviewer":id}})));
   }
   if(url.pathname==="/rest/v1/finding_versions")return json([{author_id:findings.get(url.searchParams.get("finding_id")?.slice(3))?.author_id}]);
@@ -90,7 +104,11 @@ globalThis.fetch = async (input, init = {}) => {
   if (url.pathname === "/rest/v1/workspace_settings") return json([{active_policy_id: policy, policy_version: 1}]);
   if (url.pathname === "/rest/v1/documents") return json(scoped(fixtureDocuments,url));
   if (url.pathname === "/rest/v1/document_versions") return json(scoped(fixtureVersions,url));
-  if (url.pathname === "/rest/v1/document_chunks") return json(scoped(fixtureChunks,url));
+  if (url.pathname === "/rest/v1/document_chunks") {
+    const rows=scoped(fixtureChunks,url),order=url.searchParams.get("order");
+    if(order==="id.asc")rows.sort((a,b)=>a.id.localeCompare(b.id));
+    return json(rows.slice(0,Number(url.searchParams.get("limit")||rows.length)));
+  }
   if(url.pathname==="/rest/v1/research_runs")return json([runs.get(url.searchParams.get("id")?.slice(3))].filter(Boolean));
   const data = JSON.parse(init.body);
   if(url.pathname==="/rest/v1/rpc/nexus_research_finding_contract")return json({schema_version:"research-finding/1",max_result_index:44});

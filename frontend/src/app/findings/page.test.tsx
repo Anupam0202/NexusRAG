@@ -37,6 +37,7 @@ describe("Findings workbench", () => {
     expect(api.readFinding).toHaveBeenCalledWith(finding.id,{workspaceId:workspace,expectedUserId:"user-a"});
     expect(screen.getByText("Exact synthetic source?")).toBeVisible();
     expect(screen.getByText(`SHA256 ${"a".repeat(64)}`)).toBeVisible();
+    expect(screen.getByText("1 source excerpt · 0 reviews of this revision")).toBeVisible();
     expect(screen.getByRole("button",{name:"Export JSON-LD & receipt"})).toBeDisabled();
     expect(screen.getByRole("link",{name:"Inspect source document"})).toHaveAttribute("href",`/documents/${workspace}`);
   });

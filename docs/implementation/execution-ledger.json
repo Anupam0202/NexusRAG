@@ -13,6 +13,21 @@
   "interpretation": "OPEN_ENGINEERING includes implemented but not fully accepted requirements; it does not assert that no code or scoped evidence exists. External approvals do not close unfinished internal work.",
   "entries": [
     {
+      "id": "ENGINEERING-RESEARCH-LARGE-SOURCE-RETRIEVAL",
+      "requirement": "Research valid indexed documents beyond the lexical window without rejecting accepted ingestion bounds, preserving candidate budgets and truthful saved coverage",
+      "normative_source": "Owner functional research and ordinary document/reload journeys; exact224definitions retained",
+      "status": "IN_PROGRESS",
+      "environment": "isolated functional034 from frozen033dbad95d; local controlled peers and disposable SQL only",
+      "next_action": "Save reviewed source through existing draftPR12 and bind current exact-tree CI/full new-directory dependency recovery/relevant fresh reruns. Local400chunk SQL/62research/20builtWorker journeys PASS with bounded coverage and normal paged reviewer selection; no hosted private/provider acceptance. Preserve200candidate limit and complete full accepted retrieval/product/quality separately. No new security work or paused022.",
+      "acceptance_evidence": [{
+        "environment": "actual production executor under scoped SQL/provider peers and frontend receipt/components",
+        "observed_at": "2026-10-16T12:00:31Z",
+        "source_identity": "parentdbad95daa94768cfb8972d73343df8a38317c2ae/tree5ad7a285plusuncommitted034",
+        "command_or_url": "tests/cloudflare/research-executor.test.mjs; tests/postgres/research-executor-integration.mjs; frontend/src/e2e/research-runs.spec.ts; external batch034/logs",
+        "result": "201/400chunk runs fail before dense retrieval despite400chunk ingestion allowance. Bounded unique200candidate pool keeps later dense originals and explicit non-exhaustive coverage. Fresh631backend+10/561Gateway/473frontend71files/57isolated/97scripts/lint/typecheck/NextOpenNext/Workerfixtures,real400chunk SQL persistence/Finding and65table140function restore PASS.36affected browser cases then broader reused-peer failure exposes member paging fixture/test gap; failure retained, ordinary cursor/limit/Load more corrected, cold62research and20actual builtWorker browser/ordinary route cases PASS. Manual functional review,not independent/security clearance. Exact saved-source/current CI/full fresh dependencies remain externally required.033 exact rehearsal installation fulfilled once registry20261016115728,17functions/sixconstraints match; required image/summary failed by metadata. No provider/private/production/deployment/new-user/destructive operations, no full product/mode/requirement acceptance."
+      }]
+    },
+    {
       "id": "ENGINEERING-RESEARCH-TIMELINE-EXECUTION",
       "requirement": "Execute accepted source-evidence Timeline journeys with durable chronology, exact quoted dates/locators, uncertainty, progress/recovery and independent review",
       "normative_source": "Owner adopted twelve-mode/ten-product functional assignment; exact224definitions unchanged",
