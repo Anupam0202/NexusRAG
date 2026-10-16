@@ -127,7 +127,7 @@ function FindingsWorkbench() {
       {error && <p role="alert" className="mb-4 rounded-lg border border-red-400/40 p-3 text-sm text-red-600">{error}</p>}
       {busy && <p role="status" className="mb-3 text-sm">Working…</p>}
       <div className="grid items-start gap-5 md:grid-cols-[minmax(200px,1fr)_minmax(0,2fr)]">
-        <section className="rounded-xl border border-[var(--border)] p-4" aria-label="Saved findings">
+        <section className="min-w-0 rounded-xl border border-[var(--border)] p-4" aria-label="Saved findings">
           <h2 className="mb-3 font-semibold">Your accessible findings</h2>
           <button className={`${button} mb-4 w-full`} disabled={busy || !canWrite} onClick={() => {
             setSelected(null); setTitle(""); setMarkdown(""); createKey.current = null;
@@ -143,7 +143,7 @@ function FindingsWorkbench() {
             if (current()) { setItems(previous => [...previous, ...response.items]); setNextAfter(response.next_after); }
           })}>Load more</button>}
         </section>
-        <section className="space-y-4 rounded-xl border border-[var(--border)] p-4" aria-label="Finding editor">
+        <section className="min-w-0 space-y-4 rounded-xl border border-[var(--border)] p-4" aria-label="Finding editor">
           <h2 className="font-semibold">{selected ? `Revision ${selected.revision} · ${selected.permission}` : "New private finding"}</h2>
           <label className="block text-sm">Title<input className={`${control} mt-1`} value={title} maxLength={160} disabled={busy || !canEdit}
             onChange={event => { setTitle(event.target.value); createKey.current = null; }} /></label>

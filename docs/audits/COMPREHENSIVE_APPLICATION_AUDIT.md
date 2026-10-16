@@ -4,6 +4,22 @@ Status: **PARTIAL_NOT_COMPLETE — locally tested implementation; not production
 
 This receipt supersedes historical status claims only where it records a fresh observation. It does not certify a complete product, production release, provider rights, or absence of all defects.
 
+## Findings Inner-Panel Clipping - Active Batch032
+
+PARTIAL_NOT_COMPLETE. Completed031 exact source/recovery is frozen separately in
+BATCH031_HANDOFF.md,including fulfilled031rehearsal schema approval and source/
+evidence checksums. The green html-width check missed a real570px inner Findings
+panel inside412px viewport. New container-level regression fails both mobile
+themes before correction. Two actual grid items now use min-width0, preserving
+all source columns and the separately focusable table scroller. Six original and
+14expanded comparison/review/resume cases pass at native desktop/mobile plus320px/
+768px light/dark; inspected original hashes and review text wrap.468frontend70files/
+lint/typecheck PASS. Final48cold cases now include source-link focus/reachability;
+build/exact-source/current CI/full fresh recovery remain required. No SQL change
+or hosted/private/provider/newuser/production/deployment operations. Not full
+responsive/product/mode/224requirement or production acceptance.031image pending
+at frozen06:43UTC is not clearance; paused022/old failed gates remain binding.
+
 ## Selected-Source Comparison - Active Batch031
 
 PARTIAL_NOT_COMPLETE. Actual production-executor regression reproduces a missing

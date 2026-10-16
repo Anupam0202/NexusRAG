@@ -1,5 +1,15 @@
 # NexusRAG execution checkpoint
 
+## Active Functional Batch: findings-responsive-layout-032
+
+**PARTIAL_NOT_COMPLETE. Uncommitted ordinary layout correction after frozen031.**
+
+- BATCH031_HANDOFF.md supersedes all031source-time pending/uncommitted notes below. Publishedbb3e170fd16e90613ecd18ba9715b3b9840f715e/tree8c6ea68faed5fc6c6896ae85ec0d3ab0e593dff6,655source; complete source090738439d88f9baec338f90bb6668244fc1f67496aeb02d2f95cfa6fa1f03e0/evidence224files784924c30e94766ceb8c2c8878b2b53dc677e7ce628c3ab50fec35480d5f1374 fully recovered with fresh actual dependencies/checks. All031ordinary source/DB/frontend CI pass; image116842482371 still pending at frozen06:43UTC, not cleared.030prior image/summary failed. No security findings investigation.
+- Exact031rehearsal approval FULFILLED only: SQL029554cc6572ea583e4afc4c6cbbbed795f85ad4b4cc8b3e97c7d151c35763d7, registry20261016063655,11function bodies/signatures and6constraints equal fresh frozen reference. No hosted business RPC/provider/private/customer/new-user/destructive/production/deployment operations. Never repeat/broaden approval.
+- Visual inspection after green031browser checks reveals mobile Findings inner-grid overflow clipping hash/review text despite html-width assertion passing. New container-level regression fails both mobile themes before correction; four other comparison cases pass. Set actual grid item min-width0, preserve all source columns and accessible table-local scrolling. Full ordinary owning/responsive/build/recovery/CI checks remain required. No SQL/hosted change in032; paused022 and all224/tenproducts/twelvemodes/400+125quality remain unchanged/incomplete. See FINDINGS_RESPONSIVE_LAYOUT_032.md.
+- Before correction570px inner content exceeds412px viewport. Actual grid min-content fix now passes original six cases and14expanded comparison/review/resume cases at native desktop/mobile plus320px/768px in both themes. Light mobile/dark narrowed review screenshots show wrapped original hashes and complete review receipts.468frontend70files/lint/typecheck PASS. New source-link focus/reachability assertion/full48cold research/build/saved-source CI/fresh recovery remain separately pending; these tests are not production/private/model-quality acceptance.
+- Final pre-save48cold research cases including source-link focus from scrolled matrices PASS;546Gateway/468frontend70files/97scripts/lint/installedtsc and Next/OpenNext26assets PASS. No SQL/spec/lock/runtime API changes. Exact-source publication/current CI/full fresh recovery remain separately required; inherited031SQL/schema evidence stays scoped to its frozen source.032does not close accepted full products/modes/quality or deployment acceptance.
+
 ## Active Functional Batch: research-comparison-execution-031
 
 **PARTIAL_NOT_COMPLETE. Uncommitted functional work; BATCH030_HANDOFF.md is the completed source/recovery checkpoint.**

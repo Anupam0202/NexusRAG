@@ -4,6 +4,17 @@
 
 Status: `PARTIAL_NOT_COMPLETE_WITH_ACCEPTED_NORMATIVE_BASELINE`
 
+Latest032 addresses actual inner Findings mobile clipping that page-wide overflow
+tests missed. Container-level regression fails before min-content grid correction;
+expanded320px/768px/native desktop/mobile light/dark comparison/review cases pass,
+with exact original hashes/review receipts wrapping. All224exact definitions and
+denominator remain unchanged; this is a scoped ordinary responsive correction,
+not complete accessibility/product/mode or hosted/private/production acceptance.
+Final exact source/build/CI/full fresh recovery bind the later source externally.
+See FINDINGS_RESPONSIVE_LAYOUT_032.md.031complete655file source/224entry evidence
+and exact rehearsal approval are fulfilled in BATCH031_HANDOFF.md, superseding
+source-time031pending notes below. No new SQL/hosted/security scope in032.
+
 Latest031 adds the selected-source COMPARE execution slice with all40documents,
 ninecriteria,45durable batches/360cells, document-specific evidence gaps/citations,
 progress/cancel/resume, matrix inspection and saved Findings/independent review.

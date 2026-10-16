@@ -16,8 +16,9 @@ async function plan(page:Page,question:string,theme:string,subquestion?:string) 
   await page.getByRole("checkbox",{name:/I confirm that all questions/}).check();
   return {actor,reviewer};
 }
-for(const theme of ["light","dark"])test(`${theme}: execute a separately cited comparison, inspect both originals and reload the matrix`,async({page},testInfo)=>{
+for(const theme of ["light","dark"])for(const width of [null,320,768])test(`${theme}${width?` ${width}px`:""}: execute a separately cited comparison, inspect both originals and reload the matrix`,async({page},testInfo)=>{
   const errors:string[]=[];page.on("pageerror",error=>errors.push(error.message));
+  if(width)await page.setViewportSize({width,height:900});
   const question=`Compare synthetic masses ${randomUUID()}`;
   const {reviewer}=await plan(page,question,theme);await page.getByRole("button",{name:"Start research",exact:true}).click();
   await expect(page.getByRole("status").filter({hasText:"Execution finished"})).toContainText("1 of 1 batches saved");
@@ -46,6 +47,17 @@ for(const theme of ["light","dark"])test(`${theme}: execute a separately cited c
   await expect(page.locator("time[datetime]")).toBeVisible();
   await expect(page.getByRole("button",{name:"Export JSON-LD & receipt",exact:true})).toBeDisabled();
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
+  for(const name of ["Findings workbench","Finding editor","Evidence and reviews"]) {
+    const bounds=await page.getByRole("region",{name,exact:true}).evaluate(element=>({
+      width:element.clientWidth,content:element.scrollWidth,right:element.getBoundingClientRect().right,viewport:window.innerWidth
+    }));
+    expect(bounds.content,`${name} must not hide horizontally clipped review/source text`).toBeLessThanOrEqual(bounds.width);
+    expect(bounds.right,`${name} must fit the viewport`).toBeLessThanOrEqual(bounds.viewport);
+  }
+  const matrix=page.getByRole("region",{name:"Comparison evidence matrix",exact:true});
+  await matrix.getByRole("link",{name:"[S2]",exact:true}).click();
+  await expect(page.locator("blockquote").filter({hasText:"The synthetic second mass is 2.005 kg."})).toBeFocused();
+  await matrix.evaluate(element=>{element.scrollLeft=0;});
   await page.getByRole("region",{name:"Evidence and reviews",exact:true}).screenshot({path:testInfo.outputPath(`comparison-finding-review-${theme}.png`)});
 });
 test("an interrupted later criterion resumes without replacing the saved first matrix",async({page})=>{

@@ -13,6 +13,21 @@
   "interpretation": "OPEN_ENGINEERING includes implemented but not fully accepted requirements; it does not assert that no code or scoped evidence exists. External approvals do not close unfinished internal work.",
   "entries": [
     {
+      "id": "ENGINEERING-FINDINGS-RESPONSIVE-LAYOUT",
+      "requirement": "Keep source-backed Findings, review receipts, exact hashes and comparison matrix accessible within mobile and desktop panels",
+      "normative_source": "Owner adopted complete responsive/accessible ordinary user workflows; exact224definitions unchanged",
+      "status": "IN_PROGRESS",
+      "environment": "isolated functional032 after publishedbb3e170; local synthetic UI/actual Gateway only, no hosted mutation",
+      "next_action": "Confirm container-level regression after actual grid correction, owning frontend/ordinary responsive/build tests, exact saved-source/CI/recovery. Preserve source columns and table-local scrolling.031exact rehearsal approval fulfilled only; no new security work or paused022.",
+      "acceptance_evidence": [{
+        "environment": "real local Chromium desktop/mobile light/dark, production Findings UI with synthetic peers",
+        "observed_at": "2026-10-16T06:44:53Z",
+        "source_identity": "parentbb3e170/tree8c6ea68f plus uncommitted032 regression",
+        "command_or_url": "frontend/src/e2e/research-comparisons.spec.ts; external batch032/logs/findings-layout-before-01.log",
+        "result": "Page-wide width passes while570px Findings content clips a412px panel. New container-level assertions fail both mobile themes; four other scenarios pass. Actual two-grid-item min-width0 correction passes six original and14expanded matrix/Finding/review/resume cases at native desktop/mobile plus320px/768px in light/dark; inspected hashes/review now wrap.468frontend70files/lint/typecheck PASS; new source-link focus/full48cold research/build/saved-source CI/full fresh recovery remain separately pending, not inherited PASS. No hosted/private/provider/production acceptance."
+      }]
+    },
+    {
       "id": "ENGINEERING-RESEARCH-COMPARISON-EXECUTION",
       "requirement": "Execute the accepted COMPARE journey with all40source/9criterion limits, durable per-document evidence matrix, progress/errors/cancellation/resume and independent review",
       "normative_source": "Owner adopted twelve-mode/ten-product functional assignment; exact224definitions unchanged",
