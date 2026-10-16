@@ -15,7 +15,7 @@ for(const theme of ["light","dark"])test(`${theme}: saved answer, interrupted fi
   await page.getByRole("button",{name:"Start research",exact:true}).click();
   await expect(page.getByRole("status").filter({hasText:"Execution finished"})).toBeVisible();
   const save=page.getByRole("button",{name:"Save as finding",exact:true});await save.click();
-  await expect(page.getByRole("alert")).toBeVisible();await save.click();
+  await expect(page.getByRole("alert")).toContainText("not confirmed");await save.click();
   const open=page.getByRole("link",{name:"Open saved finding",exact:true});
   await expect(open).toBeVisible();const href=await open.getAttribute("href");
   await open.click();await expect(page.getByLabel("Title",{exact:true})).toHaveValue(question);

@@ -41,6 +41,27 @@ test("research executions can be reloaded from their saved plan",async t=>{
   assert.equal(response.status,200);
   assert.equal((await response.json()).items[0].id,run);
 });
+
+test("comparison lists retain saved progress without carrying the full matrix",async t=>{
+  const {env,receipt}=fixture(t,{rpc:(data,json)=>json(data.p_operation==="list"?{items:[receipt],next_after:null}:receipt)});
+  Object.assign(receipt,{mode:"COMPARE",source_snapshot:[{id:plan},{id:run}],total_steps:1,position:1,state:"completed",results_included:false});
+  const response=await handle(request(),env);
+  assert.equal(response.status,200);
+  assert.deepEqual((await response.json()).items[0],receipt);
+  const read=await handle(request("GET",`/${run}`),env);
+  assert.equal(read.status,503);
+  assert.equal((await read.json()).error.code,"PERSISTENCE_UNCONFIRMED");
+});
+
+test("comparison execution checks the matching installed contract before queuing",async t=>{
+  const {env,sent,receipt}=fixture(t);
+  Object.assign(receipt,{mode:"COMPARE",source_snapshot:[{id:plan},{id:run}],total_steps:1});
+  const original=globalThis.fetch;
+  t.mock.method(globalThis,"fetch",async(input,init)=>new URL(input).pathname==="/rest/v1/rpc/nexus_research_comparison_contract"
+    ?new Response(JSON.stringify({schema_version:"research-comparison/1",batch_size:8,max_steps:45})):original(input,init));
+  const response=await handle(request("POST","",{non_sensitive_attested:true,execution_mode:"COMPARE"}),env);
+  assert.equal(response.status,201);assert.equal(sent.length,1);
+});
 test("missing processing confirmation does not create or queue a run",async t=>{
   const {env,calls,sent}=fixture(t);
   assert.equal((await handle(request("POST","",{}),env)).status,403);

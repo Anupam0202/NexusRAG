@@ -19,7 +19,11 @@ export function ResearchFindingAction({runId,index,result,workspaceId,userId,can
       const title=result.question.slice(0,160).replace(/[\uD800-\uDBFF]$/,"");
       const saved=await createResearchFinding(title,runId,index,key.current,{workspaceId,expectedUserId:userId});
       if(alive.current)setFinding(saved.id);
-    } catch(error){if(alive.current)setError(error instanceof Error?error.message:"Finding persistence was not confirmed.");}
+    } catch(error){
+      const code=(error as {code?:string}|null)?.code;
+      if(alive.current)setError(["PERSISTENCE_UNAVAILABLE","PERSISTENCE_UNCONFIRMED"].includes(code||"")
+        ?"Finding save was not confirmed; it may already have been saved.":error instanceof Error?error.message:"Finding persistence was not confirmed.");
+    }
     finally{pending.current=false;if(alive.current)setBusy(false);}
   }
   return <div className="my-3 min-w-0">

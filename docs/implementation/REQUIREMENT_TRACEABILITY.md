@@ -4,6 +4,19 @@
 
 Status: `PARTIAL_NOT_COMPLETE_WITH_ACCEPTED_NORMATIVE_BASELINE`
 
+Latest031 adds the selected-source COMPARE execution slice with all40documents,
+ninecriteria,45durable batches/360cells, document-specific evidence gaps/citations,
+progress/cancel/resume, matrix inspection and saved Findings/independent review.
+Actual maximum-scope PostgreSQL plus real production executor-to-SQL27cell/sixbatch
+and concurrent-start tests,65table134function restore,40cold synthetic browser
+journeys and local Chrome are scoped evidence only.468frontend/546Gateway pass;
+final saved-source/CI/fresh recovery remain external. No semantic equivalence or
+ranking, full constrained/public/temporal/graph mode or product acceptance is
+claimed. Source export rights, all224exact definitions/tenproducts/twelvemodes/
+400+125quality, private/hosted/deployed/lifecycle and rollout gates remain open.
+030exact rehearsal installation is fulfilled;031has no hosted approval.
+See RESEARCH_COMPARISON_EXECUTION_031.md and newest external handoff.
+
 Latest030 connects actual stored research answers to revisioned Findings and ordinary
 independent review with exact original hash/version/locator/source-state projection.
 Real production executor/Workbench-to-SQL persistence and concurrent retry,65table

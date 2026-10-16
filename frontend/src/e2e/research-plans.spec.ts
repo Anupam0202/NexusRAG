@@ -16,11 +16,13 @@ for (const theme of ["light","dark"]) test(`${theme}: save, reload, inspect and 
   await page.getByLabel("Completion criteria").fill("Inspect the exact evidence");
   await page.getByRole("checkbox",{name: "Synthetic policy.txt",exact: true}).check();
   await save.click();
-  await expect(page.getByRole("status")).toHaveText("Saved plan. Executions are tracked separately.");
+  await expect(page.getByRole("status").filter({hasText:"Saved plan."})).toHaveText("Saved plan. Executions are tracked separately.");
+  await expect(page.getByRole("status").filter({hasText:"constraints"})).toHaveText("This plan includes constraints that execution cannot yet honor. No processing will start.");
+  await expect(page.getByRole("button",{name:"Start research",exact:true})).toBeDisabled();
   await expect(page.getByRole("heading",{name: "Compare",exact: true})).toBeFocused();
   await page.reload();
   await page.getByRole("button",{name: `Open research plan: ${question}`,exact: true}).click();
-  await expect(page.getByRole("status")).toHaveText("Saved plan. Executions are tracked separately.");
+  await expect(page.getByRole("status").filter({hasText:"Saved plan."})).toHaveText("Saved plan. Executions are tracked separately.");
   await expect(page.getByText("60606060-6060-4060-8060-606060606060",{exact: true})).toBeVisible();
   await expect(page.getByText("Synthetic jurisdiction",{exact: true})).toBeVisible();
   await page.getByRole("button",{name: "Copy to a new plan"}).click();

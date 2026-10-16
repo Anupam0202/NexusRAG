@@ -49,3 +49,16 @@ it("saves only a typed reference to the stored research answer, never a copied c
   respond({...finding,source_research_position:1});
   await expect(createResearchFinding("Saved answer",record.id,0,"stable-intent",context)).rejects.toMatchObject({code:"PERSISTENCE_UNCONFIRMED"});
 });
+
+it("accepts lightweight comparison list progress but requires complete detail and command receipts",async()=>{
+  const id=record.id,run={id,plan_id:id,workspace_id:id,owner_id:id,schema_version:"research-run/1",persistence_state:"PERSISTED",state:"completed",generation:1,
+    mode:"COMPARE",source_snapshot:[{document_id:id},{document_id:"44444444-4444-4444-8444-444444444444"}],
+    total_steps:1,position:1,questions:["Synthetic criterion?"],results:[],results_included:false,source_state:"CURRENT",error_code:null,created_at:"2026-10-15T00:00:00Z"};
+  respond({items:[run],next_after:null});
+  await expect(listResearchRuns(id,context)).resolves.toMatchObject({items:[run]});
+  respond(run);
+  await expect(researchRunCommand(id,context,"read",id)).rejects.toMatchObject({code:"PERSISTENCE_UNCONFIRMED"});
+  const fetch=respond({...run,position:0,state:"queued",results_included:true});
+  await expect(researchRunCommand(id,context,"create",undefined,"stable-comparison", "COMPARE")).resolves.toMatchObject({mode:"COMPARE"});
+  expect(JSON.parse(fetch.mock.calls[0][1]!.body as string)).toEqual({non_sensitive_attested:true,execution_mode:"COMPARE"});
+});

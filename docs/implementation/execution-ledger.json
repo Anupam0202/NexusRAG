@@ -13,6 +13,23 @@
   "interpretation": "OPEN_ENGINEERING includes implemented but not fully accepted requirements; it does not assert that no code or scoped evidence exists. External approvals do not close unfinished internal work.",
   "entries": [
     {
+      "id": "ENGINEERING-RESEARCH-COMPARISON-EXECUTION",
+      "requirement": "Execute the accepted COMPARE journey with all40source/9criterion limits, durable per-document evidence matrix, progress/errors/cancellation/resume and independent review",
+      "normative_source": "Owner adopted twelve-mode/ten-product functional assignment; exact224definitions unchanged",
+      "status": "IN_PROGRESS",
+      "environment": "isolated functional031 fromc278c29; actual local PostgreSQL17.11/pgvector0.8.7 and production implementations with controlled peers, no031hosted/private/provider/deployment acceptance",
+      "next_action": "Bind saved exact source/required CI/full fresh dependency recovery through existing draftPR12; only then request exact031rehearsal approval. Continue incomplete constraints/public/temporal/graph/semantic review/rights-aware packages/monitor/lifecycle and full product workflows. All224/tenproducts/twelvemodes/400+125quality remain incomplete; no new security work or paused022.030rehearsal approval fulfilled only.",
+      "acceptance_evidence": [
+        {
+          "environment": "local actual production executor with synthetic provider/storage peers",
+          "observed_at": "2026-10-16T06:18:14Z",
+          "source_identity": "parentc278c29/tree38fc9908plusuncommitted031",
+          "command_or_url": "docs/implementation/RESEARCH_COMPARISON_EXECUTION_031.md; tests/postgres/research-comparison-assertions.sql; tests/postgres/research-comparison-integration.mjs; frontend/src/e2e/research-comparisons.spec.ts; external batch031/logs",
+          "result": "Actual before-fix executor has no matrix. Full40source9criterion45batch360cell SQL persistence/retry/cancel/resume/deadline/read PASS; real production executor-to-SQL27cells/sixbatches/concurrent-start and Finding-position5 exact hash PASS;65table134function restore.546Gateway/468frontend70files/631backend+10subtests/57isolated/97scripts/lint/typecheck/NextOpenNext26assets/Workerfixtures,40cold research and20ordinary builtWorker browser cases PASS. Actual local Chrome matrix/hash/page/save/retry/share/separate-review/reload inspected. Interrupted-save copy regression corrected; thin list progress cannot substitute for full read/command receipt. Initial SQL/fixture/browser failures preserved without weakened limits/assertions. Exact saved source/CI/fresh recovery remain separate external evidence; no full mode/product/definition or hosted/private/provider/production acceptance.030image/summary FAILED by metadata, not cleared; no findings investigation."
+        }
+      ]
+    },
+    {
       "id": "ENGINEERING-RESEARCH-FINDING-LINEAGE",
       "requirement": "Connect persisted research answers and exact evidence locators to durable revisioned findings, independent review and rights-aware evidence packages",
       "normative_source": "Owner accepted shared evidence/findings/review/export journeys; all224 normative definitions unchanged",

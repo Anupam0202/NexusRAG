@@ -91,8 +91,8 @@ async function handleWorkbench(args) {
       authored_markdown: boundedText(data.authored_markdown ?? "", "Finding text", 50_000),
       ...(data.run_id ? { run_id: uuid(data.run_id) } : {}) };
     if (data.research_run_id !== undefined || data.result_index !== undefined) {
-      if (data.run_id || !Number.isSafeInteger(data.result_index) || data.result_index < 0 || data.result_index > 4)
-        throw problem("INVALID_SCOPE", "Choose one saved research answer (index 0 to 4).");
+      if (data.run_id || !Number.isSafeInteger(data.result_index) || data.result_index < 0 || data.result_index > 44)
+        throw problem("INVALID_SCOPE", "Choose one saved research result (index 0 to 44).");
       command.research_run_id = uuid(data.research_run_id).toLowerCase();
       command.result_index = data.result_index;
       // Older Findings RPCs ignore unknown JSON fields. Confirm the new contract
@@ -104,7 +104,7 @@ async function handleWorkbench(args) {
           throw problem("MIGRATION_REQUIRED", "Research findings require the reviewed research_finding_lineage migration.", 503);
         throw error;
       }
-      if (contract?.schema_version !== "research-finding/1")
+      if (contract?.schema_version !== "research-finding/1" || data.result_index>4 && contract.max_result_index<data.result_index || data.result_index>4 && !Number.isInteger(contract?.max_result_index))
         throw problem("MIGRATION_REQUIRED", "The research-finding storage contract is unavailable.", 503);
     }
     hash = await digest(JSON.stringify(command));

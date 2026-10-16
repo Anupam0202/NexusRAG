@@ -21,6 +21,12 @@ it("does not promote an abstention or enable a viewer write",()=>{
   expect(screen.getByRole("button")).toBeDisabled();page.unmount();render(<ResearchFindingAction {...props} canWrite={false}/>);
   expect(screen.getByRole("button")).toBeDisabled();expect(api.createResearchFinding).not.toHaveBeenCalled();
 });
+it("describes an interrupted storage outcome as unconfirmed rather than rejected",async()=>{
+  api.createResearchFinding.mockRejectedValueOnce(Object.assign(new Error("Authoritative storage rejected the request."),{code:"PERSISTENCE_UNAVAILABLE"}));
+  render(<ResearchFindingAction {...props}/>);fireEvent.click(screen.getByRole("button",{name:"Save as finding"}));
+  expect(await screen.findByRole("alert")).toHaveTextContent("not confirmed");
+  expect(screen.getByRole("alert")).not.toHaveTextContent("rejected");
+});
 it("one double submission is persisted once and late unmounted completion is ignored",async()=>{
   let finish!:(value:unknown)=>void;api.createResearchFinding.mockImplementation(()=>new Promise(resolve=>{finish=resolve;}));
   const page=render(<ResearchFindingAction {...props}/>);const save=screen.getByRole("button");fireEvent.click(save);fireEvent.click(save);

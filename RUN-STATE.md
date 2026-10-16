@@ -1,5 +1,16 @@
 # NexusRAG execution checkpoint
 
+## Active Functional Batch: research-comparison-execution-031
+
+**PARTIAL_NOT_COMPLETE. Uncommitted functional work; BATCH030_HANDOFF.md is the completed source/recovery checkpoint.**
+
+- Clean parentc278c29d26a37af1d8d1678e1cbe6cc20d1c8f85/tree38fc99081eb79edd6588ecfd3f3ab3151c3e6bc1,646tracked files.030sourceSHAa03086d7ec13d757ec5529f61a7d15beb2a7773a0e82f7b2178fa3548041406d/evidence155fileSHA4de499da373294cb75822eb7d3260a888a95da9fc5999752dedddbdb1be846ef; full fresh recovery verified. This supersedes source-time pending030notes below.
+- Exact030rehearsal approval FULFILLED only,registry20261015233531,SQLd26dec22c9a65ead93605f585ff22595ac0ba83e2e52816283879313690f6ef1. Two columns/fivefunctions/threeconstraints/index/trigger match fresh frozen-source catalog. No private/customer/provider/deployment/production acceptance; never repeat or broaden approval.031has no hosted approval.
+- Actual executor regression reproduces the missing matrix. New40source9criterion/45batch360cell comparison, per-document citations/gaps, progress/cancel/resume and Findings/review are implemented locally. PG17.11/pgvector0.8.7 full45batch persistence and actual production executor-to-SQL27cell/sixbatch/concurrent-start/Finding-position5 tests pass;65tables134functions backuprestore. Lightweight list receipts retain progress without copying full matrices; detail reads still require complete persisted results.
+- Fresh546Gateway/468frontend70files,631backend+10subtests/57isolated/97scripts, lint/typecheck, Next/OpenNext26assets/actualWorker fixtures and40cold synthetic desktop/mobile light/dark journeys pass before the final reservation assertion. Actual local Chrome matrix/source-hash/save/retry/share/separate-review/reload inspected. The interrupted-save message is corrected to unconfirmed, not rejected. Saved-source fresh dependencies/recovery/current CI remain separately required; no hosted/private/provider/deployed acceptance.
+- Exact030automatic image116725960410/requiredsummary116733021202 subsequently FAILED; ordinary frontend/DB passed. External BATCH030_CI_ADDENDUM_2026-10-16.md supersedes frozen pending observations; no finding logs read or new scan investigation. Initial SQL constraint/CASE/operator/fixture, wrapped-cell and multiple-status browser locator failures are retained and corrected without weaker limits/assertions. Original paused022551working source entries remain byte-identical and excluded.
+- Source-backed export needs an explicit source-rights decision and remains a tracked prerequisite; no invented approval or policy enablement. All224definitions/tenproducts/twelvemodes/400+125quality remain accepted and incomplete. Paused022unchanged, no excluded security work, failed/pending gates remain binding. See RESEARCH_COMPARISON_EXECUTION_031.md.
+
 ## Active Functional Batch: research-finding-lineage-030
 
 **PARTIAL_NOT_COMPLETE. Uncommitted functional source; completed029 external handoff is the saved checkpoint.**

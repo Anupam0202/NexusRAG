@@ -24,14 +24,38 @@ env.GOOGLE_API_KEY="synthetic-local-not-a-key";env.QDRANT_URL="https://research-
 env.INGESTION_QUEUE={send:async body=>{setTimeout(()=>void queue({messages:[{body,ack(){},retry(){throw Error("Unexpected automatic generation retry");}}]},env).catch(error=>console.error(error)),runs.get(body.run_id)?.questions[0]?.includes("cancel")?2500:500);}};
 const sourceVersion="70707070-7070-4070-8070-707070707070",sourceChunk="80808080-8080-4080-8080-808080808080";
 const sourceText="\u{1F4CA} mass: 1.005 kg; other mass 9 kg",sourceHash=createHash("sha256").update(sourceText).digest("hex");
+const comparisonDocument="61616161-6161-4161-8161-616161616161",comparisonVersion="71717171-7171-4171-8171-717171717171",comparisonChunk="81818181-8181-4181-8181-818181818181";
+const comparisonText="The synthetic second mass is 2.005 kg.",comparisonHash=createHash("sha256").update(comparisonText).digest("hex");
+const fixtureDocuments=[{id:document,workspace_id:workspace,filename:"Synthetic policy.txt",active_version_id:sourceVersion},
+  {id:comparisonDocument,workspace_id:workspace,filename:"Synthetic second policy.txt",active_version_id:comparisonVersion}].map(d=>({...d,status:"ready",file_type:"txt",chunk_count:1,file_size:100,lifecycle_state:"active",lifecycle_epoch:1}));
+const fixtureVersions=fixtureDocuments.map(d=>({id:d.active_version_id,workspace_id:workspace,document_id:d.id,publication_state:"ready",data_classification:"non_sensitive",index_generation:"synthetic-source-generation",lifecycle_epoch:1}));
+const fixtureChunks=fixtureDocuments.map((d,i)=>({id:i?comparisonChunk:sourceChunk,workspace_id:workspace,document_id:d.id,version_id:d.active_version_id,
+  chunk_index:0,original_text:i?comparisonText:sourceText,content:i?comparisonText:sourceText,original_content_hash:i?comparisonHash:sourceHash,page_number:2,location:{page:2},metadata:{}}));
+function scoped(rows,url) {
+  return rows.filter(row=>[...url.searchParams].every(([key,value])=>{
+    if(!Object.hasOwn(row,key))return true;
+    if(value.startsWith("eq."))return String(row[key])===value.slice(3);
+    if(value.startsWith("in.("))return value.slice(4,-1).split(",").includes(String(row[key]));
+    return true;
+  }));
+}
 const ordinaryFetch = globalThis.fetch;
-// Only the Supabase peer is simulated. Production page, API client and Gateway
-// dispatch run unchanged. This is not SQL durability, real OAuth or hosted proof.
+// Storage/provider peers are controlled. Production pages, API client, Gateway
+// and executor run unchanged. This is not SQL durability, real OAuth or hosted proof.
 globalThis.fetch = async (input, init = {}) => {
   const url = new URL(input);
   const result=value=>new Response(JSON.stringify(value));
   if(url.hostname==="generativelanguage.googleapis.com") {
     if(url.pathname.endsWith(":embedContent"))return result({embedding:{values:Array(8).fill(0.1)}});
+    const prompt=JSON.parse(init.body).contents[0].parts[0].text;
+    if(prompt.includes("COMPARISON_DOCUMENTS:\n")) {
+      const docs=JSON.parse(prompt.split("COMPARISON_DOCUMENTS:\n")[1].split("\nEVIDENCE:\n")[0]);
+      const sources=JSON.parse(prompt.split("\nEVIDENCE:\n")[1]);
+      const criterion=prompt.split("CRITERION:\n")[1].split("\nCOMPARISON_DOCUMENTS:")[0];
+      if(criterion.includes("Synthetic interrupted comparison")&&!interruptedQuestions.has(criterion)){interruptedQuestions.add(criterion);return new Response("synthetic interruption",{status:503});}
+      return result({candidates:[{finishReason:"STOP",content:{parts:[{text:JSON.stringify({cells:docs.map(d=>({document_id:d.document_id,
+        answer:`The mass is ${d.document_id===document?"1.005":"2.005"} kg [${sources.find(s=>s.document_id===d.document_id).citation_id}].`}))})}]}}]});
+    }
     const body=JSON.parse(init.body),question=body.contents[0].parts[0].text.split("QUESTION:\n")[1]?.split("\n\nEVIDENCE:")[0];
     if(question?.includes("Synthetic interrupted execution")&&!interruptedQuestions.has(question)){interruptedQuestions.add(question);return new Response("synthetic provider interruption",{status:503});}
     return result({candidates:[{finishReason:"STOP",content:{parts:[{text:"The mass is 1.005 kg [S1]."}]}}],usageMetadata:{promptTokenCount:20,candidatesTokenCount:12}});
@@ -49,12 +73,13 @@ globalThis.fetch = async (input, init = {}) => {
   if(url.pathname==="/rest/v1/finding_versions")return json([{author_id:findings.get(url.searchParams.get("finding_id")?.slice(3))?.author_id}]);
   if (url.pathname === "/rest/v1/workspaces") return json([{id: workspace, name: "Synthetic research workspace", lifecycle_state: "active", capability_revision: 1}]);
   if (url.pathname === "/rest/v1/workspace_settings") return json([{active_policy_id: policy, policy_version: 1}]);
-  if (url.pathname === "/rest/v1/documents") return json([{id: document, workspace_id: workspace, filename: "Synthetic policy.txt", status: "ready", file_type: "txt", chunk_count: 1, file_size: 100,lifecycle_state:"active",lifecycle_epoch:1,active_version_id:sourceVersion}]);
-  if (url.pathname === "/rest/v1/document_versions") return json([{id:sourceVersion,workspace_id:workspace,document_id:document,publication_state:"ready",data_classification:"non_sensitive",index_generation:"synthetic-source-generation",lifecycle_epoch:1}]);
-  if (url.pathname === "/rest/v1/document_chunks") return json([{id:sourceChunk,workspace_id:workspace,document_id:document,version_id:sourceVersion,chunk_index:0,original_text:sourceText,content:sourceText,original_content_hash:sourceHash,page_number:2,location:{page:2},metadata:{}}]);
+  if (url.pathname === "/rest/v1/documents") return json(scoped(fixtureDocuments,url));
+  if (url.pathname === "/rest/v1/document_versions") return json(scoped(fixtureVersions,url));
+  if (url.pathname === "/rest/v1/document_chunks") return json(scoped(fixtureChunks,url));
   if(url.pathname==="/rest/v1/research_runs")return json([runs.get(url.searchParams.get("id")?.slice(3))].filter(Boolean));
   const data = JSON.parse(init.body);
-  if(url.pathname==="/rest/v1/rpc/nexus_research_finding_contract")return json({schema_version:"research-finding/1"});
+  if(url.pathname==="/rest/v1/rpc/nexus_research_finding_contract")return json({schema_version:"research-finding/1",max_result_index:44});
+  if(url.pathname==="/rest/v1/rpc/nexus_research_comparison_contract")return json({schema_version:"research-comparison/1",batch_size:8,max_steps:45});
   if(url.pathname==="/rest/v1/rpc/nexus_management_version")return json({version:"036"});
   if(url.pathname==="/rest/v1/rpc/nexus_invitation_version")return json({version:"040",recipient_bound:true,manual_delivery:true});
   if(url.pathname==="/rest/v1/rpc/workbench_read") {
@@ -69,9 +94,9 @@ globalThis.fetch = async (input, init = {}) => {
       if(!answer)throw Error("Synthetic finding needs an actual stored executor result");
       const f={id:randomUUID(),workspace_id:workspace,owner_id:actor,author_id:actor,title:data.p_command.title,revision:1,source_run_id:null,
         source_research_run_id:run.id,source_research_position:data.p_command.result_index,authored_markdown:"",generated_markdown:answer.answer,
-        source_unavailable:false,evidence:answer.sources.map(s=>({id:s.chunk_id,document_id:s.document_id,version_id:s.version_id,original_text:sourceText,
+        source_unavailable:false,evidence:answer.sources.map(s=>({id:s.chunk_id,document_id:s.document_id,version_id:s.version_id,original_text:fixtureChunks.find(c=>c.id===s.chunk_id).original_text,
           original_content_hash:s.original_content_hash,location:s.location,citation_id:s.citation_id,filename:s.filename,available:true,freshness:"current"})),
-        research_origin:{run_id:run.id,result_index:data.p_command.result_index,plan_id:run.plan_id,question:answer.question,claim_state:"REVIEW_REQUIRED",source_state:"CURRENT"},
+        research_origin:{run_id:run.id,result_index:data.p_command.result_index,plan_id:run.plan_id,question:answer.question,comparison:answer.comparison||null,claim_state:"REVIEW_REQUIRED",source_state:"CURRENT"},
         export_state:"RIGHTS_REVIEW_REQUIRED",reviews:[],participants:[],created_at:new Date().toISOString(),updated_at:new Date().toISOString(),permission:"owner"};
       findings.set(f.id,f);findingKeys.set(data.p_key,f.id);
       return json({code:"08006",message:"Synthetic interrupted finding response after commit"},503);
@@ -89,26 +114,31 @@ globalThis.fetch = async (input, init = {}) => {
     if(!run||run.position!==data.p_position||run.generation!==data.p_generation||!["queued","running"].includes(run.state))return json({claimed:false,run});
     if(data.p_operation==="claim") {
       if(run.state!=="queued")return json({claimed:false,run});
-      run.state="running";run.deadline=new Date(Date.now()+90000).toISOString();run.token=randomUUID();return json({claimed:true,token:run.token,run});
+      run.state="running";run.token=randomUUID();return json({claimed:true,token:run.token,run});
     }
     if(data.p_token!==run.token)return json({claimed:false,run});
-    if(data.p_operation==="commit"){run.results.push(data.p_result);run.position++;run.state=run.position===run.questions.length?"completed":"queued";}
+    if(data.p_operation==="commit"){run.results.push(data.p_result);run.position++;run.state=run.position===run.total_steps?"completed":"queued";}
     else {run.state="interrupted";run.error_code=data.p_error;}
     return json({claimed:false,run});
   }
   if(url.pathname==="/rest/v1/rpc/nexus_research_run") {
-    if(data.p_operation==="list")return json({items:[...runs.values()].filter(run=>run.owner_id===data.p_context.user_id&&run.plan_id===data.p_plan).reverse(),next_after:null});
+    if(data.p_operation==="list")return json({items:[...runs.values()].filter(run=>run.owner_id===data.p_context.user_id&&run.plan_id===data.p_plan).reverse()
+      .map(run=>run.mode==="COMPARE"?{...run,results:[],results_included:false}:run),next_after:null});
     if(data.p_operation==="create") {
       if(runKeys.has(data.p_key))return json(runs.get(runKeys.get(data.p_key)));
       const draft=records.get(data.p_plan).plan;
       const run={id:randomUUID(),plan_id:data.p_plan,workspace_id:workspace,owner_id:data.p_context.user_id,schema_version:"research-run/1",persistence_state:"PERSISTED",state:"queued",
         generation:1,position:0,questions:[draft.question,...draft.subquestions],results:[],source_state:"CURRENT",error_code:null,created_at:new Date().toISOString(),
-        source_snapshot:[{document_id:document,version_id:sourceVersion,index_generation:"synthetic-source-generation",lifecycle_epoch:1}],admission:{credential_mode:"platform_trial"}};
+        mode:draft.mode,source_snapshot:fixtureVersions.filter(v=>draft.private_source_ids.includes(v.document_id)).map(v=>({document_id:v.document_id,version_id:v.id,index_generation:v.index_generation,lifecycle_epoch:1})),admission:{credential_mode:"platform_trial"}};
+      run.total_steps=run.questions.length*(run.mode==="COMPARE"?Math.ceil(run.source_snapshot.length/8):1);
+      run.deadline=new Date(Date.now()+(run.mode==="COMPARE"?300000:run.mode==="QUICK_LOOKUP"?30000:90000)).toISOString();
       runs.set(run.id,run);runKeys.set(data.p_key,run.id);return json(run);
     }
     const run=runs.get(data.p_id);
     if(data.p_operation==="cancel")run.state="cancelled";
-    if(data.p_operation==="resume"){run.state="queued";run.generation++;run.error_code=null;}
+    if(data.p_operation==="resume"&&(!["queued","running"].includes(run.state)||Date.parse(run.deadline)<=Date.now())){
+      run.state="queued";run.generation++;run.error_code=null;run.deadline=new Date(Date.now()+(run.mode==="COMPARE"?300000:run.mode==="QUICK_LOOKUP"?30000:90000)).toISOString();
+    }
     return json(run);
   }
   if (url.pathname === "/rest/v1/rpc/nexus_research_quantity") {

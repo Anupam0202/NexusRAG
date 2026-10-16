@@ -11,6 +11,7 @@ import {
 import { useStore } from "@/hooks/useStore";
 import { AuthRequiredState } from "@/components/auth/AuthRequiredState";
 import type { WorkspaceRole, WorkspaceMember } from "@/types";
+import { ComparisonMatrix } from "@/components/research/ComparisonMatrix";
 
 const control = "w-full rounded-lg border border-[var(--border)] bg-[var(--bg-primary)] px-3 py-2 text-sm";
 const button = "rounded-lg border border-[var(--border)] px-3 py-2 text-sm font-medium disabled:opacity-50";
@@ -162,14 +163,14 @@ function FindingsWorkbench() {
           {selected && <><section aria-label="Evidence and reviews" className="space-y-2 border-t border-[var(--border)] pt-4">
             <h3 className="font-semibold">Evidence & review history</h3>
             {selected.research_origin && <div className="space-y-2 text-sm">
-              <p>Saved research answer · question {selected.research_origin.result_index + 1} · not automatically verified</p>
+              <p>{selected.research_origin.comparison?`Saved comparison · criterion ${selected.research_origin.comparison.criterion_index+1} · batch ${selected.research_origin.comparison.batch_index+1}`:`Saved research answer · question ${selected.research_origin.result_index + 1}`} · not automatically verified</p>
               {selected.research_origin.question && <p className="whitespace-pre-wrap break-words">{selected.research_origin.question}</p>}
               <p className="text-xs text-[var(--text-muted)]">Source-backed export requires an approved export-rights decision. Review does not grant source rights or certify the claim.</p>
             </div>}
             {selected.source_unavailable && <p role="alert">Source evidence is unavailable. Generated content is withheld.</p>}
             <p className="text-sm">{selected.evidence.length} source excerpts · {selected.reviews.length} reviews of this revision</p>
-            {selected.generated_markdown && <p className="whitespace-pre-wrap text-sm">{selected.generated_markdown}</p>}
-            {selected.evidence.map(item => <blockquote key={item.id} className="space-y-2 border-l-2 border-brand-400 pl-3 text-sm">
+            {selected.research_origin?.comparison?<ComparisonMatrix matrix={selected.research_origin.comparison} sourcePrefix={`finding-${selected.id}`}/>:selected.generated_markdown && <p className="whitespace-pre-wrap text-sm">{selected.generated_markdown}</p>}
+            {selected.evidence.map(item => <blockquote key={item.id} id={`finding-${selected.id}-${item.citation_id}`} tabIndex={-1} className="space-y-2 border-l-2 border-brand-400 pl-3 text-sm">
               <p className="whitespace-pre-wrap break-words">{item.available ? item.original_text : "Source unavailable"}</p>
               <p className="break-words text-xs">{item.citation_id ? `[${item.citation_id}] ` : ""}{item.filename} · {item.freshness} · {item.version_id}</p>
               {item.original_content_hash && <p className="break-all font-mono text-xs">SHA256 {item.original_content_hash}</p>}

@@ -4,6 +4,34 @@ Status: **PARTIAL_NOT_COMPLETE — locally tested implementation; not production
 
 This receipt supersedes historical status claims only where it records a fresh observation. It does not certify a complete product, production release, provider rights, or absence of all defects.
 
+## Selected-Source Comparison - Active Batch031
+
+PARTIAL_NOT_COMPLETE. Actual production-executor regression reproduces a missing
+matrix. New SQL/Gateway/queue/client/UI persists the adopted40source/ninecriterion
+45batch360cell scope, separate document evidence/citations/gaps, progress/cancel/
+resume and later-batch Findings with existing revision/independent-review history.
+Each eight-document batch reserves the same4096output-token bound it requests.
+List receipts exclude full matrices while preserving progress; detail reads remain
+complete. No automatic semantic equivalence/ranking or completion certification.
+
+Actual local PG17.11/pgvector0.8.7 passes maximum45batch scope, ordinary concurrent
+start, production executor-to-SQL27cells/sixbatches/Finding-position5 and65table
+134function backuprestore. Fresh546Gateway/468frontend70files/631backend+10subtests/
+57isolated/97scripts/lint/typecheck, Next/OpenNext26assets/Workerfixtures and40cold
+synthetic desktop/mobile light/dark research cases pass before final reservation
+assertion. Actual Chrome matrix/originalhash/page/save/retry/share/separate-review/
+reload inspected; not OAuth, hosted persistence or provider-quality acceptance.
+The interrupted-save error now truthfully says unconfirmed, possibly saved.
+Retained initial SQL/fixture/browser failures were corrected without weakened
+limits/assertions. Exact source/current CI/fresh recovery must still bind these
+changes externally.030rehearsal approval fulfilled only; no031hosted operation.
+
+030automatic image116725960410/summary116733021202 are now FAILED by metadata,
+not pending or cleared. No findings investigation/new security work or paused022
+changes. All224/tenproducts/twelvemodes/400+125quality, source export rights,
+semantic support/constraints/public/temporal/graph/lifecycle/private/deployed1101/
+rights-budget/rollout/rollback remain unfinished. No full requirement closed.
+
 ## Research Answer To Findings - Active Batch030
 
 PARTIAL_NOT_COMPLETE. Actual typed-origin regression fails before implementation.

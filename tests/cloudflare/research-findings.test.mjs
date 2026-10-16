@@ -40,11 +40,29 @@ test("an older schema is reported before a research answer creates an empty manu
 });
 test("ambiguous origin and invalid result indexes are ordinary input errors without writes",async t=>{
   let calls=0;fixture(t,(_url,_data,json)=>{calls++;return json({});});
-  for(const input of [{research_run_id:run,result_index:-1},{research_run_id:run,result_index:5},{research_run_id:run,result_index:0.5},
+  for(const input of [{research_run_id:run,result_index:-1},{research_run_id:run,result_index:45},{research_run_id:run,result_index:0.5},
     {research_run_id:run,result_index:0,run_id:run},{result_index:0}]){
     assert.equal((await handle(request("/api/v2/findings",{title:"Saved answer",...input}),env)).status,422);
   }
   assert.equal(calls,0);
+});
+
+test("a later comparison batch retains its typed origin within the new storage limit",async t=>{
+  fixture(t,(url,data,json)=>{
+    if(url.pathname.endsWith("/nexus_research_finding_contract"))return json({schema_version:"research-finding/1",max_result_index:44});
+    assert.equal(data.p_command.result_index,44);assert.equal(data.p_command.research_run_id,run);
+    return json({id:finding,source_research_run_id:run,source_research_position:44});
+  });
+  assert.equal((await handle(request("/api/v2/findings",{title:"Later matrix",research_run_id:run,result_index:44}),env)).status,201);
+});
+
+test("an older five-result schema reports migration required before saving a later batch",async t=>{
+  let writes=0;fixture(t,(url,_data,json)=>{
+    if(url.pathname.endsWith("/nexus_research_finding_contract"))return json({schema_version:"research-finding/1"});
+    writes++;return json({id:finding});
+  });
+  const response=await handle(request("/api/v2/findings",{title:"Later matrix",research_run_id:run,result_index:5}),env);
+  assert.equal(response.status,503);assert.equal((await response.json()).error.code,"MIGRATION_REQUIRED");assert.equal(writes,0);
 });
 test("research-backed exports retain the source-rights boundary instead of becoming manual-note exports",async t=>{
   let recorded=0;

@@ -188,9 +188,10 @@ async function generateAnswer(env, prompt, context) {
   const temperature = Number.isFinite(requestedTemperature)
     ? Math.max(0, Math.min(1, requestedTemperature))
     : 0;
-  const result = await geminiCall(env, { ...context, provider: "gemini" }, { requests: 1, input_tokens: new TextEncoder().encode(prompt).length, output_tokens: 1024 }, () => providerJson(
+  const outputTokens=context?.outputTokens===4096?4096:1024;
+  const result = await geminiCall(env, { ...context, provider: "gemini" }, { requests: 1, input_tokens: new TextEncoder().encode(prompt).length, output_tokens: outputTokens }, () => providerJson(
     `https:${"//"}generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
-    { method: "POST", signal: context?.signal, headers: { "content-type": "application/json", "x-goog-api-key": apiKey }, body: JSON.stringify({ contents: [{ role: "user", parts: [{ text: prompt }] }], generationConfig: { temperature, maxOutputTokens: 1024, candidateCount: 1, thinkingConfig: { thinkingBudget: 0 } } }) },
+    { method: "POST", signal: context?.signal, headers: { "content-type": "application/json", "x-goog-api-key": apiKey }, body: JSON.stringify({ contents: [{ role: "user", parts: [{ text: prompt }] }], generationConfig: { temperature, maxOutputTokens: outputTokens, candidateCount: 1, thinkingConfig: { thinkingBudget: 0 } } }) },
     25_000,
   ));
   if (context?.requireComplete && (result?.candidates?.length !== 1 || result.candidates[0].finishReason !== "STOP"))
