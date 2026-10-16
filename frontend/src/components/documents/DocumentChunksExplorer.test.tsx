@@ -1,9 +1,10 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 const { getDocumentChunks } = vi.hoisted(() => ({ getDocumentChunks: vi.fn() }));
-vi.mock("@/lib/api", () => ({ getDocumentChunks }));
+vi.mock("@/lib/api", async importOriginal => ({ ...await importOriginal<object>(), getDocumentChunks }));
 import { useStore } from "@/hooks/useStore";
 import { DocumentChunksExplorer } from "./DocumentChunksExplorer";
+import { ApiRequestError } from "@/lib/api";
 const chunk = (index: number, content: string) => ({ chunk_index: index, content, token_count: 0, page_number: 1, section_title: null });
 describe("authorized chunk inventory", () => {
   beforeEach(() => {
@@ -24,6 +25,23 @@ describe("authorized chunk inventory", () => {
     await screen.findByText("Original"); expect(screen.getByText("Showing 1 chunk previews · total unverified")).toBeInTheDocument();
     expect(screen.queryByText(/300 indexed/)).not.toBeInTheDocument();
   });
+  it("keeps loaded originals visible after an interrupted next page and retries the same cursor", async () => {
+    getDocumentChunks.mockResolvedValueOnce({ chunks: [chunk(0, "First original")], total: 2, total_is_exact: true, next_after: 0, version_id: "version-a" })
+      .mockRejectedValueOnce(new Error("Backend connection was interrupted. Please retry after the service is live."))
+      .mockResolvedValueOnce({ chunks: [chunk(1, "Second original")], total: 2, total_is_exact: true, next_after: null, version_id: "version-a" });
+    render(<DocumentChunksExplorer documentId="doc-a" limit={1} />);
+    await screen.findByText("First original");
+    fireEvent.click(screen.getByRole("button", { name: "Load more chunks" }));
+    await screen.findByText("Backend connection was interrupted. Please retry after the service is live.");
+    expect(screen.getByText("First original")).toBeInTheDocument();
+    expect(screen.getByRole("alert")).toBeInTheDocument();
+    expect(screen.getByText("Showing 1 chunk previews · total unverified")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Retry loading more chunks" }));
+    await screen.findByText("Second original");
+    expect(getDocumentChunks.mock.calls[2]).toEqual(getDocumentChunks.mock.calls[1]);
+    expect(screen.getByText("2 indexed chunks · showing 2")).toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
   it("drops old-account pending source text and search draft", async () => {
     let finish!: (value: unknown) => void; getDocumentChunks.mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
     render(<DocumentChunksExplorer documentId="doc-a" />);
@@ -40,5 +58,25 @@ describe("authorized chunk inventory", () => {
     render(<DocumentChunksExplorer documentId="doc-a" />); await screen.findByText("First original");
     fireEvent.click(screen.getByRole("button", { name: "Load more chunks" })); await screen.findByText(/Chunk inventory changed/);
     expect(screen.queryByText("New incompatible original")).not.toBeInTheDocument();
+    expect(screen.queryByText("First original")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Retry loading more chunks" })).not.toBeInTheDocument();
+  });
+  it("shows the exact optional original hash and version without inventing legacy receipts", async () => {
+    getDocumentChunks.mockResolvedValue({ chunks: [{...chunk(0, "Original"), original_content_hash: "a".repeat(64)}, chunk(1, "Legacy")], total: 2, total_is_exact: true, version_id: "version-a" });
+    render(<DocumentChunksExplorer documentId="doc-a" />);
+    await screen.findByText("Original");
+    fireEvent.click(screen.getByText("Source receipt for chunk 1"));
+    expect(screen.getByText(`SHA256 ${"a".repeat(64)}`)).toBeInTheDocument();
+    expect(screen.getByText("Version version-a")).toBeInTheDocument();
+    expect(screen.queryByText("Source receipt for chunk 2")).not.toBeInTheDocument();
+  });
+  it("does not keep earlier previews visible after an API refusal", async () => {
+    getDocumentChunks.mockResolvedValueOnce({ chunks: [chunk(0, "First original")], total: 2, total_is_exact: true, next_after: 0, version_id: "version-a" })
+      .mockRejectedValueOnce(new ApiRequestError("Document version changed.", "VERSION_CONFLICT"));
+    render(<DocumentChunksExplorer documentId="doc-a" />); await screen.findByText("First original");
+    fireEvent.click(screen.getByRole("button", { name: "Load more chunks" }));
+    await screen.findByRole("alert");
+    expect(screen.queryByText("First original")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Retry loading more chunks" })).not.toBeInTheDocument();
   });
 });

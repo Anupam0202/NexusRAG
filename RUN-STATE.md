@@ -1,5 +1,14 @@
 # NexusRAG execution checkpoint
 
+## Active Functional Batch: document-source-inspection-035
+
+**PARTIAL_NOT_COMPLETE. Independent functional source; not published/deployed or accepted.**
+
+- Completed034 published9ba5c3d3d38a419b5c3304143c339241b749a6c4/tree8b9cdd2c179170f295febe8be1bba2355ce5cb6b,666files. External BATCH034_HANDOFF.md binds source50b220897462b223ce6f77cc7831fe1ce2d27f32de0877760d3725696213de0e/evidencecce53eb493c41dfddf5f6f9bb0d086ef5bfe863bedd20345ab53a9c6164c14c7 and full fresh dependency/recovery/owning tests, superseding034source-time pending notes only where proven.034image117071692810/requiredsummary117081323262 subsequently FAILED by metadata only; no findings read/new security work/scan or bypass. Keep same sole draftPR12 and main/release unchanged.
+- New actual component regression reproduces next-page interruption hiding already loaded originals; correction retains earlier previews only for transport/decoding interruptions, marks inventory unverified and retries the exact cursor/version. API refusal/version/cursor conflict still requires refresh. Optional source hash/version receipts remain absent for legacy responses. Seven focused tests PASS; full owning/build/source/CI/fresh recovery remain pending, not inherited.
+- Extend actual Research citation -> native production DocumentDetail/client/Gateway and library drawer, complete400chunk paging/search/receipt/reload/error journeys. Installed Next hook/context and controlled synthetic peers, not duplicate product logic or hosted/private/provider/quality acceptance. Missing fixture route/metadata/order are harness gaps, not production defects. Initial12skips from missing fixture env retained, not PASS. Original/download delivery remains separately unfinished. No SQL/hosted/destructive operations or paused022 changes. Full224/tenproducts/twelvemodes/400+125quality and release prerequisites remain incomplete. See DOCUMENT_SOURCE_INSPECTION_035.md.
+- Fresh476frontend71files/561Gateway/631backend+10subtests/57isolated/97scripts/lint/typecheck/NextOpenNext26assets/actualWorkerfixtures/source+baseline integrity PASS. Full70research desktop/mobile/light/dark/native/320px/768px journeys PASS, four duplicate desktop-width cases intentionally SKIPPED,not passed. Actual Chrome detail/drawer/final chunk/hash/version/Escape-focus restoration verified; native capture timeout and saved/inspected Playwright PNG retained. Ordinary Workerd GET/HEAD200/404/405 PASS without manifest exception. Manual functional diff reviewed; no independent/security/release clearance. Exact saved-source CI/new-directory fresh dependencies/recovery remain separately pending; original paused022551entries reverified byte-identical. No new migrations/hosted operations or original-file delivery claim.
+
 ## Active Functional Batch: research-large-source-retrieval-034
 
 **PARTIAL_NOT_COMPLETE. Uncommitted independent functional correction; not published/deployed or accepted.**

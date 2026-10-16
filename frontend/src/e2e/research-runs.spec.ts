@@ -55,6 +55,13 @@ for(const theme of ["light","dark"])test(`${theme}: a400chunk document retrieves
   await expect(page.getByText(/Lexical candidate limit reached/)).toBeVisible();
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
   await page.getByRole("region",{name:"Research executions",exact:true}).screenshot({path:testInfo.outputPath(`large-source-${theme}.png`)});
+  await page.getByText("[S1] Synthetic large policy.txt / chunk 0 / page 2",{exact:true}).click();
+  await page.getByRole("link",{name:"Inspect document",exact:true}).click();
+  await expect(page).toHaveURL(/\/documents\/64646464-6464-4464-8464-646464646464$/);
+  await expect(page.getByRole("heading",{name:"Synthetic large policy.txt",exact:true})).toBeVisible();
+  await expect(page.getByText("400 indexed chunks · showing 80",{exact:true})).toBeVisible();
+  await page.getByText("Source receipt for chunk 1",{exact:true}).click();
+  await expect(page.getByText(`SHA256 ${expectedHash}`,{exact:true})).toBeVisible();
 });
 test("resume preserves a committed answer and executes only the remaining question",async({page},testInfo)=>{
   const scenario=randomUUID();

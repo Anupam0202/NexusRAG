@@ -4,6 +4,18 @@
 
 Status: `PARTIAL_NOT_COMPLETE_WITH_ACCEPTED_NORMATIVE_BASELINE`
 
+Latest035 exercises actual research-to-document native navigation/full400chunk
+inspection/search/optional hash-version receipt/library drawer and interrupted
+next-page recovery. A failing-before component regression proves loaded originals
+were hidden by a network interruption; seven focused cases pass with truthful
+unverified inventory and exact-cursor retry. Full current owning/browser/build/CI
+and fresh recovery remain separately required. Controlled peers are not real
+OAuth/hosted/private/provider/quality acceptance or original-file delivery. Exact
+224definitions/tenproducts/twelvemodes/400+125quality remain unchanged/incomplete.
+Completed034666source/fresh recovery is externally frozen; its required image and
+summary now FAILED by metadata only. No new security work or paused022/SQL/hosted
+mutation. See DOCUMENT_SOURCE_INSPECTION_035.md.
+
 Latest034 fixes rejection of valid201..400chunk research sources before dense
 search while retaining the200unique original-candidate budget,201lexical canary
 and12vector rows. Later indexed hits remain hash/current-source rehydrated;

@@ -13,6 +13,21 @@
   "interpretation": "OPEN_ENGINEERING includes implemented but not fully accepted requirements; it does not assert that no code or scoped evidence exists. External approvals do not close unfinished internal work.",
   "entries": [
     {
+      "id": "ENGINEERING-DOCUMENT-SOURCE-INSPECTION",
+      "requirement": "Complete ordinary research-to-source inspection, bounded full-document chunk search/pagination, exact receipts and interrupted-page recovery",
+      "normative_source": "Owner functional document/research/source-inspection and ordinary error/reload journeys; exact224definitions retained",
+      "status": "IN_PROGRESS",
+      "environment": "isolated functional035 from saved0349ba5c3d; actual production UI/client/Gateway with local synthetic peers only",
+      "next_action": "Bind actual native Research citation/detail/full400chunk paging/search/hash/version/library drawer/ordinary interruption recovery to fresh owning tests/builds/exact saved-source CI/new dependency recovery. Complete original-file/download and full accepted source/research/product/private/quality separately. Existing failed gates/paused022 remain; no security work, hosted/provider/destructive operation or deployment.",
+      "acceptance_evidence": [{
+        "environment": "actual DocumentChunksExplorer/component and controlled local browser production pages/client/Gateway",
+        "observed_at": "2026-10-16T16:45:22Z",
+        "source_identity": "parent9ba5c3d3d38a419b5c3304143c339241b749a6c4/tree8b9cdd2plusuncommitted035",
+        "command_or_url": "frontend/src/components/documents/DocumentChunksExplorer.test.tsx; frontend/src/e2e/research-source-inspection.spec.ts; external batch035/logs",
+        "result": "Before-fix next-page network interruption hides loaded originals; seven focused cases pass after preserving earlier previews with unverified inventory and exact-cursor retry, retaining API-refusal/version conflict refresh behavior. Actual document link/detail/drawer/full400search/browser owning validation is in progress; initial12skips are not PASS.034source/evidence/recovery completed externally; its image/summary now FAILED by metadata, no findings investigated. All224/tenproducts/twelvemodes/400+125quality remain incomplete."
+      }]
+    },
+    {
       "id": "ENGINEERING-RESEARCH-LARGE-SOURCE-RETRIEVAL",
       "requirement": "Research valid indexed documents beyond the lexical window without rejecting accepted ingestion bounds, preserving candidate budgets and truthful saved coverage",
       "normative_source": "Owner functional research and ordinary document/reload journeys; exact224definitions retained",

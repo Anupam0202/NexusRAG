@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Layers3, Loader2, RefreshCw, Search } from "lucide-react";
 import { useStore } from "@/hooks/useStore";
 import { useWorkspaceApiAccess } from "@/hooks/useAuthGate";
-import { getDocumentChunks } from "@/lib/api";
+import { ApiRequestError, getDocumentChunks } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import type { DocumentChunkPreview } from "@/types";
 
@@ -33,11 +33,12 @@ function WorkspaceChunks({ documentId, expectedChunkCount = 0, limit = 50, class
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [moreError, setMoreError] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     const current = ++sequence.current;
-    setChunks([]); setTotal(null); setExact(false); setAfter(null); setVersion(undefined); setError(null);
+    setChunks([]); setTotal(null); setExact(false); setAfter(null); setVersion(undefined); setError(null); setMoreError(null);
     if (!documentId || !canAccessWorkspaceApi || isWorkspaceLoading) { setLoading(false); return; }
     setLoading(true);
     const timer = window.setTimeout(async () => {
@@ -57,16 +58,23 @@ function WorkspaceChunks({ documentId, expectedChunkCount = 0, limit = 50, class
   const loadMore = async () => {
     if (loading || after === null || !version) return;
     const current = ++sequence.current;
-    setLoading(true); setError(null);
+    setLoading(true); setError(null); setMoreError(null);
     try {
       const response = await getDocumentChunks(documentId, { search: query, limit, after, versionId: version }, { workspaceId, expectedUserId });
       if (!alive.current || current !== sequence.current) return;
       if (response.version_id !== version || response.chunks.some(row => chunks.some(old => old.chunk_index === row.chunk_index)) ||
-          (response.next_after != null && response.next_after <= after)) throw new Error("Chunk inventory changed or did not advance. Refresh before continuing.");
+          (response.next_after != null && response.next_after <= after)) throw new ApiRequestError("Chunk inventory changed or did not advance. Refresh before continuing.", "VERSION_CONFLICT");
       setChunks(old => [...old, ...response.chunks]); setAfter(response.next_after ?? null);
       setTotal(response.total); setExact(response.total_is_exact === true);
     } catch (err: unknown) {
-      if (alive.current && current === sequence.current) { setError(err instanceof Error ? err.message : "Unable to load more chunks"); setExact(false); }
+      if (alive.current && current === sequence.current) {
+        const message = err instanceof Error ? err.message : "Unable to load more chunks";
+        // Only transport/decoding interruptions retain the earlier previews.
+        // API refusals and changed inventories still require a fresh read.
+        if (err instanceof Error && !(err instanceof ApiRequestError) && !("code" in err)) setMoreError(message);
+        else setError(message);
+        setExact(false);
+      }
     } finally { if (alive.current && current === sequence.current) setLoading(false); }
   };
   const countLabel = total === null ? "Chunk inventory not measured" : exact
@@ -103,13 +111,17 @@ function WorkspaceChunks({ documentId, expectedChunkCount = 0, limit = 50, class
         </div>
       </div>
 
+      {moreError && <div role="alert" className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-200">
+        <p>{moreError}</p>
+        <p className="mt-1">Previously loaded previews are retained. The current inventory has not been reverified.</p>
+      </div>}
       {loading && chunks.length === 0 ? (
         <div className="flex items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--bg-card)] py-12 text-sm text-[var(--text-muted)]">
           <Loader2 size={17} className="mr-2 animate-spin" />
           Loading chunks
         </div>
       ) : error ? (
-        <div className="rounded-xl border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-300">
+        <div role="alert" className="rounded-xl border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-300">
           {error}
         </div>
       ) : chunks.length === 0 ? (
@@ -157,6 +169,11 @@ function WorkspaceChunks({ documentId, expectedChunkCount = 0, limit = 50, class
               >
                 {chunk.content}
               </p>
+              {chunk.original_content_hash && <details className="mt-2 min-w-0 text-xs text-[var(--text-muted)]">
+                <summary className="cursor-pointer">Source receipt for chunk {chunk.chunk_index + 1}</summary>
+                <p className="mt-2 break-all font-mono">SHA256 {chunk.original_content_hash}</p>
+                {version && <p className="mt-1 break-all font-mono">Version {version}</p>}
+              </details>}
             </article>
           ))}
         </div>
@@ -164,7 +181,7 @@ function WorkspaceChunks({ documentId, expectedChunkCount = 0, limit = 50, class
       {after !== null && version && !error && (
         <button type="button" onClick={loadMore} disabled={loading}
           className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm disabled:opacity-50">
-          {loading ? "Loading more chunks…" : "Load more chunks"}
+          {loading ? "Loading more chunks…" : moreError ? "Retry loading more chunks" : "Load more chunks"}
         </button>
       )}
     </div>

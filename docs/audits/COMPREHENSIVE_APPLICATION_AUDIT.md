@@ -4,6 +4,34 @@ Status: **PARTIAL_NOT_COMPLETE — locally tested implementation; not production
 
 This receipt supersedes historical status claims only where it records a fresh observation. It does not certify a complete product, production release, provider rights, or absence of all defects.
 
+## Document Source Inspection - Active Batch035
+
+PARTIAL_NOT_COMPLETE. Failing-before ordinary next-page network regression proves
+loaded originals were hidden. Retain those previews with an explicitly unverified
+inventory label and exact-cursor retry; API refusals/version/cursor conflicts still
+require refresh. Optional original hash/version receipts do not invent legacy data.
+Actual Research citation now navigates natively to production DocumentDetail and
+client/Gateway; all400unique chunks, final-chunk search, exact receipt, zero/reset,
+refresh/reload and real library drawer/escape-focus restoration are exercised.
+
+476frontend71files/561Gateway/631backend+10subtests/57isolated/97scripts/lint/
+typecheck/NextOpenNext26assets/actualWorker fixtures/source+baseline integrity PASS.
+Full70controlled research desktop/mobile/light/dark/320px/768px cases PASS; four
+additional-width cases intentionally run only in mobile project and are SKIPPED
+in desktop,not counted passed. Earlier command omitted fixture env/skipped12,
+retained and not PASS. Actual Chrome final chunk/hash/version/drawer/Escape PASS;
+native screenshot times out, saved Playwright320dark drawer PNG visually inspected.
+Missing local route/metadata/order were fixture gaps,not production defects.
+
+No full original/download delivery, real OAuth/hosted private/provider/model-quality
+or complete source/product/mode/quality acceptance. Exact saved-source currentCI
+and new-directory fresh dependency recovery/relevant reruns remain separately
+required.034complete source/evidence/recovery frozen externally; required image
+117071692810/summary117081323262 now FAILED by metadata only. No finding logs/new
+security work/paused022/SQL/hosted/provider/destructive/production/deployment changes.
+All224/tenproducts/twelvemodes/400+125quality and other release prerequisites stay
+incomplete. See DOCUMENT_SOURCE_INSPECTION_035.md and external batch035receipts.
+
 ## Large-Source Research - Active Batch034
 
 PARTIAL_NOT_COMPLETE. Actual executor rejects accepted201/400chunk documents
