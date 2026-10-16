@@ -56,9 +56,12 @@ jobs:
           cp -R "$GITHUB_WORKSPACE/apps/gateway/src" "$source_dir/apps/gateway/"
           mkdir -p "$source_dir/frontend/src/lib"
           cp "$GITHUB_WORKSPACE/frontend/src/lib/document-original-policy.json" "$source_dir/frontend/src/lib/"
+          cp "$GITHUB_WORKSPACE/frontend/src/lib/research-modes.json" "$source_dir/frontend/src/lib/"
           cp "$GITHUB_WORKSPACE/package.json" "$source_dir/"
           mkdir -p "$source_dir/backend/src/domain"
           cp "$GITHUB_WORKSPACE/backend/src/domain/deterministic_calculations.py" "$source_dir/backend/src/domain/"
+          mkdir -p "$source_dir/backend/evals/datasets"
+          cp "$GITHUB_WORKSPACE/backend/evals/datasets/sample_corpus.json" "$source_dir/backend/evals/datasets/"
           cp "$GITHUB_WORKSPACE/supabase/baseline/001_v6_zero_cost_baseline.sql" "$source_dir/supabase/baseline/"
           cp "$GITHUB_WORKSPACE/supabase/migrations/026_allow_reindex_original_reuse.sql" "$source_dir/supabase/migrations/"
           cp "$GITHUB_WORKSPACE/supabase/migrations/027_metered_operation_admission.sql" "$source_dir/supabase/migrations/"
@@ -98,6 +101,7 @@ jobs:
             rm -rf "$source_dir"
           }
           trap cleanup EXIT
+          node --input-type=module -e 'await import(process.argv[1]); console.log("COPIED_GATEWAY_ENTRY_IMPORT_PASS");' "$source_dir/apps/gateway/src/preview-worker.js"
           sudo -u postgres createdb -h /var/run/postgresql -p "$port" "$db"
           if sudo -u postgres env \
             PATH="$(dirname "$node_bin"):$PATH" \

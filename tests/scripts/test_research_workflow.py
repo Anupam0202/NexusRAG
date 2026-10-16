@@ -1,6 +1,9 @@
 """Keep the ordinary draft persistence workflow in source and required CI."""
 import json
 from pathlib import Path
+import shutil
+import subprocess
+import tempfile
 import unittest
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -10,13 +13,28 @@ class ResearchWorkflowTests(unittest.TestCase):
         workflow=(ROOT / ".github/workflows/v6-database-rehearsal.yml").read_text()
         policy_path="frontend/src/lib/document-original-policy.json"
         self.assertIn('mkdir -p "$source_dir/frontend/src/lib"',workflow)
-        self.assertIn(f'cp "$GITHUB_WORKSPACE/{policy_path}" "$source_dir/frontend/src/lib/"',workflow)
+        for name in (policy_path,"frontend/src/lib/research-modes.json","backend/evals/datasets/sample_corpus.json"):
+            directory=Path(name).parent.as_posix()
+            self.assertIn(f'cp "$GITHUB_WORKSPACE/{name}" "$source_dir/{directory}/"',workflow)
+        self.assertIn("COPIED_GATEWAY_ENTRY_IMPORT_PASS",workflow)
         self.assertIn("REAL_SQL_ORIGINAL_TRANSFER_QUOTA_PASS",workflow)
         self.assertIn("../../../"+policy_path,(ROOT / "apps/gateway/src/preview-worker.js").read_text())
         self.assertIn('./document-original-policy.json',(ROOT / "frontend/src/lib/document-original.ts").read_text())
         policy=json.loads((ROOT / policy_path).read_text())
         self.assertEqual(policy["schema_version"],"document-original/1")
         self.assertEqual(policy["maximum_bytes"],500*1024*1024)
+
+    def test_copied_gateway_entry_loads_without_a_dependency_checkout(self):
+        with tempfile.TemporaryDirectory(prefix="nexus-gateway-copy-") as directory:
+            copied=Path(directory)
+            shutil.copytree(ROOT / "apps/gateway/src",copied / "apps/gateway/src")
+            shutil.copyfile(ROOT / "package.json",copied / "package.json")
+            for name in ("frontend/src/lib/document-original-policy.json","frontend/src/lib/research-modes.json","backend/evals/datasets/sample_corpus.json"):
+                target=copied / name
+                target.parent.mkdir(parents=True,exist_ok=True)
+                shutil.copyfile(ROOT / name,target)
+            result=subprocess.run([shutil.which("node") or "node","--input-type=module","-e","await import(process.argv[1]);",(copied / "apps/gateway/src/preview-worker.js").as_uri()],capture_output=True,text=True,timeout=30)
+            self.assertEqual(result.returncode,0,result.stderr)
 
     def test_conversion_contract_parity_and_browser_are_in_required_ci(self):
         rehearsal=(ROOT / "tests/postgres/local-rehearsal.sh").read_text()
