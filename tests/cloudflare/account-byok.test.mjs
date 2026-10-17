@@ -96,9 +96,16 @@ test("account Gemini key cannot trigger Google validation without explicit billi
 test("BYOK Gemini generation sends credentials only in the API-key header and skips platform quota reservations", async (t) => {
   const apiKey = "AIzaAnotherSyntheticKey000000000000000";
   let callCount = 0;
+  let authorityCalls = 0;
   let generationConfig;
   t.mock.method(globalThis, "fetch", async (input, init = {}) => {
     const url = new URL(String(input));
+    if (url.pathname.endsWith('/rpc/nexus_authorize_byok_processing')) {
+      authorityCalls += 1;
+      assert.equal(new Headers(init.headers).get('x-goog-api-key'), null);
+      assert.equal(JSON.stringify(JSON.parse(init.body)).includes(apiKey), false);
+      return json({ state: 'READY', credential_mode: 'user_byok' });
+    }
     callCount += 1;
     assert.equal(url.search, "");
     assert.equal(new Headers(init.headers).get("x-goog-api-key"), apiKey);
@@ -108,16 +115,18 @@ test("BYOK Gemini generation sends credentials only in the API-key header and sk
       usageMetadata: { promptTokenCount: 10, candidatesTokenCount: 5 },
     });
   });
-  const response = await generateAnswer({}, "Prompt", {
+  const response = await generateAnswer({ SUPABASE_URL: "https://supabase.invalid", SUPABASE_SERVICE_ROLE_KEY: "synthetic-service-only" }, "Prompt", {
     workspaceId: "10101010-1010-4010-8010-101010101010",
     priority: "interactive",
     dataClassification: "non_sensitive",
     userApiKey: apiKey,
     credentialMode: "user_byok",
+    actorId: userId,
     temperature: 0.45,
   });
   assert.equal(response.answer, "Grounded answer [S1]");
   assert.equal(callCount, 1);
+  assert.equal(authorityCalls, 1);
   assert.equal(generationConfig.temperature, 0.45);
   assert.equal(generationConfig.maxOutputTokens, 1024);
 });

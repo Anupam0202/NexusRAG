@@ -1,36 +1,57 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import { Building2, Check, Loader2, Plus, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { createWorkspace, listWorkspaces } from "@/lib/api";
 import { useStore } from "@/hooks/useStore";
 import { navigateStatic, reloadStatic } from "@/lib/static-navigation";
 import type { WorkspaceSummary } from "@/types";
+import { InvitationAcceptance } from "@/components/workspaces/Invitations";
 
 export default function WorkspacesPage() {
+  const identity = useStore(state => JSON.stringify([state.authMode, state.authUser?.id]));
+  return <AccountWorkspaces key={identity} />;
+}
+function AccountWorkspaces() {
+  const userId = useStore(state => state.authUser?.id);
   const authMode = useStore((state) => state.authMode);
   const workspaceId = useStore((state) => state.workspaceId);
   const setWorkspaceId = useStore((state) => state.setWorkspaceId);
   const [workspaces, setWorkspaces] = useState<WorkspaceSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [nextAfter, setNextAfter] = useState<string | null>(null);
+  const [total, setTotal] = useState<number | null>(null);
   const [name, setName] = useState("");
   const [error, setError] = useState<string | null>(null);
 
-  const load = async () => {
-    setLoading(true);
+  const alive = useRef(true);
+  const sequence = useRef(0);
+  useEffect(() => { alive.current = true; return () => { alive.current = false; sequence.current += 1; }; }, []);
+  const context = { workspaceId: null, expectedUserId: authMode === "authenticated" ? userId ?? null : undefined };
+  const load = async (after?: string) => {
+    const current = ++sequence.current;
+    if (after) setLoadingMore(true);
+    else { setLoading(true); setLoadingMore(false); setNextAfter(null); }
     setError(null);
     try {
-      const response = await listWorkspaces();
-      setWorkspaces(response.workspaces);
-      if (!workspaceId && response.workspaces[0]) {
+      const response = after ? await listWorkspaces(context, { after }) : await listWorkspaces(context);
+      if (!alive.current || current !== sequence.current) return;
+      setWorkspaces(previous => after
+        ? [...previous, ...response.workspaces.filter(item => !previous.some(old => old.id === item.id))]
+        : response.workspaces);
+      setNextAfter(response.next_after ?? null);
+      setTotal(response.total_is_exact === true ? response.total : null);
+      if (!after && !useStore.getState().workspaceId && response.workspaces[0]) {
         setWorkspaceId(response.workspaces[0].id);
       }
     } catch (err: unknown) {
+      if (!alive.current || current !== sequence.current) return;
       setError(err instanceof Error ? err.message : "Unable to load workspaces");
     } finally {
-      setLoading(false);
+      if (alive.current && current === sequence.current) { setLoading(false); setLoadingMore(false); }
     }
   };
 
@@ -46,20 +67,22 @@ export default function WorkspacesPage() {
 
   const create = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (authMode !== "authenticated") return;
+    if (authMode !== "authenticated" || !userId || creating) return;
     if (!name.trim()) return;
     setCreating(true);
     setError(null);
     try {
-      const workspace = await createWorkspace({ name: name.trim() });
-      setWorkspaces((current) => [...current, workspace]);
-      setWorkspaceId(workspace.id);
+      const workspace = await createWorkspace({ name: name.trim() }, context);
+      if (!alive.current) return;
+      void load();
+      if (useStore.getState().workspaceId === workspaceId) setWorkspaceId(workspace.id);
       setName("");
       toast.success("Workspace created");
     } catch (err: unknown) {
+      if (!alive.current) return;
       setError(err instanceof Error ? err.message : "Unable to create workspace");
     } finally {
-      setCreating(false);
+      if (alive.current) setCreating(false);
     }
   };
 
@@ -87,8 +110,8 @@ export default function WorkspacesPage() {
           </div>
           <button
             type="button"
-            onClick={load}
-            disabled={loading}
+            onClick={() => void load()}
+            disabled={loading || loadingMore}
             className="inline-flex items-center justify-center gap-2 rounded-xl border border-[var(--border)] px-3 py-2 text-sm font-semibold hover:bg-[var(--bg-hover)] disabled:opacity-50"
           >
             <RefreshCw size={15} className={loading ? "animate-spin" : ""} />
@@ -97,7 +120,7 @@ export default function WorkspacesPage() {
         </div>
 
         {error && (
-          <div className="mb-4 rounded-xl border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/30 dark:text-red-300">
+          <div role="alert" className="mb-4 rounded-xl border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/30 dark:text-red-300">
             {error}
           </div>
         )}
@@ -108,6 +131,7 @@ export default function WorkspacesPage() {
           </div>
         )}
 
+        {authMode === "authenticated" && userId && <InvitationAcceptance context={context} onAccepted={() => void load()} />}
         {authMode === "authenticated" && (
           <form
             onSubmit={create}
@@ -117,6 +141,7 @@ export default function WorkspacesPage() {
               value={name}
               onChange={(event) => setName(event.target.value)}
               placeholder="New workspace name"
+              aria-label="New workspace name"
               minLength={2}
               maxLength={80}
               className="min-w-0 flex-1 rounded-lg border border-[var(--border)] bg-[var(--bg-secondary)] px-3 py-2 text-sm outline-none focus:border-brand-500"
@@ -132,12 +157,17 @@ export default function WorkspacesPage() {
           </form>
         )}
 
+        {!loading && workspaces.length > 0 && (
+          <p aria-live="polite" className="mb-3 text-sm text-[var(--text-muted)]">
+            {total !== null ? `Showing ${workspaces.length} of ${total} active workspaces` : `${workspaces.length} workspaces loaded`}
+          </p>
+        )}
         {loading ? (
           <div className="flex items-center justify-center py-12 text-sm text-[var(--text-muted)]">
             <Loader2 size={18} className="mr-2 animate-spin" />
             Loading workspaces
           </div>
-        ) : workspaces.length === 0 ? (
+        ) : error && workspaces.length === 0 ? null : workspaces.length === 0 ? (
           <div className="rounded-xl border border-dashed border-[var(--border)] px-4 py-10 text-center text-sm text-[var(--text-muted)]">
             No workspaces yet
           </div>
@@ -149,8 +179,9 @@ export default function WorkspacesPage() {
                 <button
                   key={workspace.id}
                   type="button"
+                  aria-pressed={selected}
                   onClick={() => {
-                    setWorkspaceId(workspace.id);
+                    if (useStore.getState().workspaceId === workspaceId) setWorkspaceId(workspace.id);
                     toast.success(`Workspace switched to ${workspace.name}`);
                     reloadStatic();
                   }}
@@ -171,6 +202,13 @@ export default function WorkspacesPage() {
               );
             })}
           </div>
+        )}
+        {!loading && nextAfter && (
+          <button type="button" disabled={loadingMore} onClick={() => void load(nextAfter)}
+            className="mt-4 inline-flex items-center gap-2 rounded-xl border border-[var(--border)] px-4 py-2 text-sm font-semibold disabled:opacity-50">
+            {loadingMore && <Loader2 size={15} className="animate-spin" />}
+            {loadingMore ? "Loading more workspaces" : "Load more workspaces"}
+          </button>
         )}
       </div>
     </div>

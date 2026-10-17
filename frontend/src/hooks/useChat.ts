@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ApiRequestError, chatQuery, getSessionMessages } from "@/lib/api";
 import { useStore } from "@/hooks/useStore";
 import { canUseWorkspaceApi } from "@/hooks/useAuthGate";
@@ -22,8 +22,9 @@ export type ChatSendOptions = {
 };
 
 export function useChat() {
+  const [documentSelectionRequest, setDocumentSelectionRequest] = useState<{ question: string; requestId: string } | null>(null);
   const store = useStore();
-  const canAccessWorkspaceApi = canUseWorkspaceApi(store.authMode);
+  const canAccessWorkspaceApi = canUseWorkspaceApi(store.authMode) && (store.authMode !== "authenticated" || !!store.workspaceId);
   // Use ref to always have latest messages for history
   const messagesRef = useRef(store.messages);
   useEffect(() => { messagesRef.current = store.messages; }, [store.messages]);
@@ -33,9 +34,9 @@ export function useChat() {
     if (!canAccessWorkspaceApi) return;
     if (store.messages.length > 0) return;
 
-    getSessionMessages(store.sessionId)
+    getSessionMessages(store.sessionId, { workspaceId: store.workspaceId, expectedUserId: store.authMode === "authenticated" ? store.authUser?.id ?? null : undefined })
       .then((history) => {
-        if (cancelled || history.total === 0 || store.messages.length > 0) return;
+        if (cancelled || useStore.getState().authUser?.id !== store.authUser?.id || useStore.getState().workspaceId !== store.workspaceId || history.total === 0 || store.messages.length > 0) return;
         const restored: UIMessage[] = history.messages.map((message) => ({
           id: generateId(),
           role: message.role,
@@ -66,17 +67,17 @@ export function useChat() {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [store.sessionId, canAccessWorkspaceApi]);
+  }, [store.sessionId, canAccessWorkspaceApi, store.authUser?.id, store.workspaceId]);
 
   const runRestFallback = useCallback(async (id: string, req: QueryRequest) => {
     const userId = store.authUser?.id;
     const workspaceId = store.workspaceId;
     const isCurrentContext = () => {
       const current = useStore.getState();
-      return current.authUser?.id === userId && current.workspaceId === workspaceId && current.sessionId === req.session_id;
+      return current.authMode === store.authMode && current.authUser?.id === userId && current.workspaceId === workspaceId && current.sessionId === req.session_id;
     };
     try {
-      const response = await chatQuery(req);
+      const response = await chatQuery(req, { workspaceId, expectedUserId: store.authMode === "authenticated" ? userId ?? null : undefined });
       if (!isCurrentContext()) return;
       store.appendToken(id, response.answer);
       store.finishAssistant(id, {
@@ -90,10 +91,16 @@ export function useChat() {
     } catch (err: unknown) {
       if (!isCurrentContext()) return;
       const message = err instanceof Error ? err.message : "Failed to reach the backend";
+      if (err instanceof ApiRequestError && err.code === "DOCUMENT_SELECTION_REQUIRED") {
+        setDocumentSelectionRequest({ question: req.question, requestId: id });
+        store.setError(id, message);
+        store.setConnectionStatus("online");
+        return;
+      }
       if (err instanceof ApiRequestError && err.code === "BYOK_REQUIRED") {
         store.setIsQuotaBlocked(true);
         store.setShowApiKeyModal(true);
-        store.setError(id, "Your free trial is used. Add a Gemini API key from Google AI Studio to continue.");
+        store.setError(id, "Processing quota is unavailable. You may review an optional user-funded key; workspace processing approval is still required.");
         store.setConnectionStatus("online");
         return;
       }
@@ -126,6 +133,7 @@ export function useChat() {
       return;
     }
     store.addUserMessage(text);
+    setDocumentSelectionRequest(null);
     const asstId = generateId();
     store.addAssistantMessage(asstId);
 
@@ -158,5 +166,7 @@ export function useChat() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [store.sessionId, runRestFallback, canAccessWorkspaceApi]);
 
-  return { sendMessage, messages: store.messages };
+  return { sendMessage, messages: store.messages, documentSelectionRequest:
+    documentSelectionRequest && store.messages.some(message => message.id === documentSelectionRequest.requestId)
+      ? documentSelectionRequest : null };
 }

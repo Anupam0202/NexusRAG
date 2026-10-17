@@ -5,7 +5,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import Literal
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from src.api.auth import WorkspaceContext, WorkspaceRole, require_enterprise_workspace_role
@@ -127,18 +127,20 @@ async def capabilities(
     return {
         "profile": "ZERO_COST_LOW_TRAFFIC",
         "workspace_bound": workspace is not None,
+        "execution_state": "LOCAL_HELPERS_ONLY",
+        "production_verified": False,
         "paid_fallback": False,
         "products": {
-            "evidence_workbench": "FOUNDATION_READY",
-            "terms_quota_radar": "FOUNDATION_READY",
-            "obligation_compiler": "FOUNDATION_READY",
+            "evidence_workbench": "FOUNDATION_ONLY",
+            "terms_quota_radar": "FOUNDATION_ONLY",
+            "obligation_compiler": "FOUNDATION_ONLY",
             "procurement_graph": "PROVIDER_REVIEW",
-            "counterparty_graph": "FOUNDATION_READY",
-            "product_passport": "FOUNDATION_READY",
+            "counterparty_graph": "FOUNDATION_ONLY",
+            "product_passport": "FOUNDATION_ONLY",
             "scientific_workbench": "CONNECTORS_PENDING",
             "open_source_assurance": "PROVIDER_REVIEW",
             "public_risk": "PROVIDER_REVIEW",
-            "evidence_api_mcp": "CONTRACT_READY",
+            "evidence_api_mcp": "DECLARATION_ONLY",
         },
     }
 
@@ -152,6 +154,8 @@ async def mcp_operations(
         "workspace_binding_required": True,
         "unrestricted_bulk_export": False,
         "autonomous_destructive_tools": False,
+        "execution_state": "DECLARATIONS_ONLY",
+        "executable": False,
         "operations": [
             {
                 "name": item.name,
@@ -222,7 +226,9 @@ async def create_research_plan(
             "max_runtime_seconds": limits.max_runtime_seconds,
             "requires_review": limits.requires_review,
         },
-        "state": "PLANNED",
+        "state": "VALIDATED_NOT_PERSISTED",
+        "execution_supported": False,
+        "persistence_state": "NOT_PERSISTED",
     }
 
 
@@ -254,6 +260,9 @@ async def assess_evidence_claim(
         "status": claim.status.value,
         "confidence": claim.confidence,
         "citation_count": len(claim.citations),
+        "assessment_basis": "CALLER_ASSERTED_CITATION_FLAGS",
+        "source_entailment_verified": False,
+        "persistence_state": "NOT_PERSISTED",
     }
 
 
@@ -262,12 +271,15 @@ async def run_calculation(
     payload: CalculationInput,
     _workspace: WorkspaceContext | None = Depends(VIEWER),
 ) -> dict:
-    result = calculate(
-        payload.operation,
-        Quantity(payload.left.value, payload.left.unit, tuple(payload.left.evidence_ids)),
-        Quantity(payload.right.value, payload.right.unit, tuple(payload.right.evidence_ids)),
-        precision=payload.precision,
-    )
+    try:
+        result = calculate(
+            payload.operation,
+            Quantity(payload.left.value, payload.left.unit, tuple(payload.left.evidence_ids)),
+            Quantity(payload.right.value, payload.right.unit, tuple(payload.right.evidence_ids)),
+            precision=payload.precision,
+        )
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
     return {
         "operation": result.operation.value,
         "value": str(result.value),
@@ -275,14 +287,19 @@ async def run_calculation(
         "formula": result.formula,
         "evidence_ids": result.evidence_ids,
         "precision": result.precision,
+        "rounding": "ROUND_HALF_EVEN",
+        "input_evidence_state": "CALLER_ASSERTED_NOT_VERIFIED",
+        "persistence_state": "NOT_PERSISTED",
     }
 
 
 @router.post("/obligations/review")
 async def review_obligation(
     payload: ObligationReviewInput,
-    _workspace: WorkspaceContext | None = Depends(EDITOR),
+    workspace: WorkspaceContext | None = Depends(EDITOR),
 ) -> dict:
+    if workspace is None:
+        raise HTTPException(status_code=403, detail="Authenticated workspace context is required")
     candidate = Obligation(
         payload.obligation_id,
         payload.authority,
@@ -294,13 +311,16 @@ async def review_obligation(
     )
     result = review(
         candidate,
-        reviewer_id=payload.reviewer_id,
+        reviewer_id=workspace.user.id,
         approve=payload.decision == "approve",
     )
     return {
         "obligation_id": result.obligation_id,
         "state": result.state.value,
         "reviewer_id": result.reviewer_id,
+        "execution_state": "LOCAL_REVIEW_HELPER_ONLY",
+        "input_evidence_state": "CALLER_ASSERTED_NOT_VERIFIED",
+        "persistence_state": "NOT_PERSISTED",
     }
 
 
@@ -328,5 +348,8 @@ async def export_passport(
     return {
         "format": "application/ld+json",
         "receipt_sha256": passport.canonical_receipt(),
+        "receipt_basis": "CALLER_ASSERTED_DOCUMENT_HASH_NOT_CERTIFICATION",
+        "input_evidence_state": "CALLER_ASSERTED_NOT_VERIFIED",
+        "persistence_state": "NOT_PERSISTED",
         "document": passport.export_jsonld(),
     }

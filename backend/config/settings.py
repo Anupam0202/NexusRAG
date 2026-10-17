@@ -107,6 +107,7 @@ class Settings(BaseSettings):
     embedding_model: str = Field(
         default="sentence-transformers/all-MiniLM-L6-v2",
     )
+    embedding_revision: str = Field(default="", description="Optional immutable public model commit revision")
     embedding_device: str = Field(default="cpu")
     embedding_batch_size: int = Field(default=64, ge=1)
     embedding_normalize: bool = Field(default=True)

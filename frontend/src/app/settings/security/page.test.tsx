@@ -1,7 +1,8 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { getUser, getUserIdentities, setWorkspaceId, signOut } = vi.hoisted(() => ({
+const { accountState, getUser, getUserIdentities, setWorkspaceId, signOut } = vi.hoisted(() => ({
+  accountState: { id: "user-1", email: "user@example.com" },
   getUser: vi.fn(),
   getUserIdentities: vi.fn(),
   setWorkspaceId: vi.fn(),
@@ -12,7 +13,7 @@ vi.mock("@/hooks/useStore", () => ({
   useStore: (selector: (state: object) => unknown) =>
     selector({
       authMode: "authenticated",
-      authUser: { id: "user-1", email: "user@example.com" },
+      authUser: accountState,
       setWorkspaceId,
     }),
 }));
@@ -29,6 +30,7 @@ import SecuritySettingsPage from "./page";
 
 describe("SecuritySettingsPage", () => {
   beforeEach(() => {
+    accountState.id = "user-1";
     getUser.mockReset();
     getUserIdentities.mockReset();
     signOut.mockReset();
@@ -96,4 +98,16 @@ describe("SecuritySettingsPage", () => {
     await waitFor(() => expect(signOut).toHaveBeenCalledWith({ scope: "global" }));
     expect(setWorkspaceId).toHaveBeenCalledWith(null);
   });
+
+  it("clears verified-provider state before a different account lookup completes", async () => {
+    const view = render(<SecuritySettingsPage />);
+    await screen.findByText("Identity verified");
+    getUser.mockImplementationOnce(() => new Promise(() => {}));
+    accountState.id = "user-2";
+    view.rerender(<SecuritySettingsPage />);
+    expect(screen.getByText("Checking identity")).toBeInTheDocument();
+    expect(screen.queryByText("Identity verified")).not.toBeInTheDocument();
+    expect(screen.queryAllByText("Connected")).toHaveLength(0);
+  });
+
 });

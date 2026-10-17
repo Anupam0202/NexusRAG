@@ -1,6 +1,226 @@
 # Requirement traceability
 
+038is uncommitted partial Contradiction Analysis, not a completed mode. Actual UI
+and missing structured-executor result gaps reproduced.33focused/586Gateway cases
+and real disposable50source/11criterion/550consulted receipts/exact paired Unicode
+anchors/420s/retry/in-flight cancel/resume/list/read/Finding10/65table145function
+restore pass. Current UI regression still FAILS at absent execution control;
+client/Gateway/UI/executor-to-SQL/concurrent/quality/full recovery remain open.
+The local-only new migration has NO hosted approval. Frozen037complete recovery
+is external; subsequent image/summary failures are in its NEW CI addendum.
+No security work, scope reduction or production claim. Exact224definitions/
+tenproducts/twelvemodes/400+125quality retained. See RESEARCH_CONTRADICTION_EXECUTION_038.md.
+
+Later scoped038contract/client/UI/paired citations/consulted receipts/reload/
+Finding retry/independent review/ordinary interruption/empty abstention now pass
+12desktop/mobile/theme/320px browser cases and native Chrome saved reload. Actual
+executor-to-SQL50sources/11criteria/550consulted receipts/two concurrent starts/
+Finding10/65table145function restore pass.591Gateway/492frontend/631backend+10/
+57isolated/99scripts and lint/typecheck pass. Full saved-source/build/cold browser/
+CI/new dependencies/recovery remain pending; local SQL unapproved and no full
+mode/product/quality/production acceptance. Normative definitions unchanged.
+
+037actual executor reproduces Compare/Timeline1of8sources when a400chunk source
+fills their lexical window. Per-source reads share the same201row read/200unique
+candidate limits with explicit truncation; real SQL9sources/6batches/27cells-or-
+events and12affected browser cases PASS. Full saved-source/build/CI/new recovery
+must bind current evidence. This is not Contradiction Analysis implementation or
+semantic/whole-mode acceptance. Exact224definitions/tenproducts/twelvemodes/
+400+125quality remain unchanged/incomplete; paused022 and required failed gates
+remain excluded prerequisites. Frozen036completion is bound by BATCH036_HANDOFF.md,
+not its earlier source-time pending notes. See RESEARCH_SOURCE_DIVERSITY_037.md.
+
+> Current execution status is maintained in `docs/implementation/execution-ledger.json` and the latest section of `docs/audits/COMPREHENSIVE_APPLICATION_AUDIT.md`. The dated/scoped labels below are historical evidence, not complete-product or current production acceptance. Normative requirement wording remains authoritative where explicitly designated. Required engineering is not deferred to future phases.
+
 Status: `PARTIAL_NOT_COMPLETE_WITH_ACCEPTED_NORMATIVE_BASELINE`
+
+036final pre-save scoped487frontend73files/570Gateway/631backend+10/57isolated/
+97scripts/build/lint/typecheck/source checks, real original quota/65table140function
+restore and78controlled browser journeys PASS (4intentional skips not passed).
+Actual Workerd catches missing length header; native FixedLengthStream fixes it
+without loosening assertions. Unicode filename truncation500 fixed. Keep original
+Next package/layout/locks and one shared public policy; failed packaging attempts
+remain evidence. Exact-source CI/full fresh recovery still separately required;
+no hosted/private/provider/full-product acceptance or paused022/security work.
+
+Latest036 adds exact current-version original download from real detail/drawer,
+not reconstructed chunks. Five actual Gateway404 regressions precede streamed
+private Storage/request-egress admission and browser length/SHA256 verification.
+Eight controlled desktop/mobile/theme saved-file/cancel/interruption cases pass;
+real SQL fixture join correction/full owning/build/CI/new recovery remain pending.
+No new migration/hosted budget activation, original renderer or production claim.
+Frozen035source/recovery and terminal failed gates are externally bound. Exact
+224definitions/tenproducts/twelvemodes/400+125quality remain unchanged/incomplete;
+no security work or paused022 resumption. See DOCUMENT_ORIGINAL_DELIVERY_036.md.
+
+Latest035 exercises actual research-to-document native navigation/full400chunk
+inspection/search/optional hash-version receipt/library drawer and interrupted
+next-page recovery. A failing-before component regression proves loaded originals
+were hidden by a network interruption; seven focused cases pass with truthful
+unverified inventory and exact-cursor retry. Full current owning/browser/build/CI
+and fresh recovery remain separately required. Controlled peers are not real
+OAuth/hosted/private/provider/quality acceptance or original-file delivery. Exact
+224definitions/tenproducts/twelvemodes/400+125quality remain unchanged/incomplete.
+Completed034666source/fresh recovery is externally frozen; its required image and
+summary now FAILED by metadata only. No new security work or paused022/SQL/hosted
+mutation. See DOCUMENT_SOURCE_INSPECTION_035.md.
+
+Latest034 fixes rejection of valid201..400chunk research sources before dense
+search while retaining the200unique original-candidate budget,201lexical canary
+and12vector rows. Later indexed hits remain hash/current-source rehydrated;
+bounded lexical coverage persists and is visible after reload. Real400chunk SQL
+and36affected desktop/mobile/theme browser journeys pass, not full corpus/model
+quality or hosted private acceptance. Full owning/build/source/recovery/CI remain
+pending at source time. Exact224definitions/tenproducts/twelvemodes/400+125quality
+unchanged/incomplete.033complete664source/257evidence recovery and exact rehearsal
+installation registry20261016115728 are recorded in external033handoff/addendum;
+17functions/sixconstraints match fresh reference. Required033image/summary FAILED
+by metadata only. No new security work/paused022/provider/production/deployment.
+See RESEARCH_LARGE_SOURCE_RETRIEVAL_034.md.
+
+Latest033 adds bounded selected-source Timeline execution,persistence and review
+using existing runs/queue/Findings. All40sources/ninecriteria/45batches,source-quoted
+events/date precision/Unicode locators/gaps,combined saved chronology and later
+Finding positions are retained. Maximum720event actual SQL and production executor
+toSQL27events/sixbatches/concurrent-start proof is local/controlled,not hosted or
+live model/quality acceptance. Full constraints/date filters/public/temporal/graph,
+semantic interpretation/contradiction resolution and all224exact meanings/
+tenproducts/twelvemodes/400+125quality remain incomplete. No033hosted approval;
+031approval fulfilled only. New exact-source build/CI/fresh recovery must bind
+later receipts,not inherit old PASS. See RESEARCH_TIMELINE_EXECUTION_033.md.
+Completed032656file source/209entry evidence recovery is frozen externally;
+its image/requiredsummary subsequently FAILED by metadata. No new security work.
+
+Latest032 addresses actual inner Findings mobile clipping that page-wide overflow
+tests missed. Container-level regression fails before min-content grid correction;
+expanded320px/768px/native desktop/mobile light/dark comparison/review cases pass,
+with exact original hashes/review receipts wrapping. All224exact definitions and
+denominator remain unchanged; this is a scoped ordinary responsive correction,
+not complete accessibility/product/mode or hosted/private/production acceptance.
+Final exact source/build/CI/full fresh recovery bind the later source externally.
+See FINDINGS_RESPONSIVE_LAYOUT_032.md.031complete655file source/224entry evidence
+and exact rehearsal approval are fulfilled in BATCH031_HANDOFF.md, superseding
+source-time031pending notes below. No new SQL/hosted/security scope in032.
+
+Latest031 adds the selected-source COMPARE execution slice with all40documents,
+ninecriteria,45durable batches/360cells, document-specific evidence gaps/citations,
+progress/cancel/resume, matrix inspection and saved Findings/independent review.
+Actual maximum-scope PostgreSQL plus real production executor-to-SQL27cell/sixbatch
+and concurrent-start tests,65table134function restore,40cold synthetic browser
+journeys and local Chrome are scoped evidence only.468frontend/546Gateway pass;
+final saved-source/CI/fresh recovery remain external. No semantic equivalence or
+ranking, full constrained/public/temporal/graph mode or product acceptance is
+claimed. Source export rights, all224exact definitions/tenproducts/twelvemodes/
+400+125quality, private/hosted/deployed/lifecycle and rollout gates remain open.
+030exact rehearsal installation is fulfilled;031has no hosted approval.
+See RESEARCH_COMPARISON_EXECUTION_031.md and newest external handoff.
+
+Latest030 connects actual stored research answers to revisioned Findings and ordinary
+independent review with exact original hash/version/locator/source-state projection.
+Real production executor/Workbench-to-SQL persistence and concurrent retry,65table
+129function recovery,34cold browser journeys and actual local Chrome are scoped
+proof, not hosted/private/quality acceptance. Source-backed export remains explicitly
+rights-blocked, not converted to a manual note. Full rights-aware packages, semantic
+support, lifecycle/monitors/products remain accepted incomplete engineering. All224
+exact definitions/denominator are unchanged. See RESEARCH_FINDING_LINEAGE_030.md;
+final saved-source/CI/fresh recovery remain external.029exact rehearsal schema
+approval is fulfilled and not030permission; BATCH029_HANDOFF.md supersedes old notes.
+
+Latest029 adds a functional selected-source QUICK_LOOKUP/EVIDENCE_ANSWER execution
+slice: persisted questions/cursor/results, queue dispatch, progress, cancellation,
+explicit resume, inspectable source/hash/citations and ordinary reload/copy. It is
+not full two-mode or twelve-mode/ten-product acceptance: constraints/public sources,
+semantic entailment, independent review/findings, streaming, lifecycle and full
+quality remain open. All224exact definitions and denominator are unchanged. Real
+PG65table126function recovery, controlled-peer browser and actual local Chrome
+proof are not hosted/private/provider acceptance. New citation boundary regression
+precedes correction; final source/build/recovery/CI pending. See
+RESEARCH_ANSWER_EXECUTION_029.md.028exact rehearsal schema approvals are fulfilled
+in the external frozen addendum, superseding historical pending notes below.
+
+Latest028 advances P06/P07/P08 and exact-source inspection with durable numeric/
+unit captures, Unicode locators/hash/version lineage, source-state recovery and
+checked reuse across worksheets. Span match is not semantic entailment, independent
+review, full mode or lifecycle acceptance.64table122function synthetic restore and
+22browser journeys do not establish hosted/private production acceptance. Current
+028source-time candidate includes published intermediate checkpoints and subsequent
+ordinary UUID-case normalization, with448frontend and complete local SQL passing.
+Final exact source/build/recovery/CI must bind the refinement externally. See
+RESEARCH_SOURCE_QUANTITIES_028.md; all224meanings/denominator remain unchanged.
+
+Latest027 advances P06/P07/P08 with durable supplied-factor decimal conversion,
+explicit units/factor date/formula/reference lineage and ordinary save/retry/read/
+copy/paging UI.140real SQL/retained Decimal comparisons and18synthetic research
+journeys pass; input evidence remains caller-asserted/unverified. Hosted025/026/027
+approval and private/deployed acceptance are absent. Read-only Cloudflare logs
+confirm deployed /research fails preview-props.json manifest initialization on
+older version5db33e20. No rollout/configuration mutation. See
+RESEARCH_CONVERSION_EXECUTION_027.md. No full requirement/product/mode is closed;
+all224exact definitions and accepted scope remain unchanged.
+
+Latest026 advances P06/P07/P08 with actual durable nine-operation aggregate
+worksheets, explicit grouped/weighted/missing-input lineage, ranking, five
+descriptive metrics and ordinary save/retry/read/paging UI.756actual SQL/retained
+Decimal parity cases and14synthetic browser journeys are not hosted/private or
+production acceptance. Full evidence-backed inputs/conversions/review/mode
+execution and all224/tenproducts/twelvemodes/quality remain open. Actual deployed
+/research fails Cloudflare1101; no unauthorized rollout or025/026hosted migration.
+See RESEARCH_AGGREGATE_EXECUTION_026.md; normative definitions remain unchanged.
+
+Latest025 advances P06/P07/P08 with actual exact-decimal binary worksheet execution,
+atomic stored inputs/formulas/units/references and ordinary retry/reload UI. Real
+local SQL/196Python-engine parity/concurrent retry/backuprestore are distinct from
+synthetic browser transport and hosted private acceptance. Source references stay
+caller-supplied, not verified. Full aggregates/grouping/ranking/conversion/review
+and complete CALCULATION/all twelve-mode execution remain open. See
+RESEARCH_CALCULATION_EXECUTION_025.md; no normative meaning or denominator changes.
+024draft schema-only rehearsal approval is fulfilled, not025or production approval.
+
+Latest024 exercises ordinary research-plan persistence/create/list/read/copy/retry
+in the Evidence Workbench. All twelve adopted mode limits and scope/calculation/
+completion fields remain intact. Real local SQL durability/concurrency/backuprestore
+and six synthetic browser journeys are distinct from hosted OAuth or execution.
+See RESEARCH_PLAN_PERSISTENCE_024.md and the external exact-source recovery handoff.
+No normative definition/product/mode is closed by a stored draft; actual execution,
+full quality, hosted workflows and separately scoped release prerequisites remain.
+
+Latest023 exercises R19/R20 ordinary summary document targeting and selection
+recovery:literal names and explicit filters share current retrieval/citation scope;
+ambiguous targets request a deliberate UI choice instead of arbitrary evidence.
+See SUMMARY_TARGETING_023.md for final422Gateway/363frontend/four synthetic browser
+journeys and exact limits. All224 normative meanings/tenproducts/twelve modes stay
+unchanged. Paused022 and known release gates remain separately scoped prerequisites,
+not waived or included in this isolated functional source.
+
+Latest021 adds locally exercised retained Python caller-bound private turn context,
+server attestation, atomic pair/revision/history epoch and truthful REST/WS outcomes.
+See BACKEND_PRIVATE_TURN_AUTHORITY_021.md.630backend+10 and real disposable
+PostgreSQL17 authority/rollback/concurrency/backuprestore pass; new hosted approval,
+full recovery/exact CI/image/private production criteria remain separate. No
+normative meaning, denominator, accepted role/read/clear contract or product scope
+is removed; all224/tenproducts remain unfinished at complete acceptance scope.
+
+Latest020 corrects retained Python answer-cache context/options/mode identity,
+nested response ownership and cache-hit local memory. See QUERY_CACHE_CONTEXT_020.md;
+this is not caller/session or source/rights fencing and closes no production
+requirement. Final019539-source/33-receipt recovery, disposable SQL and exact native
+checks pass separately from107-match failed image gate; exact019 rehearsal schema
+only installation approval fulfilled. All224 exact definitions/tenproducts retained.
+
+Latest019 candidate moves Gateway history turns to caller-bound, revision-fenced
+transactions with one server-admitted key per commit. See
+`PRIVATE_TURN_AUTHORITY_019.md`; SQL/hosted/private acceptance remains separate.
+Final018 recovered534source/33receipts and actual native PASS/scan FAILED107matches
+are bound in external BATCH018_HANDOFF.md. No normative wording/denominator change.
+
+Latest017 evidence: exact caller-history read SQL is installed and catalog-verified
+in rehearsal only; checkpoint recovery now preserves authenticated metadata bytes.
+See `HOSTED_READ_AND_EXACT_RECOVERY_017.md` and the execution ledger. Neither closes
+any normative production workflow; all224 definitions and ten products remain.
+
+Latest018 candidate removes only the exact proven unused base launcher, preserves
+native/image gates and awaits real-image acceptance. See
+`UNUSED_BASE_TOOL_REMEDIATION_018.md`; no scope or denominator change.
 
 The V6 prompt defines `Z01–Z32` and adds `S`, `G`, and `P`. The accepted owner-directed `LEGACY_REPLACEMENT_BASELINE.md` defines `R`, `CF`, and `A`; missing historical wording is no longer an unresolved source blocker. This does not establish complete-product acceptance.
 

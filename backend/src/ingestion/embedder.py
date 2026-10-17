@@ -33,6 +33,7 @@ class Embedder:
     def __init__(self, settings: Settings | None = None) -> None:
         s = settings or get_settings()
         self._model_name = s.embedding_model
+        self._revision = s.embedding_revision
         self._device = s.embedding_device
         self._normalize = s.embedding_normalize
         self._batch_size = s.embedding_batch_size
@@ -54,7 +55,7 @@ class Embedder:
             logger.info("loading_embedding_model", model=self._model_name)
             self._model = HuggingFaceEmbeddings(
                 model_name=self._model_name,
-                model_kwargs={"device": self._device},
+                model_kwargs={"device": self._device, **({"revision": self._revision} if self._revision else {})},
                 encode_kwargs={"normalize_embeddings": self._normalize},
             )
             logger.info("embedding_model_loaded")
@@ -116,7 +117,7 @@ class Embedder:
         self._lightweight_logged = True
 
     def _cache_key(self, text: str) -> str:
-        value = f"{self._model_name}:{self._normalize}:{text}".encode()
+        value = f"{self._model_name}:{self._revision}:{self._normalize}:{text}".encode()
         return hashlib.sha256(value).hexdigest()
 
     def _store_cached(self, key: str, embedding: list[float]) -> None:

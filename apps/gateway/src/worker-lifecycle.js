@@ -111,15 +111,30 @@ function hybridFuse(question, vectorHits, lexicalRows, limit = 8, alpha = 0.6) {
     .slice(0, Math.max(1, Math.min(limit, 12)));
 }
 function qdrantDeletionFilter(w,d,v=null,g=null){const must=[{key:"workspace_id",match:{value:w}},{key:"document_id",match:{value:d}}];if(v)must.push({key:"version_id",match:{value:v}});if(g)must.push({key:"index_generation",match:{value:g}});return{must}}
+async function boundedQdrantFetch(url, init) {
+  try {
+    return await fetch(url, { ...init, signal: AbortSignal.timeout(8_000) });
+  } catch {
+    throw error("PROVIDER_UNAVAILABLE", "Qdrant request did not complete within its bounded deadline.", 503, true);
+  }
+}
+async function verifiedQdrantCount(response, failureCode) {
+  if (!response.ok) throw error(failureCode, "Qdrant count could not be verified.", 503, true);
+  let count;
+  try { count = (await response.json())?.result?.count; } catch { /* Invalid evidence fails closed below. */ }
+  if (!Number.isSafeInteger(count) || count < 0)
+    throw error(failureCode, "Qdrant did not return a valid exact vector count.", 503, true);
+  return count;
+}
 async function del(env,filter,workspaceId,priority="background"){
   if(!env.QDRANT_URL||!env.QDRANT_API_KEY)throw error("CONFIGURATION_ERROR","Qdrant is not configured.",503);
   return metered(env,{workspaceId,provider:"qdrant",priority},{requests:2},async()=>{
     const root=`${env.QDRANT_URL.replace(/\/$/,"")}/collections/${encodeURIComponent(env.QDRANT_COLLECTION||"nexusrag-v6-preview")}`;
     const headers={"content-type":"application/json","api-key":env.QDRANT_API_KEY};
-    let response=await fetch(`${root}/points/delete?wait=true`,{method:"POST",headers,body:JSON.stringify({filter})});
+    let response=await boundedQdrantFetch(`${root}/points/delete?wait=true`,{method:"POST",headers,body:JSON.stringify({filter})});
     if(!response.ok)throw error("QDRANT_DELETE_FAILED","Qdrant deletion failed.",503,true);
-    response=await fetch(`${root}/points/count`,{method:"POST",headers,body:JSON.stringify({exact:true,filter})});
-    if(!response.ok||Number((await response.json())?.result?.count||0)!==0)throw error("QDRANT_DELETE_UNVERIFIED","Qdrant deletion unverified.",503,true);
+    response=await boundedQdrantFetch(`${root}/points/count`,{method:"POST",headers,body:JSON.stringify({exact:true,filter})});
+    if((await verifiedQdrantCount(response,"QDRANT_DELETE_UNVERIFIED"))!==0)throw error("QDRANT_DELETE_UNVERIFIED","Qdrant deletion unverified.",503,true);
     return{verified:true};
   });
 }
@@ -130,9 +145,8 @@ async function verifyQdrantGeneration(env,w,d,v,g,expected,priority="background"
   return metered(env,{workspaceId:w,provider:"qdrant",priority},{requests:1},async()=>{
     if(!env.QDRANT_URL||!env.QDRANT_API_KEY)throw error("CONFIGURATION_ERROR","Qdrant is not configured.",503);
     const root=`${env.QDRANT_URL.replace(/\/$/,"")}/collections/${encodeURIComponent(env.QDRANT_COLLECTION||"nexusrag-v6-preview")}`;
-    const response=await fetch(`${root}/points/count`,{method:"POST",headers:{"content-type":"application/json","api-key":env.QDRANT_API_KEY},body:JSON.stringify({exact:true,filter:qdrantDeletionFilter(w,d,v,g)}),signal:AbortSignal.timeout(8_000)});
-    if(!response.ok)throw error("PROVIDER_UNAVAILABLE","Qdrant index count could not be verified.",503,true);
-    const count=Number((await response.json())?.result?.count);
+    const response=await boundedQdrantFetch(`${root}/points/count`,{method:"POST",headers:{"content-type":"application/json","api-key":env.QDRANT_API_KEY},body:JSON.stringify({exact:true,filter:qdrantDeletionFilter(w,d,v,g)}),signal:AbortSignal.timeout(8_000)});
+    const count=await verifiedQdrantCount(response,"QDRANT_INDEX_UNVERIFIED");
     if(count!==expected)throw error("QDRANT_INDEX_UNVERIFIED","Indexed vector count does not match the document manifest.",503,true);
     return{verified:true,count};
   });

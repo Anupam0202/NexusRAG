@@ -14,6 +14,7 @@ const finding = { id: "33333333-3333-4333-8333-333333333333", workspace_id: work
   source_unavailable: false, evidence: [], reviews: [], participants: [] };
 describe("Findings workbench", () => {
   beforeEach(() => {
+    window.history.replaceState({},"","/findings");
     Object.values(api).forEach(mock => mock.mockReset());
     useStore.setState({ authMode: "authenticated", authUser: { id: "user-a", email: null }, workspaceId: workspace });
     api.getCurrentWorkspace.mockResolvedValue({ workspace_id: workspace, role: "owner" });
@@ -27,6 +28,25 @@ describe("Findings workbench", () => {
     expect(screen.getByRole("heading", { name: "Sign in to your evidence workbench" })).toBeInTheDocument();
     expect(api.listFindings).not.toHaveBeenCalled();
   });
+  it("opens a saved research finding deep link with exact evidence and source export state",async()=>{
+    window.history.replaceState({},"",`/findings?finding=${finding.id}`);
+    api.readFinding.mockResolvedValue({...finding,source_research_run_id:workspace,source_research_position:0,
+      research_origin:{run_id:workspace,result_index:0,plan_id:workspace,question:"Exact synthetic source?",claim_state:"REVIEW_REQUIRED",source_state:"CURRENT"},
+      evidence:[{id:workspace,document_id:workspace,version_id:workspace,available:true,freshness:"current",original_text:"Synthetic evidence",original_content_hash:"a".repeat(64),location:{page:2},citation_id:"S1",filename:"Synthetic.txt"}]});
+    render(<FindingsPage/>);await waitFor(()=>expect(screen.getByLabelText("Title")).toHaveValue(finding.title));
+    expect(api.readFinding).toHaveBeenCalledWith(finding.id,{workspaceId:workspace,expectedUserId:"user-a"});
+    expect(screen.getByText("Exact synthetic source?")).toBeVisible();
+    expect(screen.getByText(`SHA256 ${"a".repeat(64)}`)).toBeVisible();
+    expect(screen.getByText("1 source excerpt · 0 reviews of this revision")).toBeVisible();
+    expect(screen.getByRole("button",{name:"Export JSON-LD & receipt"})).toBeDisabled();
+    expect(screen.getByRole("link",{name:"Inspect source document"})).toHaveAttribute("href",`/documents/${workspace}`);
+  });
+  it("keeps accessible findings usable after an invalid deep link",async()=>{
+    window.history.replaceState({},"","/findings?finding=missing-id");render(<FindingsPage/>);
+    expect(await screen.findByRole("alert")).toHaveTextContent("finding link is invalid");
+    fireEvent.click(screen.getByRole("button",{name:/Saved evidence note/}));
+    await waitFor(()=>expect(screen.getByLabelText("Title")).toHaveValue(finding.title));
+  });
   it("saves an authored note with explicit workspace and stable retry identity", async () => {
     api.createFinding.mockRejectedValueOnce(new Error("Temporary persistence outage")).mockResolvedValueOnce(finding);
     render(<FindingsPage />);
@@ -38,7 +58,7 @@ describe("Findings workbench", () => {
     fireEvent.click(screen.getByRole("button", { name: "Save finding" }));
     await waitFor(() => expect(api.createFinding).toHaveBeenCalledTimes(2));
     expect(api.createFinding.mock.calls[0][1]).toBe(api.createFinding.mock.calls[1][1]);
-    expect(api.createFinding.mock.calls[0][2]).toEqual({ workspaceId: workspace });
+    expect(api.createFinding.mock.calls[0][2]).toEqual({ workspaceId: workspace, expectedUserId: "user-a" });
   });
   it("edits use the expected revision and conflicts remain visible", async () => {
     api.editFinding.mockRejectedValue(new Error("The record changed. Reload and retry."));
@@ -49,7 +69,7 @@ describe("Findings workbench", () => {
     fireEvent.click(screen.getByRole("button", { name: "Save finding" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("The record changed");
     expect(api.editFinding).toHaveBeenCalledWith(finding.id,
-      { title: "Updated note", authored_markdown: "Authored note", revision: 3 }, { workspaceId: workspace });
+      { title: "Updated note", authored_markdown: "Authored note", revision: 3 }, { workspaceId: workspace, expectedUserId: "user-a" });
   });
   it("shares with a real member selection and supports explicit revocation", async () => {
     api.shareFinding.mockResolvedValue({ ...finding, participants: [{ user_id: "user-b", permission: "read" }] });
@@ -61,9 +81,9 @@ describe("Findings workbench", () => {
     fireEvent.change(screen.getByLabelText("Finding permission"), { target: { value: "read" } });
     fireEvent.click(screen.getByRole("button", { name: "Share for review" }));
     await waitFor(() => expect(api.shareFinding).toHaveBeenCalledWith(finding.id,
-      { user_id: "user-b", permission: "read" }, { workspaceId: workspace }));
+      { user_id: "user-b", permission: "read" }, { workspaceId: workspace, expectedUserId: "user-a" }));
     fireEvent.click(await screen.findByRole("button", { name: "Revoke access" }));
-    await waitFor(() => expect(api.unshareFinding).toHaveBeenCalledWith(finding.id, "user-b", { workspaceId: workspace }));
+    await waitFor(() => expect(api.unshareFinding).toHaveBeenCalledWith(finding.id, "user-b", { workspaceId: workspace, expectedUserId: "user-a" }));
   });
   it("viewer controls cannot mutate or export", async () => {
     api.getCurrentWorkspace.mockResolvedValue({ workspace_id: workspace, role: "viewer" });
@@ -87,4 +107,25 @@ describe("Findings workbench", () => {
     await waitFor(() => expect(screen.queryByText("Saved evidence note")).not.toBeInTheDocument());
     expect(screen.getByLabelText("Authored finding")).toHaveValue("");
   });
+  it("makes reviewers beyond the first roster page selectable without broad eager reads", async () => {
+    api.listCurrentWorkspaceMembers.mockResolvedValueOnce({members: [{user_id: "user-b", display_name: "Reviewer B", role: "editor"}], next_after: "cursor-a"})
+      .mockResolvedValueOnce({members: [{user_id: "user-c", display_name: "Later reviewer", role: "editor"}], next_after: null});
+    render(<FindingsPage />);fireEvent.click(await screen.findByRole("button", {name: /Saved evidence note/}));
+    fireEvent.click(await screen.findByRole("button", {name: "Load more workspace members"}));
+    expect(await screen.findByRole("option", {name: /Later reviewer/})).toBeInTheDocument();
+    expect(api.listCurrentWorkspaceMembers).toHaveBeenLastCalledWith({workspaceId: workspace, expectedUserId: "user-a"}, {after: "cursor-a"});
+    expect(screen.queryByRole("button", {name: "Load more workspace members"})).not.toBeInTheDocument();
+  });
+  it("does not expose a late reviewer page after an account switch", async () => {
+    let finish!: (value: unknown) => void;
+    api.listCurrentWorkspaceMembers.mockResolvedValueOnce({members: [], next_after: "cursor-a"})
+      .mockImplementationOnce(() => new Promise(resolve => {finish = resolve;}));
+    render(<FindingsPage />);fireEvent.click(await screen.findByRole("button", {name: /Saved evidence note/}));
+    fireEvent.click(await screen.findByRole("button", {name: "Load more workspace members"}));
+    api.listFindings.mockResolvedValue({items: [], next_after: null});
+    act(() => useStore.setState({authUser: {id: "user-b", email: null}, workspaceId: "workspace-b"}));
+    await act(async () => finish({members: [{user_id: "old-private", display_name: "Private late reviewer", role: "editor"}], next_after: null}));
+    expect(screen.queryByRole("option", {name: /Private late reviewer/})).not.toBeInTheDocument();
+  });
+
 });

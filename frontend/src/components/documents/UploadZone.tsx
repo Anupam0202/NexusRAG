@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useDropzone, type FileRejection } from "react-dropzone";
 import { AlertCircle, CheckCircle2, FileUp, Upload } from "lucide-react";
 import { toast } from "sonner";
@@ -52,13 +52,16 @@ interface Props {
 }
 
 export function UploadZone({ onUpload, uploading, limits, disabledReason }: Props) {
+  const alive = useRef(true);
   const [status, setStatus] = useState<"idle" | "success" | "error">("idle");
   const [mounted, setMounted] = useState(false);
   const [nonSensitiveAttested, setNonSensitiveAttested] = useState(false);
   const disabled = uploading || Boolean(disabledReason) || !nonSensitiveAttested;
 
   useEffect(() => {
+    alive.current = true;
     setMounted(true);
+    return () => { alive.current = false; };
   }, []);
 
   const onDrop = useCallback(
@@ -68,9 +71,11 @@ export function UploadZone({ onUpload, uploading, limits, disabledReason }: Prop
         return;
       }
       for (const file of files) {
+        if (!alive.current) return;
         try {
           setStatus("idle");
           const resp = await onUpload(file, "non_sensitive");
+          if (!alive.current) return;
           if (resp.success) {
             setStatus("success");
             const chunkCount = resp.document?.chunk_count ?? 0;
@@ -84,6 +89,7 @@ export function UploadZone({ onUpload, uploading, limits, disabledReason }: Prop
             toast.error(resp.message);
           }
         } catch (err: unknown) {
+          if (!alive.current) return;
           setStatus("error");
           toast.error(err instanceof Error ? err.message : "Upload failed");
         }

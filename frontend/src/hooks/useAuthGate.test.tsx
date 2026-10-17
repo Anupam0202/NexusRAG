@@ -5,7 +5,7 @@ import { useWorkspaceApiAccess } from "./useAuthGate";
 
 describe("useWorkspaceApiAccess", () => {
   beforeEach(() => {
-    useStore.setState({ authMode: "loading", workspaceId: null });
+    useStore.setState({ authMode: "loading", workspaceId: null, workspaceDiscovery: "loading" });
   });
 
   it("marks authenticated workspace APIs as waiting until a workspace is selected", () => {
@@ -13,8 +13,15 @@ describe("useWorkspaceApiAccess", () => {
 
     const { result } = renderHook(() => useWorkspaceApiAccess());
 
-    expect(result.current.canAccessWorkspaceApi).toBe(true);
+    expect(result.current.canAccessWorkspaceApi).toBe(false);
     expect(result.current.isWorkspaceLoading).toBe(true);
+  });
+
+  it.each(["missing", "error"] as const)("settles %s discovery without granting API access or spinning", workspaceDiscovery => {
+    useStore.setState({ authMode: "authenticated", workspaceId: null, workspaceDiscovery });
+    const { result } = renderHook(() => useWorkspaceApiAccess());
+    expect(result.current.canAccessWorkspaceApi).toBe(false);
+    expect(result.current.isWorkspaceLoading).toBe(false);
   });
 
   it("clears workspace loading when the selected workspace is available", () => {
