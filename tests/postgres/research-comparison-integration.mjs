@@ -22,7 +22,8 @@ function concurrently(statement,values) {return new Promise((resolve,reject)=>{
 const documents=[];
 for(let i=1;i<=9;i++) {
   const prefix=timelining?"033":"031";
-  const doc=`d${prefix}0000-0000-4000-8100-${String(i).padStart(12,"0")}`,version=`e${prefix}0000-0000-4000-8100-${String(i).padStart(12,"0")}`,chunk=`f${prefix}0000-0000-4000-8100-${String(i).padStart(12,"0")}`;
+  const doc=`d${prefix}0000-0000-4000-8100-${String(i).padStart(12,"0")}`,version=`e${prefix}0000-0000-4000-8100-${String(i).padStart(12,"0")}`;
+  const chunk=i===1?`000000${timelining?"33":"31"}-0000-4000-8100-000000000000`:`f${prefix}0000-0000-4000-8100-${String(i).padStart(12,"0")}`;
   const text=timelining?`Synthetic document ${i} took effect on 2024-02-${String(10-i).padStart(2,"0")}.`:`Synthetic document ${i} reports retention ${30+i} days.`,hash=createHash("sha256").update(text).digest("hex");documents.push(doc);
   sql(`insert into public.documents(id,workspace_id,uploaded_by,filename,original_filename,status) values(:'doc',:'ws',:'actor',:'name',:'name','ready');
     insert into public.document_versions(id,workspace_id,document_id,original_bucket,original_key,original_hash,original_bytes,original_verified_at,parser_version,chunker_version,lifecycle_epoch,
@@ -31,6 +32,10 @@ for(let i=1;i<=9;i++) {
     update public.documents set active_version_id=:'version' where id=:'doc';
     insert into public.document_chunks(id,workspace_id,document_id,version_id,chunk_index,content,original_text,original_content_hash,page_number,location,embedding_space_id)
       values(:'chunk',:'ws',:'doc',:'version',0,:'text',:'text',:'hash',2,'{"page":2}','synthetic-space');`,{doc,ws,actor,name:`Comparison ${i}.txt`,version,chunk,text,hash});
+  if(i===1)sql(`insert into public.document_chunks(id,workspace_id,document_id,version_id,chunk_index,content,original_text,original_content_hash,page_number,location,embedding_space_id)
+    select ('000000'||:'prefix'||'-0000-4000-8100-'||lpad(n::text,12,'0'))::uuid,:'ws',:'doc',:'version',n,
+      'Unrelated appendix material.','Unrelated appendix material.',encode(sha256(convert_to('Unrelated appendix material.','UTF8')),'hex'),3,'{"page":3}','synthetic-space'
+    from generate_series(1,399) n;`,{prefix:timelining?"33":"31",ws,doc,version});
 }
 const ctx=sql(`select jsonb_build_object('workspace_id',w.id,'user_id',:'actor','membership_revision',w.capability_revision,'policy_id',s.active_policy_id,
   'policy_version',s.policy_version,'deadline',clock_timestamp()+interval '10 minutes') from public.workspaces w join public.workspace_settings s on s.workspace_id=w.id where w.id=:'ws';`,{actor,ws});
@@ -41,7 +46,7 @@ const plan=sql("select public.nexus_research_plan(:'ctx'::jsonb,'create',p_plan=
 const start="select public.nexus_research_run(:'ctx'::jsonb,'create',:'plan'::uuid,p_key=>:'key',p_command=>'{\"non_sensitive_attested\":true}');";
 const starts=await Promise.all([concurrently(start,{ctx,plan:plan.id,key:`actual-${mode}-start`}),concurrently(start,{ctx,plan:plan.id,key:`actual-${mode}-start`})]);
 assert.equal(starts[0].id,starts[1].id);let run=starts[0];assert.equal(run.total_steps,6);
-const tables=new Set(["workspaces","workspace_settings","documents","document_versions","document_chunks","research_runs","finding_versions"]),sent=[];
+const tables=new Set(["workspaces","workspace_settings","documents","document_versions","document_chunks","research_runs","finding_versions"]),sent=[],lexicalReads=[];
 async function db(_env,path,init={}) {
   const url=new URL(`https://local.invalid/${path}`),table=url.pathname.slice(1),p=init.body?JSON.parse(init.body):{};
   if(table==="rpc/nexus_research_step")return sql("select public.nexus_research_step(:'ctx'::jsonb,:'op',:'id'::uuid,:'generation'::integer,:'position'::integer,nullif(:'token','')::uuid,nullif(:'result','')::jsonb,nullif(:'error',''));",
@@ -56,8 +61,11 @@ async function db(_env,path,init={}) {
     else if(value.startsWith("in.(")&&value.endsWith(")"))filters[key]=value.slice(4,-1).split(",");
     else throw Error(`Unsupported disposable filter ${key}`);
   }
+  const limit=Number(url.searchParams.get("limit")||201),order=url.searchParams.get("order");
+  assert.ok(Number.isSafeInteger(limit)&&limit>0&&limit<=201);assert.ok(!order||order==="id.asc");
+  if(table==="document_chunks"&&!url.searchParams.has("id"))lexicalReads.push({limit,version:url.searchParams.get("version_id")});
   return sql(`select coalesce(jsonb_agg(value),'[]') from (select to_jsonb(t) value from public.${table} t
-    where not exists(select 1 from jsonb_each(:'filters'::jsonb) f where not(f.value ? (to_jsonb(t)->>f.key))) limit 201) rows;`,{filters});
+    where not exists(select 1 from jsonb_each(:'filters'::jsonb) f where not(f.value ? (to_jsonb(t)->>f.key))) ${order?"order by t.id asc":""} limit ${limit}) rows;`,{filters});
 }
 let generations=0;const ordinaryFetch=globalThis.fetch;
 globalThis.fetch=async(input,init={})=>{
@@ -89,6 +97,10 @@ try {
     if(i<5){message=sent.shift();assert.equal(message.position,i+1);}
   }
   assert.equal(run.state,"completed");assert.equal(generations,6);
+  assert.ok(run.results[0].coverage.lexical_limit_reached);
+  assert.equal(new Set(run.results[0].sources.map(source=>source.document_id)).size,8);
+  assert.equal(lexicalReads.length,27);
+  assert.ok(lexicalReads.slice(0,8).reduce((sum,read)=>sum+read.limit,0)<=201);
   if(timelining) {
     assert.equal(run.results.flatMap(r=>r.timeline.events).length,27);
     assert.equal(run.results[5].timeline.events[0].document_id,documents[8]);assert.equal(run.results[5].timeline.events[0].date_text,"2024-02-01");
@@ -114,5 +126,6 @@ try {
   assert.equal(finding.evidence[0].document_id,documents[8]);assert.deepEqual(finding.evidence[0].location,{page:2});
   console.log(JSON.stringify({marker:timelining?"REAL_SQL_PRODUCTION_TIMELINE_EXECUTOR_PASS":"REAL_SQL_PRODUCTION_COMPARISON_EXECUTOR_PASS",documents:9,criteria:3,batches:6,cells_or_events:27,
     independently_concurrent_start_connections:2,starts_saved:1,generation_calls:generations,last_finding_position:5,exact_original_hash: finding.evidence[0].original_content_hash,
+    first_document_chunks:400,first_batch_distinct_sources:8,first_batch_lexical_row_budget:lexicalReads.slice(0,8).reduce((sum,read)=>sum+read.limit,0),
     quota_provider_peers:"CONTROLLED_NOT_LIVE_QUALITY_OR_SQL_BUDGET_PROOF",provider_processing:false,hosted_acceptance:false}));
 } finally {globalThis.fetch=ordinaryFetch;}

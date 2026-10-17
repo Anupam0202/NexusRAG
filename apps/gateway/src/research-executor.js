@@ -33,8 +33,21 @@ async function answerQuestion(env,run,db,signal) {
     hybrid_search_alpha:persistedSetting(settings,"hybrid_search_alpha",{min:0,max:1}),llm_temperature:persistedSetting(settings,"llm_temperature",{min:0,max:1})};
   const selection=batched?{documents:scope.map(s=>initial.documents.find(d=>d.id===s.document_id)),reason:comparing?"COMPARISON_ALL_BATCH_DOCUMENTS":"TIMELINE_ALL_BATCH_DOCUMENTS"}:resolveSummaryDocuments(question,initial.documents,false);
   const selectedDocuments=selection.documents.map(d=>d.id), selectedVersions=selection.documents.map(d=>d.active_version_id);
-  const lexicalRows=await read(`document_chunks?workspace_id=eq.${workspace}&version_id=in.(${selectedVersions.join(",")})&select=${columns}&order=id.asc&limit=201`);
-  const lexicalLimited=lexicalRows.length>200;
+  let lexicalRows=[],lexicalLimited=false;
+  if(batched) {
+    // Share the existing 201-row read budget, including one truncation canary
+    // per document. A large source must not crowd every other source out.
+    for(const [index,version] of selectedVersions.entries()) {
+      const limit=Math.floor(201/selectedVersions.length)+(index<201%selectedVersions.length?1:0);
+      const rows=await read(`document_chunks?workspace_id=eq.${workspace}&version_id=in.(${version})&select=${columns}&order=id.asc&limit=${limit}`);
+      const limited=rows.length===limit;
+      lexicalLimited||=limited;
+      lexicalRows.push(...(limited?rows.slice(0,-1):rows));
+    }
+  } else {
+    lexicalRows=await read(`document_chunks?workspace_id=eq.${workspace}&version_id=in.(${selectedVersions.join(",")})&select=${columns}&order=id.asc&limit=201`);
+    lexicalLimited=lexicalRows.length>200;
+  }
   let userApiKey;
   const credentialMode=run.admission?.credential_mode;
   if(credentialMode==="user_byok")userApiKey=await loadUserGeminiKey(env,run.owner_id);

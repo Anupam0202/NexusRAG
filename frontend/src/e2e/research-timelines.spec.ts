@@ -57,3 +57,27 @@ test("resuming an interrupted timeline retains earlier events and one execution"
   await expect(page.getByRole("region",{name:"Saved chronology",exact:true}).getByRole("listitem")).toHaveCount(8);
   await expect(page.getByRole("button",{name:/Open execution/})).toHaveCount(1);
 });
+test("a large selected appendix cannot crowd dated documents out of a saved chronology",async({page},testInfo)=>{
+  const question=`Timeline across large appendix ${randomUUID()}`;
+  await plan(page,question,"light");
+  // Change the scope through the ordinary copy workflow; saved plans are immutable.
+  await page.getByRole("button",{name:"Copy to a new plan",exact:true}).click();
+  await page.getByRole("checkbox",{name:"Synthetic large policy.txt",exact:true}).check();
+  await page.getByRole("textbox",{name:"Question",exact:true}).fill(`${question} copied`);
+  await page.getByRole("button",{name:"Save plan",exact:true}).click();
+  await page.getByRole("checkbox",{name:/I confirm that all questions/}).check();
+  await page.getByRole("button",{name:"Start research",exact:true}).click();
+  await expect(page.getByRole("status").filter({hasText:"Execution finished"})).toContainText("1 of 1 batches saved");
+  const chronology=page.getByRole("region",{name:"Saved chronology",exact:true});
+  await expect(chronology.getByRole("listitem")).toHaveCount(4);
+  await expect(chronology).toContainText("Issued 2024-02.");
+  await expect(chronology).toContainText("Reviewed 03/04/2024.");
+  await expect(page.getByText(/Lexical candidate limit reached/)).toBeVisible();
+  await page.reload();
+  await page.getByRole("button",{name:`Open research plan: ${question} copied`,exact:true}).click();
+  await page.getByRole("button",{name:/Open execution/}).click();
+  await expect(chronology.getByRole("listitem")).toHaveCount(4);
+  await expect(page.getByText(/Lexical candidate limit reached/)).toBeVisible();
+  await chronology.scrollIntoViewIfNeeded();
+  await page.screenshot({path:testInfo.outputPath("source-diverse-chronology.png")});
+});

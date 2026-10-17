@@ -13,6 +13,21 @@
   "interpretation": "OPEN_ENGINEERING includes implemented but not fully accepted requirements; it does not assert that no code or scoped evidence exists. External approvals do not close unfinished internal work.",
   "entries": [
     {
+      "id": "ENGINEERING-RESEARCH-SOURCE-DIVERSITY",
+      "requirement": "Retain candidate evidence for every selected source in bounded comparison and timeline batches even when one document fills the lexical window",
+      "normative_source": "Owner selected-document evidence/retrieval/mode execution journeys; exact224definitions retained",
+      "status": "IN_PROGRESS",
+      "environment": "isolated functional037 from frozen036fe64c3d; actual executor and lawful synthetic peers/disposable SQL, not hosted/private/provider acceptance",
+      "next_action": "Complete fresh owning/build/cold browser checks, functional review, exact source existing PR12 CI and new-directory dependency recovery. Continue actual source-paired Contradiction Analysis without narrowing its50source/10subquestion/8variant/420second bounds. Full accepted scope/release prerequisites remain incomplete.",
+      "acceptance_evidence": [{
+        "environment": "production executor under controlled peers and real disposable SQL",
+        "observed_at": "2026-10-17T07:00:42Z",
+        "source_identity": "parentfe64c3d9a20a617c48b1ca5b5517cdb175003843 plus uncommitted037",
+        "command_or_url": "tests/cloudflare/research-executor.test.mjs; tests/postgres/research-comparison-integration.mjs; frontend/src/e2e/research-timelines.spec.ts; external batch037/logs",
+        "result": "Before-fix Compare and Timeline each retain1of8current sources with a400chunk first document. Per-source allocation shares unchanged201row/200candidate limits. Real SQL9sources/6batches/27cells-or-events/concurrent starts/146date parity/65table140function restore and12affected desktop/mobile/theme/browser cases PASS. Full owning/build/cold browser/saved-source CI/fresh recovery remain required. Frozen036677source/287evidence/fresh dependency recovery completed externally; required image/summary failed by metadata only. No new security work, migration, hosted/private/provider/destructive/deployment operation."
+      }]
+    },
+    {
       "id": "ENGINEERING-DOCUMENT-ORIGINAL-DELIVERY",
       "requirement": "Download exact durable current-version originals from document detail and library drawer with progress, cancellation, retry, receipt verification and ordinary quota outcomes",
       "normative_source": "Owner functional document original/source inspection and ordinary lifecycle/error/reload journeys; exact224definitions retained",

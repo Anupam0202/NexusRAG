@@ -1,5 +1,15 @@
 # Requirement traceability
 
+037actual executor reproduces Compare/Timeline1of8sources when a400chunk source
+fills their lexical window. Per-source reads share the same201row read/200unique
+candidate limits with explicit truncation; real SQL9sources/6batches/27cells-or-
+events and12affected browser cases PASS. Full saved-source/build/CI/new recovery
+must bind current evidence. This is not Contradiction Analysis implementation or
+semantic/whole-mode acceptance. Exact224definitions/tenproducts/twelvemodes/
+400+125quality remain unchanged/incomplete; paused022 and required failed gates
+remain excluded prerequisites. Frozen036completion is bound by BATCH036_HANDOFF.md,
+not its earlier source-time pending notes. See RESEARCH_SOURCE_DIVERSITY_037.md.
+
 > Current execution status is maintained in `docs/implementation/execution-ledger.json` and the latest section of `docs/audits/COMPREHENSIVE_APPLICATION_AUDIT.md`. The dated/scoped labels below are historical evidence, not complete-product or current production acceptance. Normative requirement wording remains authoritative where explicitly designated. Required engineering is not deferred to future phases.
 
 Status: `PARTIAL_NOT_COMPLETE_WITH_ACCEPTED_NORMATIVE_BASELINE`

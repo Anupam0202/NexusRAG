@@ -16,6 +16,16 @@ async function fixture(t,options={}) {
     rows.push({...rows[0],id:token,document_id:token,version_id:id});
   }
   if(options.timeline){run.mode="TIMELINE";run.questions=["Build a chronology."];}
+  if(options.documentCount) {
+    while(run.source_snapshot.length<options.documentCount) {
+      const n=run.source_snapshot.length+1,document_id=`10000000-0000-4000-8000-${String(n).padStart(12,"0")}`;
+      const version_id=`20000000-0000-4000-8000-${String(n).padStart(12,"0")}`;
+      run.source_snapshot.push({document_id,version_id,index_generation:`generation-${n}`,lifecycle_epoch:1});
+      const content=options.timeline?`Policy ${n} took effect on 2024-02-${String(n).padStart(2,"0")}.`:`Policy ${n} retention period is 30 days.`;
+      rows.push({...rows[0],id:`30000000-0000-4000-8000-${String(n).padStart(12,"0")}`,document_id,version_id,content,original_text:content,original_content_hash:await sha256(content)});
+    }
+    rows[0].id="00000000-0000-4000-8000-000000000000";
+  }
   if(options.chunkCount>1) {
     const filler="Unrelated appendix material.",fillerHash=await sha256(filler);
     for(let i=1;i<options.chunkCount;i++)rows.push({...rows[0],id:`00000000-0000-4000-8000-${String(i).padStart(12,"0")}`,
@@ -40,7 +50,8 @@ async function fixture(t,options={}) {
     if(path.startsWith("document_versions?"))return run.source_snapshot.map(s=>({id:s.version_id,workspace_id:ws,document_id:s.document_id,publication_state:"ready",data_classification:"non_sensitive",index_generation:options.changed?"new-generation":s.index_generation,lifecycle_epoch:1}));
     if(path.startsWith("document_chunks?")) {
       const query=new URL(`https://fixture.invalid/${path}`).searchParams,ids=query.get("id")?.slice(4,-1).split(",");
-      return options.empty?[]:rows.filter(row=>!ids||ids.includes(row.id)).slice(0,Number(query.get("limit")||rows.length));
+      const versions=query.get("version_id")?.slice(4,-1).split(",");
+      return options.empty?[]:rows.filter(row=>(!ids||ids.includes(row.id))&&(!versions||versions.includes(row.version_id))).slice(0,Number(query.get("limit")||rows.length));
     }
     throw Error(`Unexpected fixture DB path ${path}`);
   };
@@ -56,7 +67,12 @@ async function fixture(t,options={}) {
     if(url.hostname==="generativelanguage.googleapis.com") {
       if(url.pathname.endsWith(":embedContent"))return json({embedding:{values:Array(8).fill(0.1)}});
       if(options.providerError)return new Response("synthetic provider interruption",{status:503});
-      const answer=options.timeline?JSON.stringify({documents:[{document_id:doc,events:[
+      const prompt=JSON.parse(init.body).contents[0].parts[0].text;
+      const sources=options.documentCount?JSON.parse(prompt.split("\nEVIDENCE:\n")[1]):null;
+      const answer=options.documentCount?JSON.stringify(options.timeline?{documents:run.source_snapshot.map(s=>{
+        const source=sources.find(item=>item.document_id===s.document_id),quote=source?.content.match(/[^.]*2024-02-\d{2}\./)?.[0]?.trim();
+        return {document_id:s.document_id,events:quote?[{citation_id:source.citation_id,quote,date_text:quote.match(/2024-02-\d{2}/)[0],date_role:"EFFECTIVE"}]:[]};
+      })}:{cells:run.source_snapshot.map(s=>({document_id:s.document_id,answer:sources.some(item=>item.document_id===s.document_id)?`30 days [${sources.find(item=>item.document_id===s.document_id).citation_id}].`:""}))}):options.timeline?JSON.stringify({documents:[{document_id:doc,events:[
         {citation_id:"S1",quote:"The synthetic policy took effect on 2024-02-29.",date_text:"2024-02-29",date_role:"EFFECTIVE"},
         {citation_id:"S1",quote:"It was published in 2024-02.",date_text:"2024-02",date_role:"PUBLISHED"}]}]}):options.compare?JSON.stringify({cells:[{document_id:doc,answer:"30 days [S1]."},{document_id:token,answer:"30 days [S2]."}]}):"The retention period is 30 days [S1].";
       return json({candidates:[{finishReason:options.incomplete?"MAX_TOKENS":"STOP",content:{parts:[{text:answer}]}}],usageMetadata:{promptTokenCount:20,candidatesTokenCount:12}});
@@ -68,6 +84,20 @@ async function fixture(t,options={}) {
     INGESTION_QUEUE:{send:async value=>sent.push(value)}};
   return {env,db,run,calls,sent,provider,hash,reservations,reads};
 }
+
+for(const mode of ["COMPARE","TIMELINE"])for(const count of [2,3,7,8])test(`${mode} retains all ${count} selected documents when the first source fills the lexical window`,async t=>{
+  const {env,db,calls,reads}=await fixture(t,{compare:mode==="COMPARE",timeline:mode==="TIMELINE",documentCount:count,chunkCount:400,noDense:true});
+  const run=await processResearchMessage(env,message,db);
+  assert.equal(run?.state,"completed");
+  const saved=calls.find(call=>call.p_operation==="commit").p_result;
+  assert.equal(new Set(saved.sources.map(s=>s.document_id)).size,count);
+  if(mode==="COMPARE")assert.ok(saved.comparison.cells.every(cell=>!cell.abstained));
+  else assert.equal(saved.timeline.events.length,count);
+  const lexical=reads.filter(path=>path.startsWith("document_chunks?")&&!new URL(`https://fixture.invalid/${path}`).searchParams.has("id"));
+  assert.equal(lexical.length,count);
+  assert.ok(lexical.reduce((sum,path)=>sum+Number(new URL(`https://fixture.invalid/${path}`).searchParams.get("limit")),0)<=201);
+  assert.ok(saved.coverage.chunks_considered<=200);assert.equal(saved.coverage.lexical_limit_reached,true);
+});
 
 for(const chunkCount of [200,201,400])test(`research retrieves a current indexed answer beyond the lexical window in ${chunkCount} chunks`,async t=>{
   const {env,db,calls,reads,hash}=await fixture(t,{chunkCount});

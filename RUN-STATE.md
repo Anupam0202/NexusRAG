@@ -1,5 +1,14 @@
 # NexusRAG execution checkpoint
 
+## Active Functional Batch: research-source-diversity-037
+
+**PARTIAL_NOT_COMPLETE. Independent functional source; no hosted/deployment or production acceptance.**
+
+- Frozen036fe64c3d9a20a617c48b1ca5b5517cdb175003843/tree3a4302a85bc03549fe00c1ae6c68b2213faecf53,677files, is freshly clean/verified. BATCH036_HANDOFF.md binds complete source92f108bd41bba951b2e152e8fefb137298b1340efc7c3760bf31a9ce56a08941/evidenceee7bc8ff40a4f879e97883e956d310c54d0e7d2346d88e4f5b49dbbac010826d, new-directory/fresh dependency recovery and ordinary exact-tree CI. Source-time036pending notes below are superseded only where that handoff proves completion. Image117216444115/requiredsummary117223957759 FAILED by metadata only; no findings read/new security work or bypass. Sole draftPR12/three branches/main/release unchanged; original paused022 untouched.
+- Actual Compare/Timeline executor reproduces1of8sources when a400chunk first source fills their global lexical window. Reserve a per-document share/canary within the same201row read budget and200unique candidate cap; keep12dense originals and existing execution scope/deadline/persistence. Real SQL9sources/6batches/27cells-or-events/concurrent starts/146date parity/65table140function restore and12affected desktop/mobile/theme/browser journeys PASS. Fresh owning/build/full cold browser/saved-source CI/new recovery must bind later evidence; failed initial browser copy-label retained. No complete Contradiction Analysis claim; its50source/10subquestion/8variant/420second bounds remain accepted/unimplemented.
+- Exact033rehearsal approval fulfilled once20261016115728; no037SQL/new hosted/provider/private/customer/destructive/paid/production/deployment operation. Full224definitions/tenproducts/twelvemodes/400+125quality, paused022, failed gates and private/lifecycle/rights/drift/rollout prerequisites remain incomplete. See RESEARCH_SOURCE_DIVERSITY_037.md.
+- Final pre-save631backend+10subtests/578Gateway/487frontend73files/57isolated/99scripts/lint/typecheck/source+baseline/NextOpenNext26assets/actualWorkerd fixtures PASS. Cold80controlled research browser journeys PASS,4intentional duplicate-width skips not counted; real SQL9source/6batch/27result/65table140function restore and original paused022551entry preservation PASS. Manual functional diff reviewed; no independent/security clearance. Exact saved-source/current CI/full new-directory dependencies/recovery remain externally required, not inferred from these source-time receipts.
+
 ## Active Functional Batch: document-original-delivery-036
 
 **PARTIAL_NOT_COMPLETE. Uncommitted independent functional source, not deployed or accepted.**

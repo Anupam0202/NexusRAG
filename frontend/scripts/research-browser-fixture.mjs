@@ -82,7 +82,7 @@ globalThis.fetch = async (input, init = {}) => {
       if(question.includes("Synthetic interrupted timeline")&&!interruptedQuestions.has(question)){interruptedQuestions.add(question);return new Response("synthetic interruption",{status:503});}
       const documents=docs.map(d=>{const source=sources.find(s=>s.document_id===d.document_id);return {document_id:d.document_id,events:!source?[]:source.content.includes("Issued")?
         [{citation_id:source.citation_id,quote:"Issued 2024-02.",date_text:"2024-02",date_role:"PUBLISHED"},{citation_id:source.citation_id,quote:"Effective 2024-02-29.",date_text:"2024-02-29",date_role:"EFFECTIVE"}]:
-        [{citation_id:source.citation_id,quote:"Reviewed 03/04/2024.",date_text:"03/04/2024",date_role:"OBSERVED"},{citation_id:source.citation_id,quote:"Open period 2024/2025.",date_text:"2024/2025",date_role:"EVENT"}]};});
+        source.content.includes("Reviewed")?[{citation_id:source.citation_id,quote:"Reviewed 03/04/2024.",date_text:"03/04/2024",date_role:"OBSERVED"},{citation_id:source.citation_id,quote:"Open period 2024/2025.",date_text:"2024/2025",date_role:"EVENT"}]:[]};});
       return result({candidates:[{finishReason:"STOP",content:{parts:[{text:JSON.stringify({documents})}]}}]});
     }
     if(prompt.includes("COMPARISON_DOCUMENTS:\n")) {

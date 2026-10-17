@@ -4,6 +4,34 @@ Status: **PARTIAL_NOT_COMPLETE — locally tested implementation; not production
 
 This receipt supersedes historical status claims only where it records a fresh observation. It does not certify a complete product, production release, provider rights, or absence of all defects.
 
+## Research Source Diversity - Active Batch037
+
+Actual executor regressions reproduce1of8selected sources in Compare and Timeline
+when a400chunk first document fills the global lexical window. Per-source reads
+now share the unchanged201row total budget/200candidate cap with explicit source
+canaries and bounded dense rehydration. Real disposable SQL9sources/6batches/
+27cells-or-events/concurrent start/later Findings/146date parity and65table140function
+restore PASS.12affected desktop/mobile/light/dark/320px/reload/review/resume browser
+cases PASS; actual Chrome retains both date-bearing sources, honest appendix gap,
+exact locators/citations and saved reload. Initial wrong test copy-label and one
+native locator timeout are preserved; actual visible accessibility commands work.
+No production defect is inferred from that browser-driver timeout.
+
+Full fresh owning/build/cold browser/exact saved-source CI/new dependency recovery
+remain required. Frozen036677source/287evidence/fresh recovery is bound externally
+by BATCH036_HANDOFF.md, superseding its source-time pending labels only where proven.
+Required036image/summary FAILED by metadata only; no findings read/new security
+work or bypass. No037SQL/hosted/private/provider/destructive/deployment operation.
+This is not Contradiction Analysis implementation; all224/tenproducts/twelvemodes/
+400+125quality and known release prerequisites remain incomplete. See
+RESEARCH_SOURCE_DIVERSITY_037.md.
+
+Final pre-save631backend+10/578Gateway/487frontend73files/57isolated/99scripts/
+lint/typecheck/source+baseline/NextOpenNext26assets/actualWorkerd fixtures PASS.
+Cold80controlled browser cases PASS;4intentional duplicate-width skips not counted.
+551original paused022entries remain byte-identical. Manual functional diff reviewed,
+not independent/security clearance. Exact source/CI/new recovery remain external.
+
 ## Document Original Delivery - Active Batch036
 
 Final pre-save fresh487frontend73files/570Gateway/631backend+10subtests/57isolated/
