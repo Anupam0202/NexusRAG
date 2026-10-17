@@ -12,6 +12,38 @@ async function savePlan(page:Page,question:string,subquestion?:string,theme="lig
   await page.getByRole("button",{name:"Save plan",exact:true}).click();
   await expect(page.getByRole("heading",{name:"Executions",exact:true})).toBeVisible();
 }
+for(const theme of ["light","dark"])test(`${theme}: changed quantity query is excluded and its receipt survives reload and Finding lineage`,async({page},testInfo)=>{
+  await page.setViewportSize({width:320,height:900});
+  const errors:string[]=[];page.on("pageerror",error=>errors.push(error.message));
+  const question=`Synthetic literal quantity 1.005 kg ${randomUUID()}`;
+  await savePlan(page,question,undefined,theme);
+  await page.getByRole("checkbox",{name:/I confirm that all questions/}).check();
+  await page.getByRole("button",{name:"Start research",exact:true}).click();
+  await expect(page.getByRole("status").filter({hasText:"Execution finished"})).toContainText("1 of 1");
+  const summary="Search queries (1 of 1 completed)";
+  await page.getByText(summary,{exact:true}).click();
+  const coverage=page.locator("details").filter({has:page.getByText(summary,{exact:true})});
+  await expect(coverage.locator("li")).toHaveCount(1);
+  await expect(coverage).toContainText(question);await expect(coverage).not.toContainText("11.005 kg");
+  await expect(coverage).toContainText("1 duplicate or nonconforming alternatives excluded.");
+  await expect(page.getByText("The mass is 1.005 kg [S1].",{exact:true})).toBeVisible();
+  await page.reload();
+  await page.getByRole("button",{name:`Open research plan: ${question}`,exact:true}).click();
+  await page.getByRole("button",{name:/Open execution/}).click();
+  await page.getByText(summary,{exact:true}).click();
+  await expect(coverage).toContainText("1 duplicate or nonconforming alternatives excluded.");
+  const save=page.getByRole("button",{name:"Save as finding",exact:true});
+  await save.click();await expect(page.getByRole("alert")).toContainText("not confirmed");await save.click();
+  await page.getByRole("link",{name:"Open saved finding",exact:true}).click();
+  await page.getByText(summary,{exact:true}).click();
+  await expect(coverage.locator("li")).toHaveCount(1);await expect(coverage).toContainText(question);
+  await expect(coverage).not.toContainText("11.005 kg");
+  await expect(coverage).toContainText("1 duplicate or nonconforming alternatives excluded.");
+  expect(await coverage.evaluate(element=>element.scrollWidth<=element.clientWidth)).toBe(true);
+  expect(errors).toEqual([]);
+  await coverage.scrollIntoViewIfNeeded();await page.screenshot({path:testInfo.outputPath(`literal-rejection-${theme}.png`)});
+});
+
 for(const theme of ["light","dark"])test(`${theme}: execute, inspect citations, reload and recover saved research results`,async({page},testInfo)=>{
   const errors:string[]=[];page.on("pageerror",error=>errors.push(error.message));
   const question=`What is the synthetic mass? ${testInfo.project.name} ${theme}`;

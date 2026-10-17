@@ -4,6 +4,40 @@ Status: **PARTIAL_NOT_COMPLETE — locally tested implementation; not production
 
 This receipt supersedes historical status claims only where it records a fresh observation. It does not certify a complete product, production release, provider rights, or absence of all defects.
 
+## Research Query Literals - Active Batch040
+
+Uncommitted ordinary functional correction from saved039a99f211/treec855f3ce.
+Actual parser three cases accept changed identifiers/quantities by substring.
+Complete-token/conditional compound-continuation matching now rejects these,
+while original-span extraction and a merged range sweep preserve full quantities
+and bounded long inputs. First correction rejected sentence punctuation; positive
+regressions caught and corrected it, failed evidence retained.629Gateway and
+nine native Workerd positive/negative cases PASS; original-only embedding and
+durable rejection receipts verified through actual executor. Four actual UI/reload/
+Finding desktop/mobile/theme320px cases and native Chrome original-only/reload
+PASS with controlled peers. Final lint/typecheck pass; native PNG saved, initial
+capture diagnostics retained. Full owning/build/cold UI/SQL compatibility,
+exact-source CI/new dependency/source/evidence recovery remain required.
+
+039complete source7792451a8d20da4f52e4bd2c89fb9f52dec4ab4db9685591370b408455576f60
+recovered NEW; fresh dependencies and631backend+10/610Gateway/496frontend/57isolated/
+100scripts recovered checks pass, remainder running at this source-time note.
+Its exact-tree ordinary database/frontend CI passes, but required image117481523246
+and summary117487248923 FAILED by metadata only. No new security work, gate waiver,
+paused022 mutation,039hosted approval/application or production claim. Full224/
+tenproducts/twelvemodes/400+125quality and broader semantics/rights/lifecycle/
+private/deployed/rollout prerequisites remain incomplete. See RESEARCH_QUERY_LITERALS_040.md.
+
+Final040pre-save629Gateway/631backend+10/496frontend75files/57isolated/100scripts,
+lint/typecheck/foundation/baseline, Next/OpenNext26assets, actual Worker fixtures
+and real65table148function SQL concurrency/restore PASS. Cold100controlled and
+20ordinary builtWorker browser/GET-HEAD200-404-405 PASS; four intentional skips
+are not passes. QA servers stopped and temporary system requests released;
+paused022551entries unchanged. Manual functional diff reviewed, not independent/
+security clearance. Exact saved-source/current CI/full new dependency recovery
+remain separately required; source-time passes are not hosted/private/production
+acceptance. Frozen039complete milestone is bound externally by BATCH039_HANDOFF.md.
+
 ## Research Query Retrieval - Active Batch039
 
 Actual executor before-fix lacks query variants and makes68reads/provider calls

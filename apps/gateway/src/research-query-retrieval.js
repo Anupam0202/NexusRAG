@@ -8,13 +8,36 @@ export function queryVariantPrompt(question,mode) {
 }
 
 function requiredLiterals(question) {
-  return [...new Set([
-    ...Array.from(question.matchAll(/"[^"\n]+"|“[^”\n]+”/gu),m=>m[0]),
-    ...(question.match(/\b[\p{L}\p{N}]+(?:[-./][\p{L}\p{N}]+)+\b/gu)||[]).filter(value=>/\p{N}/u.test(value)),
-    ...(question.match(/\b\d+(?:[.,]\d+)*%?\b/gu)||[]),
-    ...(question.match(/\b\d+(?:[.,]\d+)*\s*(?:kg|mg|g|km|cm|mm|m|USD|EUR|GBP|INR|days?|hours?|minutes?|months?|years?)\b/gi)||[]),
-    ...(question.match(/\b(?:no|not|never|except|without|before|after|only|unless|at least|at most)\b/gi)||[]),
-  ])];
+  const matches=pattern=>Array.from(question.matchAll(pattern),match=>({value:match[0],start:match.index,end:match.index+match[0].length}));
+  const protectedLiterals=[
+    ...matches(/"[^"\n]+"|“[^”\n]+”/gu),
+    ...matches(/\b[\p{L}\p{N}]+(?:[-./][\p{L}\p{N}]+)+\b/gu).filter(item=>/\p{N}/u.test(item.value)),
+    ...matches(/\b\d+(?:[.,]\d+)*\s*(?:kg|mg|g|km|cm|mm|m|USD|EUR|GBP|INR|days?|hours?|minutes?|months?|years?)\b/gi),
+  ];
+  // Merge protected spans once for bounded long questions, then skip numeric
+  // fragments such as the regex's partial "10" inside the full "10.5kg" token.
+  const ranges=[];
+  for(const item of [...protectedLiterals].sort((a,b)=>a.start-b.start||a.end-b.end)){
+    const previous=ranges.at(-1);
+    if(previous&&item.start<=previous.end)previous.end=Math.max(previous.end,item.end);
+    else ranges.push({start:item.start,end:item.end});
+  }
+  let rangeIndex=0;
+  const numbers=matches(/\b\d+(?:[.,]\d+)*%?\b/gu).filter(number=>{
+    while(rangeIndex<ranges.length&&ranges[rangeIndex].end<=number.start)rangeIndex++;
+    const range=ranges[rangeIndex];
+    return !range||range.start>number.start||range.end<number.end;
+  });
+  const qualifiers=matches(/\b(?:no|not|never|except|without|before|after|only|unless|at least|at most)\b/gi);
+  return [...new Set([...protectedLiterals,...numbers,...qualifiers].map(item=>item.value))];
+}
+
+function containsLiteral(query,literal) {
+  const compound=/^[\p{L}\p{N}]+(?:[-./][\p{L}\p{N}]+)+$/u.test(literal)&&!/^\d+(?:[.,]\d+)*%?$/u.test(literal);
+  const word="[\\p{L}\\p{N}_]",linker=compound?"[./-]":"[.,]",linked=compound?word:"[\\p{N}]";
+  const escaped=literal.replace(/[.*+?^${}()|[\]\\]/g,"\\$&");
+  // A preserved identifier or quantity must not be a substring of another token.
+  return new RegExp(`(?<!${word})(?<!${linked}${linker})${escaped}(?!${word})(?!${linker}${linked})`,"iu").test(query);
 }
 
 export function queryVariants(question,mode,generated) {
@@ -26,7 +49,7 @@ export function queryVariants(question,mode,generated) {
     const literals=requiredLiterals(question);
     for(const item of entries) {
       if(typeof item!=="string"||!item.trim()||Array.from(item).length>500||/[\u0000-\u001f]/u.test(item)
-        ||literals.some(literal=>!item.toLowerCase().includes(literal.toLowerCase()))) {rejected++;continue;}
+        ||literals.some(literal=>!containsLiteral(item,literal))) {rejected++;continue;}
       const value=item.trim(),key=value.toLowerCase();
       if(seen.has(key)){rejected++;continue;}
       seen.add(key);queries.push(value);

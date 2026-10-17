@@ -1,5 +1,30 @@
 # Requirement traceability
 
+040corrects observed ordinary query-literal preservation, not full semantic or
+mode/product acceptance. Saved039a99f211/treec855f3ce/694source SHA2567792451a8d20da4f52e4bd2c89fb9f52dec4ab4db9685591370b408455576f60
+is frozen/recovered NEW; its later fresh checks are externally bound. Three actual
+parser cases fail before the correction; first corrected sentence-period false
+rejection is also retained.629Gateway plus nine native Workerd positive/negative
+cases and actual original-only executor/rejection persistence PASS. Full current
+040owning/UI/build/CI/new dependency recovery remain open.039SQL unapproved;
+required039image/summary FAILED by metadata only, no new security work or waiver.
+All224exact definitions/tenproducts/twelvemodes/400+125quality unchanged. Preserve
+paused022/frozen source and all accepted broader retrieval/constraints/rights/
+quality/lifecycle/private/rollout work. See RESEARCH_QUERY_LITERALS_040.md.
+
+Later four040desktop/mobile/light/dark320px cases and actual Chrome verify original-
+only execution, excluded changed quantity, reload and saved Finding receipts.
+Final lint/typecheck PASS; native PNG saved after retained capture diagnostics.
+Full040cold/owning/build/saved-source CI/new dependency recovery remain open.
+
+Final040pre-save629Gateway/631backend+10/496frontend75files/57isolated/100scripts,
+lint/typecheck/foundation/baseline, Next/OpenNext26assets/native fixtures/real
+65table148function SQL concurrency+restore and100cold controlled plus20ordinary
+builtWorker browser cases PASS,4intentional skips uncounted. Original paused022
+unchanged. Exact saved-source/current CI/full fresh dependency recovery still
+required. Manual functional diff reviewed, not independent/security clearance;
+full normative scope and all broader acceptance criteria remain incomplete.
+
 039addresses the accepted per-mode query-variant journey and full-source Worker
 execution, not full retrieval/mode/product acceptance. Before-fix actual executor
 has no variant receipt and makes68reads/provider calls before quota calls at50

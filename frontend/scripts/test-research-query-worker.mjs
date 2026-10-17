@@ -11,6 +11,17 @@ import {randomUUID} from "node:crypto";
 
 const root=resolve(dirname(fileURLToPath(import.meta.url)),"../.."),workspace="11111111-1111-4111-8111-111111111111",id="22222222-2222-4222-8222-222222222222";
 const requests=[];let partial=false;
+const literalCases=[
+  ["Evidence for ISO-9001","Evidence for ISO-90010"],
+  ["Evidence for ISO-9001","Evidence for ISO-9001-2"],
+  ["Evidence for 10 kg","Evidence for 210 kg"],
+  ["Evidence for 10.5 kg","Evidence for 110.5 kg"],
+  ["Evidence not renewable","Evidence notation renewable"],
+  ["Evidence for ISO-9001 at 10.5 kg","Find (iso-9001) at (10.5 KG).",true],
+  ["Evidence for ISO-9001","Locate ISO-9001.",true],
+  ["Evidence after 2024-02-29","Locate evidence after 2024-02-29.",true],
+  ["Evidence for 10.5kg","Locate 10.5kg.",true],
+];
 const authority=createServer(async(request,response)=>{
   let text="";for await(const part of request)text+=part;
   const body=JSON.parse(text||"{}"),url=new URL(request.url,"http://localhost");requests.push({path:url.pathname,body});
@@ -26,9 +37,12 @@ const reserve=createServer();await new Promise(resolve=>reserve.listen(0,"127.0.
 const directory=await mkdtemp(join(tmpdir(),"nexusrag-query-workerd-")),base=`http://127.0.0.1:${authority.address().port}`;
 const entry=join(directory,"query-entry.mjs"),config=join(directory,"wrangler.json");
 await writeFile(entry,`import {searchChunkVariants} from ${JSON.stringify(join(root,"apps/gateway/src/worker-pipeline.js").replaceAll("\\","/"))};
+import {queryVariants} from ${JSON.stringify(join(root,"apps/gateway/src/research-query-retrieval.js").replaceAll("\\","/"))};
 const ordinary=globalThis.fetch;
 globalThis.fetch=(input,init)=>{const url=new URL(input);if(url.hostname==="generativelanguage.googleapis.com")return ordinary(${JSON.stringify(base+"/synthetic-gemini")},init);return ordinary(input,init);};
-export default {async fetch(request,env){if(new URL(request.url).pathname==="/health")return new Response("OK");try{return Response.json({hits:await searchChunkVariants(env,{queries:Array.from({length:8},(_,i)=>"Synthetic query "+i),workspaceId:${JSON.stringify(workspace)},documentIds:[${JSON.stringify(id)}],versionIds:[${JSON.stringify(id)}],indexGenerations:["synthetic"],limit:3,dataClassification:"non_sensitive",signal:AbortSignal.timeout(10000)})});}catch(error){return Response.json({code:error.code},{status:503});}}};`);
+export default {async fetch(request,env){const path=new URL(request.url).pathname;if(path==="/health")return new Response("OK");try{
+if(path==="/literals")return Response.json({results:${JSON.stringify(literalCases)}.map(([question,alternative])=>queryVariants(question,"QUICK_LOOKUP",{answer:JSON.stringify({queries:[alternative]}),model:"synthetic",usage:{}}))});
+return Response.json({hits:await searchChunkVariants(env,{queries:Array.from({length:8},(_,i)=>"Synthetic query "+i),workspaceId:${JSON.stringify(workspace)},documentIds:[${JSON.stringify(id)}],versionIds:[${JSON.stringify(id)}],indexGenerations:["synthetic"],limit:3,dataClassification:"non_sensitive",signal:AbortSignal.timeout(10000)})});}catch(error){return Response.json({code:error.code},{status:503});}}};`);
 await writeFile(config,JSON.stringify({name:"nexusrag-synthetic-query-worker",main:entry,compatibility_date:"2026-09-20",vars:{SUPABASE_URL:base,
   SUPABASE_SERVICE_ROLE_KEY:"synthetic-service",GOOGLE_API_KEY:"synthetic-not-live",QDRANT_URL:base,QDRANT_API_KEY:"synthetic-not-live"}}));
 const environment=Object.fromEntries(Object.entries(process.env).filter(([key])=>["path","systemroot","windir","temp","tmp","comspec"].includes(key.toLowerCase())));
@@ -44,6 +58,17 @@ try {
     await new Promise(resolve=>setTimeout(resolve,250));
   }
   assert.ok(ready,output);
+  const literalResponse=await fetch(`http://127.0.0.1:${port}/literals`,{signal:AbortSignal.timeout(15000)});
+  assert.equal(literalResponse.status,200);
+  const literalResults=(await literalResponse.json()).results;
+  assert.equal(literalResults.length,literalCases.length);
+  for(const [index,receipt] of literalResults.entries()){
+    const [question,alternative,faithful]=literalCases[index];
+    assert.deepEqual(receipt.queries,faithful?[question,alternative]:[question]);
+    assert.equal(receipt.rejected_queries,faithful?0:1);
+  }
+  assert.equal(requests.length,0);
+  console.log(`ACTUAL_WORKER_RESEARCH_QUERY_LITERAL_PASS cases=${literalCases.length} provider_requests=0`);
   const response=await fetch(`http://127.0.0.1:${port}/query`,{signal:AbortSignal.timeout(15000)}),result=await response.json();
   assert.equal(response.status,200,JSON.stringify(result));assert.equal(result.hits.length,8);assert.ok(result.hits.every(hits=>hits.length===1&&hits[0].id===id));
   const embedding=requests.find(r=>r.path==="/synthetic-gemini"),search=requests.find(r=>r.path.endsWith("/points/query/batch"));

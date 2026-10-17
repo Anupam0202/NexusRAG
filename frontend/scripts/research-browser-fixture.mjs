@@ -79,7 +79,8 @@ globalThis.fetch = async (input, init = {}) => {
     const prompt=JSON.parse(init.body).contents[0].parts[0].text;
     if(prompt.startsWith("RESEARCH_QUERY_VARIANTS")) {
       const question=prompt.split("QUESTION:\n")[1],limit=Number(prompt.match(/at most (\d+)/)[1]);
-      const queries=question.includes("Synthetic multi-query")?["duration","interval","policy","schedule","rule","period","context"].slice(0,limit).map(word=>`${question} ${word}`):[];
+      const queries=question.startsWith("Synthetic literal quantity")?[question.replace("1.005 kg","11.005 kg")]:
+        question.includes("Synthetic multi-query")?["duration","interval","policy","schedule","rule","period","context"].slice(0,limit).map(word=>`${question} ${word}`):[];
       return result({candidates:[{finishReason:"STOP",content:{parts:[{text:JSON.stringify({queries})}]}}]});
     }
     if(prompt.includes("CONTRADICTION_DOCUMENTS:\n")) {

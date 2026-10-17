@@ -104,6 +104,19 @@ async function fixture(t,options={}) {
   return {env,db,run,calls,sent,provider,hash,reservations,reads};
 }
 
+test("actual executor never embeds a changed quantity and persists the rejected-alternative receipt",async t=>{
+  const question="Is the retention period 30 days?",alternative="Is the retention period 130 days?";
+  const {env,db,run,calls,provider}=await fixture(t,{variantQueries:[alternative]});
+  run.questions=[question];
+  assert.equal((await processResearchMessage(env,message,db))?.state,"completed");
+  const receipt=calls.find(call=>call.p_operation==="commit").p_result.query_retrieval;
+  assert.deepEqual(receipt.queries,[question]);assert.equal(receipt.rejected_queries,1);
+  assert.equal(receipt.completed_queries,1);assert.equal(receipt.expansion_status,"ORIGINAL_ONLY");
+  assert.equal(provider.filter(call=>call.url.endsWith(":batchEmbedContents")).length,0);
+  const embedding=provider.find(call=>call.url.endsWith(":embedContent"));
+  assert.equal(JSON.parse(embedding.body).content.parts[0].text,question);
+});
+
 test("actual contradiction executor searches all eight query variants and durably records their coverage",async t=>{
   const alternatives=["duration","interval","limit","policy","schedule","rule","period"].map(term=>`Synthetic retention ${term}`);
   const {env,db,calls,provider}=await fixture(t,{contradiction:true,variantQueries:alternatives,lastVariantOnly:true,chunkCount:400});

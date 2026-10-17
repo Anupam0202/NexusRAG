@@ -13,6 +13,27 @@
   "interpretation": "OPEN_ENGINEERING includes implemented but not fully accepted requirements; it does not assert that no code or scoped evidence exists. External approvals do not close unfinished internal work.",
   "entries": [
     {
+      "id": "ENGINEERING-RESEARCH-QUERY-LITERALS",
+      "requirement": "Reject changed query identifiers and quantities without discarding faithful surrounding punctuation, and retain truthful original-only rejection receipts",
+      "normative_source": "Owner faithful original-first query/evidence retrieval and end-user reload/Finding journeys; exact224definitions unchanged",
+      "status": "IN_PROGRESS",
+      "environment": "uncommitted functional040 on saved039a99f211; actual production parser/executor and local Workerd with controlled peers, not hosted/private/provider quality acceptance",
+      "next_action": "Save manually reviewed source on existing PR12, bind current exact-tree CI and complete fresh source/dependency/evidence recovery. Final source-time owning suites/build/real SQL/native fixtures/100cold controlled and20ordinary Worker browser checks pass,4intentional skips uncounted; no independent/security/hosted/private/model-quality or production acceptance. Frozen039milestone is externally complete, not full literal acceptance;039SQL remains local-only/unapproved. All accepted full semantics/constraints/quality/products/modes and excluded release prerequisites stay open.",
+      "acceptance_evidence": [{
+        "environment": "actual production parser/executor under controlled provider responses and actual local Workerd",
+        "observed_at": "2026-10-17T19:53:01Z",
+        "source_identity": "parent a99f211bbf7700b6366946c07ae32761aa7496ab plus uncommitted040; not published",
+        "command_or_url": "batch040/logs/literal-preservation-before-02.log; literal-punctuation-before-01.log; gateway-owning-final-02.log; query-literals-native-final-02.log",
+        "result": "Three real parser cases accept ISO-90010/210kg/110.5kg before correction. Complete-token matching, conditional compound continuation and merged original-span numeric handling now pass629Gateway tests, actual original-only embedding/rejection persistence and nine native positive/negative cases; retained eight-query native transport uses seven controlled HTTP calls. First correction's sentence-period rejection caught/corrected; first native readiness failure remains unexplained, unchanged later attempt/final expanded cases pass without waiver. UI/CI/full fresh recovery remain open. No new SQL/dependencies/security/hosted/private/provider/customer/production/deployment operation."
+      },{
+        "environment": "final pre-save040 isolated source, controlled desktop/mobile Chrome, native Workerd and real disposable SQL",
+        "observed_at": "2026-10-17T20:28:22Z",
+        "source_identity": "parent a99f211bbf7700b6366946c07ae32761aa7496ab plus uncommitted040; later saved identity bound externally",
+        "command_or_url": "batch040/logs owning/foundation/baseline/build/source-sql/source-browser/source-worker-browser receipts; native-chrome-literal-reload.png",
+        "result": "629Gateway/631backend+10subtests/496frontend75files/57isolated/100scripts/lint/typecheck/foundation/baseline/NextOpenNext26assets/both native fixtures/65table148function SQL concurrency+restore PASS.100cold controlled and20ordinary builtWorker browser plus GET-HEAD200-404-405 PASS,4intentional skips uncounted. Native Chrome original-only/reload and four focused quantity-rejection/reload/Finding journeys pass with controlled peers. Failed initial parser/punctuation/native readiness/capture/helper attempts retained. QA servers stopped, temporary system requests released, paused022551entries unchanged. Exact saved-source/current CI/full new dependency recovery remain required; no production/private/provider/security clearance."
+      }]
+    },
+    {
       "id": "ENGINEERING-RESEARCH-QUERY-RETRIEVAL",
       "requirement": "Execute adopted per-mode query variants with original-first scope-preserving evidence retrieval, durable coverage and full-source execution within Worker resource bounds",
       "normative_source": "Owner twelve-mode functional assignment; shared research-modes.json and original exact224definitions unchanged",

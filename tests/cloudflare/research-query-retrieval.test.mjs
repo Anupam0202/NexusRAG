@@ -21,6 +21,49 @@ test("measurement units and bound qualifiers cannot silently change in an altern
   const result=queryVariants(question,"EVIDENCE_ANSWER",generated([good,good.replace("kg","lb"),good.replace("at most","after")]));
   assert.deepEqual(result.queries,[question,good]);assert.equal(result.rejected_queries,2);
 });
+
+for(const [original,alternative] of [
+  ["Evidence for ISO-9001","Evidence for ISO-90010"],
+  ["Evidence for ISO-9001","Evidence for XISO-9001"],
+  ["Evidence for ISO-9001","Evidence for ISO-9001-2"],
+  ["Evidence for ISO-9001","Evidence for ISO-9001.2"],
+  ["Evidence for ISO-9001","Evidence for ISO-9001/2"],
+  ["Evidence for ISO-9001","Evidence for X/ISO-9001"],
+  ["Evidence for 10 kg","Evidence for 210 kg"],
+  ["Evidence for 10.5 kg","Evidence for 110.5 kg"],
+  ["Evidence for 2.5","Evidence for 2.5.1"],
+  ["Evidence after 2024-02-29","Evidence after 2024-02-290"],
+  ["Evidence not renewable","Evidence notation renewable"],
+  ["Evidence at most 50 days","Evidence at mostly 50 days"],
+])test(`literal token boundaries reject changed meaning: ${alternative}`,()=>{
+  const result=queryVariants(original,"QUICK_LOOKUP",generated([alternative]));
+  assert.deepEqual(result.queries,[original]);assert.equal(result.rejected_queries,1);
+  assert.equal(result.expansion_status,"ORIGINAL_ONLY");
+});
+
+test("literal token boundaries retain faithful case and surrounding punctuation",()=>{
+  const question='Evidence for ISO-9001, "cover letter", 10.5 kg after 2024-02-29 not a 50 day limit';
+  const alternative='Find (iso-9001), "cover letter", (10.5 KG), after (2024-02-29), not a (50 DAY) limit.';
+  const result=queryVariants(question,"QUICK_LOOKUP",generated([alternative]));
+  assert.deepEqual(result.queries,[question,alternative]);assert.equal(result.rejected_queries,0);
+});
+
+test("a bounded long identifier question retains its original without accepting a partial scope",()=>{
+  const question=Array.from({length:1200},(_,i)=>`ID-${i}`).join(" ");
+  assert.ok(question.length<=10000);
+  const result=queryVariants(question,"QUICK_LOOKUP",generated(["Locate ID-0"]));
+  assert.deepEqual(result.queries,[question]);assert.equal(result.rejected_queries,1);
+});
+
+for(const [question,alternative] of [
+  ["Evidence for ISO-9001","Locate ISO-9001."],
+  ["Evidence after 2024-02-29","Find evidence after 2024-02-29."],
+  ["Evidence for 10.5kg","Locate 10.5kg."],
+  ["Evidence for 10.5 kg","Locate 10.5 kg."],
+])test(`faithful literals retain sentence punctuation: ${alternative}`,()=>{
+  const result=queryVariants(question,"QUICK_LOOKUP",generated([alternative]));
+  assert.deepEqual(result.queries,[question,alternative]);assert.equal(result.rejected_queries,0);
+});
 for(const answer of ["No JSON",JSON.stringify({queries:null}),JSON.stringify({queries:Array(8).fill("excess")})])test(`invalid expansion remains explicit original-only, ${answer.slice(0,20)}`,()=>{
   const result=queryVariants("Original","CONTRADICTION_ANALYSIS",{answer});
   assert.deepEqual(result.queries,["Original"]);assert.equal(result.expansion_status,"INVALID_RESPONSE_ORIGINAL_ONLY");
