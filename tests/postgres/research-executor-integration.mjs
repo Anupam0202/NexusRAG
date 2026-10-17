@@ -46,6 +46,11 @@ const run=sql("select public.nexus_research_run(:'ctx'::jsonb,'create',:'plan'::
 const tables=new Set(["workspaces","workspace_settings","documents","document_versions","document_chunks","research_runs","finding_versions"]),sent=[];
 async function db(_env,path,init={}) {
   const url=new URL(`https://local.invalid/${path}`),table=url.pathname.slice(1);
+  if(table==="rpc/nexus_research_candidates") {
+    const p=JSON.parse(init.body);
+    return sql("select public.nexus_research_candidates(:'ctx'::jsonb,:'id'::uuid,:'generation'::integer,:'position'::integer,array(select jsonb_array_elements_text(:'ids'::jsonb)::uuid));",
+      {ctx:p.p_context,id:p.p_id,generation:p.p_generation,position:p.p_position,ids:p.p_document_ids});
+  }
   if(table==="rpc/nexus_research_step") {
     const p=JSON.parse(init.body);
     return sql("select public.nexus_research_step(:'ctx'::jsonb,:'op',:'id'::uuid,:'generation'::integer,:'position'::integer,nullif(:'token','')::uuid,nullif(:'result','')::jsonb,nullif(:'error',''));",
@@ -81,6 +86,7 @@ globalThis.fetch=async(input,init={})=>{
   }
   if(url.hostname==="generativelanguage.googleapis.com") {
     if(url.pathname.endsWith(":embedContent"))return json({embedding:{values:Array(8).fill(0.1)}});
+    if(JSON.parse(init.body).contents[0].parts[0].text.startsWith("RESEARCH_QUERY_VARIANTS"))return json({candidates:[{finishReason:"STOP",content:{parts:[{text:JSON.stringify({queries:[]})}]}}]});
     generations++;
     return json({candidates:[{finishReason:"STOP",content:{parts:[{text:"Mass is 1.005 kg [S1]."}]}}]});
   }

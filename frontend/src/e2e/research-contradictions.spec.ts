@@ -3,6 +3,31 @@ import {randomUUID} from "node:crypto";
 import {selectWorkspaceReviewer} from "./research-review-helpers";
 
 test.skip(!process.env.E2E_RESEARCH_COMPONENT_FIXTURE,"Requires controlled local UI/Gateway/queue/provider peers, not hosted identities.");
+for(const theme of ["light","dark"])test(`${theme}: eight searched variants survive execution, reload and Finding lineage`,async({page},testInfo)=>{
+  await page.setViewportSize({width:320,height:900});
+  const actor=randomUUID(),question=`Synthetic multi-query mass context ${randomUUID()}`;
+  await page.goto(`/?actor=${actor}&theme=${theme}`);
+  await page.getByRole("combobox",{name:"Mode",exact:true}).selectOption("CONTRADICTION_ANALYSIS");
+  await page.getByRole("textbox",{name:"Question",exact:true}).fill(question);
+  await page.getByRole("textbox",{name:"Completion criteria",exact:true}).fill("Inspect original evidence and actual query coverage.");
+  await page.getByRole("checkbox",{name:"Synthetic policy.txt",exact:true}).check();await page.getByRole("checkbox",{name:"Synthetic second policy.txt",exact:true}).check();
+  await page.getByRole("button",{name:"Save plan",exact:true}).click();await page.getByRole("checkbox",{name:/I confirm that all questions/}).check();
+  await page.getByRole("button",{name:"Start research",exact:true}).click();
+  await expect(page.getByRole("status").filter({hasText:"Execution finished"})).toContainText("1 of 1");
+  await page.getByText("Search queries (8 of 8 completed)",{exact:true}).click();
+  let coverage=page.locator("details").filter({has:page.getByText("Search queries (8 of 8 completed)",{exact:true})});
+  await expect(coverage.locator("li")).toHaveCount(8);await expect(coverage).toContainText("Search queries are not evidence");
+  await page.reload();await page.getByRole("button",{name:`Open research plan: ${question}`,exact:true}).click();await page.getByRole("button",{name:/Open execution/}).click();
+  await page.getByText("Search queries (8 of 8 completed)",{exact:true}).click();await expect(coverage.locator("li")).toHaveCount(8);
+  const save=page.getByRole("button",{name:"Save as finding",exact:true});await save.click();await expect(page.getByRole("alert")).toContainText("not confirmed");await save.click();
+  await page.getByRole("link",{name:"Open saved finding",exact:true}).click();
+  await page.getByText("Search queries (8 of 8 completed)",{exact:true}).click();
+  coverage=page.locator("details").filter({has:page.getByText("Search queries (8 of 8 completed)",{exact:true})});
+  await expect(coverage.locator("li")).toHaveCount(8);await expect(coverage).toContainText(question);
+  const bounds=await coverage.evaluate(e=>({width:e.clientWidth,content:e.scrollWidth,right:e.getBoundingClientRect().right,viewport:window.innerWidth}));
+  expect(bounds.content).toBeLessThanOrEqual(bounds.width);expect(bounds.right).toBeLessThanOrEqual(bounds.viewport);
+  await coverage.scrollIntoViewIfNeeded();await page.screenshot({path:testInfo.outputPath(`query-coverage-${theme}.png`)});
+});
 for(const theme of ["light","dark"])for(const width of [null,320])test(`${theme}${width?` ${width}px`:""}: execute, reload and independently review exact source-paired statements`,async({page},testInfo)=>{
   if(width)await page.setViewportSize({width,height:900});
   const errors:string[]=[];page.on("pageerror",error=>errors.push(error.message));

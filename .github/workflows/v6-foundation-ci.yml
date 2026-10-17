@@ -120,6 +120,9 @@ jobs:
       - name: Actual gateway Worker offline fixture workflow
         run: node scripts/test-gateway-fixtures.mjs
         working-directory: frontend
+      - name: Actual Worker research batch transport
+        run: node scripts/test-research-query-worker.mjs
+        working-directory: frontend
       - run: npm run build
         working-directory: frontend
         env:

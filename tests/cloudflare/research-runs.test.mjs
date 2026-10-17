@@ -15,6 +15,7 @@ function fixture(t, options={}) {
     if(path==="/rest/v1/workspace_members")return json([{workspace_id:workspace,user_id:user,role:"editor"}]);
     if(path==="/rest/v1/workspaces")return json([{lifecycle_state:"active",capability_revision:1}]);
     if(path==="/rest/v1/workspace_settings")return json([{active_policy_id:policy,policy_version:1}]);
+    if(path==="/rest/v1/rpc/nexus_research_candidates_contract")return options.candidatesMissing?new Response(JSON.stringify({code:"PGRST202"}),{status:404}):json({schema_version:"research-candidates/1",max_rows:201,max_candidates:200,max_sources:50});
     if(path==="/rest/v1/rpc/nexus_research_run") {
       const data=JSON.parse(init.body);calls.push(data);
       if(options.rpc)return options.rpc(data,json);
@@ -26,6 +27,13 @@ function fixture(t, options={}) {
     INGESTION_QUEUE:{send:async value=>{if(options.queueError)throw Error("synthetic queue interruption");sent.push(value);}}}};
 }
 const request=(method="GET",suffix="",body)=>new Request(`https://gateway.invalid/api/v2/research/plans/${plan}/runs${suffix}`,{method,headers,body:body?JSON.stringify(body):undefined});
+
+test("missing fair candidate contract stops new processing before admission or dispatch",async t=>{
+  const {env,calls,sent}=fixture(t,{candidatesMissing:true});
+  const response=await handle(request("POST","",{non_sensitive_attested:true}),env);
+  assert.equal(response.status,503);assert.match((await response.json()).error.message,/research_query_retrieval/);
+  assert.equal(calls.length,0);assert.equal(sent.length,0);
+});
 
 test("a saved research plan can start a persisted queued execution without a private chat session",async t=>{
   const {env,sent,calls}=fixture(t);

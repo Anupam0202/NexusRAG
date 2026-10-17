@@ -9,6 +9,7 @@ import { ResearchFindingAction } from "./ResearchFindingAction";
 import { ComparisonMatrix } from "./ComparisonMatrix";
 import { TimelineOverview } from "./TimelineEvents";
 import { ContradictionPairs } from "./ContradictionPairs";
+import { ResearchQueryCoverage } from "./ResearchQueryCoverage";
 
 const button="inline-flex items-center justify-center gap-2 rounded-lg border border-[var(--border)] px-3 py-2 text-sm disabled:opacity-50";
 export function ResearchRuns({plan,workspaceId,userId,canWrite}:{plan:ResearchPlanRecord;workspaceId:string;userId:string;canWrite:boolean}) {
@@ -82,7 +83,7 @@ export function ResearchRuns({plan,workspaceId,userId,canWrite}:{plan:ResearchPl
         {active&&<button className={button} disabled={busy||!canWrite} onClick={()=>void operate(()=>researchRunCommand(plan.id,context,"cancel",selected.id))}><Square size={16}/>Cancel execution</button>}
         {["cancelled","interrupted"].includes(selected.state)&&<button className={button} disabled={busy||!canWrite||!attested||selected.source_state!=="CURRENT"||selected.generation>=10}
           onClick={()=>void operate(()=>researchRunCommand(plan.id,context,"resume",selected.id,undefined,plan.plan.mode))}><Play size={16}/>Resume remaining questions</button>}
-        <button className={button} disabled={!selected.results.length} onClick={()=>void navigator.clipboard.writeText(selected.results.map(result=>`${result.question}\n${result.answer}\n${result.sources.map(s=>`[${s.citation_id}] ${s.filename}, chunk ${s.chunk_index}, ${s.original_content_hash}`).join("\n")}`).join("\n\n"))
+        <button className={button} disabled={!selected.results.length} onClick={()=>void navigator.clipboard.writeText(selected.results.map(result=>`${result.question}\n${result.answer}\n${result.sources.map(s=>`[${s.citation_id}] ${s.filename}, chunk ${s.chunk_index}, ${s.original_content_hash}`).join("\n")}${result.query_retrieval?`\nSearch queries (not evidence): ${result.query_retrieval.queries.join(" | ")}`:""}`).join("\n\n"))
           .then(()=>setCopied(true)).catch(()=>setError("The clipboard was unavailable."))}><Copy size={16}/>{copied?"Copied":"Copy results"}</button>
       </div>
       {selected.source_state==="CURRENT"&&selected.mode==="TIMELINE"&&selected.results.length>0&&<TimelineOverview run={selected}/>}
@@ -90,6 +91,7 @@ export function ResearchRuns({plan,workspaceId,userId,canWrite}:{plan:ResearchPl
         <h4 className="mb-2 whitespace-pre-wrap break-words font-medium">{result.question}</h4>
         <p className="mb-2 text-xs text-[var(--text-muted)]">{result.claim_state==="UNSUPPORTED"?"No supported answer":"Review required; citation presence is not entailment"}</p>
         {result.comparison?<ComparisonMatrix matrix={result.comparison} sourcePrefix={`${selected.id}-${index}`}/>:result.timeline?<p className="mb-3 text-sm">{result.timeline.events.length} source events / criterion {result.timeline.criterion_index+1} / batch {result.timeline.batch_index+1}</p>:result.contradiction?<ContradictionPairs analysis={result.contradiction} sourcePrefix={`${selected.id}-${index}`}/>:<p className="mb-3 whitespace-pre-wrap break-words text-sm">{result.answer}</p>}
+        {result.query_retrieval&&<ResearchQueryCoverage retrieval={result.query_retrieval}/>}
         <ResearchFindingAction runId={selected.id} index={index} result={result} workspaceId={workspaceId} userId={userId} canWrite={canWrite}/>
         {result.sources.map(source=><details key={source.citation_id} id={`${selected.id}-${index}-${source.citation_id}`} tabIndex={-1} className="mb-2 min-w-0 rounded-lg border border-[var(--border)] p-3">
           <summary className="cursor-pointer break-words text-sm">[{source.citation_id}] {source.filename} / chunk {source.chunk_index}{source.page_number>0?` / page ${source.page_number}`:""}</summary>

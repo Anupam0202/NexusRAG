@@ -9,6 +9,20 @@ import unittest
 ROOT = Path(__file__).resolve().parents[2]
 
 class ResearchWorkflowTests(unittest.TestCase):
+    def test_bounded_multi_query_transport_and_real_sql_receipts_are_in_required_ci(self):
+        migration="20261017133234_research_query_retrieval.sql"
+        self.assertIn(migration,(ROOT / "tests/postgres/local-rehearsal.sh").read_text())
+        workflow=(ROOT / ".github/workflows/v6-database-rehearsal.yml").read_text()
+        self.assertIn(migration,workflow)
+        self.assertIn("RESEARCH_QUERY_RETRIEVAL_SQL_PASS",workflow)
+        self.assertIn("RESEARCH_FAIR_CANDIDATE_SQL_PASS sources=50",workflow)
+        self.assertIn("research-query-retrieval-assertions.sql",(ROOT / "tests/postgres/local-rehearsal.sh").read_text())
+        self.assertIn("test-research-query-worker.mjs",(ROOT / ".github/workflows/v6-foundation-ci.yml").read_text())
+        worker=(ROOT / "frontend/scripts/test-research-query-worker.mjs").read_text()
+        self.assertIn("apps/gateway/src/worker-pipeline.js",worker)
+        self.assertIn("ACTUAL_WORKER_RESEARCH_QUERY_BATCH_PASS",worker)
+        self.assertIn("--local",worker)
+
     def test_original_delivery_policy_is_copied_into_the_real_sql_rehearsal(self):
         workflow=(ROOT / ".github/workflows/v6-database-rehearsal.yml").read_text()
         policy_path="frontend/src/lib/document-original-policy.json"

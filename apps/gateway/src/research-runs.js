@@ -54,6 +54,13 @@ export async function handleResearchRuns(args) {
       if(contract?.schema_version!=="research-contradiction/1"||contract.max_sources!==50||contract.max_steps!==11||contract.max_pairs!==6||contract.runtime_seconds!==420)
         throw problem("MIGRATION_REQUIRED","Contradiction execution requires the reviewed research_contradiction_execution migration.",503);
     }
+    if(["create","resume"].includes(operation)) {
+      let contract;
+      try {contract=await serviceRequest(env,"rpc/nexus_research_candidates_contract",{method:"POST",body:"{}"});}
+      catch(error) {if(!["PGRST202","42883"].includes(error.storageCode))throw error;}
+      if(contract?.schema_version!=="research-candidates/1"||contract.max_rows!==201||contract.max_candidates!==200||contract.max_sources!==50)
+        throw problem("MIGRATION_REQUIRED","Research retrieval requires the reviewed research_query_retrieval migration.",503);
+    }
     result=await serviceRequest(env,"rpc/nexus_research_run",{method:"POST",body:JSON.stringify({p_context:await workbenchContext(args),
       p_operation:operation,p_plan:plan,p_id:run||null,p_key:key,p_command:{non_sensitive_attested:command.non_sensitive_attested===true},p_limit:limit,p_after:after?.toLowerCase()||null})});
   } catch(error) {

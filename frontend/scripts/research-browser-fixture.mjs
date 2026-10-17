@@ -75,7 +75,13 @@ globalThis.fetch = async (input, init = {}) => {
   const result=value=>new Response(JSON.stringify(value));
   if(url.hostname==="generativelanguage.googleapis.com") {
     if(url.pathname.endsWith(":embedContent"))return result({embedding:{values:Array(8).fill(0.1)}});
+    if(url.pathname.endsWith(":batchEmbedContents"))return result({embeddings:JSON.parse(init.body).requests.map(()=>({values:Array(8).fill(0.1)}))});
     const prompt=JSON.parse(init.body).contents[0].parts[0].text;
+    if(prompt.startsWith("RESEARCH_QUERY_VARIANTS")) {
+      const question=prompt.split("QUESTION:\n")[1],limit=Number(prompt.match(/at most (\d+)/)[1]);
+      const queries=question.includes("Synthetic multi-query")?["duration","interval","policy","schedule","rule","period","context"].slice(0,limit).map(word=>`${question} ${word}`):[];
+      return result({candidates:[{finishReason:"STOP",content:{parts:[{text:JSON.stringify({queries})}]}}]});
+    }
     if(prompt.includes("CONTRADICTION_DOCUMENTS:\n")) {
       const sources=JSON.parse(prompt.split("\nEVIDENCE:\n")[1]);
       const question=prompt.split("QUESTION:\n")[1].split("\nCONTRADICTION_DOCUMENTS:")[0];
@@ -107,6 +113,7 @@ globalThis.fetch = async (input, init = {}) => {
     return result({candidates:[{finishReason:"STOP",content:{parts:[{text:"The mass is 1.005 kg [S1]."}]}}],usageMetadata:{promptTokenCount:20,candidatesTokenCount:12}});
   }
   if(url.hostname==="research-qdrant.invalid") {
+    if(url.pathname.endsWith("/points/query/batch"))return result({result:JSON.parse(init.body).searches.map(()=>({points:[]}))});
     const large=JSON.parse(init.body||"{}").filter?.must?.some(condition=>condition.key==="document_id"&&condition.match?.any?.includes(largeDocument));
     return result(url.pathname.endsWith("/points/query")?{result:{points:[{id:large?largeChunk:sourceChunk,score:0.9,payload:{workspace_id:workspace,document_id:large?largeDocument:document,
       version_id:large?largeVersion:sourceVersion,index_generation:"synthetic-source-generation",chunk_id:large?largeChunk:sourceChunk}}]}}:{});
@@ -150,6 +157,17 @@ globalThis.fetch = async (input, init = {}) => {
   if(url.pathname==="/rest/v1/rpc/nexus_research_comparison_contract")return json({schema_version:"research-comparison/1",batch_size:8,max_steps:45});
   if(url.pathname==="/rest/v1/rpc/nexus_research_timeline_contract")return json({schema_version:"research-timeline/1",batch_size:8,max_steps:45});
   if(url.pathname==="/rest/v1/rpc/nexus_research_contradiction_contract")return json({schema_version:"research-contradiction/1",max_sources:50,max_steps:11,max_pairs:6,runtime_seconds:420});
+  if(url.pathname==="/rest/v1/rpc/nexus_research_candidates_contract")return json({schema_version:"research-candidates/1",max_rows:201,max_candidates:200,max_sources:50});
+  if(url.pathname==="/rest/v1/rpc/nexus_research_candidates") {
+    const run=runs.get(data.p_id),selected=run.source_snapshot.filter(s=>data.p_document_ids.includes(s.document_id)),items=[];
+    let count=0,limited=false;
+    for(const [index,s] of selected.entries()) {
+      const allowance=Math.floor(201/selected.length)+(index<201%selected.length?1:0);
+      const rows=fixtureChunks.filter(c=>c.version_id===s.version_id).sort((a,b)=>a.id.localeCompare(b.id)).slice(0,allowance);
+      count+=rows.length;limited||=rows.length===allowance;items.push(...(rows.length===allowance?rows.slice(0,-1):rows));
+    }
+    return json({schema_version:"research-candidates/1",run_id:run.id,generation:run.generation,position:run.position,items,lexical_rows_read:count,lexical_limit_reached:limited});
+  }
   if(url.pathname==="/rest/v1/rpc/nexus_management_version")return json({version:"036"});
   if(url.pathname==="/rest/v1/rpc/nexus_invitation_version")return json({version:"040",recipient_bound:true,manual_delivery:true});
   if(url.pathname==="/rest/v1/rpc/workbench_read") {
@@ -166,7 +184,7 @@ globalThis.fetch = async (input, init = {}) => {
         source_research_run_id:run.id,source_research_position:data.p_command.result_index,authored_markdown:"",generated_markdown:answer.answer,
         source_unavailable:false,evidence:answer.sources.map(s=>({id:s.chunk_id,document_id:s.document_id,version_id:s.version_id,original_text:fixtureChunks.find(c=>c.id===s.chunk_id).original_text,
           original_content_hash:s.original_content_hash,location:s.location,citation_id:s.citation_id,filename:s.filename,available:true,freshness:"current"})),
-        research_origin:{run_id:run.id,result_index:data.p_command.result_index,plan_id:run.plan_id,question:answer.question,comparison:answer.comparison||null,timeline:answer.timeline||null,contradiction:answer.contradiction||null,claim_state:"REVIEW_REQUIRED",source_state:"CURRENT"},
+        research_origin:{run_id:run.id,result_index:data.p_command.result_index,plan_id:run.plan_id,question:answer.question,comparison:answer.comparison||null,timeline:answer.timeline||null,contradiction:answer.contradiction||null,query_retrieval:answer.query_retrieval||null,claim_state:"REVIEW_REQUIRED",source_state:"CURRENT"},
         export_state:"RIGHTS_REVIEW_REQUIRED",reviews:[],participants:[],created_at:new Date().toISOString(),updated_at:new Date().toISOString(),permission:"owner"};
       findings.set(f.id,f);findingKeys.set(data.p_key,f.id);
       return json({code:"08006",message:"Synthetic interrupted finding response after commit"},503);

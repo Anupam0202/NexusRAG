@@ -1,5 +1,30 @@
 # Requirement traceability
 
+039addresses the accepted per-mode query-variant journey and full-source Worker
+execution, not full retrieval/mode/product acceptance. Before-fix actual executor
+has no variant receipt and makes68reads/provider calls before quota calls at50
+sources. Single fair201row SQL RPC plus bounded batch embeddings/Qdrant search,
+original-first2/4/6/8variant limits, cross-query rank fusion, durable query coverage
+and Findings lineage preserve the source/candidate/deadline bounds.609Gateway,
+16focused frontend/typecheck/16responsive browser and real SQL50source/11criterion/
+8query/550receipt/65table148function restore pass locally. Full owning/build/CI/
+new dependency recovery and semantic/temporal/graph/constraint/representative quality
+remain open. New039SQL is unapproved/local only; exact038approval fulfilled once.
+See RESEARCH_QUERY_RETRIEVAL_039.md and external038handoff/addenda. Original224
+definitions,tenproducts,twelvemodes,400+125quality and excluded prerequisites stay
+unchanged. No new security work, paused022 mutation, merge or deployment.
+
+Later039pre-save610Gateway/631backend+10subtests/495frontend before one passing
+copy regression/57isolated/100scripts/final lint/typecheck/NextOpenNext26assets/
+actual Worker fixtures PASS. Fair-read300chunks/50sources retains all50 within
+201rows; native eight768dimensional queries use seven controlled HTTP requests.
+Cold96controlled and20ordinary builtWorker browser cases PASS; four intentional
+skips uncounted. Earlier94pass/twofail retained: confirmed54minute Windows sleep
+overlap for download, separately unexplained Save-locator failure. Unchanged-source
+affected14/cold96 reruns are not production clearance. Final frontend/exact saved
+source/CI/full fresh dependency recovery are separate receipts. Normative wording
+and denominator unchanged;039schema still unapproved/local only.
+
 038is uncommitted partial Contradiction Analysis, not a completed mode. Actual UI
 and missing structured-executor result gaps reproduced.33focused/586Gateway cases
 and real disposable50source/11criterion/550consulted receipts/exact paired Unicode

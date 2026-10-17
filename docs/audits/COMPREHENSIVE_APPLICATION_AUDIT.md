@@ -4,6 +4,39 @@ Status: **PARTIAL_NOT_COMPLETE — locally tested implementation; not production
 
 This receipt supersedes historical status claims only where it records a fresh observation. It does not certify a complete product, production release, provider rights, or absence of all defects.
 
+## Research Query Retrieval - Active Batch039
+
+Actual executor before-fix lacks query variants and makes68reads/provider calls
+before quota calls for50sources, incompatible with free Worker50subrequests.
+New one-request fair lexical read, batched Gemini/Qdrant APIs and original-first
+mode-specific2/4/6/8queries retain201row/200candidate/50source/11criterion/420s
+bounds. Durable typed UI and Finding receipts distinguish search queries from
+evidence; fallback/rejected alternatives/quota uncertainty remain visible.
+609Gateway/16focused frontend/typecheck/16desktop-mobile-theme-320px browser
+checks and real local SQL50source/11criterion/8query/550receipt/Finding10/reread/
+ordinary concurrency/65table148function restore PASS. Every controlled executor
+step remains below50transport requests; hosted CPU/latency/quality not measured.
+Initial patch's Timeline ordering regression corrected, failure retained.
+Full owning/build/cold browser/review/exact-source CI/new dependency recovery
+and full semantic/temporal/graph/constraints/rights/quality/products remain open.
+New039SQL LOCAL_ONLY_UNAPPROVED. Exact038rehearsal approval fulfilled once and
+its automatic image/summary FAILED (metadata only); frozen external addendum
+supersedes older pending labels. No new security/provider/hosted/production or
+deployment work; paused022/full224/tenproducts/twelvemodes/400+125 preserved.
+
+Later pre-save610Gateway/631backend+10subtests/495frontend before one passing copy
+regression/57isolated/100scripts/final lint/typecheck/source-baseline/NextOpenNext
+26assets and native Worker fixtures PASS. Actual eight-query native transport uses
+seven controlled HTTP requests; fair SQL300chunks/50sources retains all50 within
+201read rows. Cold96controlled plus20ordinary builtWorker browser cases PASS;
+four intentional skips are not passes. First cold94pass/twofail retained. Download
+timeout overlaps independently recorded54minute Windows sleep; separate Save
+locator failure remains unexplained. Affected14/new cold96 pass without changed
+source/assertions/timeouts, not a production waiver. Final owning frontend and
+exact saved-source/CI/new dependency recovery remain separately required. Manual
+functional diff reviewed; no independent/security clearance. Native saved coverage
+and reload verified; second native capture timeout retained without invented PNG.
+
 ## Research Contradiction Execution - Active Batch038
 
 Uncommitted partial source only. Actual Chrome saves a contradiction plan with no

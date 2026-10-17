@@ -6,6 +6,7 @@ import { createHash,randomUUID } from "node:crypto";
 import { processResearchMessage } from "../../apps/gateway/src/research-executor.js";
 import { handleWorkbench } from "../../apps/gateway/src/workbench.js";
 import { timelineDate } from "../../apps/gateway/src/research-timeline.js";
+import { RESEARCH_MODE_LIMITS } from "../../apps/gateway/src/research-plans.js";
 const mode=process.env.NEXUS_RESEARCH_MODE||"COMPARE",timelining=mode==="TIMELINE",contradicting=mode==="CONTRADICTION_ANALYSIS";
 assert.ok(["COMPARE","TIMELINE","CONTRADICTION_ANALYSIS"].includes(mode));
 assert.equal(process.env.NEXUS_DISPOSABLE_SQL,"1");assert.ok(process.env.PGHOST?.startsWith("/"));
@@ -48,8 +49,15 @@ const start="select public.nexus_research_run(:'ctx'::jsonb,'create',:'plan'::uu
 const starts=await Promise.all([concurrently(start,{ctx,plan:plan.id,key:`actual-${mode}-start`}),concurrently(start,{ctx,plan:plan.id,key:`actual-${mode}-start`})]);
 assert.equal(starts[0].id,starts[1].id);let run=starts[0];const steps=contradicting?11:6;assert.equal(run.total_steps,steps);
 const tables=new Set(["workspaces","workspace_settings","documents","document_versions","document_chunks","research_runs","finding_versions"]),sent=[],lexicalReads=[];
+let outbound=0;
 async function db(_env,path,init={}) {
+  outbound++;
   const url=new URL(`https://local.invalid/${path}`),table=url.pathname.slice(1),p=init.body?JSON.parse(init.body):{};
+  if(table==="rpc/nexus_research_candidates") {
+    const result=sql("select public.nexus_research_candidates(:'ctx'::jsonb,:'id'::uuid,:'generation'::integer,:'position'::integer,array(select jsonb_array_elements_text(:'ids'::jsonb)::uuid));",
+      {ctx:p.p_context,id:p.p_id,generation:p.p_generation,position:p.p_position,ids:p.p_document_ids});
+    lexicalReads.push({rows:result.lexical_rows_read,documents:p.p_document_ids.length});return result;
+  }
   if(table==="rpc/nexus_research_step")return sql("select public.nexus_research_step(:'ctx'::jsonb,:'op',:'id'::uuid,:'generation'::integer,:'position'::integer,nullif(:'token','')::uuid,nullif(:'result','')::jsonb,nullif(:'error',''));",
     {ctx:p.p_context,op:p.p_operation,id:p.p_id,generation:p.p_generation,position:p.p_position,token:p.p_token||"",result:p.p_result?JSON.stringify(p.p_result):"",error:p.p_error||""});
   if(table==="rpc/nexus_research_finding_contract")return sql("select public.nexus_research_finding_contract();");
@@ -68,8 +76,9 @@ async function db(_env,path,init={}) {
   return sql(`select coalesce(jsonb_agg(value),'[]') from (select to_jsonb(t) value from public.${table} t
     where not exists(select 1 from jsonb_each(:'filters'::jsonb) f where not(f.value ? (to_jsonb(t)->>f.key))) ${order?"order by t.id asc":""} limit ${limit}) rows;`,{filters});
 }
-let generations=0;const ordinaryFetch=globalThis.fetch;
+let generations=0,expansions=0;const ordinaryFetch=globalThis.fetch;
 globalThis.fetch=async(input,init={})=>{
+  outbound++;
   const url=new URL(input),json=value=>new Response(JSON.stringify(value));
   if(url.hostname==="comparison-peer.invalid") {
     const p=JSON.parse(init.body);
@@ -78,7 +87,14 @@ globalThis.fetch=async(input,init={})=>{
   }
   if(url.hostname==="generativelanguage.googleapis.com") {
     if(url.pathname.endsWith(":embedContent"))return json({embedding:{values:Array(8).fill(0.1)}});
-    generations++;const prompt=JSON.parse(init.body).contents[0].parts[0].text;
+    if(url.pathname.endsWith(":batchEmbedContents"))return json({embeddings:JSON.parse(init.body).requests.map(()=>({values:Array(8).fill(0.1)}))});
+    const prompt=JSON.parse(init.body).contents[0].parts[0].text;
+    if(prompt.startsWith("RESEARCH_QUERY_VARIANTS")) {
+      expansions++;const question=prompt.split("QUESTION:\n")[1];
+      const words=["duration","interval","policy","schedule","rule","period","context"];
+      return json({candidates:[{finishReason:"STOP",content:{parts:[{text:JSON.stringify({queries:words.slice(0,RESEARCH_MODE_LIMITS[mode].max_query_variants-1).map(word=>`${question} ${word}`)})}]}}]});
+    }
+    generations++;
     const docs=JSON.parse(prompt.split(contradicting?"CONTRADICTION_DOCUMENTS:\n":timelining?"TIMELINE_DOCUMENTS:\n":"COMPARISON_DOCUMENTS:\n")[1].split("\nEVIDENCE:\n")[0]);
     const sources=JSON.parse(prompt.split("\nEVIDENCE:\n")[1]);
     const output=contradicting?{pairs:[{left:{citation_id:sources[0].citation_id,quote:sources[0].content.slice(3)},
@@ -88,7 +104,7 @@ globalThis.fetch=async(input,init={})=>{
       {cells:docs.map(d=>{const s=sources.find(s=>s.document_id===d.document_id);return {document_id:d.document_id,answer:`Retention ${s.content.match(/retention (\d+) days/)[1]} days [${s.citation_id}].`};})};
     return json({candidates:[{finishReason:"STOP",content:{parts:[{text:JSON.stringify(output)}]}}]});
   }
-  if(url.hostname==="comparison-qdrant.invalid")return json({result:{points:[]}});
+  if(url.hostname==="comparison-qdrant.invalid")return json(url.pathname.endsWith("/points/query/batch")?{result:JSON.parse(init.body).searches.map(()=>({points:[]}))}:{result:{points:[]}});
   throw Error(`Unexpected local fixture egress ${url.hostname}`);
 };
 try {
@@ -96,14 +112,19 @@ try {
     QDRANT_URL:"https://comparison-qdrant.invalid",QDRANT_API_KEY:"synthetic",INGESTION_QUEUE:{send:async message=>sent.push(message)}};
   let message={kind:"research",run_id:run.id,workspace_id:ws,generation:1,position:0};
   for(let i=0;i<steps;i++) {
+    const before=outbound;
     run=await processResearchMessage(env,message,db);assert.equal(run.position,i+1);
+    assert.ok(outbound-before<50,`Actual executor needs ${outbound-before} transport requests`);
+    assert.equal(run.results[i].query_retrieval.completed_queries,RESEARCH_MODE_LIMITS[mode].max_query_variants);
+    assert.equal(run.results[i].query_retrieval.queries[0],run.results[i].question);
     if(i<steps-1){message=sent.shift();assert.equal(message.position,i+1);}
   }
-  assert.equal(run.state,"completed");assert.equal(generations,steps);
+  assert.equal(run.state,"completed");assert.equal(generations,steps);assert.equal(expansions,steps);
   assert.ok(run.results[0].coverage.lexical_limit_reached);
   assert.equal(new Set(run.results[0].sources.map(source=>source.document_id)).size,contradicting?2:8);
-  assert.equal(lexicalReads.length,contradicting?550:27);
-  assert.ok(lexicalReads.slice(0,contradicting?50:8).reduce((sum,read)=>sum+read.limit,0)<=201);
+  assert.equal(lexicalReads.length,steps);
+  assert.ok(lexicalReads.every(read=>read.rows<=201));
+  assert.equal(lexicalReads[0].documents,contradicting?50:8);
   if(contradicting) {
     assert.equal(run.results.flatMap(r=>r.contradiction.documents).length,550);
     assert.ok(run.results.every((r,i)=>r.contradiction.criterion_index===i&&r.contradiction.pairs.length===1&&r.contradiction.documents.length===50
@@ -125,7 +146,7 @@ try {
     assert.equal(run.results.flatMap(r=>r.comparison.cells).length,27);
     assert.equal(run.results[5].comparison.cells[0].document_id,documents[8]);assert.equal(run.results[5].comparison.cells[0].answer,"Retention 39 days [S1].");
   }
-  await processResearchMessage(env,message,db);assert.equal(generations,steps);
+  await processResearchMessage(env,message,db);assert.equal(generations,steps);assert.equal(expansions,steps);
   const findingPosition=contradicting?10:5;
   const request=new Request("https://gateway.invalid/api/v2/findings",{method:"POST",headers:{"Idempotency-Key":`${mode}-finding-later-batch`},
     body:JSON.stringify({title:"Later scoped analysis",research_run_id:run.id,result_index:findingPosition})});
@@ -136,9 +157,11 @@ try {
   if(!contradicting)assert.equal(finding.research_origin[timelining?"timeline":"comparison"].batch_index,1);
   assert.equal(finding.evidence.length,contradicting?2:1);
   assert.equal(finding.evidence[0].document_id,documents[contradicting?0:8]);assert.deepEqual(finding.evidence[0].location,{page:2});
+  assert.deepEqual(finding.research_origin.query_retrieval,run.results[findingPosition].query_retrieval);
+  console.log(`RESEARCH_QUERY_RETRIEVAL_SQL_PASS mode=${mode} queries=${RESEARCH_MODE_LIMITS[mode].max_query_variants} steps=${steps} lexical_rpc_per_step=1 original_row_budget=201 outbound_per_step_below=50`);
   console.log(JSON.stringify({marker:contradicting?"REAL_SQL_PRODUCTION_CONTRADICTION_EXECUTOR_PASS":timelining?"REAL_SQL_PRODUCTION_TIMELINE_EXECUTOR_PASS":"REAL_SQL_PRODUCTION_COMPARISON_EXECUTOR_PASS",
     documents:contradicting?50:9,criteria:contradicting?11:3,steps,cells_events_or_consulted_receipts:contradicting?550:27,
     independently_concurrent_start_connections:2,starts_saved:1,generation_calls:generations,last_finding_position:findingPosition,exact_original_hash: finding.evidence[0].original_content_hash,
-    first_document_chunks:400,first_step_paired_or_cited_sources:contradicting?2:8,first_step_lexical_row_budget:lexicalReads.slice(0,contradicting?50:8).reduce((sum,read)=>sum+read.limit,0),
+    first_document_chunks:400,first_step_paired_or_cited_sources:contradicting?2:8,first_step_lexical_rows_read:lexicalReads[0].rows,
     quota_provider_peers:"CONTROLLED_NOT_LIVE_QUALITY_OR_SQL_BUDGET_PROOF",provider_processing:false,hosted_acceptance:false}));
 } finally {globalThis.fetch=ordinaryFetch;}

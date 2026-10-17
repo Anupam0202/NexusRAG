@@ -561,7 +561,7 @@ export interface FindingDetail extends FindingSummary {
   authored_markdown: string;
   generated_markdown: string | null;
   source_unavailable: boolean;
-  research_origin?: {run_id:string|null;result_index:number;plan_id:string|null;question:string|null;claim_state:string;source_state:string;comparison?:import("./research-run").ResearchComparison|null;timeline?:import("./research-run").ResearchTimeline|null;contradiction?:import("./research-run").ResearchContradiction|null};
+  research_origin?: {run_id:string|null;result_index:number;plan_id:string|null;question:string|null;claim_state:string;source_state:string;comparison?:import("./research-run").ResearchComparison|null;timeline?:import("./research-run").ResearchTimeline|null;contradiction?:import("./research-run").ResearchContradiction|null;query_retrieval?:import("./research-run").ResearchQueryRetrieval|null};
   export_state?: "RIGHTS_REVIEW_REQUIRED";
   evidence: Array<{ id: string; document_id: string; version_id: string; original_text?: string; available: boolean; freshness: string;
     citation_id?:string;filename?:string;original_content_hash?:string;location?:unknown }>;

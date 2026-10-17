@@ -1,0 +1,62 @@
+// Execute the real batch transport in local Workerd with explicit synthetic peers.
+import assert from "node:assert/strict";
+import {spawn,spawnSync} from "node:child_process";
+import {once} from "node:events";
+import {mkdtemp,writeFile} from "node:fs/promises";
+import {createServer} from "node:http";
+import {tmpdir} from "node:os";
+import {dirname,join,resolve} from "node:path";
+import {fileURLToPath} from "node:url";
+import {randomUUID} from "node:crypto";
+
+const root=resolve(dirname(fileURLToPath(import.meta.url)),"../.."),workspace="11111111-1111-4111-8111-111111111111",id="22222222-2222-4222-8222-222222222222";
+const requests=[];let partial=false;
+const authority=createServer(async(request,response)=>{
+  let text="";for await(const part of request)text+=part;
+  const body=JSON.parse(text||"{}"),url=new URL(request.url,"http://localhost");requests.push({path:url.pathname,body});
+  const json=value=>{response.setHeader("content-type","application/json");response.end(JSON.stringify(value));};
+  if(url.pathname.endsWith("v6_reserve_many"))return json({state:"READY",reservations:Object.values(body.p_dimensions).map(amount=>({id:randomUUID(),amount,replayed:false}))});
+  if(url.pathname.endsWith("v6_settle_many"))return json({state:"SETTLED"});
+  if(url.pathname==="/synthetic-gemini")return json({embeddings:body.requests.map(()=>({values:Array(768).fill(0.01)}))});
+  if(url.pathname.endsWith("/points/query/batch"))return json({result:body.searches.slice(0,partial?7:8).map(()=>({points:[{id,score:0.8,payload:{workspace_id:workspace,document_id:id,version_id:id,index_generation:"synthetic",chunk_id:id}}]}))});
+  return json({});
+});
+await new Promise(resolve=>authority.listen(0,"127.0.0.1",resolve));
+const reserve=createServer();await new Promise(resolve=>reserve.listen(0,"127.0.0.1",resolve));const port=reserve.address().port;await new Promise(resolve=>reserve.close(resolve));
+const directory=await mkdtemp(join(tmpdir(),"nexusrag-query-workerd-")),base=`http://127.0.0.1:${authority.address().port}`;
+const entry=join(directory,"query-entry.mjs"),config=join(directory,"wrangler.json");
+await writeFile(entry,`import {searchChunkVariants} from ${JSON.stringify(join(root,"apps/gateway/src/worker-pipeline.js").replaceAll("\\","/"))};
+const ordinary=globalThis.fetch;
+globalThis.fetch=(input,init)=>{const url=new URL(input);if(url.hostname==="generativelanguage.googleapis.com")return ordinary(${JSON.stringify(base+"/synthetic-gemini")},init);return ordinary(input,init);};
+export default {async fetch(request,env){if(new URL(request.url).pathname==="/health")return new Response("OK");try{return Response.json({hits:await searchChunkVariants(env,{queries:Array.from({length:8},(_,i)=>"Synthetic query "+i),workspaceId:${JSON.stringify(workspace)},documentIds:[${JSON.stringify(id)}],versionIds:[${JSON.stringify(id)}],indexGenerations:["synthetic"],limit:3,dataClassification:"non_sensitive",signal:AbortSignal.timeout(10000)})});}catch(error){return Response.json({code:error.code},{status:503});}}};`);
+await writeFile(config,JSON.stringify({name:"nexusrag-synthetic-query-worker",main:entry,compatibility_date:"2026-09-20",vars:{SUPABASE_URL:base,
+  SUPABASE_SERVICE_ROLE_KEY:"synthetic-service",GOOGLE_API_KEY:"synthetic-not-live",QDRANT_URL:base,QDRANT_API_KEY:"synthetic-not-live"}}));
+const environment=Object.fromEntries(Object.entries(process.env).filter(([key])=>["path","systemroot","windir","temp","tmp","comspec"].includes(key.toLowerCase())));
+Object.assign(environment,{HOME:directory,USERPROFILE:directory,WRANGLER_SEND_METRICS:"false",CI:"true"});
+const child=spawn(process.execPath,[join(root,"frontend/node_modules/wrangler/bin/wrangler.js"),"dev","--config",config,"--local","--ip","127.0.0.1","--port",String(port),"--inspector-port","0","--log-level","error"],
+  {cwd:directory,env:environment,stdio:["ignore","pipe","pipe"]});
+let output="";child.stdout.on("data",value=>output+=value);child.stderr.on("data",value=>output+=value);
+try {
+  let ready=false;
+  for(let i=0;i<80;i++) {
+    if(child.exitCode!==null)throw Error(`Owned runtime exited: ${output}`);
+    try {if((await fetch(`http://127.0.0.1:${port}/health`,{signal:AbortSignal.timeout(1000)})).ok){ready=true;break;}}catch { /* The owned local runtime is still starting. */ }
+    await new Promise(resolve=>setTimeout(resolve,250));
+  }
+  assert.ok(ready,output);
+  const response=await fetch(`http://127.0.0.1:${port}/query`,{signal:AbortSignal.timeout(15000)}),result=await response.json();
+  assert.equal(response.status,200,JSON.stringify(result));assert.equal(result.hits.length,8);assert.ok(result.hits.every(hits=>hits.length===1&&hits[0].id===id));
+  const embedding=requests.find(r=>r.path==="/synthetic-gemini"),search=requests.find(r=>r.path.endsWith("/points/query/batch"));
+  assert.equal(embedding.body.requests.length,8);assert.equal(search.body.searches.length,8);
+  assert.ok(search.body.searches.every(query=>query.limit===3&&query.filter.must[0].match.value===workspace));
+  assert.equal(requests.find(r=>r.body.p_dimensions?.embedding_tokens).body.p_dimensions.requests,8);
+  const successRequests=requests.length;assert.ok(successRequests<50);
+  partial=true;
+  const failure=await fetch(`http://127.0.0.1:${port}/query`,{signal:AbortSignal.timeout(15000)});
+  assert.equal(failure.status,503);assert.equal((await failure.json()).code,"PROVIDER_INVALID_RESPONSE");
+  console.log(JSON.stringify({marker:"ACTUAL_WORKER_RESEARCH_QUERY_BATCH_PASS",queries:8,dimensions:768,actual_controlled_http_requests:successRequests,partial_batch_rejected:true,
+    production_implementation:true,hosted_or_provider_processing:false,actual_hosted_cpu_latency_acceptance:false}));
+} finally {
+  if(child.exitCode===null){if(process.platform==="win32")spawnSync("taskkill",["/PID",String(child.pid),"/T","/F"],{stdio:"ignore"});else child.kill("SIGTERM");if(child.exitCode===null)await once(child,"exit");}
+  await new Promise(resolve=>authority.close(resolve));
+}

@@ -1,3 +1,18 @@
+import modeLimits from "./research-modes.json";
+export type ResearchQueryRetrieval={schema_version:"research-query-retrieval/1";queries:string[];max_queries:number;completed_queries:number;
+  expansion_status:"EXPANDED"|"ORIGINAL_ONLY"|"INVALID_RESPONSE_ORIGINAL_ONLY";rejected_queries:number;expansion_model:string;
+  expansion_usage:Record<string,unknown>;evidence_interpretation:"SEARCH_QUERIES_NOT_EVIDENCE";paid_fallback:false};
+export function confirmedQueryRetrieval(value:unknown,question:string,mode:string):value is ResearchQueryRetrieval {
+  if(!value||typeof value!=="object"||!Object.hasOwn(modeLimits,mode))return false;
+  const row=value as ResearchQueryRetrieval,max=modeLimits[mode as keyof typeof modeLimits].max_query_variants;
+  return row.schema_version==="research-query-retrieval/1"&&row.max_queries===max&&Array.isArray(row.queries)&&row.queries.length>=1&&row.queries.length<=max
+    &&row.queries[0]===question&&row.queries.every((q,i)=>typeof q==="string"&&q.trim()===q&&q.length>0&&Array.from(q).length<=(i?500:10000))
+    &&new Set(row.queries.map(q=>q.toLowerCase())).size===row.queries.length&&row.completed_queries===row.queries.length
+    &&["EXPANDED","ORIGINAL_ONLY","INVALID_RESPONSE_ORIGINAL_ONLY"].includes(row.expansion_status)&&((row.expansion_status==="EXPANDED")===(row.queries.length>1))
+    &&Number.isSafeInteger(row.rejected_queries)&&row.rejected_queries>=0&&row.rejected_queries<max&&typeof row.expansion_model==="string"
+    &&!!row.expansion_usage&&typeof row.expansion_usage==="object"&&!Array.isArray(row.expansion_usage)
+    &&row.evidence_interpretation==="SEARCH_QUERIES_NOT_EVIDENCE"&&row.paid_fallback===false;
+}
 export type ResearchComparison={schema_version:"research-comparison/1";criterion_index:number;batch_index:number;batch_count:number;total_documents:number;
   cells:Array<{document_id:string;filename:string;answer:string;claim_state:"REVIEW_REQUIRED"|"UNSUPPORTED";abstained:boolean;validated_citation_ids:string[];gap:string|null}>;
   interpretation:"REVIEW_REQUIRED_NO_AUTOMATIC_EQUIVALENCE_OR_RANKING"};
@@ -18,7 +33,7 @@ export type ResearchRunResult = {
   sources:Array<{citation_id:string;document_id:string;version_id:string;chunk_id:string;filename:string;content:string;
     original_content_hash:string;location:unknown;page_number:number;chunk_index:number;excerpt:boolean}>;
   validated_citation_ids:string[];model:string|null;coverage:{completeness:string;chunks_considered:number;lexical_limit_reached?:boolean};
-  provider_cost_status:string;review_state:string;comparison?:ResearchComparison;timeline?:ResearchTimeline;contradiction?:ResearchContradiction;
+  provider_cost_status:string;review_state:string;comparison?:ResearchComparison;timeline?:ResearchTimeline;contradiction?:ResearchContradiction;query_retrieval?:ResearchQueryRetrieval;
 };
 export type ResearchRun = {
   id:string;plan_id:string;workspace_id:string;owner_id:string;schema_version:"research-run/1";persistence_state:"PERSISTED";
@@ -47,6 +62,7 @@ export function confirmedResearchRun(value:unknown,planId:string):value is Resea
       &&typeof result.abstained==="boolean"&&Array.isArray(result.sources)&&result.sources.length<=12
       &&result.coverage?.completeness==="NOT_EXHAUSTIVE"&&Number.isSafeInteger(result.coverage.chunks_considered)&&result.coverage.chunks_considered>=0&&result.coverage.chunks_considered<=200
       &&(result.coverage.lexical_limit_reached===undefined||typeof result.coverage.lexical_limit_reached==="boolean")
+      &&(result.query_retrieval===undefined||confirmedQueryRetrieval(result.query_retrieval,result.question,row.mode||"QUICK_LOOKUP"))
       &&["UNKNOWN","NOT_CALLED"].includes(result.provider_cost_status)&&result.review_state==="COMPLETION_CRITERIA_NOT_AUTOMATICALLY_VERIFIED"
       &&result.sources.every((source,i)=>source.citation_id===`S${i+1}`&&uuid(source.document_id)&&uuid(source.version_id)&&uuid(source.chunk_id)
         &&typeof source.filename==="string"&&typeof source.content==="string"&&/^[a-f0-9]{64}$/.test(source.original_content_hash))

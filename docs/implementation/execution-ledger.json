@@ -13,6 +13,27 @@
   "interpretation": "OPEN_ENGINEERING includes implemented but not fully accepted requirements; it does not assert that no code or scoped evidence exists. External approvals do not close unfinished internal work.",
   "entries": [
     {
+      "id": "ENGINEERING-RESEARCH-QUERY-RETRIEVAL",
+      "requirement": "Execute adopted per-mode query variants with original-first scope-preserving evidence retrieval, durable coverage and full-source execution within Worker resource bounds",
+      "normative_source": "Owner twelve-mode functional assignment; shared research-modes.json and original exact224definitions unchanged",
+      "status": "IN_PROGRESS",
+      "environment": "isolated functional039 from frozen038ea133879; actual executor/controlled Chrome peers and real disposable PostgreSQL17.11, not hosted/private/provider acceptance",
+      "next_action": "Finish final owning frontend receipt, save manually reviewed source on existing PR12, bind exact-tree current CI and complete fresh dependency/source/evidence recovery. Cold96controlled/20ordinary Worker browser and native eight-query transport/fair300chunk SQL pass; earlier94pass/twofail retained, only download overlaps confirmed Windows sleep and separate Save-locator failure remains unexplained.039SQL remains local-only/unapproved. All full semantic/temporal/graph/constraint/rights/quality/product workflows and excluded release prerequisites stay open.",
+      "acceptance_evidence": [{
+        "environment": "actual production executor under controlled provider peers and real disposable SQL",
+        "observed_at": "2026-10-17T13:41:00Z",
+        "source_identity": "parent ea133879c2ff6d40c7da69dde01baba2bac38336 plus uncommitted039",
+        "command_or_url": "tests/cloudflare/research-query-retrieval.test.mjs; tests/cloudflare/research-executor.test.mjs; tests/postgres/research-comparison-integration.mjs; frontend/src/e2e/research-contradictions.spec.ts; external batch039/logs",
+        "result": "Before-fix no eight-query receipt and68reads/provider calls before quota calls for50sources. Fair single201row lexical RPC, actual batch embeddings/search, original-first bounds and durable query receipts now pass609Gateway/16focused frontend/typecheck/16browser cases. Real SQL Compare/Timeline6queries and Contradiction8queries/50sources/11criteria/550receipts/Finding10/reread/two concurrent starts/65table148function restore pass with every controlled step below50transport calls. Full owning/build/CI/fresh recovery and representative quality remain required.038exact rehearsal approval fulfilled once; no039hosted approval/application, provider/customer/production/deployment or security work."
+      },{
+        "environment": "source-time isolated039, actual local Workerd/controlled Chrome and real disposable PostgreSQL",
+        "observed_at": "2026-10-17T19:01:28Z",
+        "source_identity": "parent ea133879c2ff6d40c7da69dde01baba2bac38336 plus uncommitted039; saved identity bound externally",
+        "command_or_url": "batch039/logs/source-verified-sql-01.log; source-verified-query-workerd-01.log; cold-final-browser-01.log; source-worker-browser-01.log; frontend-owning-final-01.log separately required",
+        "result": "610Gateway/631backend+10subtests/495frontend before extra passing copy regression/57isolated/100scripts/final lint/typecheck/NextOpenNext26assets/actual Worker fixtures pass. Native eight768dimensional queries use seven controlled HTTP requests. Fair300chunk50source SQL retains all50 within201rows; actual executor550receipts/Finding10/ordinary concurrent starts/65table148function restore pass. Cold96controlled plus20ordinary builtWorker browser cases pass,4intentional skips uncounted. First cold94pass/twofail, confirmed54minute sleep overlap for download and unexplained Save-locator failure retained. Affected14/cold96 reruns changed no source/assertions/timeouts; no production waiver. Final owning frontend, exact-source CI and fresh dependencies/recovery remain separate; no hosted/provider/private/production/deployment/security work."
+      }]
+    },
+    {
       "id": "ENGINEERING-RESEARCH-CONTRADICTION-EXECUTION",
       "requirement": "Complete durable source-paired Contradiction Analysis with adopted50source/10subquestion-plus-main/8variant/420second limits, exact evidence, progress/recovery and independent review",
       "normative_source": "Owner adopted twelve-mode/ten-product functional assignment; exact224definitions unchanged",

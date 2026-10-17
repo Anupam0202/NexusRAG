@@ -64,3 +64,15 @@ it("retains the bounded lexical-coverage warning when a completed result is reop
   await waitFor(()=>expect(api.researchRunCommand).toHaveBeenCalledTimes(2));
   expect(screen.getByText(/Additional chunks were not lexically ranked/)).toBeVisible();
 });
+it("copies saved query methodology as queries, never as additional evidence",async()=>{
+  const writeText=vi.fn().mockResolvedValue(undefined);Object.defineProperty(navigator,"clipboard",{configurable:true,value:{writeText}});
+  const result={question:plan.plan.question,answer:"No supported answer.",claim_state:"UNSUPPORTED",abstained:true,sources:[],validated_citation_ids:[],
+    coverage:{completeness:"NOT_EXHAUSTIVE",chunks_considered:1},provider_cost_status:"UNKNOWN",
+    query_retrieval:{schema_version:"research-query-retrieval/1",queries:[plan.plan.question,"Synthetic mass wording"],completed_queries:2,max_queries:2,
+      expansion_status:"EXPANDED",rejected_queries:0,expansion_model:"synthetic",expansion_usage:{},evidence_interpretation:"SEARCH_QUERIES_NOT_EVIDENCE",paid_fallback:false}};
+  const completed={...run,state:"completed",position:1,results:[result]};api.listResearchRuns.mockResolvedValue({items:[completed],next_after:null});api.researchRunCommand.mockResolvedValue(completed);
+  render(<ResearchRuns {...props}/>);fireEvent.click(await screen.findByRole("button",{name:`Open execution ${id}`}));
+  fireEvent.click(await screen.findByRole("button",{name:/^Copy results$/}));
+  await waitFor(()=>expect(writeText).toHaveBeenCalledTimes(1));expect(writeText.mock.calls[0][0]).toContain("Search queries (not evidence):");
+  expect(writeText.mock.calls[0][0]).toContain("Synthetic mass wording");
+});

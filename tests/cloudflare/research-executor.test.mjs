@@ -37,6 +37,16 @@ async function fixture(t,options={}) {
     if(path.startsWith("research_runs?"))return [run];
     if(path.startsWith("workspaces?"))return [{capability_revision:1,lifecycle_state:"active"}];
     if(path.startsWith("workspace_settings?"))return [{active_policy_id:token,policy_version:1,...options.settings}];
+    if(path==="rpc/nexus_research_candidates") {
+      const data=JSON.parse(init.body),selected=run.source_snapshot.filter(s=>data.p_document_ids.includes(s.document_id)),items=[];
+      let read=0,limited=false;
+      for(const [index,s] of selected.entries()) {
+        const allowance=Math.floor(201/selected.length)+(index<201%selected.length?1:0);
+        const batch=options.empty?[]:rows.filter(row=>row.version_id===s.version_id).slice(0,allowance);
+        read+=batch.length;limited||=batch.length===allowance;items.push(...(batch.length===allowance?batch.slice(0,-1):batch));
+      }
+      return {schema_version:"research-candidates/1",run_id:run.id,generation:run.generation,position:run.position,items,lexical_rows_read:read,lexical_limit_reached:limited};
+    }
     if(path==="rpc/nexus_research_step") {
       const data=JSON.parse(init.body);calls.push(data);
       if(data.p_operation==="claim")return options.noClaim?{claimed:false}:{claimed:true,token,run:{...run,deadline:options.expired?new Date(0).toISOString():run.deadline}};
@@ -68,8 +78,10 @@ async function fixture(t,options={}) {
     provider.push({url:url.pathname,signal:init.signal,body:init.body});
     if(url.hostname==="generativelanguage.googleapis.com") {
       if(url.pathname.endsWith(":embedContent"))return json({embedding:{values:Array(8).fill(0.1)}});
+      if(url.pathname.endsWith(":batchEmbedContents"))return json({embeddings:JSON.parse(init.body).requests.map(()=>({values:Array(8).fill(0.1)}))});
       if(options.providerError)return new Response("synthetic provider interruption",{status:503});
       const prompt=JSON.parse(init.body).contents[0].parts[0].text;
+      if(prompt.startsWith("RESEARCH_QUERY_VARIANTS"))return json({candidates:[{finishReason:"STOP",content:{parts:[{text:JSON.stringify({queries:options.variantQueries||[]})}]}}]});
       const sources=options.documentCount||options.contradiction?JSON.parse(prompt.split("\nEVIDENCE:\n")[1]):null;
       const answer=options.contradiction?JSON.stringify({pairs:[{left:{citation_id:sources[0].citation_id,quote:sources[0].content},right:{citation_id:sources.at(-1).citation_id,quote:sources.at(-1).content},
         relationship:"INSUFFICIENT_CONTEXT",explanation:"Matching words alone do not establish shared context or a contradiction."}]}):options.documentCount?JSON.stringify(options.timeline?{documents:run.source_snapshot.map(s=>{
@@ -80,13 +92,42 @@ async function fixture(t,options={}) {
         {citation_id:"S1",quote:"It was published in 2024-02.",date_text:"2024-02",date_role:"PUBLISHED"}]}]}):options.compare?JSON.stringify({cells:[{document_id:doc,answer:"30 days [S1]."},{document_id:token,answer:"30 days [S2]."}]}):"The retention period is 30 days [S1].";
       return json({candidates:[{finishReason:options.incomplete?"MAX_TOKENS":"STOP",content:{parts:[{text:answer}]}}],usageMetadata:{promptTokenCount:20,candidatesTokenCount:12}});
     }
-    if(url.hostname==="qdrant.invalid")return json(url.pathname.endsWith("/points/query")?{result:{points:options.noDense?[]:[{id:chunk,score:0.9,payload:{workspace_id:ws,document_id:doc,version_id:version,index_generation:"generation-one",chunk_id:chunk}}]}}:{});
+    if(url.hostname==="qdrant.invalid") {
+      const points=options.noDense?[]:[{id:chunk,score:0.9,payload:{workspace_id:ws,document_id:doc,version_id:version,index_generation:"generation-one",chunk_id:chunk}}];
+      if(url.pathname.endsWith("/points/query/batch"))return json({result:JSON.parse(init.body).searches.map((_,i,list)=>({points:options.lastVariantOnly&&i!==list.length-1?[]:points}))});
+      return json(url.pathname.endsWith("/points/query")?{result:{points:options.lastVariantOnly?[]:points}}:{});
+    }
     throw Error(`Unapproved fixture egress ${url.hostname}`);
   });
   const env={SUPABASE_URL:"https://supabase.invalid",SUPABASE_SERVICE_ROLE_KEY:"synthetic",GOOGLE_API_KEY:"synthetic-not-a-key",QDRANT_URL:"https://qdrant.invalid",QDRANT_API_KEY:"synthetic",
     INGESTION_QUEUE:{send:async value=>sent.push(value)}};
   return {env,db,run,calls,sent,provider,hash,reservations,reads};
 }
+
+test("actual contradiction executor searches all eight query variants and durably records their coverage",async t=>{
+  const alternatives=["duration","interval","limit","policy","schedule","rule","period"].map(term=>`Synthetic retention ${term}`);
+  const {env,db,calls,provider}=await fixture(t,{contradiction:true,variantQueries:alternatives,lastVariantOnly:true,chunkCount:400});
+  const result=await processResearchMessage(env,message,db);
+  assert.equal(result?.state,"completed");
+  const saved=calls.find(call=>call.p_operation==="commit")?.p_result;
+  assert.equal(saved?.query_retrieval?.queries.length,8);
+  assert.equal(saved.query_retrieval.queries[0],saved.question);
+  assert.deepEqual(saved.query_retrieval.queries.slice(1),alternatives);
+  assert.equal(saved.query_retrieval.completed_queries,8);
+  assert.equal(provider.filter(call=>call.url.endsWith(":batchEmbedContents")).length,1);
+  assert.equal(provider.filter(call=>call.url.endsWith("/points/query/batch")).length,1);
+  assert.ok(saved.sources.some(source=>source.chunk_id===chunk));
+  assert.ok(saved.coverage.chunks_considered<=200);
+});
+
+test("full fifty-source research retrieval fits the free Worker subrequest bound without reducing scope",async t=>{
+  const {env,db,calls,reads,provider}=await fixture(t,{contradiction:true,noDense:true,documentCount:50});
+  const run=await processResearchMessage(env,message,db);
+  assert.equal(run?.state,"completed");
+  const saved=calls.find(call=>call.p_operation==="commit")?.p_result;
+  assert.equal(saved.contradiction.documents.length,50);
+  assert.ok(reads.length+provider.length<50,`${reads.length+provider.length} reads/provider requests before quota calls`);
+});
 
 for(const mode of ["COMPARE","TIMELINE"])for(const count of [2,3,7,8])test(`${mode} retains all ${count} selected documents when the first source fills the lexical window`,async t=>{
   const {env,db,calls,reads}=await fixture(t,{compare:mode==="COMPARE",timeline:mode==="TIMELINE",documentCount:count,chunkCount:400,noDense:true});
@@ -96,9 +137,7 @@ for(const mode of ["COMPARE","TIMELINE"])for(const count of [2,3,7,8])test(`${mo
   assert.equal(new Set(saved.sources.map(s=>s.document_id)).size,count);
   if(mode==="COMPARE")assert.ok(saved.comparison.cells.every(cell=>!cell.abstained));
   else assert.equal(saved.timeline.events.length,count);
-  const lexical=reads.filter(path=>path.startsWith("document_chunks?")&&!new URL(`https://fixture.invalid/${path}`).searchParams.has("id"));
-  assert.equal(lexical.length,count);
-  assert.ok(lexical.reduce((sum,path)=>sum+Number(new URL(`https://fixture.invalid/${path}`).searchParams.get("limit")),0)<=201);
+  assert.equal(reads.filter(path=>path==="rpc/nexus_research_candidates").length,1);
   assert.ok(saved.coverage.chunks_considered<=200);assert.equal(saved.coverage.lexical_limit_reached,true);
 });
 
@@ -121,7 +160,7 @@ test("a large document with no ranked evidence abstains instead of failing on it
   const saved=calls.find(call=>call.p_operation==="commit").p_result;
   assert.equal(saved.abstained,true);assert.deepEqual(saved.sources,[]);
   assert.equal(saved.coverage.lexical_limit_reached,true);
-  assert.equal(provider.filter(call=>call.url.endsWith(":generateContent")).length,0);
+  assert.equal(provider.filter(call=>call.url.endsWith(":generateContent")&&!JSON.parse(call.body).contents[0].parts[0].text.startsWith("RESEARCH_QUERY_VARIANTS")).length,0);
 });
 test("actual research executor retrieves, rehydrates, generates and commits one grounded question",async t=>{
   const {env,db,calls,provider,hash}=await fixture(t);
@@ -132,7 +171,7 @@ test("actual research executor retrieves, rehydrates, generates and commits one 
   assert.equal(saved.sources[0].page_number,2);assert.equal(saved.claim_state,"REVIEW_REQUIRED");
   assert.deepEqual(saved.validated_citation_ids,["S1"]);
   assert.equal(saved.review_state,"COMPLETION_CRITERIA_NOT_AUTOMATICALLY_VERIFIED");
-  assert.equal(provider.filter(p=>p.url.endsWith(":generateContent")).length,1);
+  assert.equal(provider.filter(p=>p.url.endsWith(":generateContent")&&!JSON.parse(p.body).contents[0].parts[0].text.startsWith("RESEARCH_QUERY_VARIANTS")).length,1);
   assert.ok(provider.every(p=>p.signal instanceof AbortSignal));
 });
 
@@ -143,9 +182,10 @@ test("comparison execution persists one separately cited cell for every selected
   assert.equal(saved.comparison?.schema_version,"research-comparison/1");
   assert.deepEqual(saved.comparison.cells.map(cell=>[cell.document_id,cell.validated_citation_ids]),[[doc,["S1"]],[token,["S2"]]]);
   assert.equal(saved.comparison.criterion_index,0);assert.equal(saved.comparison.batch_index,0);
-  assert.equal(provider.filter(p=>p.url.endsWith(":generateContent")).length,1);
-  assert.equal(JSON.parse(provider.find(p=>p.url.endsWith(":generateContent")).body).generationConfig.maxOutputTokens,4096);
-  assert.equal(reservations.find(value=>value.output_tokens).output_tokens,4096);
+  const answer=provider.filter(p=>p.url.endsWith(":generateContent")&&!JSON.parse(p.body).contents[0].parts[0].text.startsWith("RESEARCH_QUERY_VARIANTS"));
+  assert.equal(answer.length,1);
+  assert.equal(JSON.parse(answer[0].body).generationConfig.maxOutputTokens,4096);
+  assert.equal(reservations.filter(value=>value.output_tokens).at(-1).output_tokens,4096);
 });
 
 test("timeline execution persists source-anchored dates instead of an ordinary answer",async t=>{
@@ -159,7 +199,7 @@ test("timeline execution persists source-anchored dates instead of an ordinary a
   assert.equal(saved.sources[0].original_content_hash,hash);
   assert.deepEqual(saved.validated_citation_ids,["S1"]);
   assert.equal(saved.timeline.events[1].quote_start,0);
-  assert.equal(reservations.find(value=>value.output_tokens).output_tokens,4096);
+  assert.equal(reservations.filter(value=>value.output_tokens).at(-1).output_tokens,4096);
 });
 test("contradiction execution retains paired literal evidence and provisional context instead of an ordinary answer",async t=>{
   const {env,db,calls,hash}=await fixture(t,{contradiction:true,noDense:true});
@@ -185,9 +225,7 @@ test("actual contradiction executor retains all50sources and pairs the first wit
   assert.equal(saved.contradiction.documents.length,50);
   assert.deepEqual(saved.sources.map(s=>s.document_id),[run.source_snapshot[0].document_id,run.source_snapshot[49].document_id]);
   for(const source of saved.sources)assert.equal(source.original_content_hash,await sha256(source.content));
-  const lexical=reads.filter(path=>path.startsWith("document_chunks?")&&!new URL(`https://fixture.invalid/${path}`).searchParams.has("id"));
-  assert.equal(lexical.length,50);
-  assert.equal(lexical.reduce((sum,path)=>sum+Number(new URL(`https://fixture.invalid/${path}`).searchParams.get("limit")),0),201);
+  assert.equal(reads.filter(path=>path==="rpc/nexus_research_candidates").length,1);
   assert.ok(saved.contradiction.documents.every(d=>d.consulted_sources.length===1));
 });
 test("a durable next-question cursor is sent only after its result commits",async t=>{
@@ -223,5 +261,5 @@ test("research applies and records current supported workspace runtime settings"
   await processResearchMessage(env,message,db);
   assert.deepEqual(calls.find(c=>c.p_operation==="commit").p_result.runtime_options,settings);
   assert.equal(JSON.parse(provider.find(p=>p.url.endsWith("/points/query")).body).limit,3);
-  assert.equal(JSON.parse(provider.find(p=>p.url.endsWith(":generateContent")).body).generationConfig.temperature,0.7);
+  assert.equal(JSON.parse(provider.filter(p=>p.url.endsWith(":generateContent")).at(-1).body).generationConfig.temperature,0.7);
 });
