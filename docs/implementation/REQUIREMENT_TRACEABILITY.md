@@ -1,5 +1,25 @@
 # Requirement traceability
 
+038is uncommitted partial Contradiction Analysis, not a completed mode. Actual UI
+and missing structured-executor result gaps reproduced.33focused/586Gateway cases
+and real disposable50source/11criterion/550consulted receipts/exact paired Unicode
+anchors/420s/retry/in-flight cancel/resume/list/read/Finding10/65table145function
+restore pass. Current UI regression still FAILS at absent execution control;
+client/Gateway/UI/executor-to-SQL/concurrent/quality/full recovery remain open.
+The local-only new migration has NO hosted approval. Frozen037complete recovery
+is external; subsequent image/summary failures are in its NEW CI addendum.
+No security work, scope reduction or production claim. Exact224definitions/
+tenproducts/twelvemodes/400+125quality retained. See RESEARCH_CONTRADICTION_EXECUTION_038.md.
+
+Later scoped038contract/client/UI/paired citations/consulted receipts/reload/
+Finding retry/independent review/ordinary interruption/empty abstention now pass
+12desktop/mobile/theme/320px browser cases and native Chrome saved reload. Actual
+executor-to-SQL50sources/11criteria/550consulted receipts/two concurrent starts/
+Finding10/65table145function restore pass.591Gateway/492frontend/631backend+10/
+57isolated/99scripts and lint/typecheck pass. Full saved-source/build/cold browser/
+CI/new dependencies/recovery remain pending; local SQL unapproved and no full
+mode/product/quality/production acceptance. Normative definitions unchanged.
+
 037actual executor reproduces Compare/Timeline1of8sources when a400chunk source
 fills their lexical window. Per-source reads share the same201row read/200unique
 candidate limits with explicit truncation; real SQL9sources/6batches/27cells-or-

@@ -3,6 +3,35 @@ import { confirmedResearchRun } from "./research-run";
 const id="11111111-1111-4111-8111-111111111111";
 const run={id,plan_id:id,workspace_id:id,owner_id:id,schema_version:"research-run/1",persistence_state:"PERSISTED",state:"queued",generation:1,
   position:0,questions:["Synthetic question?"],results:[],source_state:"CURRENT",error_code:null,created_at:"2026-10-15T00:00:00Z"};
+function contradictionRun() {
+  const snapshot=Array.from({length:50},(_,i)=>({document_id:`00000038-0000-4000-8000-${String(i).padStart(12,"0")}`,version_id:id,index_generation:"synthetic",lifecycle_epoch:1}));
+  const sources=[0,49].map((i,j)=>({citation_id:`S${j+1}`,document_id:snapshot[i].document_id,version_id:id,chunk_id:`00000039-0000-4000-8000-${String(i).padStart(12,"0")}`,
+    filename:`Synthetic ${i}`,content:`\u{1F4CA} Mass ${i+1} kg.`,original_content_hash:"a".repeat(64)}));
+  const pair={left:{document_id:sources[0].document_id,citation_id:"S1",quote:"Mass 1 kg.",quote_start:2,quote_end:12},
+    right:{document_id:sources[1].document_id,citation_id:"S2",quote:"Mass 50 kg.",quote_start:2,quote_end:13},relationship:"INSUFFICIENT_CONTEXT",explanation:"Measurement context is not established.",claim_state:"REVIEW_REQUIRED"};
+  const questions=Array.from({length:11},(_,i)=>`Criterion ${i}`),results=questions.map((question,i)=>({question,answer:"Review paired measurements.",claim_state:"REVIEW_REQUIRED",abstained:false,sources,validated_citation_ids:["S1","S2"],
+    coverage:{completeness:"NOT_EXHAUSTIVE",chunks_considered:50},provider_cost_status:"UNKNOWN",review_state:"COMPLETION_CRITERIA_NOT_AUTOMATICALLY_VERIFIED",
+    contradiction:{schema_version:"research-contradiction/1",criterion_index:i,total_documents:50,pairs:[pair],rejected_pairs:0,
+      interpretation:"REVIEW_REQUIRED_NO_AUTOMATIC_CONFLICT_VERDICT",coverage:"BOUNDED_RETRIEVAL_AT_MOST_SIX_PAIRS_NOT_EXHAUSTIVE",
+      documents:snapshot.map((s,j)=>({document_id:s.document_id,filename:`Synthetic ${j}`,evidence_state:j===0||j===49?"PAIRED_CANDIDATE":"NO_INDEXED_EVIDENCE",
+        consulted_sources:sources.filter(source=>source.document_id===s.document_id).map(source=>({version_id:id,chunk_id:source.chunk_id,original_content_hash:source.original_content_hash,chunk_index:0,page_number:2}))}))}}));
+  return {...run,mode:"CONTRADICTION_ANALYSIS",source_snapshot:snapshot,questions,results,total_steps:11,position:11,state:"completed"};
+}
+it("retains50source11criterion full-scope paired quotes, Unicode offsets and thin progress lists",()=>{
+  const complete=contradictionRun();expect(confirmedResearchRun(complete,id)).toBe(true);
+  expect(confirmedResearchRun({...complete,results:[],results_included:false},id)).toBe(true);
+  for(const change of [{total_steps:10},{position:10},{source_snapshot:complete.source_snapshot.slice(0,49)},{questions:[...complete.questions,"extra"]}])
+    expect(confirmedResearchRun({...complete,...change},id)).toBe(false);
+});
+it("does not render malformed paired receipts or turn provisional relationships into verified contradictions",()=>{
+  const complete=contradictionRun(),first=complete.results[0],analysis=first.contradiction;
+  for(const change of [{pairs:[null]},{documents:[null,...analysis.documents.slice(1)]},{pairs:[{...analysis.pairs[0],relationship:"PROVEN_CONFLICT"}]},
+    {pairs:[{...analysis.pairs[0],left:{...analysis.pairs[0].left,quote_start:3}}]}, {pairs:[analysis.pairs[0],analysis.pairs[0]]},
+    {documents:analysis.documents.map((d,i)=>i?d:{...d,consulted_sources:[null]})},{rejected_pairs:6}]) {
+    const results=[{...first,contradiction:{...analysis,...change}},...complete.results.slice(1)];
+    expect(confirmedResearchRun({...complete,results},id)).toBe(false);
+  }
+});
 it("confirms only durable run progress without inventing completion",()=>{
   expect(confirmedResearchRun(run,id)).toBe(true);
   for(const row of [{...run,state:"completed"},{...run,position:1},{...run,generation:11},{...run,questions:[]},{...run,source_state:"UNKNOWN"}])

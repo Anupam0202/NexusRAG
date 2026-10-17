@@ -9,19 +9,21 @@ import { loadUserGeminiKey } from "./user-gemini-key.js";
 import { persistedSetting } from "./runtime-options.js";
 import { comparisonWork, sourceBatchWork, comparisonPrompt, comparisonResult } from "./research-comparison.js";
 import { timelinePrompt, timelineResult } from "./research-timeline.js";
+import { contradictionWork, contradictionPrompt, contradictionResult } from "./research-contradiction.js";
 
 const uuid=/^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i;
 const fail=(code,message)=>Object.assign(new Error(message),{code});
 const columns="id,workspace_id,document_id,version_id,chunk_index,page_number,content,original_text,original_content_hash,location,metadata";
 async function answerQuestion(env,run,db,signal) {
   const read=path=>db(env,path,{signal}), workspace=run.workspace_id;
-  const comparing=run.mode==="COMPARE",timelining=run.mode==="TIMELINE",batched=comparing||timelining;
-  const work=comparing?comparisonWork(run):timelining?sourceBatchWork(run):null;
+  const comparing=run.mode==="COMPARE",timelining=run.mode==="TIMELINE",contradicting=run.mode==="CONTRADICTION_ANALYSIS",batched=comparing||timelining,scoped=batched||contradicting;
+  const work=comparing?comparisonWork(run):timelining?sourceBatchWork(run):contradicting?contradictionWork(run):null;
   const scope=work?.snapshot||run.source_snapshot;
+  const sourceLimit=contradicting?scope.length:20;
   const documentIds=scope.map(item=>item.document_id), versionIds=scope.map(item=>item.version_id);
   const load=async()=>{
-    const documents=await read(`documents?workspace_id=eq.${workspace}&id=in.(${documentIds.join(",")})&lifecycle_state=eq.active&select=id,workspace_id,active_version_id,lifecycle_state,filename,content_type&limit=20`);
-    const versions=await read(`document_versions?workspace_id=eq.${workspace}&id=in.(${versionIds.join(",")})&publication_state=eq.ready&data_classification=eq.non_sensitive&select=id,workspace_id,document_id,publication_state,data_classification,index_generation,lifecycle_epoch&limit=20`);
+    const documents=await read(`documents?workspace_id=eq.${workspace}&id=in.(${documentIds.join(",")})&lifecycle_state=eq.active&select=id,workspace_id,active_version_id,lifecycle_state,filename,content_type&limit=${sourceLimit}`);
+    const versions=await read(`document_versions?workspace_id=eq.${workspace}&id=in.(${versionIds.join(",")})&publication_state=eq.ready&data_classification=eq.non_sensitive&select=id,workspace_id,document_id,publication_state,data_classification,index_generation,lifecycle_epoch&limit=${sourceLimit}`);
     if(scope.some(s=>!documents.some(d=>d.id===s.document_id&&d.active_version_id===s.version_id)
       || !versions.some(v=>v.id===s.version_id&&v.document_id===s.document_id&&v.index_generation===s.index_generation&&v.lifecycle_epoch===s.lifecycle_epoch)))
       throw fail("SOURCE_UNAVAILABLE","The selected evidence changed.");
@@ -31,10 +33,10 @@ async function answerQuestion(env,run,db,signal) {
   const settings=(await read(`workspace_settings?workspace_id=eq.${workspace}&select=retrieval_top_k,hybrid_search_alpha,llm_temperature&limit=1`))?.[0];
   const runtimeOptions={retrieval_top_k:persistedSetting(settings,"retrieval_top_k",{min:1,max:12,integer:true}),
     hybrid_search_alpha:persistedSetting(settings,"hybrid_search_alpha",{min:0,max:1}),llm_temperature:persistedSetting(settings,"llm_temperature",{min:0,max:1})};
-  const selection=batched?{documents:scope.map(s=>initial.documents.find(d=>d.id===s.document_id)),reason:comparing?"COMPARISON_ALL_BATCH_DOCUMENTS":"TIMELINE_ALL_BATCH_DOCUMENTS"}:resolveSummaryDocuments(question,initial.documents,false);
+  const selection=scoped?{documents:scope.map(s=>initial.documents.find(d=>d.id===s.document_id)),reason:comparing?"COMPARISON_ALL_BATCH_DOCUMENTS":timelining?"TIMELINE_ALL_BATCH_DOCUMENTS":"CONTRADICTION_ALL_DOCUMENTS"}:resolveSummaryDocuments(question,initial.documents,false);
   const selectedDocuments=selection.documents.map(d=>d.id), selectedVersions=selection.documents.map(d=>d.active_version_id);
   let lexicalRows=[],lexicalLimited=false;
-  if(batched) {
+  if(scoped) {
     // Share the existing 201-row read budget, including one truncation canary
     // per document. A large source must not crowd every other source out.
     for(const [index,version] of selectedVersions.entries()) {
@@ -69,27 +71,29 @@ async function answerQuestion(env,run,db,signal) {
   const fuse=(ds,ss,limit)=>hybridFuse(question,ds,ss,limit,runtimeOptions.hybrid_search_alpha);
   // Comparisons reserve a context slot for each document rather than allowing a
   // globally high-ranked source to occupy every cell's evidence budget.
-  const fused=batched?selectedDocuments.flatMap(id=>{
+  const fused=scoped?selectedDocuments.flatMap(id=>{
     const ranked=fuse(dense.filter(hit=>hit.payload.document_id===id),sparseRows.filter(hit=>hit.document_id===id),1);
     // An overview request need not repeat literal event wording. Its explicit
     // document scope still permits one current, hash-verified source excerpt.
-    return ranked.length||!timelining?ranked:sparse.filter(hit=>hit.payload.document_id===id).slice(0,1);
+    return ranked.length||!(timelining||contradicting)?ranked:sparse.filter(hit=>hit.payload.document_id===id).slice(0,1);
   })
     :fuse(dense,sparseRows,runtimeOptions.retrieval_top_k);
-  const sources=fused.map((hit,i)=>({citation_id:`S${i+1}`,document_id:hit.payload.document_id,version_id:hit.payload.version_id,
-    chunk_id:hit.payload.chunk_id,filename:hit.payload.filename,content:batched?Array.from(hit.payload.content).slice(0,1200).join(""):hit.payload.content.slice(0,2400),
-    excerpt:batched?Array.from(hit.payload.content).length>1200:hit.payload.content.length>2400,
+  let sources=fused.map((hit,i)=>({citation_id:`S${i+1}`,document_id:hit.payload.document_id,version_id:hit.payload.version_id,
+    chunk_id:hit.payload.chunk_id,filename:hit.payload.filename,content:scoped?Array.from(hit.payload.content).slice(0,1200).join(""):hit.payload.content.slice(0,2400),
+    excerpt:scoped?Array.from(hit.payload.content).length>1200:hit.payload.content.length>2400,
     original_content_hash:hit.payload.original_content_hash,location:hit.payload.location,page_number:hit.payload.page_number,chunk_index:hit.payload.chunk_index}));
   let checked={answer:"The selected evidence does not provide enough information to answer reliably.",claim_state:"UNSUPPORTED",abstained:true,citations:[]}, generated=null;
   if(sources.length) {
     signal.throwIfAborted();
-    generated=await generateAnswer(env,comparing?comparisonPrompt(work,selection.documents,sources):timelining?timelinePrompt(work,selection.documents,sources):groundedPrompt(question,fused),{workspaceId:workspace,priority:"interactive",dataClassification:"non_sensitive",
+    generated=await generateAnswer(env,comparing?comparisonPrompt(work,selection.documents,sources):timelining?timelinePrompt(work,selection.documents,sources):contradicting?contradictionPrompt(work,selection.documents,sources):groundedPrompt(question,fused),{workspaceId:workspace,priority:"interactive",dataClassification:"non_sensitive",
       actorId:run.owner_id,userApiKey,credentialMode,signal,requireComplete:true,temperature:runtimeOptions.llm_temperature,
-      ...(batched?{outputTokens:4096}:{})});
-    if(!batched)checked=assessAnswer(generated.answer,sources);
+      ...(scoped?{outputTokens:4096}:{})});
+    if(!scoped)checked=assessAnswer(generated.answer,sources);
   }
   const comparison=comparing?comparisonResult(work,selection.documents,sources,generated):null;
   const timeline=timelining?timelineResult(work,selection.documents,sources,generated):null;
+  const contradiction=contradicting?contradictionResult(work,selection.documents,sources,generated):null;
+  if(contradiction){sources=contradiction.sources;checked=contradiction.checked;}
   if(timeline)checked={answer:timeline.events.length?timeline.events.map(event=>`${event.date_text||"Undated"} (${event.date_role}): ${event.quote} [${event.citation_id}]`).join("\n"):"No source-anchored events were returned from the bounded retrieved evidence.",
     claim_state:timeline.events.length?"REVIEW_REQUIRED":"UNSUPPORTED",abstained:!timeline.events.length,
     citations:[...new Set(timeline.events.map(event=>Number(event.citation_id.slice(1))))]};
@@ -104,8 +108,8 @@ async function answerQuestion(env,run,db,signal) {
   return {question,answer:checked.answer,claim_state:checked.claim_state,abstained:checked.abstained,sources,
     validated_citation_ids:checked.citations.map(index=>`S${index}`),model:generated?.model||null,usage:generated?.usage||{},
     selection:{reason:selection.reason,document_ids:selectedDocuments},coverage:{chunks_considered:lexical.length,lexical_limit_reached:lexicalLimited,
-      retrieval:timelining?"BOUNDED_DENSE_LEXICAL_SCOPED_OVERVIEW":"BOUNDED_DENSE_LEXICAL",completeness:"NOT_EXHAUSTIVE",evidence_authority:"SUPABASE_HASH_VERIFIED"},
-    ...(comparison?{comparison}:{}),...(timeline?{timeline}:{}),runtime_options:runtimeOptions,provider_cost_status:generated?"UNKNOWN":"NOT_CALLED",paid_fallback:false,review_state:"COMPLETION_CRITERIA_NOT_AUTOMATICALLY_VERIFIED"};
+      retrieval:timelining||contradicting?"BOUNDED_DENSE_LEXICAL_SCOPED_OVERVIEW":"BOUNDED_DENSE_LEXICAL",completeness:"NOT_EXHAUSTIVE",evidence_authority:"SUPABASE_HASH_VERIFIED"},
+    ...(comparison?{comparison}:{}),...(timeline?{timeline}:{}),...(contradiction?{contradiction:contradiction.analysis}:{}),runtime_options:runtimeOptions,provider_cost_status:generated?"UNKNOWN":"NOT_CALLED",paid_fallback:false,review_state:"COMPLETION_CRITERIA_NOT_AUTOMATICALLY_VERIFIED"};
 }
 
 export async function processResearchMessage(env,message,db) {

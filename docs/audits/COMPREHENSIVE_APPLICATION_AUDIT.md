@@ -4,6 +4,40 @@ Status: **PARTIAL_NOT_COMPLETE — locally tested implementation; not production
 
 This receipt supersedes historical status claims only where it records a fresh observation. It does not certify a complete product, production release, provider rights, or absence of all defects.
 
+## Research Contradiction Execution - Active Batch038
+
+Uncommitted partial source only. Actual Chrome saves a contradiction plan with no
+execution; actual executor regression lacks source-paired output before correction.
+33focused/586Gateway cases now pass, preserving50source complete-scope first/last
+pairing, exact Unicode anchors/receipt hashes, provisional interpretation and
+honest abstention. CLI2.121.0 generated local-only migration20261017074502; real
+disposable50source/11criterion/550consulted receipts/420s/retry/in-flight cancel/
+resume/late-result fencing/list/read/Finding10 and all retained65table145function
+backup/restore PASS. UI regression still FAILS at missing execution control.
+Complete typed client/Gateway/UI, actual executor-to-SQL/independent concurrency/
+full edge cases/CI/build/full source recovery; do not call this complete mode,
+semantic/representative quality or production acceptance. Full constraints/
+8query variants/rights and all224/tenproducts/twelvemodes/400+125quality remain.
+
+Frozen037source and284entry evidence/new dependencies/recovery completed externally;
+its image117339064175/requiredsummary117343018360 subsequently FAILED by fresh
+metadata only, bound in BATCH037_CI_ADDENDUM_2026-10-17.md. No findings read/new
+security work, hosted migration/user/provider/customer/destructive/paid/deployment
+operation, gate bypass, original paused022 mutation or source publication.
+See RESEARCH_CONTRADICTION_EXECUTION_038.md.
+
+Later038source supersedes the missing-control note only for its tested slice:
+591Gateway/492frontend74files/631backend+10subtests/57isolated/99scripts,
+lint/typecheck and12focused desktop/mobile/theme/320px browser paths PASS.
+Contract preflight/client/UI/exact citation/reload/Finding retry/independent review/
+interrupted resume/empty abstention work under controlled peers. Native Chrome
+saved result and citation reload verified. Actual executor-to-SQL50sources/
+11criteria/550consulted receipts/two-connection deduplicated starts/Finding10
+and65table145function restore PASS. Synthetic fixture chunk-ID collision fixed,
+failed log preserved. Full cold browser/build/exact-source CI/new dependencies/
+recovery, hosted approval/application and full accepted mode/product remain open.
+No security/hosted/provider/customer/destructive/deployment operation.
+
 ## Research Source Diversity - Active Batch037
 
 Actual executor regressions reproduce1of8selected sources in Compare and Timeline

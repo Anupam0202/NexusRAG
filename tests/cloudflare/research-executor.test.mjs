@@ -11,8 +11,8 @@ async function fixture(t,options={}) {
     source_snapshot:[{document_id:doc,version_id:version,index_generation:"generation-one",lifecycle_epoch:1}],deadline:new Date(Date.now()+30000).toISOString(),
     admission:{credential_mode:"platform_trial"}};
   const rows=[{id:chunk,workspace_id:ws,document_id:doc,version_id:version,chunk_index:0,page_number:2,content:text,original_text:text,original_content_hash:hash,location:{page:2}}];
-  if(options.compare) {
-    run.mode="COMPARE";run.source_snapshot.push({document_id:token,version_id:id,index_generation:"generation-two",lifecycle_epoch:1});
+  if(options.compare||options.contradiction) {
+    run.mode=options.contradiction?"CONTRADICTION_ANALYSIS":"COMPARE";run.source_snapshot.push({document_id:token,version_id:id,index_generation:"generation-two",lifecycle_epoch:1});
     rows.push({...rows[0],id:token,document_id:token,version_id:id});
   }
   if(options.timeline){run.mode="TIMELINE";run.questions=["Build a chronology."];}
@@ -46,8 +46,10 @@ async function fixture(t,options={}) {
       }
       return {claimed:false,run:{...run,state:"interrupted"}};
     }
-    if(path.startsWith("documents?"))return run.source_snapshot.map((s,i)=>({id:s.document_id,workspace_id:ws,active_version_id:s.version_id,lifecycle_state:"active",filename:`Synthetic policy${i||""}.txt`,content_type:"text/plain"}));
-    if(path.startsWith("document_versions?"))return run.source_snapshot.map(s=>({id:s.version_id,workspace_id:ws,document_id:s.document_id,publication_state:"ready",data_classification:"non_sensitive",index_generation:options.changed?"new-generation":s.index_generation,lifecycle_epoch:1}));
+    if(path.startsWith("documents?"))return run.source_snapshot.map((s,i)=>({id:s.document_id,workspace_id:ws,active_version_id:s.version_id,lifecycle_state:"active",filename:`Synthetic policy${i||""}.txt`,content_type:"text/plain"}))
+      .slice(0,Number(new URL(`https://fixture.invalid/${path}`).searchParams.get("limit")));
+    if(path.startsWith("document_versions?"))return run.source_snapshot.map(s=>({id:s.version_id,workspace_id:ws,document_id:s.document_id,publication_state:"ready",data_classification:"non_sensitive",index_generation:options.changed?"new-generation":s.index_generation,lifecycle_epoch:1}))
+      .slice(0,Number(new URL(`https://fixture.invalid/${path}`).searchParams.get("limit")));
     if(path.startsWith("document_chunks?")) {
       const query=new URL(`https://fixture.invalid/${path}`).searchParams,ids=query.get("id")?.slice(4,-1).split(",");
       const versions=query.get("version_id")?.slice(4,-1).split(",");
@@ -68,8 +70,9 @@ async function fixture(t,options={}) {
       if(url.pathname.endsWith(":embedContent"))return json({embedding:{values:Array(8).fill(0.1)}});
       if(options.providerError)return new Response("synthetic provider interruption",{status:503});
       const prompt=JSON.parse(init.body).contents[0].parts[0].text;
-      const sources=options.documentCount?JSON.parse(prompt.split("\nEVIDENCE:\n")[1]):null;
-      const answer=options.documentCount?JSON.stringify(options.timeline?{documents:run.source_snapshot.map(s=>{
+      const sources=options.documentCount||options.contradiction?JSON.parse(prompt.split("\nEVIDENCE:\n")[1]):null;
+      const answer=options.contradiction?JSON.stringify({pairs:[{left:{citation_id:sources[0].citation_id,quote:sources[0].content},right:{citation_id:sources.at(-1).citation_id,quote:sources.at(-1).content},
+        relationship:"INSUFFICIENT_CONTEXT",explanation:"Matching words alone do not establish shared context or a contradiction."}]}):options.documentCount?JSON.stringify(options.timeline?{documents:run.source_snapshot.map(s=>{
         const source=sources.find(item=>item.document_id===s.document_id),quote=source?.content.match(/[^.]*2024-02-\d{2}\./)?.[0]?.trim();
         return {document_id:s.document_id,events:quote?[{citation_id:source.citation_id,quote,date_text:quote.match(/2024-02-\d{2}/)[0],date_role:"EFFECTIVE"}]:[]};
       })}:{cells:run.source_snapshot.map(s=>({document_id:s.document_id,answer:sources.some(item=>item.document_id===s.document_id)?`30 days [${sources.find(item=>item.document_id===s.document_id).citation_id}].`:""}))}):options.timeline?JSON.stringify({documents:[{document_id:doc,events:[
@@ -157,6 +160,35 @@ test("timeline execution persists source-anchored dates instead of an ordinary a
   assert.deepEqual(saved.validated_citation_ids,["S1"]);
   assert.equal(saved.timeline.events[1].quote_start,0);
   assert.equal(reservations.find(value=>value.output_tokens).output_tokens,4096);
+});
+test("contradiction execution retains paired literal evidence and provisional context instead of an ordinary answer",async t=>{
+  const {env,db,calls,hash}=await fixture(t,{contradiction:true,noDense:true});
+  await processResearchMessage(env,message,db);
+  const saved=calls.find(c=>c.p_operation==="commit")?.p_result;
+  assert.equal(saved?.contradiction?.schema_version,"research-contradiction/1");
+  assert.equal(saved.contradiction.pairs[0].relationship,"INSUFFICIENT_CONTEXT");
+  assert.equal(saved.claim_state,"REVIEW_REQUIRED");
+  assert.deepEqual(saved.validated_citation_ids,["S1","S2"]);
+  for(const side of ["left","right"]) {
+    const quote=saved.contradiction.pairs[0][side],source=saved.sources.find(s=>s.citation_id===quote.citation_id);
+    assert.equal(source.original_content_hash,hash);
+    assert.equal(Array.from(source.content).slice(quote.quote_start,quote.quote_end).join(""),quote.quote);
+  }
+  assert.equal(saved.contradiction.documents.length,2);
+  assert.equal(saved.contradiction.interpretation,"REVIEW_REQUIRED_NO_AUTOMATIC_CONFLICT_VERDICT");
+});
+test("actual contradiction executor retains all50sources and pairs the first with the last without a40source cutoff",async t=>{
+  const {env,db,calls,reads,run}=await fixture(t,{contradiction:true,noDense:true,documentCount:50});
+  await processResearchMessage(env,message,db);
+  const saved=calls.find(c=>c.p_operation==="commit")?.p_result;
+  assert.equal(saved?.contradiction?.total_documents,50);
+  assert.equal(saved.contradiction.documents.length,50);
+  assert.deepEqual(saved.sources.map(s=>s.document_id),[run.source_snapshot[0].document_id,run.source_snapshot[49].document_id]);
+  for(const source of saved.sources)assert.equal(source.original_content_hash,await sha256(source.content));
+  const lexical=reads.filter(path=>path.startsWith("document_chunks?")&&!new URL(`https://fixture.invalid/${path}`).searchParams.has("id"));
+  assert.equal(lexical.length,50);
+  assert.equal(lexical.reduce((sum,path)=>sum+Number(new URL(`https://fixture.invalid/${path}`).searchParams.get("limit")),0),201);
+  assert.ok(saved.contradiction.documents.every(d=>d.consulted_sources.length===1));
 });
 test("a durable next-question cursor is sent only after its result commits",async t=>{
   const {env,db,sent}=await fixture(t,{more:true});

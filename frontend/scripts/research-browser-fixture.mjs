@@ -76,6 +76,15 @@ globalThis.fetch = async (input, init = {}) => {
   if(url.hostname==="generativelanguage.googleapis.com") {
     if(url.pathname.endsWith(":embedContent"))return result({embedding:{values:Array(8).fill(0.1)}});
     const prompt=JSON.parse(init.body).contents[0].parts[0].text;
+    if(prompt.includes("CONTRADICTION_DOCUMENTS:\n")) {
+      const sources=JSON.parse(prompt.split("\nEVIDENCE:\n")[1]);
+      const question=prompt.split("QUESTION:\n")[1].split("\nCONTRADICTION_DOCUMENTS:")[0];
+      if(question.includes("Synthetic interrupted contradiction")&&!interruptedQuestions.has(question)){interruptedQuestions.add(question);return new Response("synthetic interruption",{status:503});}
+      const left=sources.find(s=>s.document_id===document),right=sources.find(s=>s.document_id===comparisonDocument);
+      return result({candidates:[{finishReason:"STOP",content:{parts:[{text:JSON.stringify({pairs:left&&right&&!question.includes("Synthetic empty contradiction")?[{
+        left:{citation_id:left.citation_id,quote:"mass: 1.005 kg"},right:{citation_id:right.citation_id,quote:comparisonText},
+        relationship:"INSUFFICIENT_CONTEXT",explanation:"Measurement context and equivalence have not been established."}]:[]})}]}}]});
+    }
     if(prompt.includes("TIMELINE_DOCUMENTS:\n")) {
       const docs=JSON.parse(prompt.split("TIMELINE_DOCUMENTS:\n")[1].split("\nEVIDENCE:\n")[0]),sources=JSON.parse(prompt.split("\nEVIDENCE:\n")[1]);
       const question=prompt.split("QUESTION:\n")[1].split("\nTIMELINE_DOCUMENTS:")[0];
@@ -140,6 +149,7 @@ globalThis.fetch = async (input, init = {}) => {
   if(url.pathname==="/rest/v1/rpc/nexus_research_finding_contract")return json({schema_version:"research-finding/1",max_result_index:44});
   if(url.pathname==="/rest/v1/rpc/nexus_research_comparison_contract")return json({schema_version:"research-comparison/1",batch_size:8,max_steps:45});
   if(url.pathname==="/rest/v1/rpc/nexus_research_timeline_contract")return json({schema_version:"research-timeline/1",batch_size:8,max_steps:45});
+  if(url.pathname==="/rest/v1/rpc/nexus_research_contradiction_contract")return json({schema_version:"research-contradiction/1",max_sources:50,max_steps:11,max_pairs:6,runtime_seconds:420});
   if(url.pathname==="/rest/v1/rpc/nexus_management_version")return json({version:"036"});
   if(url.pathname==="/rest/v1/rpc/nexus_invitation_version")return json({version:"040",recipient_bound:true,manual_delivery:true});
   if(url.pathname==="/rest/v1/rpc/workbench_read") {
@@ -156,7 +166,7 @@ globalThis.fetch = async (input, init = {}) => {
         source_research_run_id:run.id,source_research_position:data.p_command.result_index,authored_markdown:"",generated_markdown:answer.answer,
         source_unavailable:false,evidence:answer.sources.map(s=>({id:s.chunk_id,document_id:s.document_id,version_id:s.version_id,original_text:fixtureChunks.find(c=>c.id===s.chunk_id).original_text,
           original_content_hash:s.original_content_hash,location:s.location,citation_id:s.citation_id,filename:s.filename,available:true,freshness:"current"})),
-        research_origin:{run_id:run.id,result_index:data.p_command.result_index,plan_id:run.plan_id,question:answer.question,comparison:answer.comparison||null,timeline:answer.timeline||null,claim_state:"REVIEW_REQUIRED",source_state:"CURRENT"},
+        research_origin:{run_id:run.id,result_index:data.p_command.result_index,plan_id:run.plan_id,question:answer.question,comparison:answer.comparison||null,timeline:answer.timeline||null,contradiction:answer.contradiction||null,claim_state:"REVIEW_REQUIRED",source_state:"CURRENT"},
         export_state:"RIGHTS_REVIEW_REQUIRED",reviews:[],participants:[],created_at:new Date().toISOString(),updated_at:new Date().toISOString(),permission:"owner"};
       findings.set(f.id,f);findingKeys.set(data.p_key,f.id);
       return json({code:"08006",message:"Synthetic interrupted finding response after commit"},503);
@@ -183,7 +193,7 @@ globalThis.fetch = async (input, init = {}) => {
   }
   if(url.pathname==="/rest/v1/rpc/nexus_research_run") {
     if(data.p_operation==="list")return json({items:[...runs.values()].filter(run=>run.owner_id===data.p_context.user_id&&run.plan_id===data.p_plan).reverse()
-      .map(run=>["COMPARE","TIMELINE"].includes(run.mode)?{...run,results:[],results_included:false}:run),next_after:null});
+      .map(run=>["COMPARE","TIMELINE","CONTRADICTION_ANALYSIS"].includes(run.mode)?{...run,results:[],results_included:false}:run),next_after:null});
     if(data.p_operation==="create") {
       if(runKeys.has(data.p_key))return json(runs.get(runKeys.get(data.p_key)));
       const draft=records.get(data.p_plan).plan;
@@ -191,13 +201,13 @@ globalThis.fetch = async (input, init = {}) => {
         generation:1,position:0,questions:[draft.question,...draft.subquestions],results:[],source_state:"CURRENT",error_code:null,created_at:new Date().toISOString(),
         mode:draft.mode,source_snapshot:fixtureVersions.filter(v=>draft.private_source_ids.includes(v.document_id)).map(v=>({document_id:v.document_id,version_id:v.id,index_generation:v.index_generation,lifecycle_epoch:1})),admission:{credential_mode:"platform_trial"}};
       run.total_steps=run.questions.length*(["COMPARE","TIMELINE"].includes(run.mode)?Math.ceil(run.source_snapshot.length/8):1);
-      run.deadline=new Date(Date.now()+(["COMPARE","TIMELINE"].includes(run.mode)?300000:run.mode==="QUICK_LOOKUP"?30000:90000)).toISOString();
+      run.deadline=new Date(Date.now()+(run.mode==="CONTRADICTION_ANALYSIS"?420000:["COMPARE","TIMELINE"].includes(run.mode)?300000:run.mode==="QUICK_LOOKUP"?30000:90000)).toISOString();
       runs.set(run.id,run);runKeys.set(data.p_key,run.id);return json(run);
     }
     const run=runs.get(data.p_id);
     if(data.p_operation==="cancel")run.state="cancelled";
     if(data.p_operation==="resume"&&(!["queued","running"].includes(run.state)||Date.parse(run.deadline)<=Date.now())){
-      run.state="queued";run.generation++;run.error_code=null;run.deadline=new Date(Date.now()+(["COMPARE","TIMELINE"].includes(run.mode)?300000:run.mode==="QUICK_LOOKUP"?30000:90000)).toISOString();
+      run.state="queued";run.generation++;run.error_code=null;run.deadline=new Date(Date.now()+(run.mode==="CONTRADICTION_ANALYSIS"?420000:["COMPARE","TIMELINE"].includes(run.mode)?300000:run.mode==="QUICK_LOOKUP"?30000:90000)).toISOString();
     }
     return json(run);
   }

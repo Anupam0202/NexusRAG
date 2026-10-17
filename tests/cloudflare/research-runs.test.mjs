@@ -76,6 +76,24 @@ test("missing processing confirmation does not create or queue a run",async t=>{
   assert.equal((await handle(request("POST","",{}),env)).status,403);
   assert.equal(calls.length,0);assert.equal(sent.length,0);
 });
+
+for(const mismatch of [null,"absent","sources","runtime"])test(`Contradiction execution checks its full-scope installed contract: ${mismatch}`,async t=>{
+  const {env,sent,calls,receipt}=fixture(t);Object.assign(receipt,{mode:"CONTRADICTION_ANALYSIS",source_snapshot:Array.from({length:50},()=>({id:plan})),
+    questions:Array.from({length:11},(_,i)=>`Criterion ${i}`),total_steps:11});
+  const original=globalThis.fetch;
+  t.mock.method(globalThis,"fetch",async(input,init)=>new URL(input).pathname==="/rest/v1/rpc/nexus_research_contradiction_contract"
+    ?new Response(JSON.stringify(mismatch==="absent"?{code:"PGRST202",message:"Function is absent"}:{schema_version:"research-contradiction/1",max_sources:mismatch==="sources"?40:50,
+      max_steps:11,max_pairs:6,runtime_seconds:mismatch==="runtime"?300:420}),{status:mismatch==="absent"?404:200}):original(input,init));
+  const response=await handle(request("POST","",{non_sensitive_attested:true,execution_mode:"CONTRADICTION_ANALYSIS"}),env);
+  assert.equal(response.status,mismatch?503:201);assert.equal(sent.length,mismatch?0:1);assert.equal(calls.length,mismatch?0:1);
+  if(mismatch){const error=(await response.json()).error;assert.equal(error.code,"MIGRATION_REQUIRED");assert.match(error.message,/research_contradiction_execution/);}
+});
+test("completed contradiction list carries all11 progress positions without embedding paired results",async t=>{
+  const {env,receipt}=fixture(t);Object.assign(receipt,{mode:"CONTRADICTION_ANALYSIS",source_snapshot:Array.from({length:50},()=>({id:plan})),
+    questions:Array.from({length:11},(_,i)=>`Criterion ${i}`),total_steps:11,position:11,state:"completed",results_included:false});
+  const response=await handle(request(),env);assert.equal(response.status,200);assert.equal((await response.json()).items[0].position,11);
+  assert.equal((await handle(request("GET",`/${run}`),env)).status,503);
+});
 test("queue interruption reports durable pending recovery, not completed processing",async t=>{
   const {env}=fixture(t,{queueError:true});
   const response=await handle(request("POST","",{non_sensitive_attested:true}),env);

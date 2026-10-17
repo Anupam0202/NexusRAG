@@ -8,6 +8,7 @@ import type { ResearchPlanRecord } from "@/lib/research-plan";
 import { ResearchFindingAction } from "./ResearchFindingAction";
 import { ComparisonMatrix } from "./ComparisonMatrix";
 import { TimelineOverview } from "./TimelineEvents";
+import { ContradictionPairs } from "./ContradictionPairs";
 
 const button="inline-flex items-center justify-center gap-2 rounded-lg border border-[var(--border)] px-3 py-2 text-sm disabled:opacity-50";
 export function ResearchRuns({plan,workspaceId,userId,canWrite}:{plan:ResearchPlanRecord;workspaceId:string;userId:string;canWrite:boolean}) {
@@ -15,7 +16,7 @@ export function ResearchRuns({plan,workspaceId,userId,canWrite}:{plan:ResearchPl
   const [busy,setBusy]=useState(false),[error,setError]=useState<string|null>(null),[attested,setAttested]=useState(false),[copied,setCopied]=useState(false);
   const alive=useRef(true),pending=useRef(false),sequence=useRef(0),startKey=useRef<string|null>(null),heading=useRef<HTMLHeadingElement>(null);
   const context={workspaceId,expectedUserId:userId};
-  const supported=["QUICK_LOOKUP","EVIDENCE_ANSWER","COMPARE","TIMELINE"].includes(plan.plan.mode),comparing=plan.plan.mode==="COMPARE",batched=comparing||plan.plan.mode==="TIMELINE";
+  const supported=["QUICK_LOOKUP","EVIDENCE_ANSWER","COMPARE","TIMELINE","CONTRADICTION_ANALYSIS"].includes(plan.plan.mode),comparing=plan.plan.mode==="COMPARE",batched=comparing||plan.plan.mode==="TIMELINE";
   const scopeMissing=comparing?new Set(plan.plan.private_source_ids).size<2:!plan.plan.private_source_ids.length;
   const steps=selected?.total_steps||selected?.questions.length||1,units=batched?"batches":"questions";
   const unsupported=plan.plan.public_provider_ids.length||plan.plan.entity_scope.length||plan.plan.rights_constraints.length||plan.plan.expected_calculations.length
@@ -88,7 +89,7 @@ export function ResearchRuns({plan,workspaceId,userId,canWrite}:{plan:ResearchPl
       {selected.source_state!=="CURRENT"?<p role="status" className="text-sm text-amber-700 dark:text-amber-300">Evidence was removed or changed. Stored answers are unavailable; create a new plan against current sources.</p>:selected.results.map((result,index)=><article key={`${selected.id}:${index}`} className="mb-5 min-w-0 border-t border-[var(--border)] pt-4">
         <h4 className="mb-2 whitespace-pre-wrap break-words font-medium">{result.question}</h4>
         <p className="mb-2 text-xs text-[var(--text-muted)]">{result.claim_state==="UNSUPPORTED"?"No supported answer":"Review required; citation presence is not entailment"}</p>
-        {result.comparison?<ComparisonMatrix matrix={result.comparison} sourcePrefix={`${selected.id}-${index}`}/>:result.timeline?<p className="mb-3 text-sm">{result.timeline.events.length} source events / criterion {result.timeline.criterion_index+1} / batch {result.timeline.batch_index+1}</p>:<p className="mb-3 whitespace-pre-wrap break-words text-sm">{result.answer}</p>}
+        {result.comparison?<ComparisonMatrix matrix={result.comparison} sourcePrefix={`${selected.id}-${index}`}/>:result.timeline?<p className="mb-3 text-sm">{result.timeline.events.length} source events / criterion {result.timeline.criterion_index+1} / batch {result.timeline.batch_index+1}</p>:result.contradiction?<ContradictionPairs analysis={result.contradiction} sourcePrefix={`${selected.id}-${index}`}/>:<p className="mb-3 whitespace-pre-wrap break-words text-sm">{result.answer}</p>}
         <ResearchFindingAction runId={selected.id} index={index} result={result} workspaceId={workspaceId} userId={userId} canWrite={canWrite}/>
         {result.sources.map(source=><details key={source.citation_id} id={`${selected.id}-${index}-${source.citation_id}`} tabIndex={-1} className="mb-2 min-w-0 rounded-lg border border-[var(--border)] p-3">
           <summary className="cursor-pointer break-words text-sm">[{source.citation_id}] {source.filename} / chunk {source.chunk_index}{source.page_number>0?` / page ${source.page_number}`:""}</summary>

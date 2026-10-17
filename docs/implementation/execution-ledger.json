@@ -13,6 +13,27 @@
   "interpretation": "OPEN_ENGINEERING includes implemented but not fully accepted requirements; it does not assert that no code or scoped evidence exists. External approvals do not close unfinished internal work.",
   "entries": [
     {
+      "id": "ENGINEERING-RESEARCH-CONTRADICTION-EXECUTION",
+      "requirement": "Complete durable source-paired Contradiction Analysis with adopted50source/10subquestion-plus-main/8variant/420second limits, exact evidence, progress/recovery and independent review",
+      "normative_source": "Owner adopted twelve-mode/ten-product functional assignment; exact224definitions unchanged",
+      "status": "IN_PROGRESS",
+      "environment": "uncommitted functional038 on frozen03758ea39e; actual production executor with controlled peers and real disposable PG17.11/pgvector0.8.7, not hosted/private/provider acceptance",
+      "next_action": "Save reviewed source through existing draft PR12, verify exact-source CI and complete new-directory dependency recovery before any hosted-approval request. Current cold92browser/4intentional skips, production Next/OpenNext26assets/actual Worker/final typecheck/source-baseline/original551entry paused022 preservation pass; WIPstage02 recovered686files but is not a release checkpoint. All accepted full constraints/eight query variants/semantic/rights/quality/product workflows and excluded prerequisites remain open.",
+      "acceptance_evidence": [{
+        "environment": "local actual executor and disposable SQL, ordinary local Chrome baseline only",
+        "observed_at": "2026-10-17T07:52:14Z",
+        "source_identity": "parent58ea39e2f2dbcece6bd698c09ec588173cd33a8d/treece11a64c plus uncommitted038",
+        "command_or_url": "tests/cloudflare/research-contradiction.test.mjs; tests/cloudflare/research-executor.test.mjs; tests/postgres/research-contradiction-assertions.sql; frontend/src/e2e/research-contradictions.spec.ts; external batch038/logs",
+        "result": "Actual UI cannot execute saved contradiction plans and actual executor lacks structured pairs before correction.33focused/586Gateway cases now pass, including first/last50source pairing and201row budget. Local-only CLI migration and real50source/11criterion/550receipt/Unicode quotes/420s/retry/in-flight cancel/resume/list/read/Finding10 and65table145function restore pass. UI regression still fails at absent control; no full durable UI/client/executor-to-SQL/CI/recovery or mode/product acceptance. Frozen037source/evidence recovery completed; its image/summary subsequently FAILED by metadata only. No new security/hosted/provider/customer/destructive/deployment operation."
+      },{
+        "environment": "current isolated functional038 source, controlled desktop/mobile Chrome and actual executor with disposable PG17.11/pgvector0.8.7",
+        "observed_at": "2026-10-17T12:52:00Z",
+        "source_identity": "parent58ea39e2f2dbcece6bd698c09ec588173cd33a8d plus uncommitted038",
+        "command_or_url": "batch038/logs/contradiction-sql-executor-02.log; contradiction-ui-after-02.log; owning regression receipts; native-chrome-paired-reload.png",
+        "result": "591Gateway/492frontend74files/631backend+10subtests/57isolated/99scripts/lint/typecheck and12focused browser cases PASS. Contract preflight, typed paired-receipt validation, actual UI/citations/consulted scope/reload/Finding ambiguous retry/independent review/interrupted resume/empty abstention verified with controlled peers. Real production executor50sources/11criteria/550consulted receipts/two-connection start deduplication/Finding10/65table145function restore PASS. Synthetic chunk-ID collision corrected, failure retained. Full cold browser/build/exact-source CI/new dependency recovery and full accepted mode remain open; no hosted approval/application, provider/customer/destructive/deployment or security work."
+      }]
+    },
+    {
       "id": "ENGINEERING-RESEARCH-SOURCE-DIVERSITY",
       "requirement": "Retain candidate evidence for every selected source in bounded comparison and timeline batches even when one document fills the lexical window",
       "normative_source": "Owner selected-document evidence/retrieval/mode execution journeys; exact224definitions retained",

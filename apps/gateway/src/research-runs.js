@@ -6,16 +6,17 @@ const states=new Set(["queued","running","interrupted","completed","cancelled"])
 const problem=(code,message,status=422)=>Object.assign(new Error(message),{code,status});
 export const researchMessage = run => ({kind:"research",run_id:run.id,workspace_id:run.workspace_id,generation:run.generation,position:run.position});
 export function confirmedRun(row,{workspace,user},plan) {
-  const comparing=row?.mode==="COMPARE",batched=comparing||row?.mode==="TIMELINE",count=batched?row.source_snapshot?.length:0;
+  const comparing=row?.mode==="COMPARE",contradicting=row?.mode==="CONTRADICTION_ANALYSIS",batched=comparing||row?.mode==="TIMELINE",count=batched||contradicting?row.source_snapshot?.length:0;
   const total=batched&&count>=(comparing?2:1)&&count<=40?row.questions?.length*Math.ceil(count/8):row?.questions?.length;
   return Boolean(row && uuid.test(row.id||"") && row.plan_id===plan && row.workspace_id===workspace && row.owner_id===user.id
     && row.schema_version==="research-run/1" && row.persistence_state==="PERSISTED" && states.has(row.state)
     && Number.isSafeInteger(row.generation) && row.generation>=1 && row.generation<=10
-    && Number.isSafeInteger(row.position) && row.position>=0 && Array.isArray(row.questions) && row.questions.length>=1 && row.questions.length<=(batched?9:5)
+    && Number.isSafeInteger(row.position) && row.position>=0 && Array.isArray(row.questions) && row.questions.length>=1 && row.questions.length<=(contradicting?11:batched?9:5)
     && (!batched||count>=(comparing?2:1)&&count<=40&&row.total_steps===total)
+    && (!contradicting||Array.isArray(row.source_snapshot)&&count>=1&&count<=50&&row.total_steps===total)
     && row.questions.every(q=>typeof q==="string" && q.length>0 && q.length<=10000) && row.position<=total
     && Array.isArray(row.results) && ["CURRENT","UNAVAILABLE_OR_CHANGED"].includes(row.source_state)
-    && (row.results_included===false?batched&&row.results.length===0:row.source_state!=="CURRENT" || row.results.length===row.position)
+    && (row.results_included===false?(batched||contradicting)&&row.results.length===0:row.source_state!=="CURRENT" || row.results.length===row.position)
     && (row.state!=="completed" || row.position===total));
 }
 export async function handleResearchRuns(args) {
@@ -48,18 +49,24 @@ export async function handleResearchRuns(args) {
       if(contract?.schema_version!=="research-timeline/1"||contract.batch_size!==8||contract.max_steps!==45)
         throw problem("MIGRATION_REQUIRED","Timeline execution requires the reviewed research_timeline_execution migration.",503);
     }
+    if(["create","resume"].includes(operation)&&command.execution_mode==="CONTRADICTION_ANALYSIS") {
+      const contract=await serviceRequest(env,"rpc/nexus_research_contradiction_contract",{method:"POST",body:"{}"});
+      if(contract?.schema_version!=="research-contradiction/1"||contract.max_sources!==50||contract.max_steps!==11||contract.max_pairs!==6||contract.runtime_seconds!==420)
+        throw problem("MIGRATION_REQUIRED","Contradiction execution requires the reviewed research_contradiction_execution migration.",503);
+    }
     result=await serviceRequest(env,"rpc/nexus_research_run",{method:"POST",body:JSON.stringify({p_context:await workbenchContext(args),
       p_operation:operation,p_plan:plan,p_id:run||null,p_key:key,p_command:{non_sensitive_attested:command.non_sensitive_attested===true},p_limit:limit,p_after:after?.toLowerCase()||null})});
   } catch(error) {
     if(["PGRST202","42883","42P01"].includes(error.storageCode))throw problem("MIGRATION_REQUIRED",
-      command.execution_mode==="TIMELINE"?"Timeline execution requires the reviewed research_timeline_execution migration.":
+      command.execution_mode==="CONTRADICTION_ANALYSIS"?"Contradiction execution requires the reviewed research_contradiction_execution migration.":
+        command.execution_mode==="TIMELINE"?"Timeline execution requires the reviewed research_timeline_execution migration.":
         command.execution_mode==="COMPARE"?"Comparison execution requires the reviewed research_comparison_execution migration.":"Research execution requires the reviewed research_answer_execution migration.",503);
     const messages={MODE_NOT_EXECUTABLE:"This mode has no completed execution workflow yet. The saved plan is unchanged.",
       COMPARISON_SCOPE_REQUIRED:"A comparison requires between 2 and 40 distinct current documents.",
       PLAN_CONSTRAINTS_UNSUPPORTED:"Execution cannot yet honor the public providers, dates, jurisdiction, entities, rights constraints or calculations in this plan. Copy it to a new plan with a supported scope.",
       SOURCE_UNAVAILABLE:"Select current, ready, non-sensitive documents. The original run scope cannot be silently replaced.",
       BYOK_REQUIRED:"Research needs an available account query allowance or a configured, consented Gemini key.",
-      TENANT_QUOTA_EXCEEDED:"Research run storage is full (10 runs per plan, 100 per workspace, including at most 20 comparisons and 20 timelines).",
+      TENANT_QUOTA_EXCEEDED:"Research run storage is full (10 runs per plan, 100 per workspace, including at most 20 comparisons, 20 timelines and 20 contradiction analyses).",
       NOT_FOUND:"This research plan or run is unavailable."};
     if(messages[error.code])throw problem(error.code,messages[error.code],error.code==="NOT_FOUND"?404:error.code==="TENANT_QUOTA_EXCEEDED"?429:error.code==="BYOK_REQUIRED"?402:422);
     throw error;
