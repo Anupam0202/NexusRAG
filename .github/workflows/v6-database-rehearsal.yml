@@ -134,6 +134,7 @@ jobs:
             grep -F 'RESEARCH_DEEP_SQL_PASS:60sources12subquestions+main13steps780receipts' "$log"
             grep -F 'REAL_SQL_PRODUCTION_DEEP_EXECUTOR_PASS' "$log"
             grep -F '"max_context_boundary":true,"unique_prior_originals":144,"final_original_contexts":156' "$log"
+            grep -F '"original_null_zero_positive_page_receipts":true' "$log"
             grep -F 'RESEARCH_FAIR_CANDIDATE_SQL_PASS sources=50' "$log"
             grep -F 'REAL_SQL_ORIGINAL_TRANSFER_QUOTA_PASS' "$log"
             grep -F 'RESEARCH_CALCULATION_SQL_PASS' "$log"

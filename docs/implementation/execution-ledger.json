@@ -13,6 +13,27 @@
   "interpretation": "OPEN_ENGINEERING includes implemented but not fully accepted requirements; it does not assert that no code or scoped evidence exists. External approvals do not close unfinished internal work.",
   "entries": [
     {
+      "id": "ENGINEERING-RESEARCH-ORIGINAL-PAGE-METADATA",
+      "requirement": "Preserve unknown, zero and positive authoritative page metadata through actual research execution, durable source receipts, original inspection and Findings",
+      "normative_source": "Owner exact-original evidence/locator and usable non-paged document workflows; exact224definitions unchanged",
+      "status": "IN_PROGRESS",
+      "environment": "uncommitted042 on frozen04108d7c23; actual production executor and disposable SQL regressions, not hosted/private/provider acceptance",
+      "next_action": "Save through existing PR12, bind current exact-tree CI and complete fresh source/dependency/evidence recovery. Fresh cold110controlled+20ordinary builtWorker browser, four intentional skips uncounted, Next/OpenNext26assets/native/GET-HEAD200-404-405 and owning suites PASS; manual functional diff review does not imply independent/security clearance. Before-fix actual executor/SQL failures are reproduced; original-row correction preserves NULL/0/positive values, SQL comparisons and source limits. All broader mode/product/quality/private/production requirements and excluded release prerequisites remain unfinished. No new042SQL or hosted041approval/promotion.",
+      "acceptance_evidence": [{
+        "environment": "frozen041 fresh dependency/source recovery plus static final compatibility inspection",
+        "observed_at": "2026-10-18T15:03:24Z",
+        "source_identity": "08d7c233346154dc8cbd4362b2d5af8e26db5200/tree5981f7a4210abe948d7e8cc5ac6a1f143d79488f",
+        "command_or_url": "BATCH041_HANDOFF.md; batch041/logs/final-compatibility-gap.json; final-recovery-snapshot.json",
+        "result": "703source/348evidence files recoveredNEW with26fresh guarded checks,106controlled+20ordinary Worker browser and4intentional skips. Positive-page fixtures do not prove NULL-page compatibility: staging omits page_number, retrieval emits0 and research persistence compares against stored NULL. Actual failing regression/correction still required, not accepted as fixed. Full source/mode/product/quality/private/production scope unfinished; required image/summaryFAILED."
+      },{
+        "environment": "uncommitted042 actual executor/controlled browser and real disposable PostgreSQL17.11, not hosted/private/provider acceptance",
+        "observed_at": "2026-10-18T15:40:05Z",
+        "source_identity": "parent08d7c233346154dc8cbd4362b2d5af8e26db5200 plus uncommitted042",
+        "command_or_url": "batch042/logs/nullable-pages-executor-before-01.log; nullable-pages-real-sql-before-01.log; nullable-pages-executor-after-02.log; nullable-zero-positive-real-sql-after-02.log; nullable-pages-browser-after-02.log; owning receipts",
+        "result": "Two actual-executor failures and real SQL NR:SOURCE_UNAVAILABLE at Contradiction step0 confirm NULL-to0 metadata loss. Original-row map and prior-original rehydration preserve NULL/0/positive values without relaxed SQL/migration/global presentation change.50focused executor/domain/22client/UI and full651Gateway/506frontend/631backend+10/57isolated/100scripts/lint/typecheck/foundation/baseline PASS. Real50source11criterion/60source13step/156original SQL preserves all three page states, exact Finding/reread and65table154function restore. Four pageless controlled browser journeys PASS; initial two harness gaps retained/corrected.705file WIP recoveredNEW, later edits separate; cold full browser/build/native/manual review/publication/current CI/fresh complete recovery still required. No hosted041approval or new042SQL, no production acceptance."
+      }]
+    },
+    {
       "id": "ENGINEERING-RESEARCH-DEEP-EXECUTION",
       "requirement": "Complete durable Deep Research subquestion analyses and evidence-linked synthesis with adopted60source/12subquestion-plus-main/8variant/600second limits and usable progress/recovery/review",
       "normative_source": "Owner adopted twelve-mode functional assignment; research-modes.json exact limits and224definitions unchanged",

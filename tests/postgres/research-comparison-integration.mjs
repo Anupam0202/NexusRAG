@@ -25,19 +25,20 @@ function concurrently(statement,values) {return new Promise((resolve,reject)=>{
 if(deepening)sql(`insert into auth.users(id,email,raw_user_meta_data) values(:'actor',:'email','{}');
   insert into public.workspace_members(workspace_id,user_id,role) values(:'ws',:'actor','editor');
   update public.workspace_settings set retrieval_top_k=12,hybrid_search_alpha=:'alpha'::numeric where workspace_id=:'ws';`,{actor,ws,email:`${scenario.toLowerCase()}@example.invalid`,alpha:deepBoundary?1:0.5});
-const documents=[];
+const documents=[],locations=new Map();
 for(let i=1;i<=(deepening?60:contradicting?50:9);i++) {
   const prefix=deepBoundary?"042":deepening?"041":contradicting?"038":timelining?"033":"031";
   const doc=`d${prefix}0000-0000-4000-8100-${String(i).padStart(12,"0")}`,version=`e${prefix}0000-0000-4000-8100-${String(i).padStart(12,"0")}`;
   const chunk=i===1?`000000${deepBoundary?"42":deepening?"41":contradicting?"38":timelining?"33":"31"}-0000-4000-8100-000000000000`:`f${prefix}0000-0000-4000-8100-${String(i).padStart(12,"0")}`;
   const text=contradicting?`\u{1F4CA} Synthetic source ${i} reports mass ${i}.005 kg.`:timelining?`Synthetic document ${i} took effect on 2024-02-${String(10-i).padStart(2,"0")}.`:`Synthetic document ${i} reports retention ${30+i} days.`,hash=createHash("sha256").update(text).digest("hex");documents.push(doc);
+  const page=(contradicting||deepening)&&i<=2?(i===1?null:0):2,location=page===null||page===0?{char_start:0,char_end:Array.from(text).length}:{page};locations.set(doc,location);
   sql(`insert into public.documents(id,workspace_id,uploaded_by,filename,original_filename,status) values(:'doc',:'ws',:'actor',:'name',:'name','ready');
     insert into public.document_versions(id,workspace_id,document_id,original_bucket,original_key,original_hash,original_bytes,original_verified_at,parser_version,chunker_version,lifecycle_epoch,
       publication_state,index_generation,data_classification,classification_declared_by,classification_declared_at)
       values(:'version',:'ws',:'doc','documents',:'doc',repeat('a',64),1,now(),'synthetic','synthetic',1,'ready','comparison-generation','non_sensitive',:'actor',now());
     update public.documents set active_version_id=:'version' where id=:'doc';
     insert into public.document_chunks(id,workspace_id,document_id,version_id,chunk_index,content,original_text,original_content_hash,page_number,location,embedding_space_id)
-      values(:'chunk',:'ws',:'doc',:'version',0,:'text',:'text',:'hash',2,'{"page":2}','synthetic-space');`,{doc,ws,actor,name:`Comparison ${i}.txt`,version,chunk,text,hash});
+      values(:'chunk',:'ws',:'doc',:'version',0,:'text',:'text',:'hash',nullif(:'page','')::integer,:'location'::jsonb,'synthetic-space');`,{doc,ws,actor,name:`Comparison ${i}.txt`,version,chunk,text,hash,page:page??"",location});
   if(i===1)sql(`insert into public.document_chunks(id,workspace_id,document_id,version_id,chunk_index,content,original_text,original_content_hash,page_number,location,embedding_space_id)
     select ('000000'||:'prefix'||'-0000-4000-8100-'||lpad(n::text,12,'0'))::uuid,:'ws',:'doc',:'version',n,
       'Unrelated appendix material.','Unrelated appendix material.',encode(sha256(convert_to('Unrelated appendix material.','UTF8')),'hex'),3,'{"page":3}','synthetic-space'
@@ -143,6 +144,8 @@ try {
   assert.ok(lexicalReads.every(read=>read.rows<=201));
   assert.equal(lexicalReads[0].documents,deepening?60:contradicting?50:8);
   if(deepening) {
+    assert.ok(run.results.every(result=>result.deep.documents.slice(0,2).every((document,index)=>
+      document.consulted_sources.find(source=>source.chunk_index===0)?.page_number===(index===0?null:0))));
     assert.ok(run.results.every(result=>result.runtime_options.retrieval_top_k===12));
     assert.equal(run.results.flatMap(result=>result.deep.documents).length,780);
     assert.equal(run.results[12].deep.phase,"SYNTHESIS");assert.equal(run.results[12].deep.prior_results.length,12);
@@ -158,6 +161,8 @@ try {
     const reread=sql("select public.nexus_research_run(:'ctx'::jsonb,'read',:'plan'::uuid,:'id'::uuid);",{ctx,plan:plan.id,id:run.id});
     assert.deepEqual(reread.results,run.results);
   } else if(contradicting) {
+    assert.ok(run.results.every(result=>result.contradiction.documents.slice(0,2).every((document,index)=>
+      document.consulted_sources.find(source=>source.chunk_index===0)?.page_number===(index===0?null:0))));
     assert.equal(run.results.flatMap(r=>r.contradiction.documents).length,550);
     assert.ok(run.results.every((r,i)=>r.contradiction.criterion_index===i&&r.contradiction.pairs.length===1&&r.contradiction.documents.length===50
       &&r.contradiction.documents.every(d=>d.consulted_sources.length===1)&&r.contradiction.pairs[0].left.document_id===documents[0]
@@ -188,7 +193,7 @@ try {
   assert.equal(finding.source_research_position,findingPosition);assert.equal(finding.research_origin[deepening?"deep":contradicting?"contradiction":timelining?"timeline":"comparison"].criterion_index,deepening?12:contradicting?10:2);
   if(!contradicting&&!deepening)assert.equal(finding.research_origin[timelining?"timeline":"comparison"].batch_index,1);
   assert.equal(finding.evidence.length,contradicting?2:1);
-  assert.equal(finding.evidence[0].document_id,deepening?run.results[12].sources[0].document_id:documents[contradicting?0:8]);assert.deepEqual(finding.evidence[0].location,{page:deepBoundary?3:2});
+  assert.equal(finding.evidence[0].document_id,deepening?run.results[12].sources[0].document_id:documents[contradicting?0:8]);assert.deepEqual(finding.evidence[0].location,deepBoundary?{page:3}:locations.get(finding.evidence[0].document_id));
   assert.deepEqual(finding.research_origin.query_retrieval,run.results[findingPosition].query_retrieval);
   console.log(`RESEARCH_QUERY_RETRIEVAL_SQL_PASS mode=${mode} queries=${RESEARCH_MODE_LIMITS[mode].max_query_variants} steps=${steps} lexical_rpc_per_step=1 original_row_budget=201 outbound_per_step_below=50`);
   console.log(JSON.stringify({marker:deepening?"REAL_SQL_PRODUCTION_DEEP_EXECUTOR_PASS":contradicting?"REAL_SQL_PRODUCTION_CONTRADICTION_EXECUTOR_PASS":timelining?"REAL_SQL_PRODUCTION_TIMELINE_EXECUTOR_PASS":"REAL_SQL_PRODUCTION_COMPARISON_EXECUTOR_PASS",
@@ -196,5 +201,6 @@ try {
     independently_concurrent_start_connections:2,starts_saved:1,generation_calls:generations,last_finding_position:findingPosition,exact_original_hash: finding.evidence[0].original_content_hash,
     first_document_chunks:400,first_step_paired_or_cited_sources:deepBoundary?1:deepening?12:contradicting?2:8,first_step_lexical_rows_read:lexicalReads[0].rows,
     ...(deepBoundary?{max_context_boundary:true,unique_prior_originals:144,final_original_contexts:156}:{}),
+    ...((deepening||contradicting)?{original_null_zero_positive_page_receipts:true}:{}),
     quota_provider_peers:"CONTROLLED_NOT_LIVE_QUALITY_OR_SQL_BUDGET_PROOF",provider_processing:false,hosted_acceptance:false}));
 } finally {globalThis.fetch=ordinaryFetch;}

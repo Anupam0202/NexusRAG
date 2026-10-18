@@ -32,16 +32,19 @@ const comparisonDocument="61616161-6161-4161-8161-616161616161",comparisonVersio
 const comparisonText="The synthetic second mass is 2.005 kg.";
 const timelineTexts=["\u{1F4CA} Issued 2024-02. Effective 2024-02-29.","Reviewed 03/04/2024. Open period 2024/2025."];
 const largeDocument="64646464-6464-4464-8464-646464646464",largeVersion="74747474-7474-4474-8474-747474747474",largeChunk="84848484-8484-4484-8484-848484848484";
+const pagelessDocument="65656565-6565-4565-8565-656565656565",pagelessVersion="75757575-7575-4575-8575-757575757575",pagelessChunk="85858585-8585-4585-8585-858585858585";
 const fixtureDocuments=[{id:document,workspace_id:workspace,filename:"Synthetic policy.txt",active_version_id:sourceVersion},
   {id:comparisonDocument,workspace_id:workspace,filename:"Synthetic second policy.txt",active_version_id:comparisonVersion},
   ...timelineTexts.map((_,i)=>({id:`63636363-6363-4363-8363-63636363636${i}`,workspace_id:workspace,filename:i?"Timeline amendment.txt":"Timeline policy.txt",active_version_id:`73737373-7373-4373-8373-73737373737${i}`})),
-  {id:largeDocument,workspace_id:workspace,filename:"Synthetic large policy.txt",active_version_id:largeVersion}
+  {id:largeDocument,workspace_id:workspace,filename:"Synthetic large policy.txt",active_version_id:largeVersion},
+  {id:pagelessDocument,workspace_id:workspace,filename:"Synthetic pageless policy.txt",active_version_id:pagelessVersion}
 ].map(d=>({...d,status:"ready",file_type:"txt",chunk_count:d.id===largeDocument?400:1,file_size:100,lifecycle_state:"active",lifecycle_epoch:1}));
 const fixtureVersions=fixtureDocuments.map(d=>({id:d.active_version_id,workspace_id:workspace,document_id:d.id,publication_state:"ready",data_classification:"non_sensitive",index_generation:"synthetic-source-generation",lifecycle_epoch:1}));
 const fixtureChunks=fixtureDocuments.map((d,i)=>{
-  const text=i===4?sourceText:i<2?i?comparisonText:sourceText:timelineTexts[i-2];
-  return {id:i===4?largeChunk:i<2?i?comparisonChunk:sourceChunk:`83838383-8383-4383-8383-83838383838${i}`,workspace_id:workspace,document_id:d.id,version_id:d.active_version_id,
-    chunk_index:0,original_text:text,content:text,original_content_hash:createHash("sha256").update(text).digest("hex"),page_number:2,location:{page:2},metadata:{}};
+  const pageless=d.id===pagelessDocument,text=pageless||i===4?sourceText:i<2?i?comparisonText:sourceText:timelineTexts[i-2];
+  return {id:pageless?pagelessChunk:i===4?largeChunk:i<2?i?comparisonChunk:sourceChunk:`83838383-8383-4383-8383-83838383838${i}`,workspace_id:workspace,document_id:d.id,version_id:d.active_version_id,
+    chunk_index:0,original_text:text,content:text,original_content_hash:createHash("sha256").update(text).digest("hex"),page_number:pageless?null:2,
+    location:pageless?{char_start:0,char_end:Array.from(text).length}:{page:2},metadata:{}};
 });
 for(let i=1;i<400;i++) {
   const text=i===399?"Final appendix record. Reference END-400.":"Unrelated appendix material.";
@@ -51,7 +54,7 @@ for(let i=1;i<400;i++) {
 const fixtureOriginals=new Map();
 for(const d of fixtureDocuments) {
   const originals=fixtureChunks.filter(c=>c.document_id===d.id);
-  const bytes=Buffer.from(`\uFEFF${d.filename}\r\n${originals.map(c=>c.original_text).join("\r\n")}\r\nOriginal-file-only footer.\r\n`);
+  const bytes=Buffer.from(d.id===pagelessDocument?originals.map(c=>c.original_text).join("\n"):`\uFEFF${d.filename}\r\n${originals.map(c=>c.original_text).join("\r\n")}\r\nOriginal-file-only footer.\r\n`);
   const key=`${workspace}/${d.id}/${d.active_version_id}/${d.filename}`;
   fixtureOriginals.set(key,bytes);
   Object.assign(fixtureVersions.find(v=>v.id===d.active_version_id),{original_bucket:"documents",original_key:key,
@@ -94,7 +97,7 @@ globalThis.fetch = async (input, init = {}) => {
       const sources=JSON.parse(prompt.split("\nEVIDENCE:\n")[1]);
       const question=prompt.split("QUESTION:\n")[1].split("\nCONTRADICTION_DOCUMENTS:")[0];
       if(question.includes("Synthetic interrupted contradiction")&&!interruptedQuestions.has(question)){interruptedQuestions.add(question);return new Response("synthetic interruption",{status:503});}
-      const left=sources.find(s=>s.document_id===document),right=sources.find(s=>s.document_id===comparisonDocument);
+      const left=sources.find(s=>s.document_id===document||s.document_id===pagelessDocument),right=sources.find(s=>s.document_id===comparisonDocument);
       return result({candidates:[{finishReason:"STOP",content:{parts:[{text:JSON.stringify({pairs:left&&right&&!question.includes("Synthetic empty contradiction")?[{
         left:{citation_id:left.citation_id,quote:"mass: 1.005 kg"},right:{citation_id:right.citation_id,quote:comparisonText},
         relationship:"INSUFFICIENT_CONTEXT",explanation:"Measurement context and equivalence have not been established."}]:[]})}]}}]});

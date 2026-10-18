@@ -4,6 +4,28 @@ Status: **PARTIAL_NOT_COMPLETE — locally tested implementation; not production
 
 This receipt supersedes historical status claims only where it records a fresh observation. It does not certify a complete product, production release, provider rights, or absence of all defects.
 
+## Original Research Page Metadata - Active Batch042
+
+Frozen04108d7c23 complete703source/d5fda13b and348file/3ea52488 evidence recoveredNEW
+with26fresh checks, not complete mode/production acceptance. Its final review
+found a NULL-to0 presentation mismatch missed by positive-page fixtures.042actual
+executor before-fix cases fail in Deep/Contradiction, and real SQL rejects the
+actual Contradiction commit at step0 with NR:SOURCE_UNAVAILABLE. Original-row page
+metadata now survives retrieval and prior-original synthesis rehydration; nullable
+client/display contracts match. No relaxed SQL, new migration, changed global
+retrieval display convention or reduced source/query/runtime limits.
+
+50focused executor/domain/22client/UI, full651Gateway/506frontend/631backend+10/
+57isolated/100scripts/lint/typecheck/foundation/baseline PASS. Actual SQL preserves
+NULL/0/positive receipts in50source11criterion and60source13step/156context paths,
+exact Finding/reread/65table154function restore. Four controlled pageless desktop/
+mobile cases PASS; old-name provider fixture and unsupported Testing Library
+option were harness gaps, fixed without assertion/timeout waivers, failed logs
+retained. Complete705file WIP recoveredNEW; later edits separate. Full cold/
+build/native/manual review/publication/CI/new dependency recovery remain open,
+as do all224requirements/tenproducts/twelvemodes/quality/private/rights/lifecycle/
+rollout and failed required gates. No hosted041approval or excluded work.
+
 ## Deep Research - Active Batch041
 
 Uncommitted selected-source functional work on frozen040ac46dad, not a complete

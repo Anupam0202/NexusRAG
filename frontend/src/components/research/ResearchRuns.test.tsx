@@ -84,3 +84,16 @@ it("copies saved query methodology as queries, never as additional evidence",asy
   await waitFor(()=>expect(writeText).toHaveBeenCalledTimes(1));expect(writeText.mock.calls[0][0]).toContain("Search queries (not evidence):");
   expect(writeText.mock.calls[0][0]).toContain("Synthetic mass wording");
 });
+
+for(const pageNumber of [null,0,2])it(`shows the original source locator without inventing a page for ${pageNumber}`,async()=>{
+  const source={citation_id:"S1",document_id:id,version_id:id,chunk_id:id,filename:"Synthetic original.txt",content:"Original retained evidence.",
+    original_content_hash:"a".repeat(64),location:pageNumber?{page:pageNumber}:{char_start:0,char_end:27},page_number:pageNumber,chunk_index:0,excerpt:false};
+  const result={question:plan.plan.question,answer:"Review the original [S1].",claim_state:"REVIEW_REQUIRED",abstained:false,sources:[source],validated_citation_ids:["S1"],
+    coverage:{completeness:"NOT_EXHAUSTIVE",chunks_considered:1},provider_cost_status:"UNKNOWN"};
+  const completed={...run,state:"completed",position:1,results:[result]};
+  api.listResearchRuns.mockResolvedValue({items:[completed],next_after:null});api.researchRunCommand.mockResolvedValue(completed);
+  render(<ResearchRuns {...props}/>);fireEvent.click(await screen.findByRole("button",{name:`Open execution ${id}`}));
+  expect(await screen.findByText(`[S1] Synthetic original.txt / chunk 0${pageNumber?` / page ${pageNumber}`:""}`,{exact:true})).toBeVisible();
+  expect(screen.queryByText(/\/ page 0/)).not.toBeInTheDocument();
+  expect(screen.getByRole("link",{name:/^Inspect document$/})).toHaveAttribute("href",`/documents/${id}`);
+});

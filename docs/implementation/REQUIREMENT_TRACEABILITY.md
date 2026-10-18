@@ -1,5 +1,19 @@
 # Requirement traceability
 
+042corrects actual non-paged research persistence, not full-mode/production
+acceptance. Before-fix Deep/Contradiction executor NULL-to0 failures and real SQL
+NR:SOURCE_UNAVAILABLE at step0 are retained. Loaded authoritative row metadata,
+including rehydrated prior originals, now preserves NULL/0/positive values; client
+nullable type/display match. No relaxed SQL, new migration or changed global
+presentation contract/source limits. Full651Gateway/506frontend/631backend+10/
+57isolated/100scripts/lint/typecheck/foundation/baseline and real50source11criterion/
+60source13step/156context SQL exact Finding/reread/65table154function restore PASS.
+Four pageless controlled browser cases PASS; full stronger cold suite still live.
+Build/native/manual review/saved-source CI/full new recovery remain required.
+Frozen041703source/348evidence and full224definitions/tenproducts/twelvemodes/
+400+125quality remain unchanged. No hosted041approval/deployment/excluded work;
+paused022/required failed gates and broader unfinished scope remain preserved.
+
 041implements scoped selected-source Deep Research, not complete mode/product or
 production acceptance. All224exact definitions/tenproducts/twelvemodes/400+125
 quality remain unchanged. Frozen040ac46dad695files recoveredNEW; exact039hosted

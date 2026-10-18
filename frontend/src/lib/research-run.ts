@@ -36,7 +36,7 @@ export type ResearchContradiction={schema_version:"research-contradiction/1";cri
 export type ResearchRunResult = {
   question:string;answer:string;claim_state:"REVIEW_REQUIRED"|"UNSUPPORTED";abstained:boolean;
   sources:Array<{citation_id:string;document_id:string;version_id:string;chunk_id:string;filename:string;content:string;
-    original_content_hash:string;location:unknown;page_number:number;chunk_index:number;excerpt:boolean}>;
+    original_content_hash:string;location:unknown;page_number:number|null;chunk_index:number;excerpt:boolean}>;
   validated_citation_ids:string[];model:string|null;coverage:{completeness:string;chunks_considered:number;lexical_limit_reached?:boolean};
   provider_cost_status:string;review_state:string;comparison?:ResearchComparison;timeline?:ResearchTimeline;contradiction?:ResearchContradiction;deep?:ResearchDeep;query_retrieval?:ResearchQueryRetrieval;
 };

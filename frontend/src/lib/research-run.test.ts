@@ -37,6 +37,15 @@ it("retains all60sources/13steps,156synthesis originals and every previous resul
     {deep:{...final.deep,documents:final.deep.documents.map((doc,i)=>i?doc:{...doc,evidence_state:"NO_INDEXED_EVIDENCE"})}}])
     expect(confirmedResearchRun({...complete,results:[...complete.results.slice(0,12),{...final,...change}]},id)).toBe(false);
 });
+for(const pageNumber of [null,0,2])it(`retains the distinct original page receipt ${pageNumber} throughout Deep subanalyses and synthesis`,()=>{
+  const complete=deepRun();
+  const changed={...complete,results:complete.results.map(result=>({...result,
+    sources:result.sources.map(source=>({...source,page_number:pageNumber})),
+    deep:{...result.deep,documents:result.deep.documents.map(document=>({...document,
+      consulted_sources:document.consulted_sources.map(receipt=>({...receipt,page_number:pageNumber}))}))}}))};
+  expect(confirmedResearchRun(changed,id)).toBe(true);
+  expect(changed.results[12].sources.every(source=>source.page_number===pageNumber)).toBe(true);
+});
 function contradictionRun() {
   const snapshot=Array.from({length:50},(_,i)=>({document_id:`00000038-0000-4000-8000-${String(i).padStart(12,"0")}`,version_id:id,index_generation:"synthetic",lifecycle_epoch:1}));
   const sources=[0,49].map((i,j)=>({citation_id:`S${j+1}`,document_id:snapshot[i].document_id,version_id:id,chunk_id:`00000039-0000-4000-8000-${String(i).padStart(12,"0")}`,

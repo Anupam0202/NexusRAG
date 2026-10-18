@@ -38,6 +38,7 @@ async function fixture(t,options={}) {
       chunk_index:i,content:filler,original_text:filler,original_content_hash:fillerHash});
     rows.sort((a,b)=>a.id.localeCompare(b.id));
   }
+  if(Object.hasOwn(options,"pageNumber"))for(const row of rows)row.page_number=options.pageNumber;
   if(options.deepSynthesis) {
     run.position=12;
     run.results=Array.from({length:12},(_,index)=>({question:run.questions[index],answer:`Earlier derived analysis ${index} [S1].`,
@@ -296,6 +297,27 @@ test("actual contradiction executor retains all50sources and pairs the first wit
   for(const source of saved.sources)assert.equal(source.original_content_hash,await sha256(source.content));
   assert.equal(reads.filter(path=>path==="rpc/nexus_research_candidates").length,1);
   assert.ok(saved.contradiction.documents.every(d=>d.consulted_sources.length===1));
+});
+
+for(const [mode,options] of [["Deep Research",{deep:true,documentCount:60}],["Deep synthesis",{deep:true,deepSynthesis:true,documentCount:60}],["Contradiction",{contradiction:true}]])
+test(`${mode} preserves unknown original page metadata rather than inventing page0`,async t=>{
+  const {env,db,calls}=await fixture(t,{...options,pageNumber:null});
+  await processResearchMessage(env,{...message,position:options.deepSynthesis?12:0},db);
+  const saved=calls.find(call=>call.p_operation==="commit")?.p_result;
+  assert.ok(saved);
+  assert.ok(saved.sources.length>0);
+  assert.ok(saved.sources.every(source=>source.page_number===null));
+  const documents=(saved.deep||saved.contradiction).documents;
+  assert.ok(documents.every(document=>document.consulted_sources.length>0&&document.consulted_sources.every(source=>source.page_number===null)));
+});
+for(const pageNumber of [0,2])for(const [mode,options] of [["Deep Research",{deep:true,documentCount:60}],["Deep synthesis",{deep:true,deepSynthesis:true,documentCount:60}],["Contradiction",{contradiction:true}]])
+test(`${mode} preserves the distinct original page value ${pageNumber}`,async t=>{
+  const {env,db,calls}=await fixture(t,{...options,pageNumber});
+  await processResearchMessage(env,{...message,position:options.deepSynthesis?12:0},db);
+  const saved=calls.find(call=>call.p_operation==="commit")?.p_result;
+  assert.ok(saved?.sources.length>0);
+  assert.ok(saved.sources.every(source=>source.page_number===pageNumber));
+  assert.ok((saved.deep||saved.contradiction).documents.every(document=>document.consulted_sources.every(source=>source.page_number===pageNumber)));
 });
 test("a durable next-question cursor is sent only after its result commits",async t=>{
   const {env,db,sent}=await fixture(t,{more:true});

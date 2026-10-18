@@ -96,7 +96,7 @@ export function ResearchRuns({plan,workspaceId,userId,canWrite}:{plan:ResearchPl
         {result.deep&&<DeepResearchReport report={result.deep} sourcePrefix={`${selected.id}-${index}`} runPrefix={selected.id}/>}
         <ResearchFindingAction runId={selected.id} index={index} result={result} workspaceId={workspaceId} userId={userId} canWrite={canWrite}/>
         {result.sources.map(source=><details key={source.citation_id} id={`${selected.id}-${index}-${source.citation_id}`} tabIndex={-1} className="mb-2 min-w-0 rounded-lg border border-[var(--border)] p-3">
-          <summary className="cursor-pointer break-words text-sm">[{source.citation_id}] {source.filename} / chunk {source.chunk_index}{source.page_number>0?` / page ${source.page_number}`:""}</summary>
+          <summary className="cursor-pointer break-words text-sm">[{source.citation_id}] {source.filename} / chunk {source.chunk_index}{source.page_number!=null&&source.page_number>0?` / page ${source.page_number}`:""}</summary>
           <p className="my-2 whitespace-pre-wrap break-words text-sm">{source.content}</p>
           {source.excerpt&&<p className="text-xs">Excerpt; inspect the original chunk for full content.</p>}
           <p className="my-2 break-all font-mono text-xs text-[var(--text-muted)]">SHA256 {source.original_content_hash}</p>

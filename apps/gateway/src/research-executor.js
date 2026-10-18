@@ -80,10 +80,16 @@ async function answerQuestion(env,run,db,signal,context) {
     return ranked.length||!(timelining||contradicting)?ranked:sparse.filter(hit=>hit.payload.document_id===id).slice(0,1);
   })
     :fuse(denseLists,sparseRows,runtimeOptions.retrieval_top_k);
-  const sourceFrom=(hit,i)=>({citation_id:`S${i+1}`,document_id:hit.payload.document_id,version_id:hit.payload.version_id,
+  // Durable receipts keep storage metadata, not retrieval's page0 display sentinel.
+  const originals=new Map([...lexical,...vector].map(row=>[row.id,row]));
+  const sourceFrom=(hit,i)=>{
+    const original=originals.get(hit.payload.chunk_id);
+    if(!original)throw fail("SOURCE_UNAVAILABLE","The original research locator is unavailable.");
+    return {citation_id:`S${i+1}`,document_id:hit.payload.document_id,version_id:hit.payload.version_id,
     chunk_id:hit.payload.chunk_id,filename:hit.payload.filename,content:scoped||deepening?Array.from(hit.payload.content).slice(0,1200).join(""):hit.payload.content.slice(0,2400),
     excerpt:scoped||deepening?Array.from(hit.payload.content).length>1200:hit.payload.content.length>2400,
-    original_content_hash:hit.payload.original_content_hash,location:hit.payload.location,page_number:hit.payload.page_number,chunk_index:hit.payload.chunk_index});
+    original_content_hash:hit.payload.original_content_hash,location:hit.payload.location,page_number:original.page_number??null,chunk_index:hit.payload.chunk_index};
+  };
   let sources=fused.map(sourceFrom),priorSources=[];
   if(deepening&&work.phase==="SYNTHESIS"&&work.prior_results.length) {
     let receipt;
@@ -96,6 +102,7 @@ async function answerQuestion(env,run,db,signal,context) {
     const candidates=receipt.items.map(row=>({id:row.id,payload:{chunk_id:row.id,workspace_id:workspace,
       document_id:row.document_id,version_id:row.version_id,index_generation:generation.get(row.version_id)}}));
     const hydrated=await rehydrateEvidence({workspaceId:workspace,candidates,chunks:receipt.items,...current});
+    for(const row of receipt.items)originals.set(row.id,row);
     priorSources=hydrated.map(sourceFrom);
     if(priorSources.length!==expected.size||priorSources.some(source=>{
       const original=expected.get(source.chunk_id);
