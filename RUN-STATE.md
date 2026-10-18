@@ -1,5 +1,44 @@
 # NexusRAG execution checkpoint
 
+## Active Functional Batch: research-native-boundary-043
+
+PARTIAL_NOT_COMPLETE. Uncommitted controlled native runtime validation on
+saved533f7dc/tree9f93b1d3; full224definitions/tenproducts/twelvemodes/quality unchanged.
+Frozen042705source/324evidence files recoveredNEW with26fresh guarded checks,
+631backend+10/651Gateway/506frontend/57isolated/100scripts,110controlled+20ordinary
+builtWorker browser,4intentional skips uncounted, SQL65table154function restore.
+BATCH042_HANDOFF.md supersedes old source-time042pending labels only where proven.
+Only exact041rehearsal approval fulfilled once20261018163237;31functions/six
+constraints match, prior34registry unchanged;12entry schema addendum recoveredNEW.
+No private/business/provider/newuser/destructive/production/deployment operations.
+Required runtime/image117719525924 and summary117724355376 FAILED by metadata
+only; no findings/security work/waiver, PR12 remains draft and three branches retained.
+Native actual queue/storage-adapter execution now passes with60documents/eight
+queries/32768byte Unicode originals,144prior/156synthesis contexts and953789byte
+prompt. Ordinary503records one interruption/no commit/no automatic provider repeat
+or queue retry;31/32/30controlled HTTP calls. These peers do not prove hosted CPU,
+memory, real SQL persistence, rights/budgets, private acceptance or model quality.
+Initial split-UTF8 peer corruption is retained/corrected with unchanged assertions.
+Review caught displaced CI working-directory; real YAML regression fails before
+the scoped fix and all13workflow tests pass after. Full owning/build/browser/SQL,
+saved-source CI and complete fresh dependencies/recovery remain required.707file
+WIPe13f7c93b808ebbff30502ece23cad3486292bfca5654ae8a48249f2cfa0853a
+recoveredNEW; later workflow regression/docs are separate uncommitted edits.
+See RESEARCH_NATIVE_BOUNDARY_043.md; no new hosted approval/application.
+
+Final043source-time owning631backend+10/651Gateway/506frontend76files/57isolated/
+101scripts/typecheck/foundation/baseline/realSQL65table154function restore,
+NextOpenNext26assets/three native Worker probes/20ordinary builtWorker browser/
+GET-HEAD200-404-405 PASS. Native owned listener release verified. First cold
+browser109pass/onefail/fourintentional skips is retained: mobile-dark400chunk
+was still running at unchanged5000ms assertion; cause not established or repaired.
+Six diagnostic repeats and a separate unchanged-timeout full cold110pass/four
+intentional skips pass. Later passes do not explain the first failure. Chrome
+candidate/research stillError1101. Save/manual functional review/current exact-tree
+CI/full NEW source/dependency/evidence recovery remain required, not production
+acceptance. All224definitions/tenproducts/twelvemodes/quality and failed/excluded
+release prerequisites remain open. Final source count708; earlier707file WIP frozen.
+
 ## Active Functional Batch: research-original-page-metadata-042
 
 **PARTIAL_NOT_COMPLETE. Uncommitted ordinary functional correction, no hosted promotion.**

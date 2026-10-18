@@ -4,6 +4,40 @@ Status: **PARTIAL_NOT_COMPLETE — locally tested implementation; not production
 
 This receipt supersedes historical status claims only where it records a fresh observation. It does not certify a complete product, production release, provider rights, or absence of all defects.
 
+## Native Deep Boundary - Active Batch043
+
+Frozen042533f7dc/705source and324file evidence recoveredNEW with26fresh owning/
+SQL/browser/build/native receipts. Only narrow041rehearsal schema installed
+once20261018163237 after recovery;31functions/sixconstraints match reference,
+prior34registry unchanged. BATCH042_HANDOFF.md binds those exact milestones;
+source-time pending notes below are historical, not production acceptance.
+
+Actual production Worker queue/storage adapter now has a local long-original
+probe at60documents/eightqueries/32768byte originals,144prior originals,
+156synthesis contexts/344consulted originals/953789prompt bytes. Initial1202vs1200
+Unicode assertion failure was a peer split-buffer decoder defect; whole-byte
+decoding preserves the unchanged1200character/hash/location/page assertions.
+Both phases and ordinary503interruption/no commit/no automatic repeat/retry/
+settlement PASS with31/32/30controlled HTTP calls. These peers prove mechanics,
+not live SQL/quality/rights/budget or hosted CPU/memory/latency. No production
+behavior change was needed. New CI wiring remains uncommitted; fresh owning,
+saved-source CI/full recovery remain required. Full224definitions/tenproducts/
+twelvemodes/quality and excluded release prerequisites remain unfinished; image
+117719525924/summary117724355376FAILED by metadata only. No new hosted operation.
+
+Final043source-time owning631backend+10/651Gateway/506frontend76files/57isolated/
+101scripts/type/foundation/baseline/realSQL65table154function restore/NextOpenNext
+26assets/three native probes/20ordinary builtWorker browser/GET-HEAD200-404-405 PASS.
+New structured YAML regression fails for displaced query-step directory before
+the fix, then passes with both native steps running from frontend; explicit
+pinned script dependencies also pass101tests in a clean minimal Python environment.
+Original cold browser109pass/onefail/four intentional skips is retained: mobile
+dark400chunk execution remains running at unchanged5000ms assertion. No proven
+cause/repair; six diagnostic repeats and separate cold110pass/four skips do not
+erase that unexplained failure. Actual deployed Chrome/researchError1101 persists.
+Final save/review/current exact-tree CI/full708file fresh recovery remain open;
+not complete products/modes/private/live-quality/production or excluded clearance.
+
 ## Original Research Page Metadata - Active Batch042
 
 Frozen04108d7c23 complete703source/d5fda13b and348file/3ea52488 evidence recoveredNEW

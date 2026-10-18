@@ -5,10 +5,25 @@ import shutil
 import subprocess
 import tempfile
 import unittest
+import yaml
 
 ROOT = Path(__file__).resolve().parents[2]
 
 class ResearchWorkflowTests(unittest.TestCase):
+    def test_native_research_steps_run_from_the_frontend_directory(self):
+        workflow = yaml.safe_load((ROOT / ".github/workflows/v6-foundation-ci.yml").read_text())
+        commands = {
+            "node scripts/test-research-query-worker.mjs",
+            "node scripts/test-research-deep-worker.mjs",
+        }
+        steps = [step for job in workflow["jobs"].values() for step in job.get("steps", [])
+                 if step.get("run") in commands]
+        self.assertEqual({step["run"] for step in steps}, commands)
+        for step in steps:
+            with self.subTest(command=step["run"]):
+                self.assertEqual(step.get("working-directory"), "frontend")
+                self.assertTrue((ROOT / "frontend" / step["run"].split(" ", 1)[1]).is_file())
+
     def test_bounded_multi_query_transport_and_real_sql_receipts_are_in_required_ci(self):
         migration="20261017133234_research_query_retrieval.sql"
         self.assertIn(migration,(ROOT / "tests/postgres/local-rehearsal.sh").read_text())

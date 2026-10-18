@@ -23,6 +23,7 @@ jobs:
       - uses: actions/setup-python@v5
         with: {python-version: "3.13"}
       - run: python3 scripts/verify_v6_migrations.py
+      - run: python3 -m pip install -r tests/scripts/requirements.txt
       - run: python3 -m unittest discover -s tests/scripts -p 'test_*.py'
   backend-isolated:
     name: Backend isolated regressions
@@ -122,6 +123,9 @@ jobs:
         working-directory: frontend
       - name: Actual Worker research batch transport
         run: node scripts/test-research-query-worker.mjs
+        working-directory: frontend
+      - name: Actual Worker large Deep execution and ordinary outage
+        run: node scripts/test-research-deep-worker.mjs
         working-directory: frontend
       - run: npm run build
         working-directory: frontend

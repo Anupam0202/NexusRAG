@@ -1,5 +1,27 @@
 # Requirement traceability
 
+043adds actual native Worker queue/storage-adapter proof for Deep60source/eight
+query/32768byte originals,144prior/156context/344consulted synthesis and ordinary
+provider503interruption/no repeat. Initial Unicode mismatch was corrected in
+the controlled peer decoder, not by weakening1200character assertions or changing
+production behavior. No whole-mode/hosted CPU/memory/semantic/rights/budget or
+private acceptance. Fresh owning/current saved-source CI/full recovery remain
+required; all224normative definitions/tenproducts/twelvemodes/400+125 unchanged.
+Frozen042533f7dc source/evidence fully recovered, narrow041rehearsal approval
+fulfilled once20261018163237 with31function/sixconstraint reference equality,
+prior34registry unchanged. BATCH042_HANDOFF.md and separate041addendum supersede
+older pending labels only where proven. Required image/summaryFAILED; paused022
+and all wider release prerequisites remain unfinished. No new hosted authority.
+
+043source-time owning631backend+10/651Gateway/506frontend/57isolated/101scripts,
+realSQL65table154function restore/build/native and20ordinary builtWorker browser
+PASS. Cold109pass/onefail/four skips retained; mobile-dark400chunk5000ms completion
+failure is unexplained, not repaired by six passing diagnostic repeats or later
+unchanged-timeout cold110pass/four skips. Deployed Chrome/researchError1101 persists.
+Exact saved-source CI and708file fresh source/dependency recovery remain required.
+Structured YAML regression prevents displaced native CI working-directory, with
+explicit pinned script dependency and no trigger/gate/provider/deployment waiver.
+
 042corrects actual non-paged research persistence, not full-mode/production
 acceptance. Before-fix Deep/Contradiction executor NULL-to0 failures and real SQL
 NR:SOURCE_UNAVAILABLE at step0 are retained. Loaded authoritative row metadata,

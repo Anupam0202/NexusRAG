@@ -13,6 +13,27 @@
   "interpretation": "OPEN_ENGINEERING includes implemented but not fully accepted requirements; it does not assert that no code or scoped evidence exists. External approvals do not close unfinished internal work.",
   "entries": [
     {
+      "id": "ENGINEERING-RESEARCH-NATIVE-BOUNDARY",
+      "requirement": "Verify complete production Worker Deep queue execution with long allowed originals and the adopted full synthesis evidence pool",
+      "normative_source": "Adopted Deep60source/12subquestion-plus-main/eightquery/600second mode and original staging32768byte allowance; all224definitions unchanged",
+      "status": "IN_PROGRESS",
+      "environment": "uncommitted043 on frozen042533f7dc; local actual Workerd and controlled SQL/provider peers, not hosted/private acceptance",
+      "next_action": "Native full-boundary and ordinary503 cases pass, with initial peer UTF8 and CI working-directory failures retained and corrected without weakened assertions. Complete owning/blast-radius/browser/build/SQL checks, manual functional review, existing PR12 exact-tree CI and full source/fresh dependency/evidence recovery. Do not treat local wall time or controlled peers as hosted CPU/memory, real SQL persistence, semantic/rights/budget or private acceptance. No new hosted/provider/private/destructive/deployment or excluded security work.",
+      "acceptance_evidence": [{
+        "environment": "local actual Workerd production queue/storage adapter with controlled SQL/Gemini/Qdrant peers; no hosted/private/live acceptance",
+        "observed_at": "2026-10-18T20:21:15Z",
+        "source_identity": "frozen042533f7dc plus uncommitted043 native probe/CI wiring",
+        "command_or_url": "batch043/logs/native-deep-boundary-initial-01.log; native-deep-boundary-final-04.log; ci-working-directory-before-01.log; ci-working-directory-after-02.log; clean-script-regressions-01.log; paused022-preservation-source-01.log; deployed-research-chrome-readonly.json",
+        "result": "Initial1202vs1200 failure was peer split-UTF8 decoding, corrected without production excerpt changes or weakened assertions. Actual queue proves60documents/eightqueries/32768byte originals,12contexts200consulted subanalysis and144prior/156contexts344consulted synthesis with953789byte prompt. Ordinary503 persists one interruption/no commit/no automatic provider repeat or queue retry; controlled quota settlement and31/32/30HTTP calls verified. Local wall350/568ms is not hosted CPU/memory/latency, real SQL or quality/rights/budget proof. Review CI working-directory regression fails before and passes after fix; explicit pinned script dependencies pass101tests in clean Python environment. Original paused022551entries unchanged. Actual Chrome still reproduces deployed/researchError1101.708working source files;707file earlier WIP frozen, later changes separate. Full current owning/SQL/browser/build/saved-source CI/fresh recovery and accepted scope remain required."
+      },{
+        "environment": "final source-time043 controlled native Worker/SQL/browser suites; not saved-source CI, hosted or private acceptance",
+        "observed_at": "2026-10-18T20:35:48Z",
+        "source_identity": "parent533f7dc90716862636ff781f2922533d95f384a3 plus uncommitted043/708working files",
+        "command_or_url": "batch043/logs/source-*-01.log; source-lint-final-02.log; source-cold02-browser-01.log; source-diagnostic-browser-01.log",
+        "result": "631backend+10subtests/651Gateway/506frontend76files/57isolated/101scripts/type/foundation/baseline/real65table154function SQL restore/NextOpenNext26assets/three native probes/20ordinary builtWorker browser/GET-HEAD200-404-405/final lint PASS. First cold109pass/onefail/four skips retains unexplained mobile-dark400chunk5000ms completion assertion while run still running. Six diagnostic repeats and separate unchanged-timeout cold110pass/four intentional skips PASS, not a proven repair or waiver. Original paused022551entries unchanged; no hosted operation/new approval/security work/deployment/provider processing. Manual functional diff review is not independent clearance. Save on existing PR12, current exact-tree CI/full NEW source/dependency/evidence recovery and complete accepted functional/production scope remain required."
+      }]
+    },
+    {
       "id": "ENGINEERING-RESEARCH-ORIGINAL-PAGE-METADATA",
       "requirement": "Preserve unknown, zero and positive authoritative page metadata through actual research execution, durable source receipts, original inspection and Findings",
       "normative_source": "Owner exact-original evidence/locator and usable non-paged document workflows; exact224definitions unchanged",
