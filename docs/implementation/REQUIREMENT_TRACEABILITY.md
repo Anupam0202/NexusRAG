@@ -1,5 +1,32 @@
 # Requirement traceability
 
+041implements scoped selected-source Deep Research, not complete mode/product or
+production acceptance. All224exact definitions/tenproducts/twelvemodes/400+125
+quality remain unchanged. Frozen040ac46dad695files recoveredNEW; exact039hosted
+approval fulfilled once20261018092216 with catalog parity, not approval for041.
+Before-fix UI/executor60source failures retained. New SQL/Gateway/executor/client/
+UI/Finding contracts preserve60sources/12subquestions+main/8variants/600seconds,
+original-linked synthesis, explicit coverage/gaps/limitations, progress/recovery
+and independent review.642Gateway/500frontend76files/typecheck, actual60source
+13step780receipt SQL executor/reread/Finding12/concurrent-start/one-admission/
+65table154function restore and six controlled320px browser journeys PASS.
+Initial fixture trial/top-K/progress timing and syntax/DDL errors retained and
+corrected without weakened limits. Source remains uncommitted; no041hosted,
+deployment, private/provider, representative quality or full-mode acceptance.
+Full cold regression/lint/build/other owning checks/manual review/saved-source CI/
+new complete dependency/source/evidence recovery remain open. Native owner Chrome
+was blocked before local load; current candidate/research Error1101 still known.
+Read RESEARCH_DEEP_EXECUTION_041.md; preserve paused022 and failed required gates.
+
+Later source-time041full owning631backend+10/642Gateway/500frontend/57isolated/
+100scripts/lint/typecheck/foundation/baseline/NextOpenNext26assets/native fixtures,
+106cold controlled+20ordinary builtWorker browser/GET-HEAD200-404-405 PASS,4skips
+not counted. A second actual SQL executor scenario persists/reloads144prior
+originals+12new contexts/156total and Finding12;65table154function restore PASS.
+Native max-prompt/CPU, full constraints/acquisition/semantics/quality and all broader
+scope remain open. Manual functional review/saved-source CI/full fresh recovery
+are unfinished; no041hosted approval/deployment or production acceptance.
+
 040corrects observed ordinary query-literal preservation, not full semantic or
 mode/product acceptance. Saved039a99f211/treec855f3ce/694source SHA2567792451a8d20da4f52e4bd2c89fb9f52dec4ab4db9685591370b408455576f60
 is frozen/recovered NEW; its later fresh checks are externally bound. Three actual

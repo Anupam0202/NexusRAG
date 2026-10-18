@@ -22,6 +22,11 @@ export type ResearchTimeline={schema_version:"research-timeline/1";criterion_ind
   gaps:Array<{document_id:string;filename:string;reason:string;rejected_events:number}>;
   interpretation:"REVIEW_REQUIRED_BOUNDS_NOT_CAUSAL_ORDER";coverage:"AT_MOST_TWO_EVENTS_PER_DOCUMENT_PER_CRITERION_NOT_EXHAUSTIVE"};
 export type ResearchQuoteAnchor={document_id:string;citation_id:string;quote:string;quote_start:number;quote_end:number};
+export type ResearchDeep={schema_version:"research-deep/1";phase:"SUBQUESTION"|"SYNTHESIS";criterion_index:number;question_count:number;
+  documents:Array<{document_id:string;filename:string;evidence_state:"CITED"|"IN_CONTEXT"|"CANDIDATES_ONLY"|"NO_INDEXED_EVIDENCE";context_citation_ids:string[];
+    consulted_sources:Array<{version_id:string;chunk_id:string;original_content_hash:string;page_number?:number|null;chunk_index:number}>}>;
+  prior_results:Array<{result_index:number;question:string;claim_state:"REVIEW_REQUIRED"|"UNSUPPORTED";abstained:boolean}>;
+  limitations:string[];gaps:string[];interpretation:"REVIEW_REQUIRED_CITATIONS_NOT_ENTAILMENT";coverage:"BOUNDED_CANDIDATES_AND_CONTEXT_NOT_EXHAUSTIVE"};
 export type ResearchContradiction={schema_version:"research-contradiction/1";criterion_index:number;total_documents:number;
   pairs:Array<{left:ResearchQuoteAnchor;right:ResearchQuoteAnchor;relationship:"POTENTIAL_CONFLICT"|"DIFFERENT_CONTEXT"|"TEMPORAL_CHANGE"|"INSUFFICIENT_CONTEXT";
     explanation:string;claim_state:"REVIEW_REQUIRED"}>;
@@ -33,14 +38,14 @@ export type ResearchRunResult = {
   sources:Array<{citation_id:string;document_id:string;version_id:string;chunk_id:string;filename:string;content:string;
     original_content_hash:string;location:unknown;page_number:number;chunk_index:number;excerpt:boolean}>;
   validated_citation_ids:string[];model:string|null;coverage:{completeness:string;chunks_considered:number;lexical_limit_reached?:boolean};
-  provider_cost_status:string;review_state:string;comparison?:ResearchComparison;timeline?:ResearchTimeline;contradiction?:ResearchContradiction;query_retrieval?:ResearchQueryRetrieval;
+  provider_cost_status:string;review_state:string;comparison?:ResearchComparison;timeline?:ResearchTimeline;contradiction?:ResearchContradiction;deep?:ResearchDeep;query_retrieval?:ResearchQueryRetrieval;
 };
 export type ResearchRun = {
   id:string;plan_id:string;workspace_id:string;owner_id:string;schema_version:"research-run/1";persistence_state:"PERSISTED";
   state:"queued"|"running"|"interrupted"|"completed"|"cancelled";generation:number;position:number;questions:string[];
   results:ResearchRunResult[];source_state:"CURRENT"|"UNAVAILABLE_OR_CHANGED";error_code:string|null;created_at:string;
   dispatch_state?:"ENQUEUED"|"PENDING_RECOVERY";
-  mode?:"QUICK_LOOKUP"|"EVIDENCE_ANSWER"|"COMPARE"|"TIMELINE"|"CONTRADICTION_ANALYSIS";total_steps?:number;
+  mode?:"QUICK_LOOKUP"|"EVIDENCE_ANSWER"|"COMPARE"|"TIMELINE"|"CONTRADICTION_ANALYSIS"|"DEEP_RESEARCH";total_steps?:number;
   results_included?:boolean;
   source_snapshot?:Array<{document_id:string;version_id:string;index_generation:string;lifecycle_epoch:number}>;
 };
@@ -48,18 +53,18 @@ const uuid=(value:unknown)=>typeof value==="string"&&/^[0-9a-f]{8}(-[0-9a-f]{4})
 export function confirmedResearchRun(value:unknown,planId:string):value is ResearchRun {
   if(!value||typeof value!=="object")return false;
   const row=value as ResearchRun;
-  const comparing=row.mode==="COMPARE",timelining=row.mode==="TIMELINE",contradicting=row.mode==="CONTRADICTION_ANALYSIS",batched=comparing||timelining,count=row.source_snapshot?.length||0,batches=batched?Math.ceil(count/8):1,total=row.questions?.length*batches;
+  const comparing=row.mode==="COMPARE",timelining=row.mode==="TIMELINE",contradicting=row.mode==="CONTRADICTION_ANALYSIS",deepening=row.mode==="DEEP_RESEARCH",batched=comparing||timelining,count=row.source_snapshot?.length||0,batches=batched?Math.ceil(count/8):1,total=row.questions?.length*batches;
   return uuid(row.id)&&row.plan_id===planId&&uuid(row.workspace_id)&&uuid(row.owner_id)&&row.schema_version==="research-run/1"&&row.persistence_state==="PERSISTED"
     &&["queued","running","interrupted","completed","cancelled"].includes(row.state)&&Number.isSafeInteger(row.generation)&&row.generation>=1&&row.generation<=10
-    &&Array.isArray(row.questions)&&row.questions.length>=1&&row.questions.length<=(contradicting?11:batched?9:5)&&row.questions.every(q=>typeof q==="string"&&q.length>0&&q.length<=10000)
+    &&Array.isArray(row.questions)&&row.questions.length>=1&&row.questions.length<=(deepening?13:contradicting?11:batched?9:5)&&row.questions.every(q=>typeof q==="string"&&q.length>0&&q.length<=10000)
     &&(!batched||Array.isArray(row.source_snapshot)&&count>=(comparing?2:1)&&count<=40&&row.source_snapshot.every(s=>uuid(s.document_id))&&row.total_steps===total)
-    &&(!contradicting||Array.isArray(row.source_snapshot)&&count>=1&&count<=50&&row.source_snapshot.every(s=>uuid(s.document_id)&&uuid(s.version_id)
+    &&(!(contradicting||deepening)||Array.isArray(row.source_snapshot)&&count>=1&&count<=(deepening?60:50)&&row.source_snapshot.every(s=>uuid(s.document_id)&&uuid(s.version_id)
       &&typeof s.index_generation==="string"&&s.index_generation.length>0&&Number.isSafeInteger(s.lifecycle_epoch)&&s.lifecycle_epoch>=1)&&row.total_steps===total)
     &&Number.isSafeInteger(row.position)&&row.position>=0&&row.position<=total&&Array.isArray(row.results)
-    &&["CURRENT","UNAVAILABLE_OR_CHANGED"].includes(row.source_state)&&(row.results_included===false?(batched||contradicting)&&row.results.length===0:row.source_state==="CURRENT"?row.results.length===row.position:row.results.length===0)
+    &&["CURRENT","UNAVAILABLE_OR_CHANGED"].includes(row.source_state)&&(row.results_included===false?(batched||contradicting||deepening)&&row.results.length===0:row.source_state==="CURRENT"?row.results.length===row.position:row.results.length===0)
     &&(row.state!=="completed"||row.position===total)&&row.results.every((result,index)=>result.question===row.questions[Math.floor(index/batches)]
       &&typeof result.answer==="string"&&result.answer.length>0&&result.answer.length<=16000&&["REVIEW_REQUIRED","UNSUPPORTED"].includes(result.claim_state)
-      &&typeof result.abstained==="boolean"&&Array.isArray(result.sources)&&result.sources.length<=12
+      &&typeof result.abstained==="boolean"&&Array.isArray(result.sources)&&result.sources.length<=(deepening&&index===total-1?156:12)
       &&result.coverage?.completeness==="NOT_EXHAUSTIVE"&&Number.isSafeInteger(result.coverage.chunks_considered)&&result.coverage.chunks_considered>=0&&result.coverage.chunks_considered<=200
       &&(result.coverage.lexical_limit_reached===undefined||typeof result.coverage.lexical_limit_reached==="boolean")
       &&(result.query_retrieval===undefined||confirmedQueryRetrieval(result.query_retrieval,result.question,row.mode||"QUICK_LOOKUP"))
@@ -67,7 +72,30 @@ export function confirmedResearchRun(value:unknown,planId:string):value is Resea
       &&result.sources.every((source,i)=>source.citation_id===`S${i+1}`&&uuid(source.document_id)&&uuid(source.version_id)&&uuid(source.chunk_id)
         &&typeof source.filename==="string"&&typeof source.content==="string"&&/^[a-f0-9]{64}$/.test(source.original_content_hash))
       &&Array.isArray(result.validated_citation_ids)&&result.validated_citation_ids.every(id=>result.sources.some(source=>source.citation_id===id))
-      &&(!comparing||confirmedComparison(result,index,row))&&(!timelining||confirmedTimeline(result,index,row))&&(!contradicting||confirmedContradiction(result,index,row)));
+      &&(!comparing||confirmedComparison(result,index,row))&&(!timelining||confirmedTimeline(result,index,row))&&(!contradicting||confirmedContradiction(result,index,row))
+      &&(!deepening||confirmedDeep(result,index,row)));
+}
+function confirmedDeep(result:ResearchRunResult,index:number,run:ResearchRun) {
+  const report=result.deep,snapshot=run.source_snapshot!,phase=index===run.questions.length-1?"SYNTHESIS":"SUBQUESTION";
+  const bounded=(values:unknown):values is string[]=>Array.isArray(values)&&values.length<=8&&values.every(value=>typeof value==="string"&&value.trim()&&Array.from(value).length<=500);
+  if(report?.schema_version!=="research-deep/1"||report.phase!==phase||report.criterion_index!==index||report.question_count!==run.questions.length
+    ||report.interpretation!=="REVIEW_REQUIRED_CITATIONS_NOT_ENTAILMENT"||report.coverage!=="BOUNDED_CANDIDATES_AND_CONTEXT_NOT_EXHAUSTIVE"
+    ||!bounded(report.limitations)||!bounded(report.gaps)||!Array.isArray(report.documents)||report.documents.length!==snapshot.length
+    ||!Array.isArray(report.prior_results)||report.prior_results.length!==(phase==="SYNTHESIS"?index:0)
+    ||!report.prior_results.every((prior,i)=>prior?.result_index===i&&prior.question===run.questions[i]
+      &&prior.claim_state===run.results[i]?.claim_state&&prior.abstained===run.results[i]?.abstained)
+    ||report.documents.reduce((sum,doc)=>sum+(Array.isArray(doc?.consulted_sources)?doc.consulted_sources.length:345),0)>344)return false;
+  return report.documents.every((doc,i)=>{
+    if(!doc||doc.document_id!==snapshot[i].document_id||typeof doc.filename!=="string"||!Array.isArray(doc.context_citation_ids)||!Array.isArray(doc.consulted_sources))return false;
+    const context=result.sources.filter(source=>source.document_id===doc.document_id).map(source=>source.citation_id);
+    const state=context.some(id=>result.validated_citation_ids.includes(id))?"CITED":context.length?"IN_CONTEXT":doc.consulted_sources.length?"CANDIDATES_ONLY":"NO_INDEXED_EVIDENCE";
+    return doc.evidence_state===state&&doc.context_citation_ids.length===context.length&&doc.context_citation_ids.every((id,j)=>id===context[j])
+      &&doc.consulted_sources.every(source=>source&&source.version_id===snapshot[i].version_id&&uuid(source.chunk_id)&&/^[a-f0-9]{64}$/.test(source.original_content_hash)
+        &&Number.isSafeInteger(source.chunk_index)&&source.chunk_index>=0&&(source.page_number==null||Number.isSafeInteger(source.page_number)&&source.page_number>=0));
+  })&&result.sources.every(source=>Array.from(source.content).length>=1&&Array.from(source.content).length<=1200
+    &&report.documents.some(doc=>doc.document_id===source.document_id&&doc.consulted_sources.some(receipt=>receipt.chunk_id===source.chunk_id
+      &&receipt.version_id===source.version_id&&receipt.original_content_hash===source.original_content_hash)))
+    &&result.abstained===(result.validated_citation_ids.length===0)&&result.claim_state===(result.abstained?"UNSUPPORTED":"REVIEW_REQUIRED");
 }
 function confirmedContradiction(result:ResearchRunResult,index:number,run:ResearchRun) {
   const analysis=result.contradiction,snapshot=run.source_snapshot!;

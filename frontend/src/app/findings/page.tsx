@@ -15,6 +15,7 @@ import { ComparisonMatrix } from "@/components/research/ComparisonMatrix";
 import { TimelineEvents } from "@/components/research/TimelineEvents";
 import { ContradictionPairs } from "@/components/research/ContradictionPairs";
 import { ResearchQueryCoverage } from "@/components/research/ResearchQueryCoverage";
+import { DeepResearchReport } from "@/components/research/DeepResearchReport";
 
 const control = "w-full rounded-lg border border-[var(--border)] bg-[var(--bg-primary)] px-3 py-2 text-sm";
 const button = "rounded-lg border border-[var(--border)] px-3 py-2 text-sm font-medium disabled:opacity-50";
@@ -169,6 +170,7 @@ function FindingsWorkbench() {
               <p>{selected.research_origin.comparison?`Saved comparison · criterion ${selected.research_origin.comparison.criterion_index+1} · batch ${selected.research_origin.comparison.batch_index+1}`:selected.research_origin.timeline?`Saved timeline · criterion ${selected.research_origin.timeline.criterion_index+1} · batch ${selected.research_origin.timeline.batch_index+1}`:selected.research_origin.contradiction?`Saved contradiction analysis · criterion ${selected.research_origin.contradiction.criterion_index+1}`:`Saved research answer · question ${selected.research_origin.result_index + 1}`} · not automatically verified</p>
               {selected.research_origin.question && <p className="whitespace-pre-wrap break-words">{selected.research_origin.question}</p>}
               {selected.research_origin.query_retrieval&&<ResearchQueryCoverage retrieval={selected.research_origin.query_retrieval}/>}
+              {selected.research_origin.deep&&<DeepResearchReport report={selected.research_origin.deep}/>}
               <p className="text-xs text-[var(--text-muted)]">Source-backed export requires an approved export-rights decision. Review does not grant source rights or certify the claim.</p>
             </div>}
             {selected.source_unavailable && <p role="alert">Source evidence is unavailable. Generated content is withheld.</p>}

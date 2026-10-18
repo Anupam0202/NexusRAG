@@ -3,6 +3,40 @@ import { confirmedResearchRun } from "./research-run";
 const id="11111111-1111-4111-8111-111111111111";
 const run={id,plan_id:id,workspace_id:id,owner_id:id,schema_version:"research-run/1",persistence_state:"PERSISTED",state:"queued",generation:1,
   position:0,questions:["Synthetic question?"],results:[],source_state:"CURRENT",error_code:null,created_at:"2026-10-15T00:00:00Z"};
+function deepRun() {
+  const uid=(index:number)=>`00000041-0000-4000-8000-${String(index).padStart(12,"0")}`;
+  const snapshot=Array.from({length:60},(_,i)=>({document_id:uid(i),version_id:uid(i+100),index_generation:"synthetic",lifecycle_epoch:1}));
+  const questions=[...Array.from({length:12},(_,i)=>`Subquestion ${i+1}`),"Final synthesis"];
+  const pool=Array.from({length:156},(_,i)=>({citation_id:`S${i+1}`,document_id:snapshot[i%60].document_id,version_id:snapshot[i%60].version_id,chunk_id:uid(i+1000),
+    filename:`Synthetic ${i%60}`,content:`Original excerpt ${i}`,original_content_hash:"a".repeat(64),chunk_index:i,page_number:1,location:{page:1},excerpt:false}));
+  const results=questions.map((question,index)=>{
+    const sources=index===12?pool:pool.slice(index*12,index*12+12).map((source,i)=>({...source,citation_id:`S${i+1}`}));
+    return {question,answer:"Review the source [S1].",claim_state:"REVIEW_REQUIRED",abstained:false,sources,validated_citation_ids:["S1"],
+      coverage:{completeness:"NOT_EXHAUSTIVE",chunks_considered:200},provider_cost_status:"UNKNOWN",review_state:"COMPLETION_CRITERIA_NOT_AUTOMATICALLY_VERIFIED",
+      deep:{schema_version:"research-deep/1",phase:index===12?"SYNTHESIS":"SUBQUESTION",criterion_index:index,question_count:13,
+        interpretation:"REVIEW_REQUIRED_CITATIONS_NOT_ENTAILMENT",coverage:"BOUNDED_CANDIDATES_AND_CONTEXT_NOT_EXHAUSTIVE",limitations:["Review required."],gaps:[],
+        prior_results:index===12?questions.slice(0,12).map((question,i)=>({result_index:i,question,claim_state:"REVIEW_REQUIRED",abstained:false})):[],
+        documents:snapshot.map((s,i)=>{
+          const context=sources.filter(source=>source.document_id===s.document_id);
+          return {document_id:s.document_id,filename:`Synthetic ${i}`,context_citation_ids:context.map(source=>source.citation_id),
+            evidence_state:context.some(source=>source.citation_id==="S1")?"CITED":context.length?"IN_CONTEXT":"NO_INDEXED_EVIDENCE",
+            consulted_sources:context.map(source=>({version_id:source.version_id,chunk_id:source.chunk_id,original_content_hash:source.original_content_hash,chunk_index:source.chunk_index,page_number:source.page_number}))};
+        })}};
+  });
+  return {...run,mode:"DEEP_RESEARCH",source_snapshot:snapshot,questions,results,total_steps:13,position:13,state:"completed"};
+}
+it("retains all60sources/13steps,156synthesis originals and every previous result rather than treating Deep Research as an ordinary answer",()=>{
+  const complete=deepRun();expect(confirmedResearchRun(complete,id)).toBe(true);
+  expect(confirmedResearchRun({...complete,results:[],results_included:false},id)).toBe(true);
+  expect(confirmedResearchRun({...complete,results:[],source_state:"UNAVAILABLE_OR_CHANGED"},id)).toBe(true);
+  for(const change of [{total_steps:12},{position:12},{source_snapshot:complete.source_snapshot.slice(0,59)}])expect(confirmedResearchRun({...complete,...change},id)).toBe(false);
+  const final=complete.results[12];
+  for(const change of [{deep:undefined},{sources:[...final.sources,final.sources[0]]},
+    {deep:{...final.deep,phase:"SUBQUESTION"}},{deep:{...final.deep,prior_results:final.deep.prior_results.slice(1)}},
+    {deep:{...final.deep,documents:final.deep.documents.map((doc,i)=>i?doc:{...doc,consulted_sources:[]})}},
+    {deep:{...final.deep,documents:final.deep.documents.map((doc,i)=>i?doc:{...doc,evidence_state:"NO_INDEXED_EVIDENCE"})}}])
+    expect(confirmedResearchRun({...complete,results:[...complete.results.slice(0,12),{...final,...change}]},id)).toBe(false);
+});
 function contradictionRun() {
   const snapshot=Array.from({length:50},(_,i)=>({document_id:`00000038-0000-4000-8000-${String(i).padStart(12,"0")}`,version_id:id,index_generation:"synthetic",lifecycle_epoch:1}));
   const sources=[0,49].map((i,j)=>({citation_id:`S${j+1}`,document_id:snapshot[i].document_id,version_id:id,chunk_id:`00000039-0000-4000-8000-${String(i).padStart(12,"0")}`,

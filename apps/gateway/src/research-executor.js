@@ -10,16 +10,17 @@ import { persistedSetting } from "./runtime-options.js";
 import { comparisonWork, sourceBatchWork, comparisonPrompt, comparisonResult } from "./research-comparison.js";
 import { timelinePrompt, timelineResult } from "./research-timeline.js";
 import { contradictionWork, contradictionPrompt, contradictionResult } from "./research-contradiction.js";
+import { deepWork, deepSources, deepPrompt, deepResult } from "./research-deep.js";
 
 const uuid=/^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i;
 const fail=(code,message)=>Object.assign(new Error(message),{code});
 const columns="id,workspace_id,document_id,version_id,chunk_index,page_number,content,original_text,original_content_hash,location,metadata";
 async function answerQuestion(env,run,db,signal,context) {
   const read=path=>db(env,path,{signal}), workspace=run.workspace_id;
-  const comparing=run.mode==="COMPARE",timelining=run.mode==="TIMELINE",contradicting=run.mode==="CONTRADICTION_ANALYSIS",batched=comparing||timelining,scoped=batched||contradicting;
-  const work=comparing?comparisonWork(run):timelining?sourceBatchWork(run):contradicting?contradictionWork(run):null;
+  const comparing=run.mode==="COMPARE",timelining=run.mode==="TIMELINE",contradicting=run.mode==="CONTRADICTION_ANALYSIS",deepening=run.mode==="DEEP_RESEARCH",batched=comparing||timelining,scoped=batched||contradicting;
+  const work=comparing?comparisonWork(run):timelining?sourceBatchWork(run):contradicting?contradictionWork(run):deepening?deepWork(run):null;
   const scope=work?.snapshot||run.source_snapshot;
-  const sourceLimit=contradicting?scope.length:20;
+  const sourceLimit=contradicting||deepening?scope.length:20;
   const documentIds=scope.map(item=>item.document_id), versionIds=scope.map(item=>item.version_id);
   const load=async()=>{
     const documents=await read(`documents?workspace_id=eq.${workspace}&id=in.(${documentIds.join(",")})&lifecycle_state=eq.active&select=id,workspace_id,active_version_id,lifecycle_state,filename,content_type&limit=${sourceLimit}`);
@@ -33,7 +34,7 @@ async function answerQuestion(env,run,db,signal,context) {
   const settings=(await read(`workspace_settings?workspace_id=eq.${workspace}&select=retrieval_top_k,hybrid_search_alpha,llm_temperature&limit=1`))?.[0];
   const runtimeOptions={retrieval_top_k:persistedSetting(settings,"retrieval_top_k",{min:1,max:12,integer:true}),
     hybrid_search_alpha:persistedSetting(settings,"hybrid_search_alpha",{min:0,max:1}),llm_temperature:persistedSetting(settings,"llm_temperature",{min:0,max:1})};
-  const selection=scoped?{documents:scope.map(s=>initial.documents.find(d=>d.id===s.document_id)),reason:comparing?"COMPARISON_ALL_BATCH_DOCUMENTS":timelining?"TIMELINE_ALL_BATCH_DOCUMENTS":"CONTRADICTION_ALL_DOCUMENTS"}:resolveSummaryDocuments(question,initial.documents,false);
+  const selection=scoped||deepening?{documents:scope.map(s=>initial.documents.find(d=>d.id===s.document_id)),reason:comparing?"COMPARISON_ALL_BATCH_DOCUMENTS":timelining?"TIMELINE_ALL_BATCH_DOCUMENTS":deepening?"DEEP_RESEARCH_ALL_DOCUMENTS":"CONTRADICTION_ALL_DOCUMENTS"}:resolveSummaryDocuments(question,initial.documents,false);
   const selectedDocuments=selection.documents.map(d=>d.id), selectedVersions=selection.documents.map(d=>d.active_version_id);
   let candidates;
   try {candidates=await db(env,"rpc/nexus_research_candidates",{method:"POST",signal,body:JSON.stringify({p_context:context,p_id:run.id,
@@ -79,21 +80,42 @@ async function answerQuestion(env,run,db,signal,context) {
     return ranked.length||!(timelining||contradicting)?ranked:sparse.filter(hit=>hit.payload.document_id===id).slice(0,1);
   })
     :fuse(denseLists,sparseRows,runtimeOptions.retrieval_top_k);
-  let sources=fused.map((hit,i)=>({citation_id:`S${i+1}`,document_id:hit.payload.document_id,version_id:hit.payload.version_id,
-    chunk_id:hit.payload.chunk_id,filename:hit.payload.filename,content:scoped?Array.from(hit.payload.content).slice(0,1200).join(""):hit.payload.content.slice(0,2400),
-    excerpt:scoped?Array.from(hit.payload.content).length>1200:hit.payload.content.length>2400,
-    original_content_hash:hit.payload.original_content_hash,location:hit.payload.location,page_number:hit.payload.page_number,chunk_index:hit.payload.chunk_index}));
+  const sourceFrom=(hit,i)=>({citation_id:`S${i+1}`,document_id:hit.payload.document_id,version_id:hit.payload.version_id,
+    chunk_id:hit.payload.chunk_id,filename:hit.payload.filename,content:scoped||deepening?Array.from(hit.payload.content).slice(0,1200).join(""):hit.payload.content.slice(0,2400),
+    excerpt:scoped||deepening?Array.from(hit.payload.content).length>1200:hit.payload.content.length>2400,
+    original_content_hash:hit.payload.original_content_hash,location:hit.payload.location,page_number:hit.payload.page_number,chunk_index:hit.payload.chunk_index});
+  let sources=fused.map(sourceFrom),priorSources=[];
+  if(deepening&&work.phase==="SYNTHESIS"&&work.prior_results.length) {
+    let receipt;
+    try {receipt=await db(env,"rpc/nexus_research_deep_context",{method:"POST",signal,body:JSON.stringify({p_context:context,p_id:run.id,
+      p_generation:run.generation,p_position:run.position})});}
+    catch(error){if(["PGRST202","42883"].includes(error.storageCode))throw fail("MIGRATION_REQUIRED","Deep Research synthesis requires the reviewed research_deep_execution migration.");throw error;}
+    if(receipt?.schema_version!=="research-deep-context/1"||receipt.run_id!==run.id||receipt.generation!==run.generation||receipt.position!==run.position
+      ||!Array.isArray(receipt.items)||receipt.items.length>144)throw fail("PERSISTENCE_UNCONFIRMED","Prior research originals were not confirmed.");
+    const expected=new Map(work.prior_results.flatMap(result=>result.sources).map(source=>[source.chunk_id,source]));
+    const candidates=receipt.items.map(row=>({id:row.id,payload:{chunk_id:row.id,workspace_id:workspace,
+      document_id:row.document_id,version_id:row.version_id,index_generation:generation.get(row.version_id)}}));
+    const hydrated=await rehydrateEvidence({workspaceId:workspace,candidates,chunks:receipt.items,...current});
+    priorSources=hydrated.map(sourceFrom);
+    if(priorSources.length!==expected.size||priorSources.some(source=>{
+      const original=expected.get(source.chunk_id);
+      return !original||source.document_id!==original.document_id||source.version_id!==original.version_id||source.original_content_hash!==original.original_content_hash;
+    }))throw fail("SOURCE_UNAVAILABLE","A prior research original changed or is unavailable.");
+  }
+  if(deepening)sources=deepSources(sources,priorSources);
   let checked={answer:"The selected evidence does not provide enough information to answer reliably.",claim_state:"UNSUPPORTED",abstained:true,citations:[]}, generated=null;
   if(sources.length) {
     signal.throwIfAborted();
-    generated=await generateAnswer(env,comparing?comparisonPrompt(work,selection.documents,sources):timelining?timelinePrompt(work,selection.documents,sources):contradicting?contradictionPrompt(work,selection.documents,sources):groundedPrompt(question,fused),{workspaceId:workspace,priority:"interactive",dataClassification:"non_sensitive",
+    generated=await generateAnswer(env,comparing?comparisonPrompt(work,selection.documents,sources):timelining?timelinePrompt(work,selection.documents,sources):contradicting?contradictionPrompt(work,selection.documents,sources):deepening?deepPrompt(work,sources):groundedPrompt(question,fused),{workspaceId:workspace,priority:"interactive",dataClassification:"non_sensitive",
       actorId:run.owner_id,userApiKey,credentialMode,signal,requireComplete:true,temperature:runtimeOptions.llm_temperature,
-      ...(scoped?{outputTokens:4096}:{})});
-    if(!scoped)checked=assessAnswer(generated.answer,sources);
+      ...(scoped||deepening?{outputTokens:4096}:{})});
+    if(!scoped&&!deepening)checked=assessAnswer(generated.answer,sources);
   }
   const comparison=comparing?comparisonResult(work,selection.documents,sources,generated):null;
   const timeline=timelining?timelineResult(work,selection.documents,sources,generated):null;
   const contradiction=contradicting?contradictionResult(work,selection.documents,sources,generated):null;
+  const deep=deepening?deepResult(work,selection.documents,sources,[...sparse.map(sourceFrom),...priorSources],generated):null;
+  if(deep)checked=deep.checked;
   if(contradiction){sources=contradiction.sources;checked=contradiction.checked;}
   if(timeline)checked={answer:timeline.events.length?timeline.events.map(event=>`${event.date_text||"Undated"} (${event.date_role}): ${event.quote} [${event.citation_id}]`).join("\n"):"No source-anchored events were returned from the bounded retrieved evidence.",
     claim_state:timeline.events.length?"REVIEW_REQUIRED":"UNSUPPORTED",abstained:!timeline.events.length,
@@ -110,7 +132,7 @@ async function answerQuestion(env,run,db,signal,context) {
     validated_citation_ids:checked.citations.map(index=>`S${index}`),model:generated?.model||null,usage:generated?.usage||{},
     selection:{reason:selection.reason,document_ids:selectedDocuments},coverage:{chunks_considered:lexical.length,lexical_limit_reached:lexicalLimited,
       retrieval:timelining||contradicting?"BOUNDED_DENSE_LEXICAL_SCOPED_OVERVIEW":"BOUNDED_DENSE_LEXICAL",completeness:"NOT_EXHAUSTIVE",evidence_authority:"SUPABASE_HASH_VERIFIED"},
-    ...(queryRetrieval?{query_retrieval:queryRetrieval}:{}),...(comparison?{comparison}:{}),...(timeline?{timeline}:{}),...(contradiction?{contradiction:contradiction.analysis}:{}),runtime_options:runtimeOptions,provider_cost_status:generated||expansion?"UNKNOWN":"NOT_CALLED",paid_fallback:false,review_state:"COMPLETION_CRITERIA_NOT_AUTOMATICALLY_VERIFIED"};
+    ...(queryRetrieval?{query_retrieval:queryRetrieval}:{}),...(comparison?{comparison}:{}),...(timeline?{timeline}:{}),...(contradiction?{contradiction:contradiction.analysis}:{}),...(deep?{deep:deep.analysis}:{}),runtime_options:runtimeOptions,provider_cost_status:generated||expansion?"UNKNOWN":"NOT_CALLED",paid_fallback:false,review_state:"COMPLETION_CRITERIA_NOT_AUTOMATICALLY_VERIFIED"};
 }
 
 export async function processResearchMessage(env,message,db) {

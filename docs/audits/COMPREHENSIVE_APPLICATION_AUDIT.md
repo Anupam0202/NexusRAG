@@ -4,6 +4,40 @@ Status: **PARTIAL_NOT_COMPLETE — locally tested implementation; not production
 
 This receipt supersedes historical status claims only where it records a fresh observation. It does not certify a complete product, production release, provider rights, or absence of all defects.
 
+## Deep Research - Active Batch041
+
+Uncommitted selected-source functional work on frozen040ac46dad, not a complete
+mode or production acceptance. Actual UI lacks execution and ordinary executor
+cannot serve60selected sources before correction. New durable SQL/Gateway/
+executor/client/UI/Finding contracts preserve60sources/12subquestions plus distinct
+main synthesis/8variants/600seconds and rehydrate prior originals, not generated
+notes as evidence. Coverage/gaps/limits/progress/reload/interruption/resume/review
+remain explicit.642Gateway/500frontend76files/typecheck and actual60source13step
+780receipt SQL persistence/reread/Finding12/concurrent-start/one-admission/
+65table154function restore PASS. Six controlled mobile/desktop/light/dark320px
+browser journeys PASS, mobile PNG inspected. Initial syntax/DDL/shared-trial/top-K/
+new-browser timing failures retained; correction changes fixture preparation and
+asserts intermediate progress with unchanged timeout, not product limits.
+
+Draft041SQL is LOCAL_ONLY_UNAPPROVED. Exact039rehearsal approval fulfilled once,
+not general authority. Cold regression/lint/build/other owning checks/manual
+review/saved-source CI/new full dependency/source/evidence recovery are pending.
+Full156original actual SQL/native boundary, complete constraints/public acquisition/
+semantic/representative quality and all broader accepted scope remain unfinished.
+Native owner Chrome local URL blocked before load, no bypass or verification
+claim. Deployed candidate/research Error1101 and failed required image/summary
+remain release prerequisites; no excluded work or paused022 resumption.
+
+Final source-time041631backend+10/642Gateway/500frontend/57isolated/100scripts/
+lint/typecheck/foundation/baseline/NextOpenNext26assets/native fixtures/106cold
+controlled+20ordinary Worker browser/GET-HEAD200-404-405 PASS,4intentional skips
+not passed. Second actual SQL executor scenario persists and rereads144distinct
+prior originals+12new contexts/156total and Finding12,65table154function restore.
+These replace the earlier pending cold/lint/build/owning/SQL-boundary labels only;
+native max-prompt/CPU/full semantics/quality/constraints/acquisition, final manual
+review/saved-source CI/full new dependency recovery and all broader acceptance
+remain unfinished. Keep full224/tenproducts/twelvemodes/400+125denominator.
+
 ## Research Query Literals - Active Batch040
 
 Uncommitted ordinary functional correction from saved039a99f211/treec855f3ce.

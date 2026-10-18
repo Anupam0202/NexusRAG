@@ -15,6 +15,8 @@ function fixture(t, options={}) {
     if(path==="/rest/v1/workspace_members")return json([{workspace_id:workspace,user_id:user,role:"editor"}]);
     if(path==="/rest/v1/workspaces")return json([{lifecycle_state:"active",capability_revision:1}]);
     if(path==="/rest/v1/workspace_settings")return json([{active_policy_id:policy,policy_version:1}]);
+    if(path==="/rest/v1/rpc/nexus_research_deep_contract")return options.deepMissing?new Response(JSON.stringify({code:"PGRST202"}),{status:404})
+      :json({schema_version:"research-deep/1",max_sources:60,max_subquestions:12,max_steps:13,max_query_variants:8,runtime_seconds:600,max_prior_originals:144,max_synthesis_sources:156});
     if(path==="/rest/v1/rpc/nexus_research_candidates_contract")return options.candidatesMissing?new Response(JSON.stringify({code:"PGRST202"}),{status:404}):json({schema_version:"research-candidates/1",max_rows:201,max_candidates:200,max_sources:50});
     if(path==="/rest/v1/rpc/nexus_research_run") {
       const data=JSON.parse(init.body);calls.push(data);
@@ -27,6 +29,22 @@ function fixture(t, options={}) {
     INGESTION_QUEUE:{send:async value=>{if(options.queueError)throw Error("synthetic queue interruption");sent.push(value);}}}};
 }
 const request=(method="GET",suffix="",body)=>new Request(`https://gateway.invalid/api/v2/research/plans/${plan}/runs${suffix}`,{method,headers,body:body?JSON.stringify(body):undefined});
+
+test("Deep Research requires its installed contract before a new admission or dispatch",async t=>{
+  const {env,calls,sent}=fixture(t,{deepMissing:true});
+  const response=await handle(request("POST","",{non_sensitive_attested:true,execution_mode:"DEEP_RESEARCH"}),env);
+  assert.equal(response.status,503);assert.match((await response.json()).error.message,/research_deep_execution/);
+  assert.equal(calls.length,0);assert.equal(sent.length,0);
+});
+
+test("Deep Research retains60sources and13saved questions through the actual Gateway run command",async t=>{
+  const {env,receipt,calls,sent}=fixture(t);
+  Object.assign(receipt,{mode:"DEEP_RESEARCH",source_snapshot:Array.from({length:60},(_,i)=>({document_id:`00000041-0000-4000-8000-${String(i).padStart(12,"0")}`})),
+    questions:Array.from({length:13},(_,i)=>`Question ${i+1}`),total_steps:13});
+  const response=await handle(request("POST","",{non_sensitive_attested:true,execution_mode:"DEEP_RESEARCH"}),env);
+  assert.equal(response.status,201);assert.equal((await response.json()).source_snapshot.length,60);
+  assert.equal(calls.length,1);assert.equal(sent.length,1);
+});
 
 test("missing fair candidate contract stops new processing before admission or dispatch",async t=>{
   const {env,calls,sent}=fixture(t,{candidatesMissing:true});

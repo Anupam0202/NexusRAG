@@ -13,6 +13,33 @@
   "interpretation": "OPEN_ENGINEERING includes implemented but not fully accepted requirements; it does not assert that no code or scoped evidence exists. External approvals do not close unfinished internal work.",
   "entries": [
     {
+      "id": "ENGINEERING-RESEARCH-DEEP-EXECUTION",
+      "requirement": "Complete durable Deep Research subquestion analyses and evidence-linked synthesis with adopted60source/12subquestion-plus-main/8variant/600second limits and usable progress/recovery/review",
+      "normative_source": "Owner adopted twelve-mode functional assignment; research-modes.json exact limits and224definitions unchanged",
+      "status": "IN_PROGRESS",
+      "environment": "uncommitted functional041 on frozen040ac46dad; controlled ordinary local executor/component regression, not hosted/private/provider acceptance",
+      "next_action": "Finish manual functional review, save through existing PR12 and bind exact-source CI plus full NEW dependency/source/evidence recovery. Source-time owning suites/lint/build/native/106cold controlled+20ordinary Worker browser pass,4intentional skips uncounted; actual SQL now proves144distinct prior originals+12new/156total synthesis and restore. Native maximum prompt/CPU/resource boundary, full constraints/public acquisition/semantic/representative quality and all broader adopted scope remain open. No041hosted approval. Excluded security/paused022 and failed release gates remain untouched.",
+      "acceptance_evidence": [{
+        "environment": "freshly recovered040 source and narrowly approved039 rehearsal schema",
+        "observed_at": "2026-10-18T09:34:02Z",
+        "source_identity": "ac46dad9587ef379d435d83f4f4db5c453a21991/tree8040ad98a57b2f46bece8d85e596dae8acd8aa05",
+        "command_or_url": "BATCH040_HANDOFF.md; batch040/logs/final-recovery-snapshot.json; BATCH039_REHEARSAL_ADDENDUM_2026-10-18.md",
+        "result": "695source files and341verification files recoveredNEW;43fresh guarded checks pass,100controlled/20ordinaryWorker browser and4intentional skips. Required image/summaryFAILED. Exact039approval fulfilled once20261018092216 with25function/sixconstraint catalog parity, no business RPC. Existing Deep Research UI and SQL/executor contracts remain plan-only/not executable; new041before-fix regressions are not accepted as passing. Full224/tenproducts/twelvemodes/quality/private/lifecycle/rights/rollout remain incomplete."
+      },{
+        "environment": "uncommitted041, actual production executor with controlled provider peers, real disposable PostgreSQL and controlled browser UI",
+        "observed_at": "2026-10-18T10:18:36Z",
+        "source_identity": "parent ac46dad9587ef379d435d83f4f4db5c453a21991 plus uncommitted041; not saved/published/deployed",
+        "command_or_url": "batch041/logs/deep-real-sql-executor-stage06-01.log; deep-browser-stage02-01.log; gateway-owning-stage03-01.log; frontend-owning-stage03-01.log; typecheck-stage03-01.log",
+        "result": "642Gateway/500frontend76files/typecheck PASS. Actual60source13step8variant780receipt execution/reread/Finding12/two concurrent starts/one admission and65table154function backup-restore PASS. Six controlled browser journeys verify mobile/desktop/light/dark320px analyses/synthesis/original inspection/reload/Finding retry/independent review and interrupted resume. Initial actual SQL fixture shared-trial/BYOK and top-K assumptions corrected without product limit changes; browser now asserts each intermediate step with unchanged timeout. Failed before/syntax/DDL/fixture/timing evidence retained. Complete703file stage01WIP recoveredNEW, later edits separate; no final CI/full fresh dependencies/hosted/private/provider/quality or production acceptance."
+      },{
+        "environment": "final source-time local041; controlled dense/provider peers, actual executor/real disposable PostgreSQL, cold browser and native builtWorker",
+        "observed_at": "2026-10-18T10:25:37Z",
+        "source_identity": "parent ac46dad9587ef379d435d83f4f4db5c453a21991 plus uncommitted041",
+        "command_or_url": "batch041/logs/deep-real-sql-boundary-stage07-01.log; research-browser-cold-stage03-01.log; builtworker-browser-stage03-01.log; owning/build/native/source integrity receipts",
+        "result": "631backend+10/642Gateway/500frontend76files/57isolated/100scripts/lint/typecheck/foundation/baseline/NextOpenNext26assets/native fixtures/106cold controlled+20ordinary Worker browser/GET-HEAD200-404-405 PASS;4intentional skips not passed. Second actual Deep SQL scenario rehydrates144distinct prior originals+12new into156source synthesis, exact reread/Finding12/65table154function restore. Controlled relevance is not live quality or CPU proof. Paused022551entries unchanged; same draftPR12/three branches.703file stage02WIP recoveredNEW, later source separate. Final manual review/saved-source CI/new dependency/source/evidence recovery unfinished; no041hosted approval or release clearance."
+      }]
+    },
+    {
       "id": "ENGINEERING-RESEARCH-QUERY-LITERALS",
       "requirement": "Reject changed query identifiers and quantities without discarding faithful surrounding punctuation, and retain truthful original-only rejection receipts",
       "normative_source": "Owner faithful original-first query/evidence retrieval and end-user reload/Finding journeys; exact224definitions unchanged",

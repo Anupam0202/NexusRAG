@@ -16,6 +16,12 @@ async function fixture(t,options={}) {
     rows.push({...rows[0],id:token,document_id:token,version_id:id});
   }
   if(options.timeline){run.mode="TIMELINE";run.questions=["Build a chronology."];}
+  if(options.deep) {
+    run.mode="DEEP_RESEARCH";
+    run.questions=[...Array.from({length:12},(_,i)=>`Synthetic retention criterion ${i+1}?`),"Synthesize the synthetic retention evidence."];
+    run.results=[];
+    run.deadline=new Date(Date.now()+600000).toISOString();
+  }
   if(options.documentCount) {
     while(run.source_snapshot.length<options.documentCount) {
       const n=run.source_snapshot.length+1,document_id=`10000000-0000-4000-8000-${String(n).padStart(12,"0")}`;
@@ -32,6 +38,15 @@ async function fixture(t,options={}) {
       chunk_index:i,content:filler,original_text:filler,original_content_hash:fillerHash});
     rows.sort((a,b)=>a.id.localeCompare(b.id));
   }
+  if(options.deepSynthesis) {
+    run.position=12;
+    run.results=Array.from({length:12},(_,index)=>({question:run.questions[index],answer:`Earlier derived analysis ${index} [S1].`,
+      claim_state:"REVIEW_REQUIRED",abstained:false,sources:Array.from({length:12},(_,offset)=>{
+        const row=rows[(index*12+offset)%rows.length];
+        return {citation_id:`S${offset+1}`,document_id:row.document_id,version_id:row.version_id,chunk_id:row.id,
+          content:row.original_text,original_content_hash:row.original_content_hash,chunk_index:row.chunk_index,page_number:row.page_number};
+      }),deep:{limitations:["Earlier analysis is not evidence."],gaps:[]}}));
+  }
   const db=async(_env,path,init={})=>{
     reads.push(path);
     if(path.startsWith("research_runs?"))return [run];
@@ -47,12 +62,18 @@ async function fixture(t,options={}) {
       }
       return {schema_version:"research-candidates/1",run_id:run.id,generation:run.generation,position:run.position,items,lexical_rows_read:read,lexical_limit_reached:limited};
     }
+    if(path==="rpc/nexus_research_deep_context") {
+      const ids=new Set(run.results.flatMap(result=>result.sources.map(source=>source.chunk_id)));
+      const items=rows.filter(row=>ids.has(row.id));
+      return {schema_version:"research-deep-context/1",run_id:run.id,generation:run.generation,position:run.position,
+        items:options.priorContextMissing?items.slice(1):items};
+    }
     if(path==="rpc/nexus_research_step") {
       const data=JSON.parse(init.body);calls.push(data);
       if(data.p_operation==="claim")return options.noClaim?{claimed:false}:{claimed:true,token,run:{...run,deadline:options.expired?new Date(0).toISOString():run.deadline}};
       if(data.p_operation==="commit") {
         if(options.commitAmbiguous)throw Error("synthetic interrupted storage response");
-        return {claimed:false,run:{...run,state:options.more?"queued":"completed",position:1,results:[data.p_result]}};
+        return {claimed:false,run:{...run,state:options.more?"queued":"completed",position:run.position+1,results:[...(run.results||[]),data.p_result]}};
       }
       return {claimed:false,run:{...run,state:"interrupted"}};
     }
@@ -83,7 +104,7 @@ async function fixture(t,options={}) {
       const prompt=JSON.parse(init.body).contents[0].parts[0].text;
       if(prompt.startsWith("RESEARCH_QUERY_VARIANTS"))return json({candidates:[{finishReason:"STOP",content:{parts:[{text:JSON.stringify({queries:options.variantQueries||[]})}]}}]});
       const sources=options.documentCount||options.contradiction?JSON.parse(prompt.split("\nEVIDENCE:\n")[1]):null;
-      const answer=options.contradiction?JSON.stringify({pairs:[{left:{citation_id:sources[0].citation_id,quote:sources[0].content},right:{citation_id:sources.at(-1).citation_id,quote:sources.at(-1).content},
+      const answer=options.deep?JSON.stringify({answer:"The synthetic retention period is30days [S1].",limitations:["Independent review is required."],gaps:[]}):options.contradiction?JSON.stringify({pairs:[{left:{citation_id:sources[0].citation_id,quote:sources[0].content},right:{citation_id:sources.at(-1).citation_id,quote:sources.at(-1).content},
         relationship:"INSUFFICIENT_CONTEXT",explanation:"Matching words alone do not establish shared context or a contradiction."}]}):options.documentCount?JSON.stringify(options.timeline?{documents:run.source_snapshot.map(s=>{
         const source=sources.find(item=>item.document_id===s.document_id),quote=source?.content.match(/[^.]*2024-02-\d{2}\./)?.[0]?.trim();
         return {document_id:s.document_id,events:quote?[{citation_id:source.citation_id,quote,date_text:quote.match(/2024-02-\d{2}/)[0],date_role:"EFFECTIVE"}]:[]};
@@ -103,6 +124,41 @@ async function fixture(t,options={}) {
     INGESTION_QUEUE:{send:async value=>sent.push(value)}};
   return {env,db,run,calls,sent,provider,hash,reservations,reads};
 }
+
+test("Deep Research executes the full60source13question plan with explicit source coverage and resumable progress",async t=>{
+  const {env,db,calls,sent}=await fixture(t,{deep:true,documentCount:60,more:true,noDense:true});
+  const result=await processResearchMessage(env,message,db);
+  assert.equal(result?.state,"queued");assert.equal(result.position,1);
+  const saved=calls.find(call=>call.p_operation==="commit")?.p_result;
+  assert.equal(saved.deep.schema_version,"research-deep/1");
+  assert.equal(saved.deep.phase,"SUBQUESTION");assert.equal(saved.deep.criterion_index,0);
+  assert.equal(saved.deep.question_count,13);assert.equal(saved.deep.documents.length,60);
+  assert.equal(saved.query_retrieval.max_queries,8);
+  assert.equal(sent.length,1);assert.equal(sent[0].position,1);
+});
+
+test("actual Deep synthesis rehydrates every prior original and preserves12subquestion outcomes before saving result13",async t=>{
+  const {env,db,calls,provider,reads}=await fixture(t,{deep:true,deepSynthesis:true,documentCount:60,noDense:true});
+  const result=await processResearchMessage(env,{...message,position:12},db);
+  assert.equal(result?.state,"completed");assert.equal(result.position,13);assert.equal(result.results.length,13);
+  const saved=calls.find(call=>call.p_operation==="commit")?.p_result;
+  assert.equal(saved.deep.phase,"SYNTHESIS");assert.equal(saved.deep.prior_results.length,12);
+  assert.equal(saved.sources.length,60);assert.equal(saved.deep.documents.length,60);
+  assert.equal(reads.filter(path=>path==="rpc/nexus_research_deep_context").length,1);
+  const prompt=provider.filter(call=>call.url.endsWith(":generateContent")).map(call=>JSON.parse(call.body).contents[0].parts[0].text).find(text=>text.startsWith("DEEP_RESEARCH_SYNTHESIS"));
+  const notes=JSON.parse(prompt.split("PREVIOUS_ANALYSES_NOT_EVIDENCE:\n")[1].split("\nEVIDENCE:\n")[0]);
+  assert.equal(notes.length,12);assert.match(notes.at(-1).answer,/Earlier derived analysis 11/);
+  assert.equal(JSON.parse(prompt.split("\nEVIDENCE:\n")[1]).length,60);
+});
+
+test("an unavailable prior original interrupts synthesis without substituting generated notes or committing a report",async t=>{
+  const {env,db,calls,provider}=await fixture(t,{deep:true,deepSynthesis:true,documentCount:60,noDense:true,priorContextMissing:true});
+  assert.equal(await processResearchMessage(env,{...message,position:12},db),null);
+  assert.equal(calls.some(call=>call.p_operation==="commit"),false);
+  assert.equal(calls.find(call=>call.p_operation==="interrupt").p_error,"SOURCE_UNAVAILABLE");
+  const prompts=provider.filter(call=>call.url.endsWith(":generateContent")).map(call=>JSON.parse(call.body).contents[0].parts[0].text);
+  assert.equal(prompts.some(prompt=>prompt.startsWith("DEEP_RESEARCH_SYNTHESIS")),false);
+});
 
 test("actual executor never embeds a changed quantity and persists the rejected-alternative receipt",async t=>{
   const question="Is the retention period 30 days?",alternative="Is the retention period 130 days?";

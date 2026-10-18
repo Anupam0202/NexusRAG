@@ -31,6 +31,14 @@ it("refreshes a failed execution list without losing the stored plan",async()=>{
   await screen.findByRole("alert");fireEvent.click(screen.getByRole("button",{name:"Refresh executions"}));
   expect(await screen.findByRole("button",{name:`Open execution ${id}`})).toBeVisible();
 });
+it("offers confirmed execution for a saved Deep Research plan instead of a plan-only shell",async()=>{
+  render(<ResearchRuns {...props} plan={{...plan,plan:{...plan.plan,mode:"DEEP_RESEARCH"},limits:modeLimits.DEEP_RESEARCH}}/>);
+  await waitFor(()=>expect(screen.getByRole("button",{name:"Refresh executions"})).toBeEnabled());
+  const start=screen.getByRole("button",{name:"Start research"});
+  expect(start).toBeDisabled();fireEvent.click(screen.getByRole("checkbox"));fireEvent.click(start);
+  await waitFor(()=>expect(api.researchRunCommand).toHaveBeenCalledTimes(1));
+  expect(api.researchRunCommand.mock.calls[0][5]).toBe("DEEP_RESEARCH");
+});
 it("ordinary viewer inspection never enables run mutations",async()=>{
   api.listResearchRuns.mockResolvedValue({items:[run],next_after:null});render(<ResearchRuns {...props} canWrite={false}/>);
   await screen.findByRole("button",{name:`Open execution ${id}`});
@@ -41,7 +49,7 @@ it("does not silently ignore date-constrained or unimplemented mode plans",async
   const view=render(<ResearchRuns {...props} plan={{...plan,plan:{...plan.plan,date_from:"2026-10-15"}}}/>);
   await screen.findByText(/constraints that execution cannot yet honor/);
   fireEvent.click(screen.getByRole("checkbox"));expect(screen.getByRole("button",{name:"Start research"})).toBeDisabled();
-  view.unmount();render(<ResearchRuns {...props} plan={{...plan,plan:{...plan.plan,mode:"DEEP_RESEARCH"}}}/>);
+  view.unmount();render(<ResearchRuns {...props} plan={{...plan,plan:{...plan.plan,mode:"OBLIGATION_ANALYSIS"},limits:modeLimits.OBLIGATION_ANALYSIS}}/>);
   expect(await screen.findByText(/Execution is not implemented for this mode/)).toBeVisible();
   expect(screen.queryByRole("button",{name:"Start research"})).not.toBeInTheDocument();
 });
