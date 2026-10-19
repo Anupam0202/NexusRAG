@@ -4,6 +4,96 @@ Status: **PARTIAL_NOT_COMPLETE — locally tested implementation; not production
 
 This receipt supersedes historical status claims only where it records a fresh observation. It does not certify a complete product, production release, provider rights, or absence of all defects.
 
+## Obligation Analysis - Active Batch044
+
+Source-preparation stage37 full post-build suite with two workers122PASS/4SKIP;
+latest519frontend/lint/type/build PASS. Save/current CI/complete fresh source/
+dependency/evidence recovery remain separate at source freeze; newest completed
+BATCH044_HANDOFF.md/final receipts govern later observations. Deployed source
+still old, metadata health not acceptance,044not hosted, all release gaps open.
+
+Latest stage30 whole cold121PASS/4SKIP/1FAIL is retained: desktop maximum progress
+wait5000ms at8/11, mobile maximum PASS. Independent rendering regressions fail
+before: all12full bodies eager and duplicate answer prose. Native disclosures
+now mount candidate1initially and every other full qualifier body on demand;
+stored/copy data unchanged. Client source conversion cost400per max result also
+fails a bounded-work regression, corrected to50without relaxed literal checks.
+Disclosure/copy5tests, client8tests, four repeated maximum cases and later whole
+12Obligation browser journeys PASS; latest519frontend/lint/typecheck PASS.
+No timeout increase, no assertion dropped, no proof of previous timing causes
+or performance vitals claimed. Complete current build/cold/CI/recovery required.
+
+Later stage26/27: provider capacity fixture was not provider-budget faithful.
+Its full quoted JSON measures387856offline tokens; compact wire rehydrates the
+same complete canonical result from5157bytes/2986offline tokens with unchanged
+4096request. Exact SDK-selected tokenizer hash and reproducible helper/receipts
+retained externally; no provider inference/countTokens call or budget increase.
+56focused/669Gateway/native queue/full real SQL65table160function restore PASS.
+Maximum-field320px desktop/mobile browser11answers/12candidates/50sources,
+reload/reopen/all qualifier fields/no detected overflow/page errors PASS. This
+does not prove real generation/offset accuracy/quality/performance targets or
+universal maximum distinct-note capacity; overflow still honestly interrupts.
+New transport, full latest tree/recovery/current CI remain unaccepted until
+their own fresh checks; prior frozen stage02 is not these later bytes.
+Read-only authenticated CF log now matches Chrome11:34:17ZRay a4cf79009ef19a42:
+Unexpected loadManifest(/.next/server/preview-props.json) call!,5db33e20version.
+Chrome11:52:56ZRay a4cf9456ea12c0a0still1101; latest log not obtained. Existing
+local source correction is not deployed. No hosted/private/customer/provider/
+deployment changes, required release failures and paused022 still unchanged.
+
+Latest11:35Z: post-build cold120controlled research PASS/4intentional skips;
+20ordinary actual builtWorker browser and GET/HEAD200/404/405 PASS. Real SQL retry
+regression confirms duplicate Finding-create audits2vs1; new044-only first-create
+guard passes full SQL/capacity/Finding replay/65table160function restore. Current
+unapproved SQLSHA328c6d13f516867fe913e7fdc654de91b1ae32e6892f9f00ac26d773443c0bb9;
+no hosted installation. Later515frontend PASS/2five-second timeouts retained;
+unchanged subsequent parallel517PASS with other owned checks stopped is not a
+repair. Earlier043timing failure unresolved. Fresh11:34Chrome research1101Ray
+a4cf79009ef19a42, frontend2fbc5c9/gateway46bb14f CONFIGURED/production_verified:false.
+Source/publication/CI/fresh dependencies/provider token/global budget/maximum UI/
+constrained plans/wider register/full accepted scope remain unfinished.
+
+Later02:38Z ordinary recovery/review and combined-capacity evidence passes:
+10focused controlled browser journeys, actual SQL cancellation/resume/deadline/
+503/incomplete/lost-response preservation and independent revision2review;
+50source/11question/12candidate/25anchor/8query8472402byte run exact reread,
+50source Finding10 and65table160function restore. Actual native Worker200row
+pool/32768byte originals/8410814byte results/30requests per step and503no-repeat
+passes. Maximum-field Unicode reopening failed before the Obligation-only client
+code-point correction.517frontend/665Gateway/102scripts/typecheck PASS; source
+picker real-timer harness failure retained/corrected with explicit250ms fake
+clock. No current saved-source CI/full cold/browser/build/fresh complete recovery
+or hosted/model/budget/private/whole-product acceptance.044SQL remains unapproved.
+Fresh Chrome02:26:50research1101Ray a4cc571a9849a26a/version5db33e20; no new
+matching exception event obtained; Supabase/Qdrant healthy metadata only.
+
+Uncommitted PARTIAL_NOT_COMPLETE on verified043f248b5c. Actual ResearchRuns UI
+and50source executor regressions fail before correction; current source adds
+literal provisional candidate extraction, complete adopted mode bounds, SQL/
+Gateway/client/result and Findings UI.661Gateway/66focused/33initial client/
+19later report and existing Findings tests/typecheck pass. Actual local SQL
+executes11questions/550receipts with exact source/null pages, two independently
+concurrent starts/one admission, persisted reread/Finding10 and65table160function
+restore. No hosted/provider/private/deployment acceptance. Maximum combined
+payload/budget, ordinary cancellation/resume/independent review, actual browser,
+full owning/build/current CI/new complete dependency/source/evidence recovery
+and all supported plan constraints/wider obligation product remain incomplete.
+New20261019015325migration LOCAL_ONLY_UNAPPROVED. Preserve paused022 and full224
+requirements/tenproducts/twelvemodes/400+125quality. See implementation044record.
+
+Later044owning665Gateway/516frontend79files/102scripts/lint/typecheck/foundation/
+baseline/diff checks pass. Result copy/reopen retains all qualifiers and unknown
+applicability. These source checks do not close the outstanding browser, new-mode
+review/cancel/resume/combined capacity/budget/native/build/CI/recovery criteria.
+
+Verified043708source/475evidence/28fresh receipts are frozen externally. Required
+image117784077454/summary117789192073 FAILED metadata only; no excluded work or
+waiver. Initial043browser5000ms timing failure remains unexplained. Owner's read-
+only Chrome/Cloudflare investigation reproduces research1101 at01:40:32Z, old
+frontend2fbc5c9/version5db33e20 and sampled OpenNext preview-props initialization
+exception; current source correction is not deployed. Gateway46bb14f remains
+NOT_PROBED. Healthy Supabase/Qdrant metadata does not prove private workflows.
+
 ## Native Deep Boundary - Active Batch043
 
 Frozen042533f7dc/705source and324file evidence recoveredNEW with26fresh owning/

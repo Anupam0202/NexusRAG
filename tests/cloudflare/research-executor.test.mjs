@@ -6,7 +6,7 @@ const ws="11111111-1111-4111-8111-111111111111",user="22222222-2222-4222-8222-22
 const doc="44444444-4444-4444-8444-444444444444",version="55555555-5555-4555-8555-555555555555",chunk="66666666-6666-4666-8666-666666666666";
 const token="77777777-7777-4777-8777-777777777777",message={kind:"research",workspace_id:ws,run_id:id,generation:1,position:0};
 async function fixture(t,options={}) {
-  const text=options.timeline?"The synthetic policy took effect on 2024-02-29. It was published in 2024-02.":"The synthetic retention period is 30 days.",hash=await sha256(text),calls=[],sent=[],provider=[],reservations=[],reads=[];
+  const text=options.obligation?"Synthetic operators must retain reports for 30 days, except public summaries.":options.timeline?"The synthetic policy took effect on 2024-02-29. It was published in 2024-02.":"The synthetic retention period is 30 days.",hash=await sha256(text),calls=[],sent=[],provider=[],reservations=[],reads=[];
   const run={id,workspace_id:ws,owner_id:user,generation:1,position:0,state:"running",source_state:"CURRENT",questions:["What is the synthetic retention period?"],
     source_snapshot:[{document_id:doc,version_id:version,index_generation:"generation-one",lifecycle_epoch:1}],deadline:new Date(Date.now()+30000).toISOString(),
     admission:{credential_mode:"platform_trial"}};
@@ -16,6 +16,10 @@ async function fixture(t,options={}) {
     rows.push({...rows[0],id:token,document_id:token,version_id:id});
   }
   if(options.timeline){run.mode="TIMELINE";run.questions=["Build a chronology."];}
+  if(options.obligation) {
+    run.mode="OBLIGATION_ANALYSIS";run.questions=Array.from({length:11},(_,i)=>`Which synthetic duties need review for criterion ${i+1}?`);
+    run.deadline=new Date(Date.now()+420000).toISOString();
+  }
   if(options.deep) {
     run.mode="DEEP_RESEARCH";
     run.questions=[...Array.from({length:12},(_,i)=>`Synthetic retention criterion ${i+1}?`),"Synthesize the synthetic retention evidence."];
@@ -27,7 +31,7 @@ async function fixture(t,options={}) {
       const n=run.source_snapshot.length+1,document_id=`10000000-0000-4000-8000-${String(n).padStart(12,"0")}`;
       const version_id=`20000000-0000-4000-8000-${String(n).padStart(12,"0")}`;
       run.source_snapshot.push({document_id,version_id,index_generation:`generation-${n}`,lifecycle_epoch:1});
-      const content=options.timeline?`Policy ${n} took effect on 2024-02-${String(n).padStart(2,"0")}.`:`Policy ${n} retention period is 30 days.`;
+      const content=options.obligation?`Synthetic operator ${n} must retain reports for 30 days.`:options.timeline?`Policy ${n} took effect on 2024-02-${String(n).padStart(2,"0")}.`:`Policy ${n} retention period is 30 days.`;
       rows.push({...rows[0],id:`30000000-0000-4000-8000-${String(n).padStart(12,"0")}`,document_id,version_id,content,original_text:content,original_content_hash:await sha256(content)});
     }
     rows[0].id="00000000-0000-4000-8000-000000000000";
@@ -104,8 +108,11 @@ async function fixture(t,options={}) {
       if(options.providerError)return new Response("synthetic provider interruption",{status:503});
       const prompt=JSON.parse(init.body).contents[0].parts[0].text;
       if(prompt.startsWith("RESEARCH_QUERY_VARIANTS"))return json({candidates:[{finishReason:"STOP",content:{parts:[{text:JSON.stringify({queries:options.variantQueries||[]})}]}}]});
-      const sources=options.documentCount||options.contradiction?JSON.parse(prompt.split("\nEVIDENCE:\n")[1]):null;
-      const answer=options.deep?JSON.stringify({answer:"The synthetic retention period is30days [S1].",limitations:["Independent review is required."],gaps:[]}):options.contradiction?JSON.stringify({pairs:[{left:{citation_id:sources[0].citation_id,quote:sources[0].content},right:{citation_id:sources.at(-1).citation_id,quote:sources.at(-1).content},
+      const sources=options.documentCount||options.contradiction||options.obligation?JSON.parse(prompt.split("\nEVIDENCE:\n")[1]):null;
+      const answer=options.obligation?JSON.stringify({candidates:[sources[0],sources.at(-1)].filter((source,index,items)=>index===0||source.citation_id!==items[0].citation_id).map(source=>({
+        provision:{citation_id:source.citation_id,quote:source.content},authority:null,jurisdiction:null,actor:null,action:{citation_id:source.citation_id,quote:"retain reports"},
+        applicability:null,deadline:{citation_id:source.citation_id,quote:"30 days"},valid_from:null,valid_to:null,definitions:[],exceptions:[],amendments:[],supersedes:[],
+        control_candidate:"Propose a report-retention review; confirm exceptions and applicability.",limitations:["Independent review remains required."]}))}):options.deep?JSON.stringify({answer:"The synthetic retention period is30days [S1].",limitations:["Independent review is required."],gaps:[]}):options.contradiction?JSON.stringify({pairs:[{left:{citation_id:sources[0].citation_id,quote:sources[0].content},right:{citation_id:sources.at(-1).citation_id,quote:sources.at(-1).content},
         relationship:"INSUFFICIENT_CONTEXT",explanation:"Matching words alone do not establish shared context or a contradiction."}]}):options.documentCount?JSON.stringify(options.timeline?{documents:run.source_snapshot.map(s=>{
         const source=sources.find(item=>item.document_id===s.document_id),quote=source?.content.match(/[^.]*2024-02-\d{2}\./)?.[0]?.trim();
         return {document_id:s.document_id,events:quote?[{citation_id:source.citation_id,quote,date_text:quote.match(/2024-02-\d{2}/)[0],date_role:"EFFECTIVE"}]:[]};
@@ -125,6 +132,19 @@ async function fixture(t,options={}) {
     INGESTION_QUEUE:{send:async value=>sent.push(value)}};
   return {env,db,run,calls,sent,provider,hash,reservations,reads};
 }
+
+test("actual Obligation Analysis executor consults all50sources and retains source-linked provisional first/last duties",async t=>{
+  const {env,db,calls}=await fixture(t,{obligation:true,documentCount:50,noDense:true,more:true,pageNumber:null});
+  const result=await processResearchMessage(env,message,db);
+  assert.equal(result?.state,"queued");assert.equal(result.position,1);
+  const saved=calls.find(call=>call.p_operation==="commit")?.p_result;
+  assert.equal(saved?.obligations?.schema_version,"research-obligations/1");
+  assert.equal(saved.obligations.documents.length,50);assert.equal(saved.obligations.candidates.length,2);
+  assert.equal(saved.obligations.candidates.at(-1).provision.document_id,"10000000-0000-4000-8000-000000000050");
+  assert.equal(saved.obligations.candidates[0].applicability_state,"NOT_DETERMINED");
+  assert.ok(saved.obligations.documents.every(document=>document.consulted_sources.length===1));
+  assert.equal(saved.obligations.documents[0].consulted_sources[0].page_number,null);
+});
 
 test("Deep Research executes the full60source13question plan with explicit source coverage and resumable progress",async t=>{
   const {env,db,calls,sent}=await fixture(t,{deep:true,documentCount:60,more:true,noDense:true});

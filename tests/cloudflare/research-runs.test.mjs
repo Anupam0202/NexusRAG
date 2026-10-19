@@ -30,6 +30,25 @@ function fixture(t, options={}) {
 }
 const request=(method="GET",suffix="",body)=>new Request(`https://gateway.invalid/api/v2/research/plans/${plan}/runs${suffix}`,{method,headers,body:body?JSON.stringify(body):undefined});
 
+for(const mismatch of [null,"absent","limits"])test(`Obligation Analysis confirms its full installed contract before admission and dispatch: ${mismatch}`,async t=>{
+  const {env,receipt,calls,sent}=fixture(t);
+  Object.assign(receipt,{mode:"OBLIGATION_ANALYSIS",source_snapshot:Array.from({length:50},(_,i)=>({document_id:`00000044-0000-4000-8000-${String(i).padStart(12,"0")}`})),
+    questions:Array.from({length:11},(_,i)=>`Question ${i+1}`),total_steps:11});
+  const original=globalThis.fetch;
+  t.mock.method(globalThis,"fetch",async(input,init)=>new URL(input).pathname==="/rest/v1/rpc/nexus_research_obligation_contract"
+    ?new Response(JSON.stringify(mismatch==="absent"?{code:"PGRST202",message:"Function is absent"}:{schema_version:"research-obligations/1",max_sources:mismatch==="limits"?40:50,
+      max_subquestions:10,max_steps:11,max_query_variants:8,runtime_seconds:420,max_candidates:12,max_result_bytes:1000000,max_run_bytes:11000000}),{status:mismatch==="absent"?404:200}):original(input,init));
+  const response=await handle(request("POST","",{non_sensitive_attested:true,execution_mode:"OBLIGATION_ANALYSIS"}),env);
+  assert.equal(response.status,mismatch?503:201);assert.equal(calls.length,mismatch?0:1);assert.equal(sent.length,mismatch?0:1);
+  if(mismatch)assert.match((await response.json()).error.message,/research_obligation_execution/);
+});
+test("Obligation Analysis list preserves all11 completed positions without pretending omitted results are a read receipt",async t=>{
+  const {env,receipt}=fixture(t);Object.assign(receipt,{mode:"OBLIGATION_ANALYSIS",source_snapshot:Array.from({length:50},()=>({document_id:plan})),
+    questions:Array.from({length:11},(_,i)=>`Question ${i+1}`),total_steps:11,position:11,state:"completed",results_included:false});
+  const response=await handle(request(),env);assert.equal(response.status,200);assert.equal((await response.json()).items[0].position,11);
+  assert.equal((await handle(request("GET",`/${run}`),env)).status,503);
+});
+
 test("Deep Research requires its installed contract before a new admission or dispatch",async t=>{
   const {env,calls,sent}=fixture(t,{deepMissing:true});
   const response=await handle(request("POST","",{non_sensitive_attested:true,execution_mode:"DEEP_RESEARCH"}),env);

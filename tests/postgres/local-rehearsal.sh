@@ -45,6 +45,7 @@ PSQL=(psql -X -v ON_ERROR_STOP=1 -d "$PGDATABASE")
 "${PSQL[@]}" -f "$ROOT/supabase/migrations/20261017074502_research_contradiction_execution.sql"
 "${PSQL[@]}" -f "$ROOT/supabase/migrations/20261017133234_research_query_retrieval.sql"
 "${PSQL[@]}" -f "$ROOT/supabase/migrations/20261018094339_research_deep_execution.sql"
+"${PSQL[@]}" -f "$ROOT/supabase/migrations/20261019015325_research_obligation_execution.sql"
 "${PSQL[@]}" -f "$TESTS/fixtures.sql"
 "${PSQL[@]}" -f "$TESTS/research-plan-assertions.sql"
 "${PSQL[@]}" -f "$TESTS/research-run-assertions.sql"
@@ -103,5 +104,6 @@ NEXUS_DISPOSABLE_SQL=1 NEXUS_RESEARCH_MODE=TIMELINE node "$TESTS/research-compar
 NEXUS_DISPOSABLE_SQL=1 NEXUS_RESEARCH_MODE=CONTRADICTION_ANALYSIS node "$TESTS/research-comparison-integration.mjs"
 NEXUS_DISPOSABLE_SQL=1 NEXUS_RESEARCH_MODE=DEEP_RESEARCH node "$TESTS/research-comparison-integration.mjs"
 NEXUS_DISPOSABLE_SQL=1 NEXUS_RESEARCH_MODE=DEEP_RESEARCH NEXUS_DEEP_CONTEXT_BOUNDARY=1 node "$TESTS/research-comparison-integration.mjs"
+NEXUS_DISPOSABLE_SQL=1 NEXUS_RESEARCH_MODE=OBLIGATION_ANALYSIS node "$TESTS/research-comparison-integration.mjs"
 NEXUS_DISPOSABLE_SQL=1 node "$TESTS/document-original-integration.mjs"
 echo 'LOCAL_POSTGRES_REHEARSAL_PASS (not a hosted Supabase verification)'

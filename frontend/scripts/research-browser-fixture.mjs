@@ -7,6 +7,7 @@ import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import { handle, queue } from "../../apps/gateway/src/preview-worker.js";
 import { RESEARCH_MODE_LIMITS } from "../../apps/gateway/src/research-plans.js";
+import {obligationCapacity,obligationWire} from "../../tests/fixtures/research-obligation-capacity.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const port = Number(process.argv[2] || 3024);
@@ -33,19 +34,31 @@ const comparisonText="The synthetic second mass is 2.005 kg.";
 const timelineTexts=["\u{1F4CA} Issued 2024-02. Effective 2024-02-29.","Reviewed 03/04/2024. Open period 2024/2025."];
 const largeDocument="64646464-6464-4464-8464-646464646464",largeVersion="74747474-7474-4474-8474-747474747474",largeChunk="84848484-8484-4484-8484-848484848484";
 const pagelessDocument="65656565-6565-4565-8565-656565656565",pagelessVersion="75757575-7575-4575-8575-757575757575",pagelessChunk="85858585-8585-4585-8585-858585858585";
+const obligationDocument="d0440000-0000-4000-8100-000000000001",obligationDefinition="d0440000-0000-4000-8100-000000000002";
+const obligationTexts=["\u{1F4CA} Section 3. Synthetic Board. In Region Example, operators must retain reports for 30 days, except public summaries. Effective from 2026-01-01. Replaces section 2.",
+  'Definitions: "Report" means a synthetic inspection record. Applies only to listed operators. Amendment A extends the reporting requirement.'];
 const fixtureDocuments=[{id:document,workspace_id:workspace,filename:"Synthetic policy.txt",active_version_id:sourceVersion},
   {id:comparisonDocument,workspace_id:workspace,filename:"Synthetic second policy.txt",active_version_id:comparisonVersion},
   ...timelineTexts.map((_,i)=>({id:`63636363-6363-4363-8363-63636363636${i}`,workspace_id:workspace,filename:i?"Timeline amendment.txt":"Timeline policy.txt",active_version_id:`73737373-7373-4373-8373-73737373737${i}`})),
   {id:largeDocument,workspace_id:workspace,filename:"Synthetic large policy.txt",active_version_id:largeVersion},
-  {id:pagelessDocument,workspace_id:workspace,filename:"Synthetic pageless policy.txt",active_version_id:pagelessVersion}
+  {id:pagelessDocument,workspace_id:workspace,filename:"Synthetic pageless policy.txt",active_version_id:pagelessVersion},
+  {id:obligationDocument,workspace_id:workspace,filename:"Obligation policy.txt",active_version_id:"e0440000-0000-4000-8100-000000000001"},
+  {id:obligationDefinition,workspace_id:workspace,filename:"Obligation definitions.txt",active_version_id:"e0440000-0000-4000-8100-000000000002"}
 ].map(d=>({...d,status:"ready",file_type:"txt",chunk_count:d.id===largeDocument?400:1,file_size:100,lifecycle_state:"active",lifecycle_epoch:1}));
 const fixtureVersions=fixtureDocuments.map(d=>({id:d.active_version_id,workspace_id:workspace,document_id:d.id,publication_state:"ready",data_classification:"non_sensitive",index_generation:"synthetic-source-generation",lifecycle_epoch:1}));
 const fixtureChunks=fixtureDocuments.map((d,i)=>{
-  const pageless=d.id===pagelessDocument,text=pageless||i===4?sourceText:i<2?i?comparisonText:sourceText:timelineTexts[i-2];
-  return {id:pageless?pagelessChunk:i===4?largeChunk:i<2?i?comparisonChunk:sourceChunk:`83838383-8383-4383-8383-83838383838${i}`,workspace_id:workspace,document_id:d.id,version_id:d.active_version_id,
+  const obligation=[obligationDocument,obligationDefinition].indexOf(d.id),pageless=d.id===pagelessDocument||obligation===0;
+  const text=obligation>=0?obligationTexts[obligation]:pageless||i===4?sourceText:i<2?i?comparisonText:sourceText:timelineTexts[i-2];
+  return {id:obligation>=0?`f0440000-0000-4000-8100-00000000000${obligation+1}`:pageless?pagelessChunk:i===4?largeChunk:i<2?i?comparisonChunk:sourceChunk:`83838383-8383-4383-8383-83838383838${i}`,workspace_id:workspace,document_id:d.id,version_id:d.active_version_id,
     chunk_index:0,original_text:text,content:text,original_content_hash:createHash("sha256").update(text).digest("hex"),page_number:pageless?null:2,
     location:pageless?{char_start:0,char_end:Array.from(text).length}:{page:2},metadata:{}};
 });
+const capacity=obligationCapacity();
+fixtureDocuments.push(...capacity.documents.map((doc,i)=>({...doc,workspace_id:workspace,active_version_id:capacity.originals[i].version_id,
+  status:"ready",file_type:"txt",chunk_count:1,file_size:32768,lifecycle_state:"active",lifecycle_epoch:1})));
+fixtureVersions.push(...capacity.originals.map(row=>({id:row.version_id,document_id:row.document_id,workspace_id:workspace,
+  publication_state:"ready",data_classification:"non_sensitive",index_generation:"synthetic-capacity",lifecycle_epoch:1})));
+fixtureChunks.push(...capacity.originals.map(row=>({...row,workspace_id:workspace,content:row.original_text,metadata:{}})));
 for(let i=1;i<400;i++) {
   const text=i===399?"Final appendix record. Reference END-400.":"Unrelated appendix material.";
   fixtureChunks.push({id:`00340000-0000-4000-8000-${String(i).padStart(12,"0")}`,workspace_id:workspace,document_id:largeDocument,version_id:largeVersion,
@@ -92,6 +105,25 @@ globalThis.fetch = async (input, init = {}) => {
       const sources=JSON.parse(prompt.split("\nEVIDENCE:\n")[1]);
       const answer=sources.map(source=>`${source.content} [${source.citation_id}]`).join("\n");
       return result({candidates:[{finishReason:"STOP",content:{parts:[{text:JSON.stringify({answer,limitations:["Synthetic context still requires independent review."],gaps:["No external evidence was acquired."]})}]}}]});
+    }
+    if(prompt.includes("OBLIGATION_DOCUMENTS:\n")) {
+      const sources=JSON.parse(prompt.split("\nEVIDENCE:\n")[1]),question=prompt.split("QUESTION:\n")[1].split("\nOBLIGATION_DOCUMENTS:")[0];
+      if(question.startsWith("Synthetic maximum-field")) {
+        const wire=obligationWire(capacity.candidates,sources);
+        return result({candidates:[{finishReason:"STOP",content:{parts:[{text:JSON.stringify(wire)}]}}]});
+      }
+      if(question.includes("Synthetic interrupted obligation")&&!interruptedQuestions.has(question)){interruptedQuestions.add(question);return new Response("Synthetic obligation interruption",{status:503});}
+      const primary=sources.find(source=>source.document_id===obligationDocument),definition=sources.find(source=>source.document_id===obligationDefinition);
+      const quote=(source,text)=>({citation_id:source.citation_id,quote:text});
+      const candidates=primary&&!question.includes("Synthetic empty obligation")?[{
+        provision:quote(primary,"operators must retain reports for 30 days, except public summaries."),authority:quote(primary,"Synthetic Board."),
+        jurisdiction:quote(primary,"Region Example"),actor:quote(primary,"operators"),action:quote(primary,"retain reports"),
+        applicability:definition?quote(definition,"Applies only to listed operators."):null,deadline:quote(primary,"30 days"),valid_from:quote(primary,"2026-01-01"),valid_to:null,
+        definitions:definition?[quote(definition,'"Report" means a synthetic inspection record.')]:[],exceptions:[quote(primary,"except public summaries")],
+        amendments:definition?[quote(definition,"Amendment A extends the reporting requirement.")]:[],supersedes:[quote(primary,"Replaces section 2.")],
+        control_candidate:"Propose retention review; confirm applicability and exceptions.",limitations:["Synthetic source wording; not legal certification."]
+      }]:[];
+      return result({candidates:[{finishReason:"STOP",content:{parts:[{text:JSON.stringify(obligationWire(candidates,sources))}]}}]});
     }
     if(prompt.includes("CONTRADICTION_DOCUMENTS:\n")) {
       const sources=JSON.parse(prompt.split("\nEVIDENCE:\n")[1]);
@@ -170,6 +202,7 @@ globalThis.fetch = async (input, init = {}) => {
   if(url.pathname==="/rest/v1/rpc/nexus_research_contradiction_contract")return json({schema_version:"research-contradiction/1",max_sources:50,max_steps:11,max_pairs:6,runtime_seconds:420});
   if(url.pathname==="/rest/v1/rpc/nexus_research_candidates_contract")return json({schema_version:"research-candidates/1",max_rows:201,max_candidates:200,max_sources:50});
   if(url.pathname==="/rest/v1/rpc/nexus_research_deep_contract")return json({schema_version:"research-deep/1",max_sources:60,max_subquestions:12,max_steps:13,max_query_variants:8,runtime_seconds:600,max_prior_originals:144,max_synthesis_sources:156});
+  if(url.pathname==="/rest/v1/rpc/nexus_research_obligation_contract")return json({schema_version:"research-obligations/1",max_sources:50,max_subquestions:10,max_steps:11,max_query_variants:8,runtime_seconds:420,max_candidates:12,max_result_bytes:1000000,max_run_bytes:11000000});
   if(url.pathname==="/rest/v1/rpc/nexus_research_deep_context") {
     const run=runs.get(data.p_id),ids=new Set(run.results.flatMap(result=>result.sources.map(source=>source.chunk_id)));
     return json({schema_version:"research-deep-context/1",run_id:run.id,generation:run.generation,position:run.position,items:fixtureChunks.filter(chunk=>ids.has(chunk.id))});
@@ -200,7 +233,7 @@ globalThis.fetch = async (input, init = {}) => {
         source_research_run_id:run.id,source_research_position:data.p_command.result_index,authored_markdown:"",generated_markdown:answer.answer,
         source_unavailable:false,evidence:answer.sources.map(s=>({id:s.chunk_id,document_id:s.document_id,version_id:s.version_id,original_text:fixtureChunks.find(c=>c.id===s.chunk_id).original_text,
           original_content_hash:s.original_content_hash,location:s.location,citation_id:s.citation_id,filename:s.filename,available:true,freshness:"current"})),
-        research_origin:{run_id:run.id,result_index:data.p_command.result_index,plan_id:run.plan_id,question:answer.question,comparison:answer.comparison||null,timeline:answer.timeline||null,contradiction:answer.contradiction||null,deep:answer.deep||null,query_retrieval:answer.query_retrieval||null,claim_state:"REVIEW_REQUIRED",source_state:"CURRENT"},
+        research_origin:{run_id:run.id,result_index:data.p_command.result_index,plan_id:run.plan_id,question:answer.question,comparison:answer.comparison||null,timeline:answer.timeline||null,contradiction:answer.contradiction||null,deep:answer.deep||null,obligations:answer.obligations||null,query_retrieval:answer.query_retrieval||null,claim_state:"REVIEW_REQUIRED",source_state:"CURRENT"},
         export_state:"RIGHTS_REVIEW_REQUIRED",reviews:[],participants:[],created_at:new Date().toISOString(),updated_at:new Date().toISOString(),permission:"owner"};
       findings.set(f.id,f);findingKeys.set(data.p_key,f.id);
       return json({code:"08006",message:"Synthetic interrupted finding response after commit"},503);
@@ -227,7 +260,7 @@ globalThis.fetch = async (input, init = {}) => {
   }
   if(url.pathname==="/rest/v1/rpc/nexus_research_run") {
     if(data.p_operation==="list")return json({items:[...runs.values()].filter(run=>run.owner_id===data.p_context.user_id&&run.plan_id===data.p_plan).reverse()
-      .map(run=>["COMPARE","TIMELINE","CONTRADICTION_ANALYSIS","DEEP_RESEARCH"].includes(run.mode)?{...run,results:[],results_included:false}:run),next_after:null});
+      .map(run=>["COMPARE","TIMELINE","CONTRADICTION_ANALYSIS","DEEP_RESEARCH","OBLIGATION_ANALYSIS"].includes(run.mode)?{...run,results:[],results_included:false}:run),next_after:null});
     if(data.p_operation==="create") {
       if(runKeys.has(data.p_key))return json(runs.get(runKeys.get(data.p_key)));
       const draft=records.get(data.p_plan).plan;
@@ -235,13 +268,13 @@ globalThis.fetch = async (input, init = {}) => {
         generation:1,position:0,questions:draft.mode==="DEEP_RESEARCH"?[...draft.subquestions,draft.question]:[draft.question,...draft.subquestions],results:[],source_state:"CURRENT",error_code:null,created_at:new Date().toISOString(),
         mode:draft.mode,source_snapshot:fixtureVersions.filter(v=>draft.private_source_ids.includes(v.document_id)).map(v=>({document_id:v.document_id,version_id:v.id,index_generation:v.index_generation,lifecycle_epoch:1})),admission:{credential_mode:"platform_trial"}};
       run.total_steps=run.questions.length*(["COMPARE","TIMELINE"].includes(run.mode)?Math.ceil(run.source_snapshot.length/8):1);
-      run.deadline=new Date(Date.now()+(run.mode==="DEEP_RESEARCH"?600000:run.mode==="CONTRADICTION_ANALYSIS"?420000:["COMPARE","TIMELINE"].includes(run.mode)?300000:run.mode==="QUICK_LOOKUP"?30000:90000)).toISOString();
+      run.deadline=new Date(Date.now()+(run.mode==="DEEP_RESEARCH"?600000:["CONTRADICTION_ANALYSIS","OBLIGATION_ANALYSIS"].includes(run.mode)?420000:["COMPARE","TIMELINE"].includes(run.mode)?300000:run.mode==="QUICK_LOOKUP"?30000:90000)).toISOString();
       runs.set(run.id,run);runKeys.set(data.p_key,run.id);return json(run);
     }
     const run=runs.get(data.p_id);
     if(data.p_operation==="cancel")run.state="cancelled";
     if(data.p_operation==="resume"&&(!["queued","running"].includes(run.state)||Date.parse(run.deadline)<=Date.now())){
-      run.state="queued";run.generation++;run.error_code=null;run.deadline=new Date(Date.now()+(run.mode==="DEEP_RESEARCH"?600000:run.mode==="CONTRADICTION_ANALYSIS"?420000:["COMPARE","TIMELINE"].includes(run.mode)?300000:run.mode==="QUICK_LOOKUP"?30000:90000)).toISOString();
+      run.state="queued";run.generation++;run.error_code=null;run.deadline=new Date(Date.now()+(run.mode==="DEEP_RESEARCH"?600000:["CONTRADICTION_ANALYSIS","OBLIGATION_ANALYSIS"].includes(run.mode)?420000:["COMPARE","TIMELINE"].includes(run.mode)?300000:run.mode==="QUICK_LOOKUP"?30000:90000)).toISOString();
     }
     return json(run);
   }

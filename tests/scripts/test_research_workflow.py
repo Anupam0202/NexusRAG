@@ -10,11 +10,26 @@ import yaml
 ROOT = Path(__file__).resolve().parents[2]
 
 class ResearchWorkflowTests(unittest.TestCase):
+    def test_obligation_execution_migration_and_real_production_executor_run_in_database_ci(self):
+        migration = "20261019015325_research_obligation_execution.sql"
+        workflow = (ROOT / ".github/workflows/v6-database-rehearsal.yml").read_text()
+        rehearsal = (ROOT / "tests/postgres/local-rehearsal.sh").read_text()
+        self.assertIn(migration, workflow)
+        self.assertIn(migration, rehearsal)
+        self.assertIn('NEXUS_RESEARCH_MODE=OBLIGATION_ANALYSIS node "$TESTS/research-comparison-integration.mjs"', rehearsal)
+        self.assertIn("grep -F 'REAL_SQL_PRODUCTION_OBLIGATION_EXECUTOR_PASS'", workflow)
+        self.assertIn("grep -F 'REAL_SQL_OBLIGATION_ORDINARY_RECOVERY_REVIEW_PASS'", workflow)
+        self.assertIn("grep -F 'REAL_SQL_OBLIGATION_COMBINED_CAPACITY_PASS'", workflow)
+        self.assertIn('cp -R "$GITHUB_WORKSPACE/tests/fixtures" "$source_dir/tests/"', workflow)
+        foundation = (ROOT / ".github/workflows/v6-foundation-ci.yml").read_text()
+        self.assertIn("research-obligations.spec.ts", foundation)
+
     def test_native_research_steps_run_from_the_frontend_directory(self):
         workflow = yaml.safe_load((ROOT / ".github/workflows/v6-foundation-ci.yml").read_text())
         commands = {
             "node scripts/test-research-query-worker.mjs",
             "node scripts/test-research-deep-worker.mjs",
+            "node scripts/test-research-obligation-worker.mjs",
         }
         steps = [step for job in workflow["jobs"].values() for step in job.get("steps", [])
                  if step.get("run") in commands]

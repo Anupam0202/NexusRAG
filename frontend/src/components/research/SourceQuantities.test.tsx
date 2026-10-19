@@ -1,4 +1,4 @@
-import {fireEvent,render,screen,waitFor} from "@testing-library/react";
+import {act,fireEvent,render,screen,waitFor} from "@testing-library/react";
 import {beforeEach,expect,it,vi} from "vitest";
 const api=vi.hoisted(()=>({createResearchQuantity:vi.fn(),listResearchQuantities:vi.fn(),getDocumentChunks:vi.fn()}));
 vi.mock("@/lib/api",()=>api);
@@ -10,7 +10,12 @@ beforeEach(()=>{vi.clearAllMocks();api.listResearchQuantities.mockResolvedValue(
   api.getDocumentChunks.mockResolvedValue({document_id:input.document_id,version_id:input.version_id,authority:"SUPABASE_HASH_VERIFIED",coverage:{state:"COMPLETE_BOUNDED_DOCUMENT"},
     chunks:[{chunk_index:0,content:sourceText,page_number:2,metadata:{},original_content_hash:input.original_content_hash}],next_after:null});});
 async function choose(){
-  await waitFor(()=>expect(screen.getByLabelText("Quantity source document")).toBeEnabled());fireEvent.change(screen.getByLabelText("Quantity source document"),{target:{value:input.document_id}});
+  await waitFor(()=>expect(screen.getByLabelText("Quantity source document")).toBeEnabled());
+  vi.useFakeTimers();
+  try {
+    fireEvent.change(screen.getByLabelText("Quantity source document"),{target:{value:input.document_id}});
+    await act(()=>vi.advanceTimersByTimeAsync(250));
+  } finally {vi.useRealTimers();}
   await screen.findByRole("option",{name:"Chunk 1 - page 2"});fireEvent.change(screen.getByLabelText("Quantity source chunk"),{target:{value:"0"}});
   fireEvent.change(screen.getByLabelText("Quantity numeric selection"),{target:{value:"8:13"}});fireEvent.change(screen.getByLabelText("Quantity unit text"),{target:{value:"kg"}});
   fireEvent.change(screen.getByLabelText("Quantity unit selection"),{target:{value:"14:16"}});

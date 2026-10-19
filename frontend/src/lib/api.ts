@@ -473,8 +473,8 @@ export async function listResearchRuns(planId:string,context:ApiRequestContext,a
 }
 export async function researchRunCommand(planId:string,context:ApiRequestContext,operation:"create"|"read"|"cancel"|"resume",runId?:string,key?:string,mode?:string) {
   const result=await request<ResearchRun>(`/api/v2/research/plans/${encodeURIComponent(planId)}/runs${runId?`/${encodeURIComponent(runId)}`:""}${["cancel","resume"].includes(operation)?`/${operation}`:""}`,
-    operation==="read"?undefined:{method:"POST",headers:key?{"Idempotency-Key":key}:undefined,body:JSON.stringify({non_sensitive_attested:true,...(["COMPARE","TIMELINE","CONTRADICTION_ANALYSIS","DEEP_RESEARCH"].includes(mode||"")?{execution_mode:mode}:{})})},context);
-  if(!confirmedResearchRun(result,planId)||result.results_included===false||(runId&&result.id!==runId)||(["COMPARE","DEEP_RESEARCH"].includes(mode||"")&&result.mode!==mode))throw new ApiRequestError("Research run was not confirmed. Refresh before retrying.","PERSISTENCE_UNCONFIRMED");
+    operation==="read"?undefined:{method:"POST",headers:key?{"Idempotency-Key":key}:undefined,body:JSON.stringify({non_sensitive_attested:true,...(["COMPARE","TIMELINE","CONTRADICTION_ANALYSIS","DEEP_RESEARCH","OBLIGATION_ANALYSIS"].includes(mode||"")?{execution_mode:mode}:{})})},context);
+  if(!confirmedResearchRun(result,planId)||result.results_included===false||(runId&&result.id!==runId)||(["COMPARE","DEEP_RESEARCH","OBLIGATION_ANALYSIS"].includes(mode||"")&&result.mode!==mode))throw new ApiRequestError("Research run was not confirmed. Refresh before retrying.","PERSISTENCE_UNCONFIRMED");
   return result;
 }
 
@@ -561,7 +561,7 @@ export interface FindingDetail extends FindingSummary {
   authored_markdown: string;
   generated_markdown: string | null;
   source_unavailable: boolean;
-  research_origin?: {run_id:string|null;result_index:number;plan_id:string|null;question:string|null;claim_state:string;source_state:string;comparison?:import("./research-run").ResearchComparison|null;timeline?:import("./research-run").ResearchTimeline|null;contradiction?:import("./research-run").ResearchContradiction|null;deep?:import("./research-run").ResearchDeep|null;query_retrieval?:import("./research-run").ResearchQueryRetrieval|null};
+  research_origin?: {run_id:string|null;result_index:number;plan_id:string|null;question:string|null;claim_state:string;source_state:string;comparison?:import("./research-run").ResearchComparison|null;timeline?:import("./research-run").ResearchTimeline|null;contradiction?:import("./research-run").ResearchContradiction|null;deep?:import("./research-run").ResearchDeep|null;obligations?:import("./research-obligations").ResearchObligations|null;query_retrieval?:import("./research-run").ResearchQueryRetrieval|null};
   export_state?: "RIGHTS_REVIEW_REQUIRED";
   evidence: Array<{ id: string; document_id: string; version_id: string; original_text?: string; available: boolean; freshness: string;
     citation_id?:string;filename?:string;original_content_hash?:string;location?:unknown }>;

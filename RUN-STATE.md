@@ -1,5 +1,146 @@
 # NexusRAG execution checkpoint
 
+## Active Functional Batch: research-obligation-execution-044
+
+Source-preparation receipt12:27:35Z: separate post-build whole browser set with
+CI's two workers122PASS/4intentionalSKIP, including maximum desktop/mobile scope.
+Latest519frontend/lint/typecheck/NextOpenNext26routes PASS;669Gateway/631backend+
+10subtests/57isolated/102scripts, four actual native probes and real disposable
+SQL65table160function restore pass at the earlier explicitly named stage receipts.
+Source bytes/manual functional review ready for save on existing draftPR12;
+actual publication/current CI/NEW complete source/dependency/evidence recovery
+are not established by this source-time record. Consult newest BATCH044_HANDOFF.md
+and its frozen final receipts after they exist; do not treat pending source-time
+statements below as fresh remote/deployment facts. Earlier failed attempts and
+unexplained043/parallel frontend timing remain retained, not automatically fixed.
+Fresh12:28read-only metadata: old frontend2fbc5c9/gateway46bb14f CONFIGURED/
+NOT_PROBED/production_verified:false; Supabase projects ACTIVE_HEALTHY, rehearsal
+35migration registry ends20261018163237Deep, no044install. Known image/summary
+failed metadata only, no new investigation; no hosted/private/provider/deploy
+approval or full accepted-scope completion. Branches remain3, PR12sole draft;
+protected-main policy-detail read denied403by integration, no merge attempted.
+
+Later stage30 full cold run121PASS/4intentionalSKIP/1FAIL: desktop maximum-field
+wait missed5000ms at running8/11; mobile maximum passed. Retain both; initial
+isolated maximum passes were not full-suite acceptance. No timeout increased.
+New regressions reproduce132eager candidate detail bodies across11results and
+duplicated answer prose. Candidate1starts open; other native disclosures mount
+their full qualifiers on demand, and copy/storage still retain all fields.
+Client Unicode validation now converts each excerpt once (50not400per maximum
+result), preserving exact offsets/content/receipt checks. Before failures and
+fixture-only event/type corrections retained. Five disclosure/copy and eight
+client regressions pass; four repeated maximum browser cases after disclosure
+and later whole12Obligation desktop/mobile journeys after Unicode caching PASS.
+Latest519frontend/lint/typecheck PASS; new full build/cold/current CI/recovery
+still required. These scoped corrections do not prove earlier timing causes,
+performance vitals, real provider quality or complete mode/product acceptance.
+
+Stage26/27 followup: compact research-obligation-wire/1 provider transport now
+rehydrates every literal qualifier/control/limitation into the unchanged canonical
+stored schema. Prior full quoted capacity response measures387856offline text
+tokens; equivalent5157byte response measures2986using SentencePiece0.2.1 and
+Google SDK's SHA-pinned Gemma3 tokenizer. No provider request or token/budget
+increase. Quote fallback remains; malformed dictionaries fail, bad quoted
+qualifiers reject whole candidates, exact repeated Unicode spans retain offsets.
+This is not actual Gemini generation/offset accuracy/quality proof; distinct
+maximum free-text notes may still exceed4096 and must interrupt, not truncate.
+56focused/669Gateway, actual50source11step native Worker and whole disposable
+SQL65table160function restore PASS. Separate maximum-field320px browser desktop/
+mobile PASS:11answers/12candidates/50sources, reload/reopen, all qualifiers retained
+without detected horizontal overflow/page errors. Not LCP/INP/CLS acceptance.
+Fresh owning/build/full cold/browser/recovery/current CI still needed for this
+latest tree. Frozen stage02 remains valid prior WIP, not the latest source.
+Read-only Cloudflare now matches prior Chrome Ray a4cf79009ef19a42 at11:34:17Z
+to preview-props initialization error on version5db33e20. Latest11:52:56ZChrome
+still1101Ray a4cf9456ea12c0a0; its sampled log not obtained. No deployment or
+hosted/private/customer/provider changes; new044migration remains unapproved.
+
+Latest11:35Z followup: separate post-build cold research browser120PASS/4intentional
+SKIP at02:53:07Z;20ordinary builtWorker public browser/GET-HEAD200-404-405 PASS,
+not deployed/private acceptance. Fresh11:34Chrome research1101Ray a4cf79009ef19a42;
+public frontend2fbc5c9/gateway46bb14f CONFIGURED/production_verified:false unchanged.
+Ordinary retry regression confirms duplicate finding.create events (2not1);
+new044SQL now records creation only for first creation. Real SQL whole rehearsal/
+capacity/reread/50source Finding replay-single-audit/65table160function restore
+PASS11:34:06Z. Current LOCAL_ONLY_UNAPPROVED migration SHA256 is
+328c6d13f516867fe913e7fdc654de91b1ae32e6892f9f00ac26d773443c0bb9;
+olderd31source is frozen in stage01, not a current approval or install identity.
+Final parallel frontend515PASS/2five-second timeout failures (ChatInterface,
+CalculationTools) retained; no front-end correction applied to those tests.
+Unchanged subsequent full parallel run with no other owned test job517PASS
+at11:35:25Z does not prove the prior failures repaired. Prior043timing failure
+also stays unexplained. Original paused022551entries still byte-identical.
+WIPstage02/current exact-source CI/full fresh dependencies/recovery, real provider
+4096token/maximum UI/global budget/constraints/register remain unfinished; no
+commit/publication/deployment/hosted approval or full-mode/product acceptance.
+
+Later044ordinary SQL recovery/review and combined-capacity proof PASS at02:38Z:
+cancel/resume/deadline/503/incomplete/lost-commit-response retain progress and
+independent revision2review preserves unknown applicability/proposed controls.
+Actual SQL50sources/11questions/12candidates/25anchors/8queries and32768byte
+originals rereads8472402byte run and creates50source Finding10;65tables/160
+functions restore. Actual native Worker200row/50source/11step HTTP path holds
+8410814byte results,768254byte maximum result,30controlledrequests/step and
+ordinary503no automatic repeat; not hosted CPU/memory/free-budget/model proof.
+Maximum-field Unicode test reproduces valid20197code-unit/10826code-point answer
+rejected by client; Obligation-only length check now matches SQL code points.
+Ten focused ordinary browser journeys PASS,320px/light/dark/reload/source/review;
+first four test-locator failures retained and corrected, no weakened timeout.
+Fresh517frontend/665Gateway/102scripts/typecheck pass. First full frontend
+source-picker wait failed under load; unchanged isolated diagnostic passes;
+helper now explicitly advances the actual250ms debounce with a fake clock,
+retaining assertions. Full cold browser/build/native/manual review/current CI
+and complete fresh dependency/recovery remain unfinished. New044SQL unchanged
+LOCAL_ONLY_UNAPPROVED; source still uncommitted/unpublished/undeployed.
+Fresh Chrome research1101Ray a4cc571a9849a26a at02:26:50Z/version5db33e20;
+no matching new exception log obtained. Supabase projects/Qdrant healthy metadata,
+rehearsal latest20261018163237Deep; no platform/business/private/provider changes.
+
+Source-stage18 now631backend+10subtests/57isolated/lint/typecheck/foundation/
+baseline/NextOpenNext26routes and all four actual native probes PASS. Original
+paused022551entries again byte-identical02:42:18Z. First full research browser
+120PASS/4intentionalSKIP overlaps the build; retain it, do not label it the
+post-build cold acceptance. Separate source-postbuild-cold-stage20 is running.
+Potential Finding-create audit replay duplication needs an ordinary regression;
+do not infer its correction from one-Finding idempotency alone. Actual Gemini
+4096output-token envelope, maximum UI/performance, global free-storage/budget,
+constrained plans and wider obligation register remain unverified/unfinished.
+WIPstage02 preservation is separate from saved-source CI/fresh dependency recovery.
+
+PARTIAL_NOT_COMPLETE. Uncommitted functional work on verified043f248b5c/tree
+750971abee2626e912ee6018024502b00134eb84; no hosted approval or release.
+Frozen043708source/475evidence files recoveredNEW with28fresh guarded receipts,
+631backend+10/651Gateway/506frontend/57isolated/101scripts,110controlled and20
+ordinary actual builtWorker browser PASS;four intentional skips not passes.
+BATCH043_HANDOFF.md supersedes old043source-time pending labels where proven.
+Required image117784077454/summary117789192073 FAILED by metadata only. First
+043mobile-dark400chunk5000ms failure remains unexplained, not proven repaired.
+Read-only actual Chrome/Cloudflare confirms old2fbc5c9frontend/version5db33e20,
+preview-props manifest initialization error and research1101 still at01:40:32Z;
+local008source correction passes current recovered actual runtime, NOT deployed.
+Gateway46bb14fstillCONFIGURED/NOT_PROBED; healthy Supabase/Qdrant metadata is
+not private acceptance. No platform mutation or new hosted approval/application.
+
+044before-fix UI/executor failures retained. New scoped source-linked obligation
+candidate contracts/executor/Gateway/client/UI/localSQL preserve50sources/11
+questions/8queries/420seconds with exact original quotes/qualifiers/null pages,
+unknown applicability and proposed-not-implemented controls.66focused/661Gateway,
+33initial client/19later report/Findings cases/typecheck and actual11step550receipt
+SQL/concurrent-start/reread/Finding10/65table160function restore pass. Later copy
+and documentation edits need fresh checks. NewCLI-generated20261019015325SQL is
+LOCAL_ONLY_UNAPPROVED; full UI/cancel/resume/review/payload/budget/source/CI/fresh
+recovery and all constrained plans/wider register remain incomplete. See
+RESEARCH_OBLIGATION_EXECUTION_044.md. Do not publish as a finished mode/product.
+Original paused022/excluded security work/failed gates/full224scope unchanged.
+
+Later044source owning665Gateway/516frontend79files/102scripts, lint/typecheck/
+foundation/baseline/diff-check pass; earlier smaller counts and copy-pending
+notes above are historical stage receipts. Complete candidate JSON (including
+exceptions/definitions and unknown applicability) survives result copy/reopen.
+Original paused022551entries again byte-identical at02:04:26Z. Full cold browser,
+new-mode review/cancel/resume/capacity/budget/build/native, backend/blast-radius,
+saved-source CI and fresh complete recovery still unfinished; no release claim.
+
 ## Active Functional Batch: research-native-boundary-043
 
 PARTIAL_NOT_COMPLETE. Uncommitted controlled native runtime validation on

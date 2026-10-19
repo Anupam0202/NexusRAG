@@ -1,5 +1,72 @@
 # Requirement traceability
 
+Source-preparation044 stage37 full concurrent post-build browser122PASS/4SKIP
+and latest519frontend/lint/type/build PASS. Preserve earlier failed receipts;
+separate current source CI/publication/complete NEW dependency recovery still
+pending at source freeze. Newest completed BATCH044_HANDOFF.md/final receipts
+govern later observations. Old deployed frontend/research1101/source-schema
+drift/known failed gates/paused022/full224scope remain unresolved; no hosted
+operation or approval inferred from these local/controlled results.
+
+Later044full cold121PASS/4SKIP/1desktop max progress-wait FAIL remains retained,
+not erased by the mobile pass. New failing disclosure/copy/bounded Unicode-work
+regressions lead to on-demand native candidate bodies (all fields still available)
+and50rather than400source conversions per maximum result. Four repeated maximum
+cases and later whole12Obligation browser journeys pass; latest519frontend/lint/
+typecheck pass. No timeout increase; full current build/cold/CI/recovery still
+needed. No causal/performance-vital/real provider/hosted/full-mode acceptance.
+
+Later044compact provider transport preserves canonical12candidate/25anchor/50source
+fields without increasing4096output allowance. Old maximum quoted peer measured
+387856offline tokens, compact equivalent2986; actual Gemini generation/quality
+still unverified.56focused/669Gateway/native Worker/whole disposable SQL restore
+pass, with unchanged full canonical payload. Maximum-field320px desktop/mobile
+browser11answers/12candidates/50sources reload/reopen PASS, not performance-vital
+acceptance. Source/recovery/current CI and broader constraints/register/private/
+hosted/quality/budget remain open. Read-only CF log now exactly matches prior
+Chrome Ray a4cf79009ef19a42 to old-version preview-props error; latestChrome1101
+persists, no deployment. Earlier timing failures stay unexplained. No reduction
+of224definitions or field/mode scope; no new hosted approval/application.
+
+Latest044 post-build cold120controlled research PASS/4intentional skips and20
+ordinary actual builtWorker browser/GET-HEAD200-404-405 PASS. Duplicate Finding-
+creation audit retry reproduced2vs1, new044-only guard and actual complete SQL/
+capacity/replay/restore PASS; current unapproved328c6d13SQL, no hosted install.
+Later515frontend PASS/2five-second timeouts and unchanged subsequent parallel517
+PASS are both retained; unexplained failures are not called repaired. Fresh11:34
+Chrome research1101 and old frontend2fbc5c9/gateway46bb14f remain. No saved-source
+CI/fresh dependency/real provider/global budget/maximum UI/constrained-plan/wider
+register/complete product or production acceptance. Exact224definitions unchanged.
+
+Later044 ordinary lifecycle/review SQL and10focused production-page controlled
+browser journeys PASS. Combined real SQL50source/11question/12candidate/25anchor/
+8query8472402byte run exact reread/Finding10/65table160function restore and native
+Worker200row/32768byte/8410814byte result HTTP path PASS, not hosted/free-budget/
+actual Gemini token or quality proof. Confirmed Unicode client reopening defect
+fixed with Obligation-only code-point parity;517frontend/665Gateway/102scripts/
+typecheck pass. First source-picker debounce harness failure retained and clock
+made deterministic without weaker assertions. Fresh full cold/build/manual review/
+saved-source CI and complete dependency/recovery remain required; no044hosted
+approval/application/deployment, no change to224definitions or unfinished scope.
+
+044uncommitted Obligation Analysis now has provisional exact-source candidate
+contracts and actual50source/11question/8query/420second execution, typed UI and
+local persistence/Findings lineage. Before-fix UI/executor failures are retained;
+661Gateway and real550receipt11step concurrent-start/reread/Finding10/65table160
+function restore pass, not full mode/product/quality/private/hosted acceptance.
+Controls remain proposed, applicability undetermined, missing fields explicit.
+Constraints/public acquisition/wider register, UI/recovery/review/capacity/budget
+parity/full owning/build/current CI/fresh complete recovery remain required.
+New20261019015325SQL is LOCAL_ONLY_UNAPPROVED. Complete043source/evidence and28
+fresh receipts are bound in BATCH043_HANDOFF.md, not current044acceptance. Old
+candidate source/research1101, failed required gates, paused022 and all broader
+224definitions/tenproducts/twelvemodes/400+125quality remain unfinished.
+
+Later044owning665Gateway/516frontend79files/102scripts/lint/typecheck/foundation/
+baseline/diff checks pass and copy/reopen preserves all candidate qualifiers.
+The full source remains uncommitted; actual browser/review/cancel/resume/maximum
+payload/budget/native/build/saved-source CI and fresh recovery are not accepted.
+
 043adds actual native Worker queue/storage-adapter proof for Deep60source/eight
 query/32768byte originals,144prior/156context/344consulted synthesis and ordinary
 provider503interruption/no repeat. Initial Unicode mismatch was corrected in
