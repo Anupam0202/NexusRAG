@@ -13,6 +13,33 @@
   "interpretation": "OPEN_ENGINEERING includes implemented but not fully accepted requirements; it does not assert that no code or scoped evidence exists. External approvals do not close unfinished internal work.",
   "entries": [
     {
+      "id": "ENGINEERING-CLIPBOARD-TRANSITIONS",
+      "requirement": "Ordinary chat and Research copying must report failure, bound pending writes and preserve truthful response/selection feedback",
+      "normative_source": "Adopted copy/export,chat/research ordinary reliability and accessible error workflows; exact224definitions unchanged",
+      "status": "IN_PROGRESS",
+      "environment": "uncommitted047 on published046fa19aa1/treef7c621a; frozen046source/evidence recovery and CI complete as a scoped milestone,required image/summary FAILED",
+      "next_action": "39focused and all15source checks pass,including539frontend81files,SQL65table160function restore,NextOpenNext26routes/four native probes. Whole post-build Research138PASS/4SKIP/chat-summary8PASS,owned servers stopped. Manual review/runtime command scope explicit; prior timing/proxy not proven repaired. Save/publish existing PR12,current saved-source CI and complete NEW source/dependency/evidence recovery remain; external final047handoff governs later milestones. No new hosted/migration/provider/private/destructive/dependency/security work or release waiver.",
+      "acceptance_evidence": [{
+        "environment": "whole reviewed uncommitted047 source,controlled desktop/mobile production UI and actual local native/SQL implementations with synthetic peers; not hosted/private/model/clipboard-permission acceptance",
+        "observed_at": "2026-10-20T20:02:57Z",
+        "source_identity": "parentfa19aa157b232f75a26ab740d113cf4339a88854 plus reviewed047; exact saved identity still pending externally",
+        "command_or_url": "batch047/logs/source047-final-*-01.log; source047-postbuild-research-browser-01.log; source047-postbuild-chat-browser-01.log; runtime-command-scope.json",
+        "result": "All15owning source checks PASS,631backend+10/669Gateway/539frontend81files/57isolated/104scripts,lint/type/baseline/SQL65table160function restore/NextOpenNext26routes/four native probes. Whole post-build138Research+8chat-summary browser PASS,4intentional skips not passes,owned3097/3098servers stopped. Manual functional review only; explicit Vitest/native bundled Node24.19.0 and installed npm shim Node24.6.0 distinguished,child runtime untraced,no older timing/proxy causal repair or waiver. Save/publication/current CI/full fresh recovery remain; full accepted scope PARTIAL_NOT_COMPLETE."
+      },{
+        "environment": "ordinary production React/Gateway fixtures,synthetic chat transport and real disposable SQL; not hosted/private/real model/clipboard permission/SQL chat durability acceptance",
+        "observed_at": "2026-10-20T19:53:44Z",
+        "source_identity": "published046fa19aa1 plus uncommitted047; corrected browser cleanup and explicit non-submitting clipboard controls; not published/deployed",
+        "command_or_url": "batch047/logs/busy-selection-corrected-before-browser-01.log; source047-corrected-research-browser-01.log; source047-chat-browser-01.log; source047-final-*-01.log; browser-route-preparation-correction.json",
+        "result": "Actual frozen046UI before four intended disabled-control failures/12passes,no route/unhandled/test timeout errors. Corrected047Research16PASS and chat-summary8PASS,including explicit cover-letter selection,returned-answer copy parity/no repeat submission and ordinary failure/pending/retry. Dark desktop/mobile screenshots reviewed. Whole539frontend81files/631backend+10/669Gateway/57isolated/104scripts,lint/type/foundation/baseline/real65table160function restore PASS. Build/native/full post-build/current CI/NEW recovery remain. Earlier timing/proxy and all accepted release prerequisites stay unresolved; no full accepted-scope or production acceptance."
+      },{
+        "environment": "production React components with synthetic API/clipboard peers; existing reduced-motion behavior for clock-driven chat tests; not actual hosted/private/native clipboard permission acceptance",
+        "observed_at": "2026-10-20T19:19:11Z",
+        "source_identity": "parentfa19aa157b232f75a26ab740d113cf4339a88854 plus active047 component/test edits; uncommitted/unpublished/undeployed",
+        "command_or_url": "batch047/logs/clipboard-transitions-before-01.log; clipboard-transitions-before-02.log; clipboard-transitions-after-01.log; initial-observation-and-fixture.json",
+        "result": "Seven intended before failures/13passes,not timeout; initial delayed observation corrected using original terminal receipt. Reduced-motion fixture retains visibility assertions and same seven before failures. Scoped Research busy/pending guard and chat copy error/pending/current-response/timer correction pass39tests/fivefiles. New chat/expanded Research browser journeys and CI inclusion guard added but not yet executed. Owning/current CI/full fresh recovery remain; full accepted scope PARTIAL_NOT_COMPLETE."
+      }]
+    },
+    {
       "id": "ENGINEERING-RESEARCH-COPY-PARITY",
       "requirement": "Ordinary Copy results must preserve saved structured analyses and give truthful recoverable clipboard feedback",
       "normative_source": "Adopted research copy/export,provenance,review and ordinary reliability workflows; exact224definitions unchanged",

@@ -179,7 +179,7 @@ jobs:
             sleep 1
           done
           test "$ready" = true || { cat /tmp/nexusrag-summary-fixture.log; exit 1; }
-          E2E_SUMMARY_COMPONENT_FIXTURE=1 E2E_BASE_URL=http://127.0.0.1:3023 npm exec playwright -- test summary-selection.spec.ts --workers=2
+          E2E_SUMMARY_COMPONENT_FIXTURE=1 E2E_BASE_URL=http://127.0.0.1:3023 npm exec playwright -- test summary-selection.spec.ts chat-copy.spec.ts --workers=2
       - name: Synthetic research planning UI and Gateway journey
         working-directory: frontend
         run: |

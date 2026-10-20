@@ -122,3 +122,17 @@ it("does not hide an execution refresh failure when copying the last saved answe
   fireEvent.click(button); await screen.findByRole("button", { name: /^Copied$/ });
   expect(screen.getByRole("alert")).toHaveTextContent("Execution refresh unavailable");
 });
+it("does not copy the previous execution while a different execution is opening", async () => {
+  const first = researchCopyRun("COMPARE"), second = { ...researchCopyRun("COMPARE"), id: "33333333-3333-4333-8333-333333333334" };
+  const button = await open(first, [first, second]);
+  let finish!: (value: ResearchRun) => void;
+  api.researchRunCommand.mockReturnValueOnce(new Promise<ResearchRun>(resolve => { finish = resolve; }));
+  fireEvent.click(screen.getByRole("button", { name: `Open execution ${second.id}` }));
+  const disabledWhileOpening = button.hasAttribute("disabled");
+  await act(async () => { fireEvent.click(button); });
+  const attemptsWhileOpening = writeText.mock.calls.length;
+  await act(async () => { finish(second); });
+  expect(disabledWhileOpening).toBe(true); expect(attemptsWhileOpening).toBe(0);
+  expect(screen.queryByRole("button", { name: /^Copied$/ })).not.toBeInTheDocument();
+  expect(screen.getByRole("button", { name: /^Copy results$/ })).toBeEnabled();
+});

@@ -1,5 +1,24 @@
 # Requirement traceability
 
+047ordinary clipboard transitions: seven actual before failures and39focused
+after passes19:19:11Z; Research primary-operation guard and chat explicit error,
+pending/success/reset lifecycle. Browser/CI inclusion added; full owning/build/
+browser/current CI/NEW recovery pending. Frozen046fa19aa1729file source/recovery
+is separate and still finishing checks; do not cancel its current CI. Exact224
+definitions/accepted scope unchanged; no excluded work/hosted/release waiver.
+See CLIPBOARD_TRANSITIONS_047.md. PARTIAL_NOT_COMPLETE.
+Later047Research16/chat-summary8browser PASS19:45:37Z after exact intended four
+before failures on frozen046UI; no route cleanup errors. Whole539frontend81files,
+631backend+10/669Gateway/57isolated/104scripts,lint/type/baseline/real SQL65table
+160function restore PASS19:53:44Z. Build/native/full post-build/current CI/NEW
+source/dependency/evidence recovery remain. No private/model/SQL chat-durability
+or full product/production acceptance follows from synthetic returned-answer copy.
+Final047source15checks PASS19:56:07Z and whole post-build Research138PASS/4SKIP/
+chat-summary8PASS20:02:57Z;owned fixtures stopped,manual review only. Runtime
+command scope and unresolved prior timing/proxy limitations explicit. Saved-source
+publication/current CI/complete NEW dependency/source/evidence recovery remain;
+later external final047handoff governs them,not any224requirement closure.
+
 046ordinary research-copy regressions reproduce four omitted saved structures,
 stale clipboard retry error,missing API exception and late feedback on another
 execution. Four further active-copy failures corrected without stopping progress

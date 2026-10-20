@@ -155,6 +155,15 @@ class ResearchWorkflowTests(unittest.TestCase):
         self.assertIn("await page.reload()",browser)
         self.assertTrue((ROOT / "frontend/src/lib/research-run-copy.ts").is_file())
 
+    def test_chat_copy_ordinary_recovery_is_in_required_browser_ci(self):
+        workflow=(ROOT / ".github/workflows/v6-foundation-ci.yml").read_text()
+        browser=(ROOT / "frontend/src/e2e/chat-copy.spec.ts").read_text()
+        self.assertIn("summary-selection.spec.ts chat-copy.spec.ts",workflow)
+        self.assertIn("E2E_SUMMARY_COMPONENT_FIXTURE",browser)
+        self.assertIn('toHaveText("The clipboard was unavailable.")',browser)
+        self.assertIn('toHaveAttribute("aria-busy", "true")',browser)
+        self.assertIn(".toBe(expected)",browser)
+
     def test_generated_html_fixture_declares_cold_dependency_entry(self):
         fixture=(ROOT / "frontend/scripts/research-browser-fixture.mjs").read_text()
         self.assertIn('entries: ["scripts/fixtures/research-plans.tsx"]',fixture)

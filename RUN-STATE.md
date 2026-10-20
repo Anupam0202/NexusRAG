@@ -1,5 +1,46 @@
 # NexusRAG execution checkpoint
 
+## Active Functional Batch: clipboard-transitions-047
+
+Active uncommitted047 on published046fa19aa157b232f75a26ab740d113cf4339a88854/
+treef7c621a06cdae33cee7ea495fdb7e19d2df2bfe8. Frozen046729file archive/recovered
+source remain separate; fresh dependencies and532frontend80files pass, remaining
+recovery/native/browser/build pipeline and required image/summary still running.
+New ordinary before regressions reproduce seven chat/research copy-transition
+failures; original run completed,no timeout despite delayed observation. After
+existing reduced-motion fixture preparation,the same seven cases fail again.
+Scoped primary-operation guard and chat feedback/pending/timer lifecycle fixes
+pass39focused tests19:19:11Z. New/expanded browser journeys and CI inclusion guard
+added; owning/build/browser/current CI/NEW complete recovery pending. Read
+docs/implementation/CLIPBOARD_TRANSITIONS_047.md. Do not publish047 and cancel
+active046CI via its concurrency policy. No migration/hosted/provider/private/
+destructive/deployment/dependency/security operation or paused022resumption.
+All accepted scope remains PARTIAL_NOT_COMPLETE; exact045approval already fulfilled.
+Later046checkpoint complete as a scoped recovery milestone:729source/404evidence
+files recoveredNEW,31guarded fresh receipts,138controlled+20ordinary stampedWorker
+browser PASS/4SKIP,source SHA383beb56.../evidenceff4eec3c... in BATCH046_HANDOFF.
+Ordinary exact-tree CI passes;required image118823372134and summary118836174461
+FAIL by metadata only. No new finding count/scan logs or release waiver.
+047browser before on frozen046fails four intended selection checks/12passes.
+Initial after catches a test-route cleanup lifecycle error; corrected documented
+wait cleanup retains all assertions and corrected before fails only the same four
+cases,no route/unhandled/test timeout errors. Corrected047after/chat are running;
+full latest-tree owning/build/browser/current CI/NEW recovery remain required.
+Corrected047Research16browser PASS19:45:19Z and chat/summary8PASS19:45:37Z;
+all four actual old-UI selection failures now pass without route cleanup errors.
+Chat copy equals the returned API response/no repeat submission,not durable SQL
+chat/private/model/clipboard-permission proof. Dark desktop/mobile screenshots
+reviewed. Whole539frontend81files/631backend+10/669Gateway/57isolated/104scripts,
+lint/type/foundation/baseline and real65table160function restore PASS19:53:44Z;
+build/native/full post-build/current CI/full NEW recovery remain pending.
+Later reviewed15source checks PASS19:56:07Z;whole post-build Research138PASS/
+4intentionalSKIP20:02:40Z and chat-summary8PASS20:02:57Z,owned servers stopped.
+Manual functional review only. Explicit Vitest/native Node24.19.0 differs from
+installed npm shim Node24.6.0; child lifecycle versions untraced,not all commands
+claimed single-runtime. No old timing/proxy root cause/waiver. Save/publish via
+existing PR12,current exact-source CI and NEW complete source/dependency/evidence
+recovery still separate. External finalBATCH047_HANDOFF governs later milestones.
+
 ## Active Functional Batch: research-copy-parity-046
 
 Uncommitted046 on saved045cea6c26/tree7adc3ec; preserve paused022 and frozen724file

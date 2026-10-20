@@ -1,7 +1,7 @@
 "use client";
 
 import type { AnchorHTMLAttributes, ReactNode } from "react";
-import { useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import type { UIMessage } from "@/types";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -21,6 +21,10 @@ export function MessageBubble({ message, onShowSources }: Props) {
   const isUser = message.role === "user";
   const [showInlineSources, setShowInlineSources] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [copying, setCopying] = useState(false);
+  const [copyError, setCopyError] = useState<string | null>(null);
+  const copyPending = useRef(false), copySequence = useRef(0), alive = useRef(true);
+  const copyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const sourceRegionId = useId();
   const reducedMotion = useReducedMotion();
   const hasSources = (message.sources?.length ?? 0) > 0;
@@ -36,13 +40,35 @@ export function MessageBubble({ message, onShowSources }: Props) {
   const claimState = typeof message.metadata?.claim_state === "string"
     ? message.metadata.claim_state : undefined;
 
+  useEffect(() => {
+    const timer = copyTimer, sequence = copySequence;
+    alive.current = true; sequence.current++;
+    setCopied(false); setCopyError(null);
+    return () => {
+      alive.current = false; sequence.current++;
+      if (timer.current !== null) { clearTimeout(timer.current); timer.current = null; }
+    };
+  }, [message.id, message.content, message.isStreaming]);
+
   const handleCopy = async () => {
+    if (copyPending.current || !message.content || message.isStreaming) return;
+    copyPending.current = true; setCopying(true); setCopied(false); setCopyError(null);
+    if (copyTimer.current !== null) { clearTimeout(copyTimer.current); copyTimer.current = null; }
+    const operation = ++copySequence.current;
+    const current = () => alive.current && copySequence.current === operation;
     try {
       await navigator.clipboard.writeText(message.content);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      if (current()) {
+        setCopied(true);
+        copyTimer.current = setTimeout(() => {
+          if (current()) { setCopied(false); copyTimer.current = null; }
+        }, 2000);
+      }
     } catch {
-      // Clipboard access denied — silently ignore
+      if (current()) setCopyError("The clipboard was unavailable.");
+    } finally {
+      copyPending.current = false;
+      if (alive.current) setCopying(false);
     }
   };
 
@@ -124,12 +150,15 @@ export function MessageBubble({ message, onShowSources }: Props) {
 
                 {/* Copy button */}
                 <button
+                  type="button"
                   onClick={handleCopy}
-                  className="flex items-center gap-1 rounded-full bg-[var(--bg-secondary)] px-2 py-0.5 text-[11px] font-medium text-[var(--text-muted)] hover:text-[var(--text-primary)] transition opacity-100 sm:opacity-0 sm:group-hover/bubble:opacity-100 sm:group-focus-within/bubble:opacity-100 focus-visible:opacity-100"
+                  disabled={copying}
+                  aria-busy={copying}
+                  className="flex min-w-[84px] items-center justify-center gap-1 rounded-full bg-[var(--bg-secondary)] px-2 py-0.5 text-[11px] font-medium text-[var(--text-muted)] hover:text-[var(--text-primary)] transition opacity-100 sm:opacity-0 sm:group-hover/bubble:opacity-100 sm:group-focus-within/bubble:opacity-100 focus-visible:opacity-100 disabled:cursor-wait"
                   aria-label="Copy response to clipboard"
                 >
                   {copied ? <Check size={11} className="text-green-500" /> : <Copy size={11} />}
-                  {copied ? "Copied" : "Copy"}
+                  {copying ? "Copying..." : copied ? "Copied" : "Copy"}
                 </button>
 
                 {hasSources && (
@@ -159,6 +188,7 @@ export function MessageBubble({ message, onShowSources }: Props) {
                 )}
               </div>
             )}
+            {copyError && <p role="alert" className="mt-2 text-xs text-red-700 dark:text-red-300">{copyError}</p>}
 
             {/* Inline sources preview */}
             {showInlineSources && message.sources && (

@@ -59,7 +59,7 @@ export function ResearchRuns({plan,workspaceId,userId,canWrite}:{plan:ResearchPl
     finally{if(current()){pending.current=false;setBusy(false);}}
   }
   async function copyResults() {
-    if(copyPending.current||!selected?.results.length)return;
+    if(copyPending.current||pending.current||busy||!selected?.results.length)return;
     copyPending.current=true;setCopying(true);setCopied(false);setCopyError(null);
     const operation=sequence.current,attempt=++copySequence.current;
     const current=()=>alive.current&&sequence.current===operation&&copySequence.current===attempt;
@@ -105,7 +105,7 @@ export function ResearchRuns({plan,workspaceId,userId,canWrite}:{plan:ResearchPl
         {active&&<button className={button} disabled={busy||!canWrite} onClick={()=>void operate(()=>researchRunCommand(plan.id,context,"cancel",selected.id))}><Square size={16}/>Cancel execution</button>}
         {["cancelled","interrupted"].includes(selected.state)&&<button className={button} disabled={busy||!canWrite||!attested||selected.source_state!=="CURRENT"||selected.generation>=10}
           onClick={()=>void operate(()=>researchRunCommand(plan.id,context,"resume",selected.id,undefined,plan.plan.mode))}><Play size={16}/>Resume remaining questions</button>}
-        <button className={`${button} min-w-[132px]`} disabled={copying||!selected.results.length} aria-busy={copying} onClick={()=>void copyResults()}><Copy size={16}/>{copying?"Copying...":copied?"Copied":"Copy results"}</button>
+        <button type="button" className={`${button} min-w-[132px]`} disabled={busy||copying||!selected.results.length} aria-busy={copying} onClick={()=>void copyResults()}><Copy size={16}/>{copying?"Copying...":copied?"Copied":"Copy results"}</button>
       </div>
       {copyError&&<p role="alert" className="mb-3 rounded-lg border border-red-300 p-3 text-sm text-red-700 dark:text-red-300">{copyError}</p>}
       {selected.source_state==="CURRENT"&&selected.mode==="TIMELINE"&&selected.results.length>0&&<TimelineOverview run={selected}/>}

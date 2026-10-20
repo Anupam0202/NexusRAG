@@ -64,5 +64,24 @@ for (const theme of ["light", "dark"]) for (const mode of Object.keys(fields) as
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     expect(recordErrors).toEqual([]); expect(errors).toEqual([]);
     await page.screenshot({ path: testInfo.outputPath(`saved-${mode}-${theme}-copied.png`), fullPage: true });
+    if (mode === "COMPARE") {
+      const earlier = completed!;
+      await page.getByRole("checkbox", { name: /I confirm that all questions/ }).check();
+      await page.getByRole("button", { name: "Start research", exact: true }).click();
+      await expect(page.getByRole("button", { name: /Open execution/ })).toHaveCount(2);
+      await expect(page.getByRole("status").filter({ hasText: "Execution finished" })).toContainText("1 of 1");
+      let release!: () => void, intercepted = false;
+      const opening = new Promise<void>(resolve => { release = resolve; });
+      const target = `**/api/v2/research/plans/${earlier.plan_id}/runs/${earlier.id}*`;
+      await page.route(target, async route => { intercepted = true; await opening; await route.continue(); });
+      try {
+        await page.getByRole("button", { name: `Open execution ${earlier.id}`, exact: true }).click();
+        await expect.poll(() => intercepted).toBe(true);
+        await expect(page.getByRole("button", { name: "Copy results", exact: true })).toBeDisabled();
+        await expect(page.getByRole("button", { name: "Copied", exact: true })).toHaveCount(0);
+      } finally { release(); await page.unrouteAll({ behavior: "wait" }); }
+      await expect(page.getByRole("button", { name: "Copy results", exact: true })).toBeEnabled();
+      expect(errors).toEqual([]); expect(recordErrors).toEqual([]);
+    }
   });
 }

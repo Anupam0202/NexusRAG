@@ -4,6 +4,33 @@ Status: **PARTIAL_NOT_COMPLETE — locally tested implementation; not production
 
 This receipt supersedes historical status claims only where it records a fresh observation. It does not certify a complete product, production release, provider rights, or absence of all defects.
 
+## Clipboard Transitions - Active Functional047
+
+Uncommitted047 on published046fa19aa1; frozen046729file source/recovery stays
+unchanged while its remaining checks/current image CI continue. New before-run
+seven intended failures/13passes,not a timeout: Research copy during selection,
+chat silent failure/missing API,duplicate pending writes,stale response feedback
+and overlapping success timers. Reduced-motion fixture retains visibility
+assertions; repeat before still seven failures. Scoped guards/feedback lifecycle
+correction passes39focused tests19:19:11Z. Browser journeys/CI inclusion added,
+owning/build/current CI/full NEW recovery remain; do not publish and cancel046CI.
+No new migration/provider/hosted/private/destructive/deployment/dependency/security
+work. Full accepted scope/failed gates/paused022/prior timing/old1101 remain open.
+See CLIPBOARD_TRANSITIONS_047.md; not private or production acceptance.
+Later corrected Research16and chat/summary8browser PASS19:45:37Z,including actual
+old-UI before/after selection parity and returned-answer byte equality/no repeat
+chat submission. Route lifecycle preparation failure retained/corrected with
+documented wait,no ignoreErrors/assertion/timeout relaxation. Manual dark desktop/
+mobile screenshots reviewed. Whole539frontend81files/631backend+10/669Gateway/
+57isolated/104scripts,lint/type/foundation/baseline and SQL65table160function
+restore PASS19:53:44Z; build/native/full post-build/current CI/NEW recovery remain.
+Later reviewed15checks PASS19:56:07Z,Next/OpenNext26routes/four native probes;
+full post-build Research138PASS/4SKIP/chat-summary8PASS20:02:57Z,owned ports closed.
+Manual review only. Explicit bundled Vitest/native runtime is not proof every
+installed npm lifecycle child uses it; actual command scope recorded. Prior
+timing/proxy failures not proven repaired. Save/current CI/NEW recovery remain;
+later external final047handoff governs those milestones,not production acceptance.
+
 ## Research Copy Parity - Active Functional046
 
 Actual component before-run18:22:43Z fails seven tests/one client exception, not
