@@ -1,5 +1,41 @@
 # NexusRAG execution checkpoint
 
+## Active Functional Batch: research-copy-parity-046
+
+Uncommitted046 on saved045cea6c26/tree7adc3ec; preserve paused022 and frozen724file
+source/365file evidence. Actual ordinary component regression fails7tests and one
+missing-clipboard API client exception: four modes omit canonical copy data;
+retry retains stale error; late completion marks another execution Copied. All
+fixtures pass actual saved-run validation. Scoped formatter/async correction plus
+Further four active-copy regressions FAIL18:40:22Z; separate clipboard error/
+pending state and saved-progress sequence fix duplicate writes,stopped polling,
+stale partial-copy feedback and hidden execution errors.24focused tests PASS
+18:43:34Z. Reviewed15source checks PASS18:49:43Z:631backend+10/669Gateway/
+532frontend80files/57isolated/103scripts,lint/type/foundation/baseline,SQL65table
+160function restore,NextOpenNext26routes/four native probes. Controlled desktop/
+mobile browser,current saved-source CI and complete NEW source/dependency/evidence
+recovery pending; manual review only. Prior timing/native-proxy failures unresolved.
+Whole controlled browser138PASS/4intentionalSKIP18:54:59Z,including16new
+desktop/mobile/light/dark copy/reload/failure-retry journeys; owned fixture stopped.
+Copy records equal the reopened completed API structures/hashes. Desktop/mobile
+dark screenshots manually inspected; actual clipboard permissions not tested.
+Existing PR12 publication/current-tree CI and NEW complete source/dependency/
+evidence recovery remain separate; external finalBATCH046_HANDOFF governs later
+milestones once present. This is not whole product/private/production acceptance.
+No backend/migration/provider/hosted/customer/private/destructive/deployment change.
+Read docs/implementation/RESEARCH_COPY_PARITY_046.md. Full scope remains open.
+Fresh Chrome18:47:08Z deployed/research still1101Raya4da3074ce619a62; no new Ray/log
+correlation or current version check. No local fix deployed or private acceptance.
+
+Exact045owner approval fulfilledONCEas rehearsal20261020181645,37function/six
+constraint equality to fresh exact-source reference,only five bodies changed,
+36prior registry records unchanged. Separate16file recovered addendum SHA256
+52a8476b3f193762ca8353c7f4c46a27b4ed029869511e0da916ef2afa3bac91.
+Frozen045source/evidence unchanged. Scoped31receipt recovery passes using explicit
+full passing runtime-comparison receipts, but original timing/native-proxy failures
+remain unexplained/unrepaired. Required image/summaryFAILED by metadata only;
+no new scan/investigation. No actual deployment/private/production acceptance.
+
 ## Active Functional Batch: finding-creation-replay-045
 
 Uncommitted045 on saved0441f2a863/tree0adb733; preserve paused022. Actual new

@@ -4,6 +4,36 @@ Status: **PARTIAL_NOT_COMPLETE — locally tested implementation; not production
 
 This receipt supersedes historical status claims only where it records a fresh observation. It does not certify a complete product, production release, provider rights, or absence of all defects.
 
+## Research Copy Parity - Active Functional046
+
+Actual component before-run18:22:43Z fails seven tests/one client exception, not
+a fixture-authority failure: all synthetic records pass actual saved-run parsing.
+Comparison/timeline/paired-statement/Deep copied summaries omit complete saved
+structures; retry retains old error,missing API throws and late completion marks
+another execution Copied. Scoped formatter and guarded async action plus22focused
+tests pass18:27:36Z, including old query/Obligation behavior and multi/empty results.
+Further four ordinary active-copy failures18:40:22Z corrected by independent
+clipboard error/pending/progress feedback state.24focused and final15owning checks
+PASS18:49:43Z:631backend+10/669Gateway/532frontend80files/57isolated/103scripts,
+lint/type/build/real65table160function restore and four native probes. Earlier045
+timing/proxy failures unresolved; manual functional review only. Actual Chrome
+18:47:08Z still deployed1101Raya4da3074ce619a62; no new log correlation/version
+check or deployment. No persisted research/source data is altered. Controlled
+browser/current CI/NEW source/dependency/evidence recovery remain pending; not full
+mode/product/private/production acceptance. See RESEARCH_COPY_PARITY_046.md.
+Later same-source controlled browser138PASS/4intentionalSKIP18:54:59Z,including
+all16copy desktop/mobile/light/dark journeys and reload/API record parity. Owned
+fixture stopped. Manual desktop/mobile dark screenshot review only; clipboard
+permission/private/OAuth/quality not accepted. Existing PR12/current-tree CI and
+NEW full source/dependency/evidence recovery still separate; external final046
+handoff governs later saved-source milestones once present.
+
+Only exact045owner approval installedONCEas rehearsal20261020181645;37function/
+sixconstraint equality,only five bodies changed,36prior registry records unchanged.
+Separate16file recovered addendum SHA52a8476b...; complete external handoff has full
+checksum. Frozen045archives unchanged. Failed gates,unexplained timing/dev-proxy,
+active old1101/drift,paused022and full remaining accepted scope are not cleared.
+
 ## Finding Creation Replay - Active Functional045
 
 Actual ordinary concurrent/sequential SQL regression fails with seven paths

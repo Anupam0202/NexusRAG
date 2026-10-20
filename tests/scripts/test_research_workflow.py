@@ -145,6 +145,16 @@ class ResearchWorkflowTests(unittest.TestCase):
         self.assertIn("src/app/research/page", entry)
         self.assertIn("E2E_RESEARCH_COMPONENT_FIXTURE", (ROOT / ".github/workflows/v6-foundation-ci.yml").read_text())
 
+    def test_saved_research_copy_parity_is_in_required_browser_ci(self):
+        workflow=(ROOT / ".github/workflows/v6-foundation-ci.yml").read_text()
+        browser=(ROOT / "frontend/src/e2e/research-copy.spec.ts").read_text()
+        self.assertIn("research-copy.spec.ts",workflow)
+        for mode in ("COMPARE","TIMELINE","CONTRADICTION_ANALYSIS","DEEP_RESEARCH"):
+            self.assertIn(mode,browser)
+        self.assertIn("JSON.stringify(structure, null, 2)",browser)
+        self.assertIn("await page.reload()",browser)
+        self.assertTrue((ROOT / "frontend/src/lib/research-run-copy.ts").is_file())
+
     def test_generated_html_fixture_declares_cold_dependency_entry(self):
         fixture=(ROOT / "frontend/scripts/research-browser-fixture.mjs").read_text()
         self.assertIn('entries: ["scripts/fixtures/research-plans.tsx"]',fixture)

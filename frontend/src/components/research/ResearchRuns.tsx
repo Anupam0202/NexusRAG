@@ -5,6 +5,7 @@ import Link from "@/components/layout/StaticLink";
 import { listResearchRuns, researchRunCommand } from "@/lib/api";
 import type { ResearchRun } from "@/lib/research-run";
 import type { ResearchPlanRecord } from "@/lib/research-plan";
+import { researchResultsClipboardText } from "@/lib/research-run-copy";
 import { ResearchFindingAction } from "./ResearchFindingAction";
 import { ComparisonMatrix } from "./ComparisonMatrix";
 import { TimelineOverview } from "./TimelineEvents";
@@ -17,7 +18,9 @@ const button="inline-flex items-center justify-center gap-2 rounded-lg border bo
 export function ResearchRuns({plan,workspaceId,userId,canWrite}:{plan:ResearchPlanRecord;workspaceId:string;userId:string;canWrite:boolean}) {
   const [items,setItems]=useState<ResearchRun[]>([]),[selected,setSelected]=useState<ResearchRun|null>(null),[after,setAfter]=useState<string|null>(null);
   const [busy,setBusy]=useState(false),[error,setError]=useState<string|null>(null),[attested,setAttested]=useState(false),[copied,setCopied]=useState(false);
+  const [copyError,setCopyError]=useState<string|null>(null),[copying,setCopying]=useState(false);
   const alive=useRef(true),pending=useRef(false),sequence=useRef(0),startKey=useRef<string|null>(null),heading=useRef<HTMLHeadingElement>(null);
+  const copyPending=useRef(false),copySequence=useRef(0);
   const context={workspaceId,expectedUserId:userId};
   const supported=["QUICK_LOOKUP","EVIDENCE_ANSWER","COMPARE","TIMELINE","CONTRADICTION_ANALYSIS","DEEP_RESEARCH","OBLIGATION_ANALYSIS"].includes(plan.plan.mode),comparing=plan.plan.mode==="COMPARE",batched=comparing||plan.plan.mode==="TIMELINE";
   const scopeMissing=comparing?new Set(plan.plan.private_source_ids).size<2:!plan.plan.private_source_ids.length;
@@ -37,20 +40,37 @@ export function ResearchRuns({plan,workspaceId,userId,canWrite}:{plan:ResearchPl
     let current=true;
     const timer=setTimeout(()=>{
       researchRunCommand(plan.id,{workspaceId,expectedUserId:userId},"read",selected.id).then(value=>{
-        if(current){setSelected(value);setItems(items=>items.map(item=>item.id===value.id?value:item));}
+        if(current){
+          if(value.position!==selected.position||value.generation!==selected.generation||value.source_state!==selected.source_state){copySequence.current++;setCopied(false);}
+          setSelected(value);setItems(items=>items.map(item=>item.id===value.id?value:item));
+        }
       }).catch(error=>{if(current)setError(error instanceof Error?error.message:"Run refresh failed.");});
     },1500);
     return()=>{current=false;clearTimeout(timer);};
   },[selected,active,busy,error,plan.id,workspaceId,userId]);
   async function operate(action:()=>Promise<ResearchRun|void>) {
     if(pending.current||busy)return;
-    pending.current=true;setBusy(true);setError(null);setCopied(false);
+    pending.current=true;setBusy(true);setError(null);setCopied(false);setCopyError(null);copySequence.current++;
     const operation=++sequence.current,current=()=>alive.current&&sequence.current===operation;
     try {
       const result=await action();
       if(current()&&result){setSelected(result);setItems(items=>[result,...items.filter(item=>item.id!==result.id)]);heading.current?.focus({preventScroll:true});}
     } catch(error){if(current())setError(error instanceof Error?error.message:"Run operation failed.");}
     finally{if(current()){pending.current=false;setBusy(false);}}
+  }
+  async function copyResults() {
+    if(copyPending.current||!selected?.results.length)return;
+    copyPending.current=true;setCopying(true);setCopied(false);setCopyError(null);
+    const operation=sequence.current,attempt=++copySequence.current;
+    const current=()=>alive.current&&sequence.current===operation&&copySequence.current===attempt;
+    try {
+      await navigator.clipboard.writeText(researchResultsClipboardText(selected.results));
+      if(current())setCopied(true);
+    } catch {
+      if(current())setCopyError("The clipboard was unavailable.");
+    } finally {
+      copyPending.current=false;if(alive.current)setCopying(false);
+    }
   }
   return <section aria-label="Research executions" className="mt-6 min-w-0 border-t border-[var(--border)] pt-5">
     <header className="mb-3 flex flex-wrap items-center justify-between gap-3"><h3 ref={heading} tabIndex={-1} className="text-base font-semibold">Executions</h3>
@@ -85,9 +105,9 @@ export function ResearchRuns({plan,workspaceId,userId,canWrite}:{plan:ResearchPl
         {active&&<button className={button} disabled={busy||!canWrite} onClick={()=>void operate(()=>researchRunCommand(plan.id,context,"cancel",selected.id))}><Square size={16}/>Cancel execution</button>}
         {["cancelled","interrupted"].includes(selected.state)&&<button className={button} disabled={busy||!canWrite||!attested||selected.source_state!=="CURRENT"||selected.generation>=10}
           onClick={()=>void operate(()=>researchRunCommand(plan.id,context,"resume",selected.id,undefined,plan.plan.mode))}><Play size={16}/>Resume remaining questions</button>}
-        <button className={button} disabled={!selected.results.length} onClick={()=>void navigator.clipboard.writeText(selected.results.map(result=>`${result.question}\n${result.answer}\n${result.sources.map(s=>`[${s.citation_id}] ${s.filename}, chunk ${s.chunk_index}, ${s.original_content_hash}`).join("\n")}${result.deep?`\nDeep Research ${result.deep.phase}\nLimitations: ${result.deep.limitations.join(" | ")}\nEvidence gaps: ${result.deep.gaps.join(" | ")}\nEarlier analyses: ${result.deep.prior_results.map(prior=>`${prior.result_index+1}: ${prior.question} (${prior.claim_state})`).join(" | ")}`:""}${result.obligations?`\nObligation Analysis (provisional; applicability undetermined):\n${JSON.stringify(result.obligations,null,2)}`:""}${result.query_retrieval?`\nSearch queries (not evidence): ${result.query_retrieval.queries.join(" | ")}`:""}`).join("\n\n"))
-          .then(()=>setCopied(true)).catch(()=>setError("The clipboard was unavailable."))}><Copy size={16}/>{copied?"Copied":"Copy results"}</button>
+        <button className={`${button} min-w-[132px]`} disabled={copying||!selected.results.length} aria-busy={copying} onClick={()=>void copyResults()}><Copy size={16}/>{copying?"Copying...":copied?"Copied":"Copy results"}</button>
       </div>
+      {copyError&&<p role="alert" className="mb-3 rounded-lg border border-red-300 p-3 text-sm text-red-700 dark:text-red-300">{copyError}</p>}
       {selected.source_state==="CURRENT"&&selected.mode==="TIMELINE"&&selected.results.length>0&&<TimelineOverview run={selected}/>}
       {selected.source_state!=="CURRENT"?<p role="status" className="text-sm text-amber-700 dark:text-amber-300">Evidence was removed or changed. Stored answers are unavailable; create a new plan against current sources.</p>:selected.results.map((result,index)=><article key={`${selected.id}:${index}`} id={`${selected.id}-${index}`} className="mb-5 min-w-0 border-t border-[var(--border)] pt-4">
         <h4 className="mb-2 whitespace-pre-wrap break-words font-medium">{result.question}</h4>

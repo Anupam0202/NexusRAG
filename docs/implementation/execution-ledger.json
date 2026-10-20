@@ -13,6 +13,33 @@
   "interpretation": "OPEN_ENGINEERING includes implemented but not fully accepted requirements; it does not assert that no code or scoped evidence exists. External approvals do not close unfinished internal work.",
   "entries": [
     {
+      "id": "ENGINEERING-RESEARCH-COPY-PARITY",
+      "requirement": "Ordinary Copy results must preserve saved structured analyses and give truthful recoverable clipboard feedback",
+      "normative_source": "Adopted research copy/export,provenance,review and ordinary reliability workflows; exact224definitions unchanged",
+      "status": "IN_PROGRESS",
+      "environment": "uncommitted046 on saved045cea6c26; production React components with validated synthetic persisted records, not hosted/private/model acceptance",
+      "next_action": "Seven initial/four active-copy failures corrected;24focused/15owning checks/138controlled browser PASS,4intentional skips,16new copy journeys. Save/publish existing PR12,current saved-source CI and complete NEW source/dependency/evidence recovery remain. External final046handoff governs later milestones once present. Prior timing/proxy failures unresolved; actual deployed Chrome still1101. No new migration/provider/hosted/security work or release-gate waiver.",
+      "acceptance_evidence": [{
+        "environment": "controlled production React/API/Gateway/queue with synthetic SQL/provider/browser clipboard peers; not hosted/private/native permission acceptance",
+        "observed_at": "2026-10-20T18:54:59Z",
+        "source_identity": "parentcea6c2617add4ec8b3a36d68a7b823433c4373eb plus reviewed046; source-time prepublication evidence",
+        "command_or_url": "batch046/logs/source046-reviewed-browser-01.log; source046-reviewed-research-server-lifecycle.json; browser-source046-reviewed copied screenshots",
+        "result": "Whole controlled desktop/mobile138PASS/4intentionalSKIP,including16new light/dark reload/reopen/copy record-and-hash parity,ordinary rejection/retry and unavailable API. Fixture stopped/port closed. Manual desktop/mobile dark screenshots reviewed; no native permission/OAuth/private/model quality or full WCAG/vitals claim. Existing PR12 saved-source CI and NEW complete source/dependency/evidence recovery remain; external final046handoff governs later milestones once present. Full accepted scope PARTIAL_NOT_COMPLETE."
+      },{
+        "environment": "reviewed uncommitted046 production components/local SQL/native Workers with synthetic peers; not hosted/private/clipboard permission or live quality acceptance",
+        "observed_at": "2026-10-20T18:49:43Z",
+        "source_identity": "parentcea6c2617add4ec8b3a36d68a7b823433c4373eb plus reviewed046; final browser screenshot capture still needs saved-source CI/recovery",
+        "command_or_url": "batch046/logs/copy-active-workflow-before-01.log; copy-active-workflow-after-01.log; source046-reviewed-*-01.log; live-research-chrome-2026-10-20.json",
+        "result": "Four additional actual failures: duplicate pending writes,stopped polling,stale partial-copy feedback and hidden refresh errors. Separate clipboard pending/error and feedback sequence correct them.24focused/631backend+10/669Gateway/532frontend80files/57isolated/103scripts,lint/type/foundation/baseline/real65table160function restore/NextOpenNext26routes/four native probes PASS. Manual functional review only; prior045timing/proxy failures not proven repaired. Fresh actual Chrome18:47:08Z still deployed1101,no new Ray/log correlation/version check. Full browser/current CI/fresh dependency/source/evidence recovery pending; not production acceptance."
+      },{
+        "environment": "ordinary production React component with synthetic API/clipboard peers; not actual hosted OAuth/private or clipboard permission acceptance",
+        "observed_at": "2026-10-20T18:27:36Z",
+        "source_identity": "parentcea6c2617add4ec8b3a36d68a7b823433c4373eb plus uncommitted046formatter/action/tests",
+        "command_or_url": "batch046/logs/copy-parity-before-01.log; copy-parity-after-01.log; copy-parity-expanded-after-01.log",
+        "result": "Before7FAIL/one client exception at intended copy assertions; actual saved-run validator accepts all fixtures. Four modes lose canonical structures; stale retry error,missing API and late completion feedback reproduced. After22focused tests PASS including old query/Obligation copy and multiple/empty-result checks. Type-only fixture date correction retained separately from runtime behavior. Full browser/build/review/save/CI/recovery remain pending; no full accepted-scope or production acceptance."
+      }]
+    },
+    {
       "id": "ENGINEERING-FINDING-CREATION-REPLAY",
       "requirement": "Ordinary idempotent Finding saves must retain one truthful creation event and preserve later authored revisions",
       "normative_source": "Existing durable Findings, audit and ordinary retry/reliability contracts; exact224definitions unchanged",

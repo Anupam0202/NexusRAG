@@ -1,5 +1,21 @@
 # Requirement traceability
 
+046ordinary research-copy regressions reproduce four omitted saved structures,
+stale clipboard retry error,missing API exception and late feedback on another
+execution. Four further active-copy failures corrected without stopping progress
+or clearing unrelated errors.24focused/final15owning checks PASS18:49:43Z,
+including532frontend80files/SQLrestore/build/native probes; actual deployed Chrome
+still1101. Controlled browser/current CI/NEW recovery pending; manual review only,
+prior045timing/proxy failures unresolved. No224definition/mode/product
+scope change. Exact045rehearsal approval fulfilledONCE20261020181645,37functions/
+sixconstraints match fresh reference; separate16file addendum recoveredNEW, not
+private/production acceptance. Failed gates/unexplained timing remain open.
+Reviewed source046 controlled browser138PASS/4intentionalSKIP18:54:59Z includes
+16new desktop/mobile/light/dark copy/reload/parity/retry journeys; fixture stopped.
+Manual screenshots reviewed,not clipboard-permission/OAuth/private/model proof.
+Current saved-source publication/CI/fresh dependency/full recovery remain separate;
+later external final046handoff supersedes only these source-time pending labels.
+
 Functional045 (uncommitted parent0441f2a863) preserves exact224definitions. Adds
 ordinary durable Finding creation-audit retry coverage for seven research modes
 and manual notes: actual PostgreSQL reproduced2then3events for one creation in

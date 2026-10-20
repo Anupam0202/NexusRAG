@@ -193,7 +193,7 @@ jobs:
             sleep 1
           done
           test "$ready" = true || { cat /tmp/nexusrag-research-fixture.log; exit 1; }
-          E2E_RESEARCH_COMPONENT_FIXTURE=1 E2E_BASE_URL=http://127.0.0.1:3024 npm exec playwright -- test research-plans.spec.ts research-calculations.spec.ts research-aggregations.spec.ts research-conversions.spec.ts research-quantities.spec.ts research-runs.spec.ts research-findings.spec.ts research-comparisons.spec.ts research-timelines.spec.ts research-contradictions.spec.ts research-deep.spec.ts research-obligations.spec.ts research-original-pages.spec.ts research-source-inspection.spec.ts document-original.spec.ts --workers=2
+          E2E_RESEARCH_COMPONENT_FIXTURE=1 E2E_BASE_URL=http://127.0.0.1:3024 npm exec playwright -- test research-plans.spec.ts research-calculations.spec.ts research-aggregations.spec.ts research-conversions.spec.ts research-quantities.spec.ts research-runs.spec.ts research-findings.spec.ts research-comparisons.spec.ts research-timelines.spec.ts research-contradictions.spec.ts research-deep.spec.ts research-obligations.spec.ts research-original-pages.spec.ts research-source-inspection.spec.ts research-copy.spec.ts document-original.spec.ts --workers=2
       - name: Actual Cloudflare Worker document routing regressions
         working-directory: frontend
         env:
