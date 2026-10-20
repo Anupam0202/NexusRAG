@@ -13,13 +13,46 @@
   "interpretation": "OPEN_ENGINEERING includes implemented but not fully accepted requirements; it does not assert that no code or scoped evidence exists. External approvals do not close unfinished internal work.",
   "entries": [
     {
+      "id": "ENGINEERING-FINDING-CREATION-REPLAY",
+      "requirement": "Ordinary idempotent Finding saves must retain one truthful creation event and preserve later authored revisions",
+      "normative_source": "Existing durable Findings, audit and ordinary retry/reliability contracts; exact224definitions unchanged",
+      "status": "IN_PROGRESS",
+      "environment": "uncommitted045 on saved0441f2a863; disposable PostgreSQL and real handler functions only; forward migration LOCAL_ONLY_UNAPPROVED",
+      "next_action": "Whole corrected SQL/concurrency/revision/65table160function restore,14owning suites/build/native and post-build122controlled browser/4intentional skips PASS. Manual functional compatibility review only. Save/publish via existing PR12, current-tree CI and complete fresh source/dependency/evidence recovery remain. New045SQL LOCAL_ONLY_UNAPPROVED; separate044rehearsal approval fulfilled once. No deployment or new security work.",
+      "acceptance_evidence": [{
+        "environment": "current uncommitted045 source, local production implementations and synthetic controlled browser peers; not hosted/private/model acceptance",
+        "observed_at": "2026-10-20T12:54:31Z",
+        "source_identity": "parent1f2a863 plus reviewed045SQLSHA7190fb8f7afecb7bda20954f3305c7591c84a05b7a2e8be0fb0aa4c4fe000c9d",
+        "command_or_url": "batch045/logs/source045-final-*-01.log; source045-postbuild-browser-01.log; ordinary-audit-after-01.log",
+        "result": "631backend+10subtests/669Gateway/519frontend/57isolated/102scripts,lint/typecheck/foundation/baseline/NextOpenNext26routes/four actual native probes PASS. Whole post-build122controlled desktop/mobile browser PASS,4intentional skips not passes,owned server stopped. First CI-copy guard failure retained and corrected; full owning matrix rerun. Before actual8-path audit failure and after SQL/revision/concurrency/restore proof retained. Manual review only; current-source publication/CI/new dependency/recovery still pending. No full accepted-scope or production acceptance."
+      },{
+        "environment": "real disposable local PostgreSQL, actual executor fixtures and production handler functions; not hosted/private/provider acceptance",
+        "observed_at": "2026-10-20T12:38:02Z",
+        "source_identity": "parent1f2a863 plus uncommitted045 forward migration and ordinary regression",
+        "command_or_url": "batch045/logs/ordinary-audit-after-01.log",
+        "result": "All eight paths one Finding/version and one creation event after two independent concurrent saves and sequential retry; after edit preserve revision2/note/generated content/lineage, one edit event and two versions. Whole owning SQL/executors/concurrency/65table160function backup-restore PASS, scratch stopped. Owning suites/current CI/full fresh recovery remain pending; no hosted operation."
+      },{
+        "environment": "real disposable local PostgreSQL with production executor fixtures, not hosted/private/provider acceptance",
+        "observed_at": "2026-10-20T12:34:56Z",
+        "source_identity": "parent1f2a863 plus new failing ordinary test only; no corrective migration loaded in before-run",
+        "command_or_url": "batch045/logs/ordinary-audit-before-01.log; tests/postgres/research-finding-audit-replay.mjs",
+        "result": "Actual before regression fails: Compare/Timeline/Contradiction/Deep/Evidence Answer/Quick Lookup/manual each one Finding/version but2creation events after independent concurrent requests and3after a retry; Obligation remains1/1. Scratch cluster stopped. New forward migration and stronger after-edit check awaiting final SQL result; not accepted or installed hosted."
+      }]
+    },
+    {
       "id": "ENGINEERING-RESEARCH-OBLIGATION-EXECUTION",
       "requirement": "Complete durable source-linked Obligation Analysis with adopted50source/10subquestion-plus-main/8variant/420second limits and usable progress, source inspection and independent review",
       "normative_source": "Owner full twelve-mode functional assignment and Regulatory Obligation Compiler; exact224definitions unchanged",
       "status": "IN_PROGRESS",
-      "environment": "uncommitted044 on verified043f248b5c; local synthetic executor/UI/PostgreSQL only, new migration LOCAL_ONLY_UNAPPROVED",
-      "next_action": "Source37 concurrent full post-build122PASS/4SKIP; save on existing draftPR12, obtain current-tree CI and complete NEW source/dependency/evidence recovery. Then global free-budget/actual Gemini offset-generation-quality and full constrained-plan/register work. Scoped rendering/codepoint fixes and later passes do not causally clear prior timing failures. Frozen WIPstage02 is older source. Consult newest completed BATCH044_HANDOFF/final receipts for later publication/recovery observations. Equivalent older-mode audit retry needs ordinary regression; all accepted scope remains. No044hosted approval/application/provider/private/destructive/deployment or excluded security operation.",
+      "environment": "saved0441f2a863/tree0adb733; complete721source/new dependencies/recovery and scoped local synthetic UI/executor/SQL proof; exact044rehearsal schema only installed once as20261020124410",
+      "next_action": "Global free-storage/CPU/budget,actual Gemini offset-generation-quality and full constrained-plan/register work remain. Equivalent older-mode audit retry is now independently reproduced/corrected locally in045, not yet published/recovered or hosted approved. Required image/summary FAILED,old deployed1101/drift and prior unexplained timing remain. Exact044owner approval fulfilled once; no broader provider/private/destructive/deployment or excluded security operation. Consult completed BATCH044_HANDOFF and separately frozen044rehearsal addendum, not old source-time pending notes.",
       "acceptance_evidence": [{
+        "environment": "complete source/dependency/evidence recovery and explicitly approved rehearsal schema installation only",
+        "observed_at": "2026-10-20T12:44:10Z",
+        "source_identity": "1f2a86375946987914ce4c01fc86572e1fd5bdd6/tree0adb733d26728a0ec3e59165f7f35ca31a43c1ba",
+        "command_or_url": "BATCH044_HANDOFF.md; BATCH044_REHEARSAL_ADDENDUM_2026-10-20.md; batch044-hosted-2026-10-20/approved-rehearsal-migration-and-catalog.json",
+        "result": "721source/876evidence files recoveredNEW;32guarded fresh receipts,631backend+10/669Gateway/519frontend/57isolated/102scripts,122controlled+20ordinary stampedWorker browser PASS and4intentional skips. Owner approved only exact044SQL328c6d13; installedONCEas20261020124410into rehearsal,37function/sixconstraint equality to fresh frozen-source reference,prior35registry entries unchanged. Separate15entry addendum recovery PASS/SHA593e9e5e8ac0a7a8784ec42ae22199d36cdec48239410c90b363055e0b2efb2e. No hosted business/private/customer/provider/newuser/destructive/production/deployment operation or045approval. Required gates FAILED by metadata only. Full mode/product/private/quality/production acceptance remains incomplete."
+      },{
         "environment": "latest uncommitted044 local production UI/client, controlled ordinary browser and fixed codepoint-work test; not hosted/private/model acceptance",
         "observed_at": "2026-10-19T12:21:27Z",
         "source_identity": "parentf248b5c plus unsaved044; source remains unpublished/undeployed and SQL unapproved",

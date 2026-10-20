@@ -1,5 +1,50 @@
 # NexusRAG execution checkpoint
 
+## Active Functional Batch: finding-creation-replay-045
+
+Uncommitted045 on saved0441f2a863/tree0adb733; preserve paused022. Actual new
+ordinary PostgreSQL regression reproduces one Finding/version but2creation events
+after two concurrent requests and3after a retry in Compare,Timeline,Contradiction,
+Deep,Evidence Answer,Quick Lookup and manual Findings. Obligation already1/1.
+Forward migration20261020123354_finding_creation_audit_replay.sql replaces five
+existing handler definitions, retaining serialization/contracts and gating only
+the creation audit on first insertion. Installed history and old audit data stay
+unchanged. Whole SQL/executor/concurrency/65table160function backup-restore PASS
+at12:38:02Z; all eight paths retain one creation event through concurrent save,
+retry and revision2edit/retry without losing the note/generated source. Broader
+owning suites/current CI/complete NEW source/dependency recovery remain pending.
+No045hosted approval/application,provider/customer/private/destructive/deployment
+operation or new security work. Only exact044owner approval was fulfilled once:
+rehearsal registry20261020124410,recovered-source37functions/sixconstraints match,
+35prior records unchanged; separate15-entry addendum recoveredNEW, SHA256
+593e9e5e8ac0a7a8784ec42ae22199d36cdec48239410c90b363055e0b2efb2e.
+Whole accepted scope remains PARTIAL_NOT_COMPLETE, not private/production acceptance.
+
+Source045-final14owning checks PASS12:49:01Z:631backend+10subtests/669Gateway/
+519frontend/57isolated/102scripts,lint/typecheck/foundation/baseline,NextOpenNext
+26routes and all four actual native Worker probes. Initial script-copy omission
+failure retained and fixed without changing its guard; full matrix rerunPASS.
+Post-build controlled browser122PASS/4intentionalSKIP at12:54:31Z, owned server
+stopped. Manual functional review preserves all five original dispatch/validation
+definitions except their creation-audit guard; no independent-review clearance
+claimed. Current-tree CI and complete NEW
+source/dependency/evidence recovery remain separate. New045SQL SHA256
+7190fb8f7afecb7bda20954f3305c7591c84a05b7a2e8be0fb0aa4c4fe000c9d
+LOCAL_ONLY_UNAPPROVED. External finalBATCH045_HANDOFF/frozen receipts, once they
+exist, govern later publication/recovery, not this source-time pending record.
+
+Completed044checkpoint:721source files, complete fresh dependencies/recovery,
+32guarded receipts,631backend+10/669Gateway/519frontend/57isolated/102scripts,
+65table160function restore,122controlled+20ordinary stampedWorker browser PASS,
+4intentional skips uncounted. Source1f2a863 and both ZIP hashes in external
+BATCH044_HANDOFF.md supersede only older source-time pending044notes below.
+Exact-tree ordinary CI passes; image/summary remainFAILED by metadata only.
+Oct20Chrome/research still1101Raya4d8010939bc3d73; Cloudflare5db33e20receives
+100%traffic, oldfrontend2fbc5c9/gateway46bb14f/NOT_PROBED unchanged. Fresh dashboard
+works after old-tab focus timeout; no new Ray/log correlation established.
+Current local correction is not deployed. Full224/tenproducts/twelvemodes/quality,
+private/lifecycle/rights/budget/rollout and excluded release prerequisites remain.
+
 ## Active Functional Batch: research-obligation-execution-044
 
 Source-preparation receipt12:27:35Z: separate post-build whole browser set with

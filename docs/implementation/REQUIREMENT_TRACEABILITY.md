@@ -1,5 +1,16 @@
 # Requirement traceability
 
+Functional045 (uncommitted parent0441f2a863) preserves exact224definitions. Adds
+ordinary durable Finding creation-audit retry coverage for seven research modes
+and manual notes: actual PostgreSQL reproduced2then3events for one creation in
+seven paths; Obligation remains1. New forward-only five-handler correction,
+concurrent/sequential/after-edit persistence and65table160function restore PASS
+12:38:02Z. Owning suites/review/current CI/full fresh recovery pending, not accepted
+as hosted or complete product acceptance.
+See FINDING_CREATION_REPLAY_045.md. Existing source044complete recovery and CI
+evidence now frozen in BATCH044_HANDOFF.md; required gates/old deployed1101/drift
+and full accepted products/modes/quality/private/lifecycle scope still unfinished.
+
 Source-preparation044 stage37 full concurrent post-build browser122PASS/4SKIP
 and latest519frontend/lint/type/build PASS. Preserve earlier failed receipts;
 separate current source CI/publication/complete NEW dependency recovery still

@@ -4,7 +4,21 @@ Status: **PARTIAL_NOT_COMPLETE — locally tested implementation; not production
 
 This receipt supersedes historical status claims only where it records a fresh observation. It does not certify a complete product, production release, provider rights, or absence of all defects.
 
-## Obligation Analysis - Active Batch044
+## Finding Creation Replay - Active Functional045
+
+Actual ordinary concurrent/sequential SQL regression fails with seven paths
+reporting2then3creation events for one Finding/version; Obligation remains1/1.
+Forward045migration preserves five old handler definitions except creation-audit
+guard and serialized prelookup for manual saves. No historical data correction,
+new table/grants or provider call. Stronger after-edit retry/revision and full
+SQL/65table160function restore PASS12:38:02Z; all eight paths one creation event.
+Owning suites/review/current CI/new full recovery pending, not hosted acceptance.
+See FINDING_CREATION_REPLAY_045.md.
+Completed044fresh recovery now in external BATCH044_HANDOFF.md. Oct20Chrome
+still1101; old activeCloudflare5db33e20/source2fbc5c9, Gateway46bb14f/NOT_PROBED.
+No deployed repair, failed-gate merge, new security investigation or broad approval.
+
+## Obligation Analysis - Completed044 Recovery, Scope Still Open
 
 Source-preparation stage37 full post-build suite with two workers122PASS/4SKIP;
 latest519frontend/lint/type/build PASS. Save/current CI/complete fresh source/
