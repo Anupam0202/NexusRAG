@@ -8,7 +8,8 @@ import { PathParamsContext } from "next/dist/shared/lib/hooks-client-context.sha
 import { useStore } from "../../src/hooks/useStore";
 import "../../src/app/globals.css";
 const parameters=new URLSearchParams(window.location.search);
-const actor=parameters.get("actor") || sessionStorage.getItem("synthetic-research-actor") || "22222222-2222-4222-8222-222222222222";
+// Independent browser contexts must not share one synthetic request-limit bucket.
+const actor=parameters.get("actor") || sessionStorage.getItem("synthetic-research-actor") || crypto.randomUUID();
 sessionStorage.setItem("synthetic-research-actor",actor);
 useStore.setState({...useStore.getInitialState(), authMode: "authenticated", authUser: {id: actor, email: null},
   workspaceId: "11111111-1111-4111-8111-111111111111", workspaceDiscovery: "ready"});

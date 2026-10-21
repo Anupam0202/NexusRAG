@@ -1,10 +1,14 @@
 import modes from "../../../frontend/src/lib/research-modes.json" with { type: "json" };
 import { hybridFuse } from "./worker-lifecycle.js";
 
-export function queryVariantPrompt(question,mode) {
+export function queryVariantPrompt(question,mode,entityTargets=[]) {
   const maximum=modes[mode]?.max_query_variants;
   if(!maximum)throw Object.assign(new Error("Unknown research mode."),{code:"MODE_NOT_EXECUTABLE"});
-  return `RESEARCH_QUERY_VARIANTS\nProduce at most ${maximum-1} alternative search queries for the question below. Return only JSON {"queries":["..."]}. These are retrieval queries, never answers or evidence. Preserve the question's meaning, entities, exact quoted phrases, identifiers, dates, numbers, units, negation, exceptions and scope. Do not add facts, examples or new entities. Keep each alternative within 500 Unicode characters. Return an empty list if no faithful alternatives exist.\nQUESTION:\n${question}`;
+  if(mode==="ENTITY_INVESTIGATION"&&(!Array.isArray(entityTargets)||entityTargets.length>100
+    ||entityTargets.some(value=>typeof value!=="string"||!value.trim()||Array.from(value).length>128)))
+    throw Object.assign(new Error("The saved entity target scope is invalid."),{code:"INVALID_SCOPE"});
+  const targets=mode==="ENTITY_INVESTIGATION"?`\nREQUESTED_ENTITY_TARGETS_NOT_VERIFIED_IDENTITIES:\n${JSON.stringify(entityTargets)}\nUse these saved targets to guide relevant query variants; never infer that similarly named records are the same legal person.`:"";
+  return `RESEARCH_QUERY_VARIANTS\nProduce at most ${maximum-1} alternative search queries for the question below. Return only JSON {"queries":["..."]}. These are retrieval queries, never answers or evidence. Preserve the question's meaning, entities, exact quoted phrases, identifiers, dates, numbers, units, negation, exceptions and scope. Do not add facts, examples or new entities. Keep each alternative within 500 Unicode characters. Return an empty list if no faithful alternatives exist.${targets}\nQUESTION:\n${question}`;
 }
 
 function requiredLiterals(question) {

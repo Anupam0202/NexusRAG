@@ -1,5 +1,29 @@
 # Requirement traceability
 
+048final local browser rerun150PASS/4intentionalSKIP/0FAIL12:25:18Z,including the
+previously failed768px drawer. Latest fixture typecheck/paused022preservation
+PASS. Current source save/publication/CI/NEW fresh recovery remain separate.
+
+048reviewed local scope:actualSQL Entity11criteria/50sources/100targets,
+concurrent starts/Findings,audit replay,independent revision2review,recovery,
+maximum40anchor fields and65table167function restore PASS. Actual SQL client/
+copy parity,11module/682Gateway,631backend+10/545frontend/57isolated/105scripts,
+lint/type/build26routes/five native probes PASS. Focused12Entity browser pass;
+full149PASS/4SKIP/1FAIL exposed shared synthetic-actor rate limit; isolated-context
+fixture correction full rerun pending. No normative closure,hosted48approval or
+new security work. Full graph register,remaining products/modes/constraints,
+rights/budgets/quality/private/lifecycle/current CI/NEW recovery remain accepted.
+
+048provisional Entity Investigation adds no normative closure: actual UI/Gateway/
+SQLmissing execution before failures retained; current draft50source11question
+start/retry/read and65table167function restore,37Gateway/candidate and17client/
+typecheck pass. Full persisted executor/Findings/independent review/ordinary
+recovery/max/native/browser/owning/build/CI/NEW recovery remain unverified.
+No hosted approval/application/publication/deployment or new security work.
+P16/P17/shared lineage and exact224definitions remain accepted/open,not reduced.
+Read RESEARCH_ENTITY_EXECUTION_048.md and external BATCH047_HANDOFF.md.
+
+
 047ordinary clipboard transitions: seven actual before failures and39focused
 after passes19:19:11Z; Research primary-operation guard and chat explicit error,
 pending/success/reset lifecycle. Browser/CI inclusion added; full owning/build/

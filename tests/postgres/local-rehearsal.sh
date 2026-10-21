@@ -47,6 +47,7 @@ PSQL=(psql -X -v ON_ERROR_STOP=1 -d "$PGDATABASE")
 "${PSQL[@]}" -f "$ROOT/supabase/migrations/20261018094339_research_deep_execution.sql"
 "${PSQL[@]}" -f "$ROOT/supabase/migrations/20261019015325_research_obligation_execution.sql"
 "${PSQL[@]}" -f "$ROOT/supabase/migrations/20261020123354_finding_creation_audit_replay.sql"
+"${PSQL[@]}" -f "$ROOT/supabase/migrations/20261021100301_research_entity_execution.sql"
 "${PSQL[@]}" -f "$TESTS/fixtures.sql"
 "${PSQL[@]}" -f "$TESTS/research-plan-assertions.sql"
 "${PSQL[@]}" -f "$TESTS/research-run-assertions.sql"
@@ -108,4 +109,7 @@ NEXUS_DISPOSABLE_SQL=1 NEXUS_RESEARCH_MODE=DEEP_RESEARCH NEXUS_DEEP_CONTEXT_BOUN
 NEXUS_DISPOSABLE_SQL=1 NEXUS_RESEARCH_MODE=OBLIGATION_ANALYSIS node "$TESTS/research-comparison-integration.mjs"
 NEXUS_DISPOSABLE_SQL=1 node "$TESTS/document-original-integration.mjs"
 NEXUS_DISPOSABLE_SQL=1 node "$TESTS/research-finding-audit-replay.mjs"
+"${PSQL[@]}" -f "$TESTS/research-entity-assertions.sql"
+NEXUS_DISPOSABLE_SQL=1 node "$TESTS/research-entity-integration.mjs"
+NEXUS_DISPOSABLE_SQL=1 NEXUS_ENTITY_CAPACITY=1 node "$TESTS/research-entity-integration.mjs"
 echo 'LOCAL_POSTGRES_REHEARSAL_PASS (not a hosted Supabase verification)'

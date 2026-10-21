@@ -13,6 +13,27 @@
   "interpretation": "OPEN_ENGINEERING includes implemented but not fully accepted requirements; it does not assert that no code or scoped evidence exists. External approvals do not close unfinished internal work.",
   "entries": [
     {
+      "id": "ENGINEERING-RESEARCH-ENTITY-EXECUTION",
+      "requirement": "Complete selected-source Entity Investigation with durable evidence-backed candidates, Findings and independent review",
+      "normative_source": "Adopted Entity Investigation and Counterparty Evidence Graph; research_planner accepted50sources/10subquestions/eightvariants/420seconds; exact224definitions unchanged",
+      "status": "IN_PROGRESS",
+      "environment": "Uncommitted048 on published04716ee652/tree01254b84; frozen047source/evidence fully recovered with retained unexplained failures,required image/summary FAILED",
+      "next_action": "Reviewed local executor/SQL persistence,concurrent start/Findings,replay/independent revision2review,recovery,maximum40anchor fields and65table167function restore pass. 682Gateway/545frontend/631backend+10/57isolated/105scripts,lint/type/build26routes/five native probes pass. Focused12Entity and corrected whole150browser PASS/4intentionalSKIP/0FAIL12:25:18Z; prior shared synthetic-user request-limit failure retained. Latest fixture typecheck/paused022551entry preservation pass. Save/publication/current CI and NEW full source/dependency/evidence recovery remain; no048hosted approval or new security work. Wider graph register/products/modes/constraints/quality/rights/budgets/private/lifecycle/rollout remain open.",
+      "acceptance_evidence": [{
+        "environment": "owned local PostgreSQL,actual production executor/Findings/native Worker/React pages with controlled peers; not hosted identity/model/production or budget proof",
+        "observed_at": "2026-10-21T12:17:26Z",
+        "source_identity": "parent16ee652/tree01254b84 plus reviewed uncommitted048; current saved-source identity/recovery pending",
+        "command_or_url": "batch048/logs/entity-reviewed-sql-01.log;entity-reviewed-gateway-01.log;entity-sql-client-parity-01.log;source048-*-01.log;entity-browser04-tests.log;entity-reviewed-browser01-tests.log",
+        "result": "Real basic and maximum Entity11criteria/50sources/100targets/eightqueries/12candidates exact persistence/recovery/audit/review PASS;65table167function restore. Unicode target and repeated source-name quote-only before/after defects retained; one intermediate callback error caught/corrected by capacity assertion. Owning15checks PASS,focused12browser PASS; full149PASS/4SKIP/1FAIL reflects shared fixture actor request-limit contamination,context-isolation correction awaiting rerun. No gate waiver,hosted application,publication or production acceptance. Fresh public IAB/research1101Ray a4e032b55debe231; Chrome dashboard control timeout. Exact045rehearsal install reconfirmed once,no repeat."
+      },{
+        "environment": "uncommitted048,owned disposable PostgreSQL and production functions with synthetic data; focused Gateway/React peers only,not hosted/private/provider acceptance",
+        "observed_at": "2026-10-21T10:17:27Z",
+        "source_identity": "published04716ee652/tree01254b84 plus provisional uncommitted048; CLI-generated draft migration20261021100301",
+        "command_or_url": "batch048/logs/entity-*-before-*.log;entity-sql-draft-01.log;entity-gateway-candidates-after-02.log;entity-client-focused-02.log;entity-typecheck-02.log",
+        "result": "Actual missing UI/Gateway/SQL before failures retained; full-target frozen047Gateway before repeated. Draft start/retry/read with50sources11questions and65table167function restore PASS;37Gateway/candidate and17frontend/typecheck PASS after retained fixture type errors. Actual Entity execution/cancellation/recovery/Findings/review/native/browser/full owning/build/CI/fresh recovery not yet verified; PARTIAL_NOT_COMPLETE."
+      }]
+    },
+    {
       "id": "ENGINEERING-CLIPBOARD-TRANSITIONS",
       "requirement": "Ordinary chat and Research copying must report failure, bound pending writes and preserve truthful response/selection feedback",
       "normative_source": "Adopted copy/export,chat/research ordinary reliability and accessible error workflows; exact224definitions unchanged",

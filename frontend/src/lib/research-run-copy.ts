@@ -11,6 +11,7 @@ export function researchResultsClipboardText(results: readonly ResearchRunResult
     if (result.deep) parts.push(`Deep Research ${result.deep.phase}\nLimitations: ${result.deep.limitations.join(" | ")}\nEvidence gaps: ${result.deep.gaps.join(" | ")}\nEarlier analyses: ${result.deep.prior_results.map(prior => `${prior.result_index + 1}: ${prior.question} (${prior.claim_state})`).join(" | ")}`,
       `Deep Research evidence and lineage:\n${JSON.stringify(result.deep, null, 2)}`);
     if (result.obligations) parts.push(`Obligation Analysis (provisional; applicability undetermined):\n${JSON.stringify(result.obligations, null, 2)}`);
+    if (result.entities) parts.push(`Entity Investigation (independent review required; identities unresolved):\n${JSON.stringify(result.entities, null, 2)}`);
     if (result.query_retrieval) parts.push(`Search queries (not evidence): ${result.query_retrieval.queries.join(" | ")}`);
     return parts.join("\n");
   }).join("\n\n");

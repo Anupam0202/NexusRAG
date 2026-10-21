@@ -1,5 +1,64 @@
 # NexusRAG execution checkpoint
 
+## Active Functional Batch: research-entity-execution-048
+
+Oct21 reviewed implementation update (still UNCOMMITTED,not a release checkpoint):
+Final local browser rerun150PASS/4intentionalSKIP/0FAIL12:25:18Z after synthetic
+context-isolation correction; previously failed768px drawer now passes unchanged.
+Latest fixture typecheck PASS12:24:28Z; paused022551entries/HEAD unchanged.
+Save reviewed source through existingPR12,current CI/NEW fresh recovery next.
+real ownedSQL now executes/rereads11criteria/50documents/100targets/eightqueries,
+12candidates with exact original locators; two independent concurrent starts and
+Finding creations,one creation audit,revision2 independent review,cancel/resume,
+provider503/incomplete,420second renewal,response-loss recovery and honest empty
+results pass. Maximum40anchor/fourrelationship/fourlimitation candidates also
+persist/reopen through all11positions (about8.09MB text JSON),65tables167functions
+restore PASS11:34:46Z. Actual client validator/copy accepts real SQL readback.
+Manual review found/fixed128Unicode-character target receipt rejection and
+quote-only relationships choosing repeated names outside their source statement;
+actual before/after regressions retained. One intermediate callback-arity error
+was caught by the retained maximum-field test and corrected; all11module cases
+and whole682Gateway checks pass. Full631backend+10/545frontend83files/57isolated/
+105scripts,lint/type/foundation/baseline/NextOpenNext26routes/five native probes
+pass; native Entity50sources/11criteria/40anchors stays below retained payload
+bounds. This is not real provider token/quality,hosted CPU/memory/budget acceptance.
+Focused12Entity browser journeys PASS; whole suite149PASS/4SKIP/1FAIL caught shared
+synthetic-actor request-limit contamination. Separate browser contexts now get
+independent synthetic actors,retained across reload/navigation; limits unchanged.
+Corrected full browser rerun,current exact-source CI/NEW clean source/dependency/
+evidence recovery remain pending. No048hosted approval or application.
+Fresh read-only rehearsal registry confirms approved045fulfilledONCEas
+20261020181645/finding_creation_audit_replay. No duplicate install. GitHub remains
+Anupam0202,draftPR12. Cloudflare Chrome dashboard control timed out; read-only IAB
+public/research reconfirms1101onOct21 12:17:15UTC,Ray a4e032b55debe231. Current
+deployed source/log correlation remains unconfirmed; no local fix is deployed.
+
+Uncommitted048 begins on published04716ee6522d3738963a350f4e51915c1393b7f8c25/
+tree01254b84c8fe766891bbb5a7ea0c0d4655903399. Complete047source732files/evidence515
+files recoveredNEW with32fresh selected receipts; see external BATCH047_HANDOFF.md.
+Required image/summary FAIL,actual deployed/research1101 persists. First047native
+cleanup EADDRINUSE remains unexplained despite unchanged passing recheck; earlier
+timing/proxy and paused022 remain unresolved. No release/hosted authority inferred.
+Now implement actual Entity Investigation selected-source UI/API/executor/durable
+results/Findings/review,retaining50sources/10subquestions/eightvariants/420seconds,
+source-anchored identifiers/aliases/filings/temporal relationships and uncertainty.
+Before regressions now prove the actual missing path: UI1FAIL/11PASS (no Start),
+Gateway1FAIL/27PASS (503vs201),actualSQLMODE_NOT_EXECUTABLE; owned scratch stopped.
+Valid full-target Gateway receipt repeated against frozen047fails at the same
+503vs201,not a fixture-field omission. Provisional source candidate/executor,
+Gateway/client/run/Findings UI and CLI-generated LOCAL_ONLY_UNAPPROVED draft
+20261021100301_research_entity_execution.sql added. Nine candidate tests and
+37Gateway/candidate checks PASS; actual draft SQL50source11question start/retry/
+read and65table167function restore PASS10:08:56Z. Initial type-only fixture errors
+retained and corrected;17client/component checks and typecheck PASS10:17:27Z.
+Full Entity executor SQL persistence,progress/cancel/resume/ordinary outages,
+independent Findings review,maximum payload/native/browser/owning/build/CI/fresh
+recovery are NOT proven. Source remains UNCOMMITTED/UNVERIFIED,not publishable or
+eligible for hosted approval. WIP preservation is not an accepted checkpoint.
+Read docs/implementation/RESEARCH_ENTITY_EXECUTION_048.md. Full224/tenproducts/
+twelvemodes/400+125quality remain PARTIAL_NOT_COMPLETE. No new security work,
+hosted migration/deployment/provider/customer/private/destructive operation.
+
 ## Active Functional Batch: clipboard-transitions-047
 
 Active uncommitted047 on published046fa19aa157b232f75a26ab740d113cf4339a88854/

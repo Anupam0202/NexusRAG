@@ -1,5 +1,40 @@
 # Comprehensive application audit
 
+## Entity Investigation - Provisional Functional048
+
+Final local full browser150PASS/4intentionalSKIP/0FAIL12:25:18Z; same768px drawer
+passes after context-isolation correction. Latest fixture typecheck passes;
+paused022551entries/HEAD remain unchanged. Current CI/NEW recovery still required.
+
+Reviewed Oct21 update:actualSQL/executor/Findings persistence and independent
+review pass11criteria/50sources/100targets/eightqueries/12candidates,including
+all40anchor maximum fields and65table167function restore. Real stored results
+pass client/copy validation. Unicode128target receipt and repeated-name quote-
+only relationship defects reproduced/fixed; all11module/682Gateway tests pass.
+Full owning/build/native checks631backend+10/545frontend83files/57isolated/
+105scripts/26routes pass. Focused12Entity browser PASS; full149PASS/4SKIP/1FAIL
+is shared synthetic-user rate-limit contamination,not a raised product limit.
+Independent context fixture identity correction awaits whole rerun. Current CI/
+NEW clean recovery and hosted/private/model/budget acceptance still pending.
+Fresh IAB public/research1101Ray a4e032b55debe231 at12:17:15UTC; Cloudflare Chrome
+dashboard control timeout prevents source/log correlation. No hosted mutation.
+
+Parent04716ee652/tree01254b84. UI1FAIL/11PASS,no Start; actual Gateway1FAIL/27PASS,
+503vs201; real ownedSQLMODE_NOT_EXECUTABLE. Full-target fixture repeated against
+frozen047fails identically. Provisional candidate/executor/client/run/Findings UI
+and CLI-generated20261021100301SQL now exist but remain uncommitted/unverified.
+Actual draft SQL50sources11questions start/retry/read and65table167function
+restore PASS10:08:56Z;37Gateway/candidate,17client checks/typecheck PASS10:17:27Z.
+Initial type fixture errors retained/corrected without weaker assertions. Full
+Entity persisted execution/recovery/concurrency/independent review/maximum/native/
+browser/owning/build/CI/NEW recovery remain. No hosted approval/application,
+provider/customer/private/destructive/deployment operation or new security work.
+Completed047artifacts:732source/515evidence files recoveredNEW; source13fa9260.../
+evidence8dc7dfe8... in external BATCH047_HANDOFF. Required image/summary FAIL,
+actual deployed/research1101and unexplained cleanup/timing limitations remain.
+Full224/tenproducts/twelvemodes/quality/private/lifecycle/rights/budgets/rollout
+remain PARTIAL_NOT_COMPLETE. WIP preservation is not production acceptance.
+
 Status: **PARTIAL_NOT_COMPLETE — locally tested implementation; not production verified**
 
 This receipt supersedes historical status claims only where it records a fresh observation. It does not certify a complete product, production release, provider rights, or absence of all defects.

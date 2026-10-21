@@ -30,6 +30,22 @@ function fixture(t, options={}) {
 }
 const request=(method="GET",suffix="",body)=>new Request(`https://gateway.invalid/api/v2/research/plans/${plan}/runs${suffix}`,{method,headers,body:body?JSON.stringify(body):undefined});
 
+for(const target of ["Example Works","\u{1F4CA}".repeat(128)])test(`Entity Investigation preserves50sources11questions and ${target==="Example Works"?"ordinary":"128Unicode-character"} targets through the Gateway`,async t=>{
+  const {env,receipt,calls,sent}=fixture(t);
+  Object.assign(receipt,{mode:"ENTITY_INVESTIGATION",entity_scope:[target],source_snapshot:Array.from({length:50},(_,i)=>({
+    document_id:`00000048-0000-4000-8000-${String(i).padStart(12,"0")}`})),
+    questions:Array.from({length:11},(_,i)=>`Inspect synthetic entity evidence ${i+1}`),total_steps:11});
+  const original=globalThis.fetch;
+  t.mock.method(globalThis,"fetch",async(input,init)=>new URL(input).pathname==="/rest/v1/rpc/nexus_research_entity_contract"
+    ?new Response(JSON.stringify({schema_version:"research-entities/1",max_sources:50,max_subquestions:10,max_steps:11,
+      max_query_variants:8,runtime_seconds:420,max_candidates:12,max_result_bytes:1000000,max_run_bytes:11000000})):original(input,init));
+  const response=await handle(request("POST","",{non_sensitive_attested:true,execution_mode:"ENTITY_INVESTIGATION"}),env);
+  assert.equal(response.status,201);const result=await response.json();
+  assert.equal(result.source_snapshot.length,50);assert.equal(result.questions.length,11);
+  assert.deepEqual(result.entity_scope,[target]);
+  assert.equal(calls.length,1);assert.equal(sent.length,1);
+});
+
 for(const mismatch of [null,"absent","limits"])test(`Obligation Analysis confirms its full installed contract before admission and dispatch: ${mismatch}`,async t=>{
   const {env,receipt,calls,sent}=fixture(t);
   Object.assign(receipt,{mode:"OBLIGATION_ANALYSIS",source_snapshot:Array.from({length:50},(_,i)=>({document_id:`00000044-0000-4000-8000-${String(i).padStart(12,"0")}`})),

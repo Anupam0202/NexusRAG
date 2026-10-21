@@ -10,6 +10,18 @@ import yaml
 ROOT = Path(__file__).resolve().parents[2]
 
 class ResearchWorkflowTests(unittest.TestCase):
+    def test_entity_execution_persistence_capacity_and_browser_journeys_run_in_required_ci(self):
+        migration = "20261021100301_research_entity_execution.sql"
+        workflow = (ROOT / ".github/workflows/v6-database-rehearsal.yml").read_text()
+        rehearsal = (ROOT / "tests/postgres/local-rehearsal.sh").read_text()
+        self.assertIn(migration, workflow)
+        self.assertIn(migration, rehearsal)
+        self.assertIn('NEXUS_DISPOSABLE_SQL=1 node "$TESTS/research-entity-integration.mjs"', rehearsal)
+        self.assertIn('NEXUS_ENTITY_CAPACITY=1 node "$TESTS/research-entity-integration.mjs"', rehearsal)
+        for marker in ("REAL_SQL_ENTITY_EXECUTOR_RECOVERY_REVIEW_PASS", "REAL_SQL_ENTITY_COMBINED_CAPACITY_PASS"):
+            self.assertIn(f"grep -F '{marker}'", workflow)
+        self.assertIn("research-entities.spec.ts", (ROOT / ".github/workflows/v6-foundation-ci.yml").read_text())
+
     def test_obligation_execution_migration_and_real_production_executor_run_in_database_ci(self):
         migration = "20261019015325_research_obligation_execution.sql"
         workflow = (ROOT / ".github/workflows/v6-database-rehearsal.yml").read_text()
@@ -30,6 +42,7 @@ class ResearchWorkflowTests(unittest.TestCase):
             "node scripts/test-research-query-worker.mjs",
             "node scripts/test-research-deep-worker.mjs",
             "node scripts/test-research-obligation-worker.mjs",
+            "node scripts/test-research-entity-worker.mjs",
         }
         steps = [step for job in workflow["jobs"].values() for step in job.get("steps", [])
                  if step.get("run") in commands]

@@ -100,6 +100,7 @@ jobs:
           cp "$GITHUB_WORKSPACE/supabase/migrations/20261018094339_research_deep_execution.sql" "$source_dir/supabase/migrations/"
           cp "$GITHUB_WORKSPACE/supabase/migrations/20261019015325_research_obligation_execution.sql" "$source_dir/supabase/migrations/"
           cp "$GITHUB_WORKSPACE/supabase/migrations/20261020123354_finding_creation_audit_replay.sql" "$source_dir/supabase/migrations/"
+          cp "$GITHUB_WORKSPACE/supabase/migrations/20261021100301_research_entity_execution.sql" "$source_dir/supabase/migrations/"
           chmod -R a+rX "$source_dir"
           cleanup() {
             sudo -u postgres dropdb --if-exists -h /var/run/postgresql -p "$port" "$db" >/dev/null 2>&1 || true
@@ -157,6 +158,8 @@ jobs:
             grep -F 'REAL_SQL_OBLIGATION_ORDINARY_RECOVERY_REVIEW_PASS' "$log"
             grep -F 'REAL_SQL_OBLIGATION_COMBINED_CAPACITY_PASS' "$log"
             grep -F 'ORDINARY_FINDING_AUDIT_REPLAY_PASS eight_paths_one_creation_event' "$log"
+            grep -F 'REAL_SQL_ENTITY_EXECUTOR_RECOVERY_REVIEW_PASS' "$log"
+            grep -F 'REAL_SQL_ENTITY_COMBINED_CAPACITY_PASS' "$log"
             grep -E 'GATEWAY_PRIVATE_HISTORY_AUTHORITY_PASS|PRIVATE_HISTORY_CLEAR_CONCURRENT_AUTHORITY_PASS|PRIVATE_HISTORY_CLEAR_AUTHORITY_PASS|PRIVATE_HISTORY_RPC_TWO_IDENTITY_PASS|POSTGRES_RETENTION_SCHEDULE_FENCE_PASS|POSTGRES_RETENTION_CONCURRENT_FENCE_PASS|POSTGRES_RECIPIENT_INVITATION_AUTHORITY_PASS|POSTGRES_INVITATION_CONCURRENT_ACCEPT_CAPACITY_PASS|postgres_durable_extraction_stage_pass|concurrent_reservation_settlement_pass|concurrent_account_trial_limit_pass|account_trial_byok_assertions_pass|account_trial_rollback_pass|storage_rls_two_identity_pass|reindex_original_storage_reuse_pass|LOCAL_POSTGRES_REHEARSAL_PASS|POSTGRES_BACKUP_RESTORE_PASS' "$log"
           else
             tail -n 80 "$log"
