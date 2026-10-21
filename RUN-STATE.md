@@ -1,5 +1,35 @@
 # NexusRAG execution checkpoint
 
+## Active Functional Batch: clipboard-confirmation-049
+
+Reviewed local update13:50:24Z:all15owning/build/native checks and actual ownedSQL
+65table167function backup/restore pass.554frontend84files/682Gateway/631backend
++10subtests/57isolated/105scripts,lint/type/foundation/baseline/26routes/five native
+probes. Full controlled browser150Research PASS/4intentionalSKIP and8Chat PASS,
+including never-confirmed writes,explicit retry/late completion,no extra chat
+submission,desktop/mobile Chrome and light/dark screenshots manually inspected.
+Owned servers/cluster stopped. These are not real native-clipboard permissions,
+Gemini/hosted/private-user or production acceptance. Save reviewed source/current
+CI/NEW complete source/dependency/evidence recovery next;no code changed after QA.
+
+Uncommitted049 on published04836a4af4883a1a8e60b721b47c5042156fada5b7f/
+treedbae8f682d81aea186d71bae2aa40c318c42310b. External finalBATCH048_HANDOFF.md
+records completed745file source/784file evidence NEW recovery,32fresh receipts,
+150Research+8chat+20stampedWorker browser,required dependency/image/summary FAIL.
+It supersedes older048source-time pending/WIP labels,not remaining acceptance.
+Exact048rehearsal-only approval fulfilledONCEas20261021132053;stored SQL checksum
+matches approved3fa2c84e...,sevenfunctions/fiveconstraints/read-onlycontract match.
+No real hosted run/user/provider operation or production/deployment acceptance.
+Now fixing a reproduced ordinary copy hang,not paused022/security work: four
+regressions fail when browser writes remain pending beyond10000ms;20existing pass.
+Shared bounded confirmation and truthful unconfirmed error/retry pass29focused
+tests13:29:03Z. Browser assertions added;whole owning/lint/type/build/native/
+browser/current CI/NEW complete recovery still pending. See
+docs/implementation/CLIPBOARD_CONFIRMATION_049.md. All accepted requirements/
+products/modes/quality,old unexplained failures/deployed1101 and release gates
+remain PARTIAL_NOT_COMPLETE. Never overwrite frozen048/paused022 or call this
+source candidate published/deployed/complete before its actual checks.
+
 ## Active Functional Batch: research-entity-execution-048
 
 Oct21 reviewed implementation update (still UNCOMMITTED,not a release checkpoint):

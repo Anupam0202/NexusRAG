@@ -66,3 +66,21 @@ it("gives a repeated successful copy its own full feedback interval", async () =
   act(() => vi.advanceTimersByTime(1000)); expect(button()).toHaveTextContent("Copied");
   act(() => vi.advanceTimersByTime(1000)); expect(button()).not.toHaveTextContent("Copied");
 });
+for (const settlement of ["resolve", "reject"] as const) it(`bounds an unconfirmed clipboard write and ignores its late ${settlement} after explicit retry`, async () => {
+  let finish!: () => void, fail!: (error: Error) => void;
+  writeText.mockReturnValueOnce(new Promise<void>((resolve, reject) => { finish = resolve; fail = reject; }));
+  render(<MessageBubble message={message} />);
+  await act(async () => { fireEvent.click(button()); });
+  expect(button()).toBeDisabled();
+  try {
+    await act(async () => { vi.advanceTimersByTime(10000); });
+    expect(button()).toBeEnabled();
+    expect(screen.getByRole("alert")).toHaveTextContent("Copy was not confirmed");
+    expect(screen.getByRole("alert")).toHaveTextContent("may finish later");
+    expect(writeText).toHaveBeenCalledTimes(1);
+    await act(async () => { fireEvent.click(button()); });
+    expect(button()).toHaveTextContent("Copied"); expect(writeText).toHaveBeenCalledTimes(2);
+    await act(async () => { if (settlement === "resolve") finish(); else fail(new Error("Late browser rejection")); });
+    expect(button()).toHaveTextContent("Copied"); expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  } finally { await act(async () => { finish(); }); }
+});

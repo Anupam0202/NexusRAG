@@ -6,6 +6,7 @@ import type { UIMessage } from "@/types";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { cn } from "@/lib/utils";
+import { clipboardFailureMessage, writeClipboardText } from "@/lib/clipboard-write";
 import { motion, useReducedMotion } from "framer-motion";
 import {
   ChevronDown, ChevronUp, Clock, Layers,
@@ -57,15 +58,15 @@ export function MessageBubble({ message, onShowSources }: Props) {
     const operation = ++copySequence.current;
     const current = () => alive.current && copySequence.current === operation;
     try {
-      await navigator.clipboard.writeText(message.content);
+      await writeClipboardText(message.content);
       if (current()) {
         setCopied(true);
         copyTimer.current = setTimeout(() => {
           if (current()) { setCopied(false); copyTimer.current = null; }
         }, 2000);
       }
-    } catch {
-      if (current()) setCopyError("The clipboard was unavailable.");
+    } catch (error) {
+      if (current()) setCopyError(clipboardFailureMessage(error));
     } finally {
       copyPending.current = false;
       if (alive.current) setCopying(false);

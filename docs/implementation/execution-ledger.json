@@ -13,13 +13,40 @@
   "interpretation": "OPEN_ENGINEERING includes implemented but not fully accepted requirements; it does not assert that no code or scoped evidence exists. External approvals do not close unfinished internal work.",
   "entries": [
     {
+      "id": "ENGINEERING-CLIPBOARD-CONFIRMATION",
+      "requirement": "Bound ordinary Chat and Research clipboard confirmation and preserve honest uncertainty and explicit recovery",
+      "normative_source": "Adopted copy/export,ordinary reliability,truthful status and accessible error workflows; all224definitions remain unchanged",
+      "status": "IN_PROGRESS",
+      "environment": "Uncommitted049 on published04836a4af4/treedbae8f68; frozen048 recovery complete as a scoped milestone,required dependency/image/summary gates FAILED",
+      "next_action": "Reviewed local source all15owning/build/native and actual65table167function SQL restore PASS;554frontend84files/682Gateway/631backend+10/57isolated/105scripts,150Research+8Chat browser PASS/4intentionalSKIP. Four original clipboard before failures remain. Save/current CI/NEW complete source/dependency/evidence recovery required. No old failure waiver,new security work,paused022 edits,hosted business/provider/private/destructive/deployment/production operation;remaining accepted scope open.",
+      "acceptance_evidence": [{
+        "environment": "reviewed uncommitted049,actual production React/native Worker/SQL/executor with controlled synthetic peers;desktop Chromium/mobile Chrome,not hosted users/Gemini/native clipboard permission acceptance",
+        "observed_at": "2026-10-21T13:50:24Z",
+        "source_identity": "parent36a4af4883a1a8e60b721b47c5042156fada5b7f plus reviewed13path049",
+        "command_or_url": "batch049/logs/source049-*-01.log;source049-research-tests.log;source049-chat-tests.log;owned lifecycle receipts",
+        "result": "All15owning/build/native plus actual65table167function backup/restore PASS;554frontend84files/682Gateway/631backend+10/57isolated/105scripts,lint/type/foundation/baseline,26routes/five native probes.150Research+8Chat browser PASS,4intentionalSKIP;manual desktop/mobile light/dark layout review,owned fixtures stopped. No thresholds/limits lowered,automatic retry or security work. Save/current CI/NEW complete source/fresh dependency/evidence recovery still pending;no full functional/production acceptance or old failure waiver."
+      },{
+        "environment": "actual production React components under ordinary synthetic browser-write promises,not native clipboard permission or deployed/private-user acceptance",
+        "observed_at": "2026-10-21T13:29:03Z",
+        "source_identity": "published04836a4af4883a1a8e60b721b47c5042156fada5b7f plus uncommitted049",
+        "command_or_url": "batch049/logs/clipboard-deadline-before-01.log;clipboard-deadline-after-01.log;docs/implementation/CLIPBOARD_CONFIRMATION_049.md",
+        "result": "Four exact enabled-control assertions fail on unchanged048 product source; after scoped shared confirmation helper,29tests/threefiles pass including late resolve/reject and explicit retry. Native writes cannot be cancelled and may finish later; background timers can be throttled. No automatic retry,OS clipboard-order guarantee or full functional/production acceptance."
+      }]
+    },
+    {
       "id": "ENGINEERING-RESEARCH-ENTITY-EXECUTION",
       "requirement": "Complete selected-source Entity Investigation with durable evidence-backed candidates, Findings and independent review",
       "normative_source": "Adopted Entity Investigation and Counterparty Evidence Graph; research_planner accepted50sources/10subquestions/eightvariants/420seconds; exact224definitions unchanged",
       "status": "IN_PROGRESS",
-      "environment": "Uncommitted048 on published04716ee652/tree01254b84; frozen047source/evidence fully recovered with retained unexplained failures,required image/summary FAILED",
-      "next_action": "Reviewed local executor/SQL persistence,concurrent start/Findings,replay/independent revision2review,recovery,maximum40anchor fields and65table167function restore pass. 682Gateway/545frontend/631backend+10/57isolated/105scripts,lint/type/build26routes/five native probes pass. Focused12Entity and corrected whole150browser PASS/4intentionalSKIP/0FAIL12:25:18Z; prior shared synthetic-user request-limit failure retained. Latest fixture typecheck/paused022551entry preservation pass. Save/publication/current CI and NEW full source/dependency/evidence recovery remain; no048hosted approval or new security work. Wider graph register/products/modes/constraints/quality/rights/budgets/private/lifecycle/rollout remain open.",
+      "environment": "Published04836a4af4/treedbae8f68,745source/784evidence files recoveredNEW; approved exact048SQL installed rehearsal20261021132053 only,required dependency/image/summary FAILED",
+      "next_action": "External final048handoff records published36a4af4/treedbae8f68,745source/784evidence NEW recovery/fresh dependencies,32fresh receipts and current exact-tree CI;required dependency/image/summary failed and first Windows timing failures retained. Exact048rehearsal-only approval fulfilledONCE20261021132053 with stored SQL checksum match and catalog/contract verification,not hosted user/run/model acceptance. Wider graph/register/products/modes/constrained scopes/quality/rights/budgets/private/lifecycle/rollout remain open;no new security work or paused022resumption.",
       "acceptance_evidence": [{
+        "environment": "rehearsal Supabaseukgjygzfhyvnrsecdcuu,read-only installation verification only; not real private users or run/provider acceptance",
+        "observed_at": "2026-10-21T13:22:13Z",
+        "source_identity": "source36a4af4883a1a8e60b721b47c5042156fada5b7f/treedbae8f682d81aea186d71bae2aa40c318c42310b;approved migration20261021100301_research_entity_execution.sql",
+        "command_or_url": "external BATCH048_HOSTED_INSTALLATION_2026-10-21.json;BATCH048_HANDOFF.md",
+        "result": "Exact owner rehearsal-only approval fulfilledONCE:remote registry20261021132053/research_entity_execution,stored complete SQL SHA2563fa2c84e1a796e3287afc884e69289e8179aa1a8b384e2227d8a32ad1f36a79f matches approved source;sevenfunctions/fiveconstraints and read-only50source/11step/eightquery/420second contract verified. No hosted business/provider/user/destructive/deployment/production operation. Fresh48recovery/current CI retained full failures; no release acceptance."
+      },{
         "environment": "owned local PostgreSQL,actual production executor/Findings/native Worker/React pages with controlled peers; not hosted identity/model/production or budget proof",
         "observed_at": "2026-10-21T12:17:26Z",
         "source_identity": "parent16ee652/tree01254b84 plus reviewed uncommitted048; current saved-source identity/recovery pending",

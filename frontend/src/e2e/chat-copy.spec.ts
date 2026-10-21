@@ -43,6 +43,33 @@ for (const theme of ["light", "dark"]) test(`${theme}: retain the returned answe
   await expect(copy).toBeEnabled(); await expect(copy).toHaveText("Copied");
   await expect(page.getByRole("alert")).toHaveCount(0);
   expect(await page.evaluate(() => (window as unknown as { syntheticCopiedText: string }).syntheticCopiedText)).toBe(expected);
+  await page.evaluate(() => {
+    const state = window as unknown as { syntheticWriteAttempts: number; finishLateCopy: () => void; failLateCopy: () => void; syntheticCopiedText: string };
+    state.syntheticWriteAttempts = 0;
+    Object.defineProperty(navigator, "clipboard", { configurable: true, value: {
+      writeText: (text: string) => {
+        state.syntheticWriteAttempts++;
+        if (state.syntheticWriteAttempts === 1) return new Promise<void>((resolve, reject) => {
+          state.finishLateCopy = resolve; state.failLateCopy = () => reject(new Error("Late synthetic clipboard rejection"));
+        });
+        state.syntheticCopiedText = text; return Promise.resolve();
+      },
+    } });
+  });
+  await copy.click(); await expect(copy).toBeDisabled();
+  await expect(page.getByRole("alert")).toContainText("Copy was not confirmed", { timeout: 15000 });
+  await expect(page.getByRole("alert")).toContainText("may finish later");
+  await expect(copy).toBeEnabled(); await expect(copy).not.toHaveText("Copied");
+  expect(await page.evaluate(() => (window as unknown as { syntheticWriteAttempts: number }).syntheticWriteAttempts)).toBe(1);
+  await page.screenshot({ path: testInfo.outputPath(`chat-copy-unconfirmed-${theme}.png`), fullPage: true });
+  await copy.click(); await expect(copy).toHaveText("Copied");
+  await page.evaluate(dark => {
+    const state = window as unknown as { finishLateCopy: () => void; failLateCopy: () => void };
+    if (dark) state.failLateCopy(); else state.finishLateCopy();
+  }, theme === "dark");
+  await expect(page.getByRole("alert")).toHaveCount(0);
+  expect(await page.evaluate(() => (window as unknown as { syntheticCopiedText: string }).syntheticCopiedText)).toBe(expected);
+  expect(await page.evaluate(() => (window as unknown as { syntheticWriteAttempts: number }).syntheticWriteAttempts)).toBe(2);
   expect(submissions).toHaveLength(1); expect(errors).toEqual([]);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await page.screenshot({ path: testInfo.outputPath(`chat-copy-${theme}.png`), fullPage: true });

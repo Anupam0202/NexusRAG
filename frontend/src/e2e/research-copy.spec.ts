@@ -55,8 +55,37 @@ for (const theme of ["light", "dark"]) for (const mode of Object.keys(fields) as
       await page.getByRole("button", { name: "Copy results", exact: true }).click();
       await expect(page.getByRole("alert")).toContainText("The clipboard was unavailable.");
     }
+    if (mode === "COMPARE") {
+      await page.evaluate(() => {
+        const state = window as unknown as { syntheticWriteAttempts: number; finishLateCopy: () => void; failLateCopy: () => void; syntheticCopiedText: string };
+        state.syntheticWriteAttempts = 0;
+        Object.defineProperty(navigator, "clipboard", { configurable: true, value: {
+          writeText: (text: string) => {
+            state.syntheticWriteAttempts++;
+            if (state.syntheticWriteAttempts === 1) return new Promise<void>((resolve, reject) => {
+              state.finishLateCopy = resolve; state.failLateCopy = () => reject(new Error("Late synthetic clipboard rejection"));
+            });
+            state.syntheticCopiedText = text; return Promise.resolve();
+          },
+        } });
+      });
+      await page.getByRole("button", { name: "Copy results", exact: true }).click();
+      await expect(page.getByRole("button", { name: "Copying...", exact: true })).toBeDisabled();
+      await expect(page.getByRole("alert")).toContainText("Copy was not confirmed", { timeout: 15000 });
+      await expect(page.getByRole("alert")).toContainText("may finish later");
+      await expect(page.getByRole("button", { name: "Copy results", exact: true })).toBeEnabled();
+      expect(await page.evaluate(() => (window as unknown as { syntheticWriteAttempts: number }).syntheticWriteAttempts)).toBe(1);
+      await page.screenshot({ path: testInfo.outputPath(`research-copy-unconfirmed-${theme}.png`), fullPage: true });
+    }
     await page.getByRole("button", { name: "Copy results", exact: true }).click();
     await expect(page.getByRole("button", { name: "Copied", exact: true })).toBeVisible();
+    if (mode === "COMPARE") {
+      await page.evaluate(dark => {
+        const state = window as unknown as { finishLateCopy: () => void; failLateCopy: () => void };
+        if (dark) state.failLateCopy(); else state.finishLateCopy();
+      }, theme === "dark");
+      expect(await page.evaluate(() => (window as unknown as { syntheticWriteAttempts: number }).syntheticWriteAttempts)).toBe(2);
+    }
     await expect(page.getByRole("alert")).toHaveCount(0);
     const copied = await page.evaluate(() => (window as unknown as { syntheticCopiedText: string }).syntheticCopiedText);
     expect(copied).toContain(question); expect(copied).toContain(JSON.stringify(structure, null, 2));

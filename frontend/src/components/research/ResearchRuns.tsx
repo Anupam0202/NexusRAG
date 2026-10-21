@@ -6,6 +6,7 @@ import { listResearchRuns, researchRunCommand } from "@/lib/api";
 import type { ResearchRun } from "@/lib/research-run";
 import type { ResearchPlanRecord } from "@/lib/research-plan";
 import { researchResultsClipboardText } from "@/lib/research-run-copy";
+import { clipboardFailureMessage, writeClipboardText } from "@/lib/clipboard-write";
 import { ResearchFindingAction } from "./ResearchFindingAction";
 import { ComparisonMatrix } from "./ComparisonMatrix";
 import { TimelineOverview } from "./TimelineEvents";
@@ -65,10 +66,10 @@ export function ResearchRuns({plan,workspaceId,userId,canWrite}:{plan:ResearchPl
     const operation=sequence.current,attempt=++copySequence.current;
     const current=()=>alive.current&&sequence.current===operation&&copySequence.current===attempt;
     try {
-      await navigator.clipboard.writeText(researchResultsClipboardText(selected.results));
+      await writeClipboardText(researchResultsClipboardText(selected.results));
       if(current())setCopied(true);
-    } catch {
-      if(current())setCopyError("The clipboard was unavailable.");
+    } catch(error) {
+      if(current())setCopyError(clipboardFailureMessage(error));
     } finally {
       copyPending.current=false;if(alive.current)setCopying(false);
     }

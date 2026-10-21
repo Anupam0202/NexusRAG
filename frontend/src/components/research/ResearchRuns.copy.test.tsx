@@ -136,3 +136,21 @@ it("does not copy the previous execution while a different execution is opening"
   expect(screen.queryByRole("button", { name: /^Copied$/ })).not.toBeInTheDocument();
   expect(screen.getByRole("button", { name: /^Copy results$/ })).toBeEnabled();
 });
+for (const settlement of ["resolve", "reject"] as const) it(`recovers a never-confirmed Research copy without accepting its late ${settlement}`, async () => {
+  let finish!: () => void, fail!: (error: Error) => void;
+  writeText.mockReturnValueOnce(new Promise<void>((resolve, reject) => { finish = resolve; fail = reject; }));
+  const button = await open(researchCopyRun("COMPARE")); vi.useFakeTimers();
+  try {
+    await act(async () => { fireEvent.click(button); });
+    expect(button).toBeDisabled();
+    await act(async () => { vi.advanceTimersByTime(10000); });
+    expect(button).toBeEnabled();
+    expect(screen.getByRole("alert")).toHaveTextContent("Copy was not confirmed");
+    expect(screen.getByRole("alert")).toHaveTextContent("may finish later");
+    expect(writeText).toHaveBeenCalledTimes(1);
+    await act(async () => { fireEvent.click(button); });
+    expect(button).toHaveTextContent("Copied"); expect(writeText).toHaveBeenCalledTimes(2);
+    await act(async () => { if (settlement === "resolve") finish(); else fail(new Error("Late browser rejection")); });
+    expect(button).toHaveTextContent("Copied"); expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  } finally { await act(async () => { finish(); }); vi.clearAllTimers(); vi.useRealTimers(); }
+});
