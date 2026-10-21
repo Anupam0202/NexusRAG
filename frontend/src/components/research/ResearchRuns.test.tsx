@@ -95,5 +95,7 @@ for(const pageNumber of [null,0,2])it(`shows the original source locator without
   render(<ResearchRuns {...props}/>);fireEvent.click(await screen.findByRole("button",{name:`Open execution ${id}`}));
   expect(await screen.findByText(`[S1] Synthetic original.txt / chunk 0${pageNumber?` / page ${pageNumber}`:""}`,{exact:true})).toBeVisible();
   expect(screen.queryByText(/\/ page 0/)).not.toBeInTheDocument();
+  fireEvent.click(screen.getByText(`[S1] Synthetic original.txt / chunk 0${pageNumber?` / page ${pageNumber}`:""}`,{exact:true}));
+  expect(await screen.findByText("Original retained evidence.",{exact:true})).toBeVisible();
   expect(screen.getByRole("link",{name:/^Inspect document$/})).toHaveAttribute("href",`/documents/${id}`);
 });

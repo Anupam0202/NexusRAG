@@ -1,5 +1,42 @@
 # Requirement traceability
 
+051reviewed source18:56:35Z all owning631backend+10/682Gateway/556frontend85files/
+57isolated/106scripts/lint/type/build/native/SQL65table167function restore/cold4/
+150Research+8Chat PASS,4intentionalSKIP. Four unchanged maximum-field cases pass
+on changed source;old failures not erased/causally explained. Manual screenshot/
+keyboard/source-find review only;save/current CI/full NEW source/dependencies/
+evidence recovery pending. No full normative or active-deployment acceptance.
+
+051provisional ancillary-control mounting optimization preserves exact224definitions
+and denominator. It rolls forward the explicitly failed/unpublished050WIP,not a
+completed checkpoint. Prototype1whole-body deferral REJECTED for Chromium closed
+hash-find regression;complete752file WIPace10035...and failed typecheck retained.
+Revision2preserves original text/hash in DOM/search and defers only unopened
+controls.30focused tests PASS18:36:19Z;actual old-source control assertion fails,
+after browser probe PASS18:37:36Z(closed searchtrue/links0/exact expanded source).
+Whole revision2owning/browser/DOM measurements/current CI/fresh recovery pending.
+Not owner-Chrome Ctrl+F/private/performance acceptance. Original four capacity30s
+timeouts and prior049/048/045/047failures unwaived. Full products/modes/quality/
+private/deployed/rights/budgets/lifecycle/rollout acceptance remains incomplete.
+
+050ordinary fixture startup/recovery correction does not change any normative
+definition or accepted denominator. 049fresh Chat1FAIL/7PASS and earlier failures
+remain;confirmed late optimizer reload/aborted startup requests are corrected by
+an explicit Chat TSX entry using Research's existing pattern. Actual4cold-context
+regression PASS17:37:05Z,owned listeners closed;exact original timeout attribution
+not proven. Owning631backend+10/682Gateway/554frontend/57isolated/106scripts,
+lint/type/build/native/SQL65table167function restore PASS;initial harness lint
+failure corrected/retained and4cold contexts rerun17:58:23Z. Full browser/current
+CI/fresh recovery not done. Research146PASS/4FAIL/4SKIP18:11:07Z:both maximum-field
+Entity/Obligation desktop/mobile journeys exceed unchanged30s;Chat8PASS18:12:33Z.
+Failures preserved/not reclassified,cause under investigation,save guard unchanged;
+DO NOT PUBLISH WIP. Public18:04:38Z Research1101 stillfails;no deployed fix.
+Due60sources/
+12subquestions/8queries/600seconds remains open,with2UI/1Gateway actual failures
+preserved in complete750file WIPa5e7045b...;no lost scope or false implementation.
+Required gates/excluded022/deployed1101/remaining full products and acceptance
+criteria remain PARTIAL_NOT_COMPLETE. No new security or hosted/deployment work.
+
 049reviewed source13:50:24Z:554frontend84files/682Gateway/631backend+10subtests/
 57isolated/105scripts,lint/type/foundation/baseline/build26routes/five native
 probes/real65table167function restore PASS.150Research+8Chat controlled browser

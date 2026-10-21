@@ -16,6 +16,9 @@ const server = await createServer({ root, configFile: false, envFile: false, plu
   name: "synthetic-summary-transport",
   configureServer(instance) { instance.middlewares.use((req, res, next) => { void serveFixture(req, res, next, instance); }); },
 }],
+  // Middleware serves virtual HTML, so dependency scanning needs its real TSX entry.
+  optimizeDeps: { entries: ["scripts/fixtures/summary-selection.tsx"] },
+  cacheDir: process.env.NEXUSRAG_FIXTURE_CACHE_DIR,
   resolve: { alias: { "@": resolve(root, "src") } },
   define: { "process.env": JSON.stringify({ NODE_ENV: "development", NEXT_PUBLIC_API_URL: `http://127.0.0.1:${port}` }) },
   server: { host: "127.0.0.1", port, strictPort: true, watch: { ignored: ["**/.next/**", "**/.open-next/**"] } },

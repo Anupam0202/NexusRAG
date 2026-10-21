@@ -151,6 +151,7 @@ jobs:
             fi
           done
           npm exec playwright -- install --with-deps chromium firefox webkit
+          node scripts/test-component-fixture-startup.mjs
           npm run test:visual:prepare
           npm run start -- --port 3002 > /tmp/nexusrag-browser-server.log 2>&1 &
           server_pid=$!

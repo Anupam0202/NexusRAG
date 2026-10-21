@@ -1,5 +1,69 @@
 # NexusRAG execution checkpoint
 
+## Active Functional Batch: research-source-panels-051
+
+Reviewed local18:56:35Z:all15revision2owning/build/native checks PASS:
+631backend+10subtests/682Gateway/556frontend85files/57isolated/106scripts,
+lint/type/foundation/baseline/NextOpenNext26routes/five native probes. Actual
+SQL65table167function concurrency/executor/backup-restore,cold4contexts,
+150Research+8Chat controlled browsers PASS;4intentionalSKIP not counted.
+All four unchanged30s maximum-field cases pass on current changed source;old
+050four failures are retained and not causally explained/reclassified. Keyboard/
+closed-hash search/source inspection and two mobile stress screenshots reviewed;
+not owner-Chrome Ctrl+F/real OAuth/private/provider/performance/production proof.
+Current save/publication/current CI/NEW complete saved-source/fresh dependencies/
+evidence recovery remain pending. GitHubowner/repo/PR12/headf564/threebranches
+freshly revalidated;no live-provider/deployment trigger intended or authorized.
+
+Uncommitted051 builds on preserved failed050WIP750files,not a published050commit.
+Saved Git parent remainsf564b541712040b8c4b21778f3efcd8f37389bb4. Read external
+BATCH050_FAILED_WIP_HANDOFF_2026-10-21.md;fullsource7f40f565.../evidence6ebb1295...
+recover exactly. Research146PASS/4FAIL/4SKIP at30s and Chat8PASS remain unwaived;
+neither source50save guard nor original tests/limits changed. Prototype1whole-body
+deferral REJECTED:baseline Chromium window.find closed hashtrue/prototypefalse;
+complete752file WIPace10035...recovered NEW,failed typecheck retained. Revision2
+keeps text/hash in DOM for search and defers only closed-panel ancillary controls.
+30focused tests/four files PASS18:36:19Z;before actual old-source browser assertion
+fails with one unopened link(expected0),after probe PASS18:37:36Z:closed hash
+searchable,zero unopened links,exact expanded original retained. Not owner-Chrome
+Ctrl+F/private/performance acceptance. Two invalid Testing Library exact options
+and earlier raw-text clipboard expectation corrected in tests,not app contracts;
+failures retained. Full revision2owning/browser/CI/NEW saved-source/fresh dependency/
+evidence recovery pending. Do not claim original timeouts explained or waived.
+Read docs/implementation/RESEARCH_SOURCE_PANELS_051.md. No security/paused022,
+hosted/private/customer/provider/destructive/new-user/paid/deployment operations.
+All224/tenproducts/twelvemodes/400+125quality remain PARTIAL_NOT_COMPLETE.
+
+## Active Functional Batch: component-fixture-startup-050
+
+Uncommitted050 on published049f564b541712040b8c4b21778f3efcd8f37389bb4/tree
+8277b0e1a80085df6e685cb859fd27611165bbd7. 049source748files recover exactly from
+7fed7acd...archive with fresh dependencies/owning/build/native/SQL/150Research
+browser checks passing,4intentionalSKIP;fresh Chat7PASS/1FAIL at initial Selected
+button before copying. Failure preserved,not a complete acceptance checkpoint.
+Exact-tree CI ordinary/frontend/DB PASS;dependency/image/required-summary FAIL.
+Independent stamped-Worker/preservation checks were finished without rerunning
+or reclassifying the failed Chat case. No new security work/paused022resumption.
+Cold diagnostics reproduce late Chat dependency discovery/reload/aborted module
+requests;explicit TSX entry eliminates that behavior,matching existing Research
+configuration. Actual corrected-source regression4cold contexts PASS17:37:05Z,
+single navigation/no failed requests,owned listeners closed. Exact original30s
+timeout cause remains not conclusively proven;no older failure/gate waiver.
+Source owning631backend+10/682Gateway/554frontend/57isolated/106scripts and
+lint/type/NextOpenNext26routes/five native/SQL65table167function restore PASS.
+Initial new-harness lint failure retained and corrected;actual4cold contexts
+rerun PASS17:58:23Z. Full Research FAILED146PASS/4FAIL/4intentionalSKIP at18:11:07Z;
+maximum-field Entity/Obligation desktop/mobile cases exceed unchanged30s limit.
+Chat8PASS separately18:12:33Z. Original failures retained;cause under investigation.
+Save guard unmodified;DO NOT PUBLISH WIP. Current CI/NEW complete recovery not done.
+PR12description consolidated after exact-byte preservation;draft/history/branches
+unchanged. Public Research18:04:38Z stillError1101/Raya4e22f907cac4348;not deployed repair.
+Read docs/implementation/COMPONENT_FIXTURE_STARTUP_050.md. Due before2UI/1Gateway
+failures remain open,preserved in complete750file WIPa5e7045b...baseline ZIP.
+No Due implementation,scope reduction,hosted business/provider/private/destructive/
+new-user/deployment/production operation or production acceptance. Full adopted
+224/tenproducts/twelvemodes/400+125quality remains PARTIAL_NOT_COMPLETE.
+
 ## Active Functional Batch: clipboard-confirmation-049
 
 Reviewed local update13:50:24Z:all15owning/build/native checks and actual ownedSQL

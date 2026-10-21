@@ -10,6 +10,16 @@ import yaml
 ROOT = Path(__file__).resolve().parents[2]
 
 class ResearchWorkflowTests(unittest.TestCase):
+    def test_cold_component_startup_runs_with_installed_browsers_in_required_ci(self):
+        workflow=yaml.safe_load((ROOT/".github/workflows/v6-foundation-ci.yml").read_text())
+        steps=workflow["jobs"]["frontend"]["steps"]
+        matching=[step for step in steps if "node scripts/test-component-fixture-startup.mjs" in step.get("run","")]
+        self.assertEqual(len(matching),1)
+        self.assertEqual(matching[0].get("working-directory"),"frontend")
+        command=matching[0]["run"]
+        self.assertLess(command.index("playwright -- install"),command.index("node scripts/test-component-fixture-startup.mjs"))
+        self.assertTrue((ROOT/"frontend/scripts/test-component-fixture-startup.mjs").is_file())
+
     def test_entity_execution_persistence_capacity_and_browser_journeys_run_in_required_ci(self):
         migration = "20261021100301_research_entity_execution.sql"
         workflow = (ROOT / ".github/workflows/v6-database-rehearsal.yml").read_text()

@@ -13,6 +13,36 @@
   "interpretation": "OPEN_ENGINEERING includes implemented but not fully accepted requirements; it does not assert that no code or scoped evidence exists. External approvals do not close unfinished internal work.",
   "entries": [
     {
+      "id":"ENGINEERING-RESEARCH-SOURCE-PANELS",
+      "requirement":"Defer unopened research citation ancillary-control work while preserving original text/hash browser search,exact inspection and saved clipboard contract",
+      "normative_source":"Adopted ordinary UI reliability,source inspection,responsiveness and complete verification;all224definitions/full scope unchanged",
+      "status":"IN_PROGRESS",
+      "environment":"Uncommitted051 on f564b54 plus frozen failed050WIP750files;no050publication,hosted/deployment or security work",
+      "next_action":"Reviewed revision2source18:56:35Z all15owning/build/native plus realSQL65table167function restore/cold4/150Research+8Chat PASS;556frontend85files/682Gateway/631backend+10/57isolated/106scripts,4intentionalSKIP. Four unchanged max-field30s tests pass on changed source,old050failures retained/not causally explained. Keyboard/source-hash find and two mobile stress screenshots reviewed,not owner Ctrl+F/private/performance acceptance. Save/current CI/NEW complete saved-source/fresh dependency/evidence recovery required. Prototype1search regression/typecheck rejection and corrected initial clipboard-test assumption remain recorded;no app output/gate changes,strict050save guard unchanged,full accepted scope open.",
+      "acceptance_evidence":[{
+        "environment":"actual production ResearchRuns under ordinary synthetic component fixtures,not hosted/private/native search or performance acceptance",
+        "observed_at":"2026-10-21T18:37:36Z",
+        "source_identity":"Uncommitted051 on publishedf564b54 plus preserved050WIP7f40f565...",
+        "command_or_url":"batch051/logs/source-panels-before-01.log;source-panels-before-02.log;source-panels-after-01.log;source-panels-v2-focused-01.log;source-find-baseline-01.log;source-find-prototype-01.log;source-controls-browser-before-01.log;source-controls-browser-after-01.log",
+        "result":"Prototype1rejected for closed-hash find regression despite focused/owning tests. Revision2retains searchable original text/hash and unchanged clipboard metadata;30focused tests pass. Actual unchanged049browser assertion fails(one unopened link),corrected source passes with zero unopened links,closed hash search and exact expanded content. Whole owning/browser/performance/fresh recovery/CI pending;no production acceptance."
+      }]
+    },
+    {
+      "id": "ENGINEERING-COMPONENT-FIXTURE-STARTUP",
+      "requirement": "Ordinary component browser journeys must initialize without dependency-optimizer invalidation during initial interaction and preserve reproducible recovery evidence",
+      "normative_source": "Adopted user-facing reliability,browser workflow and complete recoverable verification requirements;exact224definitions and full product/mode scope unchanged",
+      "status": "IN_PROGRESS",
+      "environment": "Uncommitted050 on sourcef564b54/tree8277b0e1;source Research146PASS/4FAIL/4intentionalSKIP at unchanged30s,Chat8PASS.049fresh Chat1FAIL/7PASS and required dependency/image/summary CI failures retained",
+      "next_action": "DO NOT PUBLISH WIP;save guard unmodified. Actual4cold startup contexts,owning631backend+10/682Gateway/554frontend/57isolated/106scripts/lint/type/build/native/SQL65table167function restore PASS;initial harness lint failure retained/corrected. Source Research four maximum-field Entity/Obligation desktop/mobile timeouts now require ordinary stage diagnostics and a supported correction,not threshold/assertion weakening or retry-until-green. Exact cause not yet proven. Keep049failed recovery/frozen evidence and original timeout uncertainty. Preserve Due2UI/1Gateway baseline750WIPa5e7045b...and complete remaining full scope later. No new security work or paused022/hosted/provider/private/destructive/deployment operations.",
+      "acceptance_evidence": [{
+        "environment": "controlled real production UI components under Vite8.0.16,NEW shared cache,desktop/mobile-width Chromium and loopback fixture transports;not hosted/private/model or browser-permission acceptance",
+        "observed_at": "2026-10-21T17:37:05Z",
+        "source_identity": "published049f564b541712040b8c4b21778f3efcd8f37389bb4 plus uncommitted050Chat optimization entry/cache control/actual regression/ordinary CI guard",
+        "command_or_url": "batch050/logs/startup-original-diagnostic-01.log;startup-entries-diagnostic-01.log;actual-fixture-cold-start-after-01.log;startup-*/chat-browser.json",
+        "result": "Cold unchanged-source Chat diagnostic reproduces reload and aborted modules in both contexts;both eventually render. Explicit-entry comparison eliminates invalidation. Actual corrected source4contexts PASS,single navigation/no failed startup requests,two listeners closed. Original04930second missing-Selected timeout not reproduced/conclusively attributed;no old failure waiver or production acceptance."
+      }]
+    },
+    {
       "id": "ENGINEERING-CLIPBOARD-CONFIRMATION",
       "requirement": "Bound ordinary Chat and Research clipboard confirmation and preserve honest uncertainty and explicit recovery",
       "normative_source": "Adopted copy/export,ordinary reliability,truthful status and accessible error workflows; all224definitions remain unchanged",

@@ -1,5 +1,49 @@
 # Comprehensive application audit
 
+## Deferred Citation Bodies - Functional051
+
+Latest revision2local18:56:35Z:631backend+10/682Gateway/556frontend85files/
+57isolated/106scripts,lint/type/build26routes/five native/realSQL65table167function
+restore/cold4/150Research+8Chat PASS,4intentionalSKIP. Unchanged four maximum
+tests/30s limits pass on current changed source;old050failures remain unwaived,
+not causally attributed. Two mobile stress screenshots manually reviewed;keyboard/
+closed source hash find/inspection preserved. Save/current CI/NEW complete source/
+fresh dependency/evidence recovery pending;not private/provider/production proof.
+
+Failed050source/evidence WIP recovered/frozen,not published;Research146PASS/4FAIL/
+4SKIP/Chat8PASS remain. Prototype1whole-body deferral REJECTED:baseline closed-hash
+Chromium window.find true/prototypefalse. Complete752file WIPace10035...recovered;
+failed test typecheck retained/corrected. Revision2keeps text/hash searchable in
+DOM,defers only unopened ancillary controls.30focused tests PASS18:36:19Z;
+actual old-source browser control assertion fails as intended,after probe PASS
+18:37:36Z with closed searchtrue/links0/exact expanded content. Not owner-Chrome
+Ctrl+F/private/performance acceptance. Whole revision2owning/browser/fresh recovery/
+CI pending;no old timeout/gate waiver. See RESEARCH_SOURCE_PANELS_051.md.
+Full224/tenproducts/twelvemodes/quality and known release prerequisites remain open.
+
+## Component Fixture Startup - Functional050
+
+049fresh bytes/dependencies/owning/build/native/SQL/150Research browser pass but
+Chat7PASS/1FAIL before first Selected click. Original30second timeout is retained,
+not overwritten by source/CI passes. Cold unchanged-source diagnostics reproduce
+late Chat optimizer reload and aborted module requests;both pages eventually
+render,so exact attribution of that30s failure is NOT claimed. Chat's virtual
+HTML lacked Research's established explicit TSX entry. Corrected actual source
+scripts pass4cold Chromium contexts with one navigation/no startup failures and
+owned listeners closed. New ordinary CI regression added. Owning631backend+10/
+682Gateway/554frontend/57isolated/106scripts,lint/type/build26routes/native/SQL
+65table167function restore PASS;initial harness lint failure retained/corrected
+and actual4cold contexts rerun17:58:23Z. Full browser/current CI/fresh recovery
+FAILED146PASS/4FAIL/4intentionalSKIP18:11:07Z across both desktop/mobile maximum
+Entity/Obligation cases at unchanged30s limit. Chat8PASS separately18:12:33Z;
+original failures not retried/reclassified and exact cause not proven. Current
+CI/fresh recovery not done;save guard unmodified,DO NOT PUBLISH this WIP.
+Public18:04:38Z Research1101 persists;local fix is not deployed repair.
+PR12description consolidated after exact-byte preservation,no history/branch loss.
+See COMPONENT_FIXTURE_STARTUP_050.md. Due remains
+unimplemented with3actual before failures preserved in complete750file WIP.
+No new security work,hosted/deployment operation or old failure/gate waiver.
+
 ## Clipboard Confirmation - Functional049
 
 Reviewed local update13:50:24Z:whole554frontend84files/682Gateway/631backend+10/

@@ -17,6 +17,16 @@ import { ObligationCandidates } from "./ObligationCandidates";
 import { EntityCandidates } from "./EntityCandidates";
 
 const button="inline-flex items-center justify-center gap-2 rounded-lg border border-[var(--border)] px-3 py-2 text-sm disabled:opacity-50";
+function ResearchSourceDetails({source,id}:{source:ResearchRun["results"][number]["sources"][number];id:string}) {
+  const [expanded,setExpanded]=useState(false);
+  return <details id={id} tabIndex={-1} open={expanded} onToggle={event=>setExpanded(event.currentTarget.open)} className="mb-2 min-w-0 rounded-lg border border-[var(--border)] p-3">
+    <summary className="cursor-pointer break-words text-sm">[{source.citation_id}] {source.filename} / chunk {source.chunk_index}{source.page_number!=null&&source.page_number>0?` / page ${source.page_number}`:""}</summary>
+    <p className="my-2 whitespace-pre-wrap break-words text-sm">{source.content}</p>
+    {expanded&&source.excerpt&&<p className="text-xs">Excerpt; inspect the original chunk for full content.</p>}
+    <p className="my-2 break-all font-mono text-xs text-[var(--text-muted)]">SHA256 {source.original_content_hash}</p>
+    {expanded&&<Link href={`/documents/${encodeURIComponent(source.document_id)}`} className={button}><ExternalLink size={14}/>Inspect document</Link>}
+  </details>;
+}
 export function ResearchRuns({plan,workspaceId,userId,canWrite}:{plan:ResearchPlanRecord;workspaceId:string;userId:string;canWrite:boolean}) {
   const [items,setItems]=useState<ResearchRun[]>([]),[selected,setSelected]=useState<ResearchRun|null>(null),[after,setAfter]=useState<string|null>(null);
   const [busy,setBusy]=useState(false),[error,setError]=useState<string|null>(null),[attested,setAttested]=useState(false),[copied,setCopied]=useState(false);
@@ -120,13 +130,7 @@ export function ResearchRuns({plan,workspaceId,userId,canWrite}:{plan:ResearchPl
         {result.obligations&&<ObligationCandidates analysis={result.obligations} sourcePrefix={`${selected.id}-${index}`}/>}
         {result.entities&&<EntityCandidates analysis={result.entities} sourcePrefix={`${selected.id}-${index}`}/>}
         <ResearchFindingAction runId={selected.id} index={index} result={result} workspaceId={workspaceId} userId={userId} canWrite={canWrite}/>
-        {result.sources.map(source=><details key={source.citation_id} id={`${selected.id}-${index}-${source.citation_id}`} tabIndex={-1} className="mb-2 min-w-0 rounded-lg border border-[var(--border)] p-3">
-          <summary className="cursor-pointer break-words text-sm">[{source.citation_id}] {source.filename} / chunk {source.chunk_index}{source.page_number!=null&&source.page_number>0?` / page ${source.page_number}`:""}</summary>
-          <p className="my-2 whitespace-pre-wrap break-words text-sm">{source.content}</p>
-          {source.excerpt&&<p className="text-xs">Excerpt; inspect the original chunk for full content.</p>}
-          <p className="my-2 break-all font-mono text-xs text-[var(--text-muted)]">SHA256 {source.original_content_hash}</p>
-          <Link href={`/documents/${encodeURIComponent(source.document_id)}`} className={button}><ExternalLink size={14}/>Inspect document</Link>
-        </details>)}
+        {result.sources.map(source=><ResearchSourceDetails key={source.citation_id} source={source} id={`${selected.id}-${index}-${source.citation_id}`}/>)}
         <p className="text-xs text-[var(--text-muted)]">{result.coverage.chunks_considered} candidate chunks considered / bounded retrieval, not exhaustive / provider cost {result.provider_cost_status.toLowerCase()}</p>
         {result.coverage.lexical_limit_reached&&<p className="mt-1 text-xs text-amber-700 dark:text-amber-300">Lexical candidate limit reached. Additional chunks were not lexically ranked; dense retrieval may include later evidence.</p>}
       </article>)}
