@@ -1,5 +1,38 @@
 # Requirement traceability
 
+052reviewed13:59:14Z local source:631backend+10/698Gateway/567frontend88files/
+57isolated/107scripts/all16owning-build-native checks,realSQL Unicode/executor/
+concurrency/65table174function restore,164Research+4intentionalSKIP/8Chat/cold4
+PASS. Original full161PASS/3FAIL/4SKIP remains failed:two invalid new browser
+inputs corrected,unchanged Obligation resume timeout unexplained and not waived.
+No test/timeouts were altered for that case. Save/current exact-tree CI/NEW full
+source/fresh dependency/evidence recovery remain pending. Public13:55:09Z1101
+Ray a4e8ff7e493ae231 persists;CFChrome control times out. No full normative/mode/
+product/quality or production acceptance;all224definitions remain unchanged.
+Earlier pending notes below are historical for these enumerated checks only.
+
+052 remains IN_PROGRESS, not normative closure. Exact224definitions, ten products,
+twelve modes,400+125quality and60sources/12subquestions/eightqueries/600seconds
+remain unchanged. Current source connects Due observations/qualifications/gaps
+to exact evidence,13-step durable execution,Findings lineage and independent review.
+Actual local SQL/concurrency/executor/65table174function restore and12focused
+desktop/mobile browser journeys pass; first source owning/build/native pass is
+recorded in RUN-STATE. Post-review Unicode SQL/full owning/browser/CI/NEW recovery
+are still pending. Public constrained acquisition/graph and wider product work
+are not complete. No hosted/provider/private/deployment acceptance is implied.
+
+Three Unicode boundary regressions reproduced draft/Gateway/client counting UTF16
+instead of SQL Unicode characters. Correction keeps10,000characters and original
+aggregate byte guards; focused33Gateway/12client tests pass,full rerun pending.
+Historical fixture failures and inaccurate first native receipt labels are kept.
+
+Public Research11:56:18Z1101Ray a4e851678e6573d3 persists;Cloudflare Chrome control
+timed out so live logs/active artifact correlation are unconfirmed. Required failed
+gates and owner-paused022 remain release prerequisites,outside this functional task.
+CLI-created052SQL has no hosted approval/install. All adopted scope remains open.
+Read RESEARCH_DILIGENCE_EXECUTION_052.md and latest external checkpoint receipts.
+Final051752source/461evidence recovery/35fresh receipts pass,not full acceptance.
+
 051reviewed source18:56:35Z all owning631backend+10/682Gateway/556frontend85files/
 57isolated/106scripts/lint/type/build/native/SQL65table167function restore/cold4/
 150Research+8Chat PASS,4intentionalSKIP. Four unchanged maximum-field cases pass

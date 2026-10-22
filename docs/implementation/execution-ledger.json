@@ -13,6 +13,27 @@
   "interpretation": "OPEN_ENGINEERING includes implemented but not fully accepted requirements; it does not assert that no code or scoped evidence exists. External approvals do not close unfinished internal work.",
   "entries": [
     {
+      "id":"ENGINEERING-RESEARCH-DILIGENCE-EXECUTION",
+      "requirement":"Complete Due Diligence evidence review with qualified observations,gaps,source inspection,durable execution and independent Findings review",
+      "normative_source":"Adopted Due Diligence/Counterparty Evidence Graph/P16/P17;60sources/12subquestions/eightqueries/600seconds;exact224definitions unchanged",
+      "status":"IN_PROGRESS",
+      "environment":"Uncommitted052 on published051e699ab6; actual owned SQL/native/React fixtures, not hosted/private/provider acceptance; required gates failed",
+      "next_action":"Reviewed13:59:14Z all16owning/build/native checks pass:631backend+10/698Gateway/567frontend88files/57isolated/107scripts,lint/type/build26routes/six probes. Real SQL Unicode/executor/concurrency/65table174function restore and164Research/4intentionalSKIP/8Chat/cold4 pass. First161PASS/3FAIL/4SKIP retained;two new invalid Unicode inputs corrected,unchanged old Obligation resume timeout remains unexplained and unwaived. Synthetic timing diagnostics preserve scheduling/assertions/timeouts;new passes are not a repair claim. Save/exact-tree CI/NEW complete source/fresh dependency/evidence recovery required. No hosted052consent/install. Public13:55:09Z1101Ray a4e8ff7e493ae231;CFChrome control timeout prevents live-log/source correlation. All224/product/mode/quality/private/lifecycle/rights/budget/release work remains open;no security work or paused022 resumption.",
+      "acceptance_evidence":[{
+        "environment":"ordinary production UI/Gateway source with controlled synthetic peers,not hosted/private/model or full workflow acceptance",
+        "observed_at":"2026-10-22T11:47:05Z",
+        "source_identity":"published051e699ab6695c71fcde60ad0083942fa3a1cb99df1 plus provisional uncommitted052",
+        "command_or_url":"batch051/logs/diligence052-ui-before-02.log;diligence052-receipt-before-01.log;diligence052-client-after-01.log;diligence052-receipt-after-01.log;diligence052-query-scope-before-01.log",
+        "result":"Actual missing UI2fail/13criterion receipt1fail preserved;structured module8focused,typed-client/UI6 and Gateway9pass. Further query subject gap reproduced;correction pending full owning verification. New executor query-fixture mismatch retained/corrected,not a literal-preservation defect. SQL/Findings/browser/complete recovery/CI remain undone;PARTIAL_NOT_COMPLETE."
+      },{
+        "environment":"actual owned disposable SQL/executor/native Worker and controlled React browser peers, not hosted users/Gemini/free CPU or performance acceptance",
+        "observed_at":"2026-10-22T13:55:09Z",
+        "source_identity":"published051e699ab6695c71fcde60ad0083942fa3a1cb99df1 plus uncommitted39path052; CLI migration20261022120413 local only",
+        "command_or_url":"batch052/logs/source052-reviewed-*-01.log;diligence052-sql-unicode-03.log;diligence052-focused-02-tests.log;diligence052-all-research-01-tests.log;source052-resume-diagnostic-01-tests.log;READONLY_PUBLIC_RECHECK_2026-10-22_135509.json",
+        "result":"Durable60source13criterion100subject Due execution/maximum observations/retries/concurrency/Finding independent review/backuprestore pass. Three Unicode boundary before failures reproduced and focused correction passes;10,000characters and original byte guards retained. Twelve Due browser/8Chat/cold4 pass,first full suite161pass/3fail/4skip remains failed and retained. Corrected Unicode browser fixture and unchanged Obligation diagnostic4pass do not explain the original timeout. Current full suite/complete recovery/CI still pending. Public Research1101 and inaccessible Chrome CF tab remain external blockers. PARTIAL_NOT_COMPLETE;no normative closure or production acceptance."
+      }]
+    },
+    {
       "id":"ENGINEERING-RESEARCH-SOURCE-PANELS",
       "requirement":"Defer unopened research citation ancillary-control work while preserving original text/hash browser search,exact inspection and saved clipboard contract",
       "normative_source":"Adopted ordinary UI reliability,source inspection,responsiveness and complete verification;all224definitions/full scope unchanged",

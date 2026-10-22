@@ -1,6 +1,21 @@
 import { expect, test } from "@playwright/test";
 import { randomUUID } from "node:crypto";
 test.skip(!process.env.E2E_RESEARCH_COMPONENT_FIXTURE,"Requires isolated synthetic UI/API/Gateway peers, not a hosted origin.");
+test("an accepted Unicode question saves and copies without half-length truncation",async({page})=>{
+  await page.goto(`/?actor=${randomUUID()}`);
+  const save=page.getByRole("button",{name:"Save plan",exact:true}),question="\u{1F4CA}".repeat(10000);
+  await expect(save).toBeEnabled();
+  await page.getByLabel("Question",{exact:true}).fill(question);
+  await expect(page.getByLabel("Question",{exact:true})).toHaveValue(question);
+  await page.getByLabel("Completion criteria").fill("Inspect the source.");
+  await save.click();
+  await expect(page.getByRole("status").filter({hasText:"Saved plan."})).toHaveText("Saved plan. Executions are tracked separately.");
+  await page.getByRole("button",{name:"Copy to a new plan"}).click();
+  await expect(page.getByLabel("Question",{exact:true})).toHaveValue(question);
+  await page.getByLabel("Question",{exact:true}).fill("x".repeat(10001));
+  await save.click();
+  await expect(page.getByRole("alert")).toHaveText("Question must contain at most 10000 characters.");
+});
 for (const theme of ["light","dark"]) test(`${theme}: save, reload, inspect and copy a twelve-mode research draft`, async ({page}, testInfo) => {
   const errors: string[]=[];
   page.on("pageerror", error => errors.push(error.message));

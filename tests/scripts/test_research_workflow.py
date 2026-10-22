@@ -10,6 +10,20 @@ import yaml
 ROOT = Path(__file__).resolve().parents[2]
 
 class ResearchWorkflowTests(unittest.TestCase):
+    def test_diligence_persistence_capacity_native_and_browser_journeys_are_in_required_ci(self):
+        migration="20261022120413_research_diligence_execution.sql"
+        workflow=(ROOT/".github/workflows/v6-database-rehearsal.yml").read_text()
+        rehearsal=(ROOT/"tests/postgres/local-rehearsal.sh").read_text()
+        self.assertIn(migration,workflow)
+        self.assertIn(migration,rehearsal)
+        self.assertIn('NEXUS_DISPOSABLE_SQL=1 node "$TESTS/research-diligence-integration.mjs"',rehearsal)
+        self.assertIn('NEXUS_DILIGENCE_CAPACITY=1 node "$TESTS/research-diligence-integration.mjs"',rehearsal)
+        for marker in ("REAL_SQL_DILIGENCE_EXECUTOR_RECOVERY_REVIEW_PASS","REAL_SQL_DILIGENCE_COMBINED_CAPACITY_PASS"):
+            self.assertIn(f"grep -F '{marker}'",workflow)
+        foundation=(ROOT/".github/workflows/v6-foundation-ci.yml").read_text()
+        self.assertIn("research-diligence.spec.ts",foundation)
+        self.assertIn("node scripts/test-research-diligence-worker.mjs",foundation)
+
     def test_cold_component_startup_runs_with_installed_browsers_in_required_ci(self):
         workflow=yaml.safe_load((ROOT/".github/workflows/v6-foundation-ci.yml").read_text())
         steps=workflow["jobs"]["frontend"]["steps"]
@@ -53,6 +67,7 @@ class ResearchWorkflowTests(unittest.TestCase):
             "node scripts/test-research-deep-worker.mjs",
             "node scripts/test-research-obligation-worker.mjs",
             "node scripts/test-research-entity-worker.mjs",
+            "node scripts/test-research-diligence-worker.mjs",
         }
         steps = [step for job in workflow["jobs"].values() for step in job.get("steps", [])
                  if step.get("run") in commands]

@@ -1,5 +1,73 @@
 # NexusRAG execution checkpoint
 
+## Active Functional Batch: research-diligence-execution-052
+
+Latest reviewed local result 2026-10-22T13:59:14Z: all16 owning/build/native checks
+pass after Unicode correction:631backend+10subtests/698Gateway/567frontend88files/
+57isolated/107scripts,lint/type/foundation/baseline,26routes/six native probes.
+Actual SQL Unicode/executor/concurrency/65table174function restore PASS13:41:49Z;
+maximum recorded run4,736,491JSONBbytes. Full instrumented Research164PASS/
+4intentionalSKIP,Chat8PASS,cold4contexts/single-navigation/no failed assets PASS.
+Opt-in timing diagnostics preserve original queue scheduling and assertions.
+The first full161PASS/3FAIL/4SKIP remains frozen:two newly added invalid Unicode
+over-limit browser inputs corrected to10001ASCII characters;old mobile Obligation
+resume timeout remains unexplained. Its test/timeouts are unchanged;diagnostic
+and full passes do not prove a repair or clear the earlier failure. Required
+gates remain failed. Latest actual public Research13:55:09Z still1101,
+Raya4e8ff7e493ae231;CFChrome control again timed out,not authentication evidence.
+Paused022551entries/head unchanged13:53:53Z. Save/exact-tree CI/NEW complete
+source/fresh dependency/evidence recovery are next;no hosted052consent/install.
+The following earlier052pending notes are historical and superseded only for
+the checks just enumerated,not wider acceptance or deployment.
+
+PARTIAL_NOT_COMPLETE. Uncommitted functional source on published
+e699ab6695c71fcde60ad0083942fa3a1cb99df1; not published, deployed or hosted accepted.
+The exact 224 definitions, ten products, twelve modes and 400+125 quality scenarios
+remain accepted. Paused022 is preserved; no new security work is in scope.
+
+Current vertical implements selected-source Due Diligence with all accepted
+60 sources, 12 subquestions plus main (13 steps), eight query variants and a
+600-second execution budget. Structured qualified observations, exact original
+anchors, unresolved subjects, explicit follow-up gaps, source inspection, copy,
+reload, Findings lineage and independent review are implemented together.
+Public acquisition/date/jurisdiction/rights/calculation/graph constraints remain
+explicit unfinished scope, not silently processed or removed requirements.
+
+Before regressions reproduced missing UI (two failures), 13-step receipt rejection,
+and lost subject context in query expansion. Review additionally reproduced
+SQL-versus-JavaScript Unicode question limits (three failures). Plan validation,
+run readback and the draft input now preserve 10,000 Unicode characters; existing
+96,000-byte Gateway/100,000-byte SQL plan bounds and over-limit rejection remain.
+
+First full source suite passed 631 backend+10 subtests, 694 Gateway, 564 frontend
+in 88 files, 57 isolated and 107 script tests, lint/typecheck/foundation/baseline,
+Next/OpenNext 26-route build and six native Worker probes. Additional contract
+cases passed 697 Gateway. Post-Unicode owning/build checks are still pending.
+Real disposable PostgreSQL/executor tests passed 13 steps, 60 sources, 100 subjects,
+maximum observation fields, concurrent ordinary retries, cancellation/resume,
+response loss recovery, Findings audit/review and 65-table/174-function restore.
+The first over-budget plan fixture was corrected within unchanged aggregate limits;
+invalid SQL generation and first receipts remain retained. Unicode SQL rerun is
+running. Twelve focused desktop/mobile browser journeys pass; first six failures
+were stale focus locators/premature final-state assertions, preserved and corrected
+without extending timeouts. Full Research/Chat/recovery/current CI are pending.
+
+CLI-created local migration 20261022120413_research_diligence_execution.sql has
+no hosted approval or installation. Exact048 rehearsal approval was fulfilled
+once; it grants no052 consent. Real OAuth/private/provider/customer/destructive,
+new hosted users, paid services, production and deployment are not authorized here.
+Public /research at11:56:18Z still1101, Ray a4e851678e6573d3. Chrome Cloudflare tab
+control timed out; authentication/logs/active-source correlation are unconfirmed.
+GitHub owner/repository/PR12 and unchanged three branches were revalidated.
+Required dependency/image/summary gates remain failed and unwaived.
+
+Read RESEARCH_DILIGENCE_EXECUTION_052.md. Frozen051 source54df466e... and
+evidence dcd3b138... recover completely with 35 fresh receipts; external
+BATCH051_HANDOFF.md supersedes older source-time pending labels. Earlier052
+760-file partial WIP348f6450.../evidence1ec5d342... are frozen historical recovery,
+not the current expanded source or release acceptance. Save reviewed source,
+exact-tree CI and NEW complete source/fresh dependency/evidence recovery next.
+
 ## Active Functional Batch: research-source-panels-051
 
 Reviewed local18:56:35Z:all15revision2owning/build/native checks PASS:

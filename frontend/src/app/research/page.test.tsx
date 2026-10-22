@@ -18,6 +18,27 @@ beforeEach(() => {
   api.listResearchRuns.mockResolvedValue({items:[],next_after:null});
   api.createResearchPlan.mockResolvedValue(record); api.readResearchPlan.mockResolvedValue(record);
 });
+it("does not truncate an accepted Unicode question at half of the SQL character limit",async()=>{
+  render(<ResearchPage />);
+  await waitFor(()=>expect(screen.getByRole("button",{name:"Save plan"})).toBeEnabled());
+  const question=screen.getByLabelText("Question") as HTMLTextAreaElement,value="\u{1F4CA}".repeat(10000);
+  expect(question.maxLength).toBeGreaterThanOrEqual(value.length);
+  fireEvent.change(question,{target:{value}});
+  fireEvent.change(screen.getByLabelText("Completion criteria"),{target:{value:"Inspect the source."}});
+  fireEvent.click(screen.getByRole("button",{name:"Save plan"}));
+  await waitFor(()=>expect(api.createResearchPlan).toHaveBeenCalled());
+  expect(api.createResearchPlan.mock.calls[0][0].question).toBe(value);
+});
+it("retains the10000character boundary and the draft when an ordinary question is too long",async()=>{
+  render(<ResearchPage />);
+  await waitFor(()=>expect(screen.getByRole("button",{name:"Save plan"})).toBeEnabled());
+  fireEvent.change(screen.getByLabelText("Question"),{target:{value:"x".repeat(10001)}});
+  fireEvent.change(screen.getByLabelText("Completion criteria"),{target:{value:"Inspect the source."}});
+  fireEvent.click(screen.getByRole("button",{name:"Save plan"}));
+  expect(await screen.findByRole("alert")).toHaveTextContent("Question must contain at most 10000 characters.");
+  expect(api.createResearchPlan).not.toHaveBeenCalled();
+  expect(screen.getByLabelText("Question")).toHaveValue("x".repeat(10001));
+});
 it("shows all twelve modes, saves selected sources, and reports only draft persistence", async () => {
   render(<ResearchPage />);
   await waitFor(() => expect(screen.getByRole("button", {name: "Save plan"})).toBeEnabled());

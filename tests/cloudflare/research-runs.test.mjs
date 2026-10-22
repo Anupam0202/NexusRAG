@@ -30,6 +30,21 @@ function fixture(t, options={}) {
 }
 const request=(method="GET",suffix="",body)=>new Request(`https://gateway.invalid/api/v2/research/plans/${plan}/runs${suffix}`,{method,headers,body:body?JSON.stringify(body):undefined});
 
+for(const mismatch of [null,"absent","limits"])test(`Due Diligence confirms its installed60source13criterion contract before ordinary admission: ${mismatch}`,async t=>{
+  const {env,receipt,calls,sent}=fixture(t);
+  Object.assign(receipt,{mode:"DUE_DILIGENCE",entity_scope:["Example Works"],source_snapshot:Array.from({length:60},(_,i)=>({
+    document_id:`00000052-0000-4000-8000-${String(i).padStart(12,"0")}`})),questions:Array.from({length:13},(_,i)=>`Criterion ${i+1}`),total_steps:13});
+  const original=globalThis.fetch;
+  t.mock.method(globalThis,"fetch",async(input,init)=>new URL(input).pathname==="/rest/v1/rpc/nexus_research_diligence_contract"
+    ?new Response(JSON.stringify(mismatch==="absent"?{code:"PGRST202",message:"Function is absent"}:{schema_version:"research-diligence/1",
+      max_sources:mismatch==="limits"?50:60,max_subquestions:12,max_steps:13,max_query_variants:8,runtime_seconds:600,
+      max_observations:12,max_result_bytes:1000000,max_run_bytes:13001000}),{status:mismatch==="absent"?404:200}):original(input,init));
+  const response=await handle(request("POST","",{non_sensitive_attested:true,execution_mode:"DUE_DILIGENCE"}),env);
+  assert.equal(response.status,mismatch?503:201);assert.equal(calls.length,mismatch?0:1);assert.equal(sent.length,mismatch?0:1);
+  if(mismatch)assert.match((await response.json()).error.message,/research_diligence_execution/);
+  else {const result=await response.json();assert.equal(result.source_snapshot.length,60);assert.equal(result.questions.length,13);assert.deepEqual(result.entity_scope,["Example Works"]);}
+});
+
 for(const target of ["Example Works","\u{1F4CA}".repeat(128)])test(`Entity Investigation preserves50sources11questions and ${target==="Example Works"?"ordinary":"128Unicode-character"} targets through the Gateway`,async t=>{
   const {env,receipt,calls,sent}=fixture(t);
   Object.assign(receipt,{mode:"ENTITY_INVESTIGATION",entity_scope:[target],source_snapshot:Array.from({length:50},(_,i)=>({

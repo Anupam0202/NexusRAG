@@ -10,24 +10,26 @@ import {dirname,join,resolve} from "node:path";
 import {fileURLToPath} from "node:url";
 import {obligationCapacity,obligationWire} from "../../tests/fixtures/research-obligation-capacity.mjs";
 import {entityCapacity,entityWire} from "../../tests/fixtures/research-entity-data.mjs";
+import {diligenceCapacity,diligenceWire} from "../../tests/fixtures/research-diligence-data.mjs";
 
 const investigating=process.env.NEXUS_NATIVE_RESEARCH_MODE==="ENTITY_INVESTIGATION";
-const label=investigating?"ENTITY":"OBLIGATION";
-const root=resolve(dirname(fileURLToPath(import.meta.url)),"../.."),fixture=investigating?entityCapacity():obligationCapacity();
-const wire=(investigating?entityWire:obligationWire)(fixture.candidates,fixture.sources),wireText=JSON.stringify(wire);
+const diligence=process.env.NEXUS_NATIVE_RESEARCH_MODE==="DUE_DILIGENCE";
+const label=investigating?"ENTITY":diligence?"DILIGENCE":"OBLIGATION",sourceCount=diligence?60:50,questionCount=diligence?13:11;
+const root=resolve(dirname(fileURLToPath(import.meta.url)),"../.."),fixture=investigating?entityCapacity():diligence?diligenceCapacity():obligationCapacity();
+const wire=diligence?diligenceWire(fixture.sources,{capacity:true}):(investigating?entityWire:obligationWire)(fixture.candidates,fixture.sources),wireText=JSON.stringify(wire);
 const ws="11111111-1111-4111-8111-111111111111",actor="22222222-2222-4222-8222-222222222222";
 const runId="33333333-3333-4333-8333-333333333333",policy="88888888-8888-4888-8888-888888888888",token="77777777-7777-4777-8777-777777777777";
 const documents=fixture.documents.map((doc,i)=>({...doc,workspace_id:ws,active_version_id:fixture.originals[i].version_id,lifecycle_state:"active"}));
 const versions=fixture.originals.map(row=>({id:row.version_id,document_id:row.document_id,workspace_id:ws,publication_state:"ready",
   data_classification:"non_sensitive",index_generation:"synthetic-capacity",lifecycle_epoch:1}));
 const originals=fixture.originals.map(row=>({...row,workspace_id:ws,content:row.original_text}));
-const chunks=[...originals,...Array.from({length:150},(_,i)=>{
+const chunks=[...originals,...Array.from({length:200-sourceCount},(_,i)=>{
   const prefix=`Unrelated appendix ${i}. `,room=32768-Buffer.byteLength(prefix),text=prefix+"x".repeat(room);
-  return {...originals[i%50],id:`ff444400-0000-4000-8100-${String(i+1).padStart(12,"0")}`,chunk_index:Math.floor(i/50)+1,
+  return {...originals[i%sourceCount],id:`ff444400-0000-4000-8100-${String(i+1).padStart(12,"0")}`,chunk_index:Math.floor(i/sourceCount)+1,
     content:text,original_text:text,original_content_hash:createHash("sha256").update(text).digest("hex"),location:{char_start:0,char_end:text.length}};
 })];
 let run={...fixture.run,id:runId,plan_id:"44444444-4444-4444-8444-444444444444",workspace_id:ws,owner_id:actor,generation:1,state:"queued",source_state:"CURRENT",
-  results:[],deadline:new Date(Date.now()+420000).toISOString(),admission:{credential_mode:"platform_trial"}};
+  results:[],deadline:new Date(Date.now()+(diligence?600000:420000)).toISOString(),admission:{credential_mode:"platform_trial"}};
 let stepCalls=[],requests=[],prompts=[],peerErrors=[],maxResultBytes=0,maxPromptBytes=0,failProvider=false,interrupted=null;
 const peer=createServer(async(request,response)=>{
   const json=(value,status=200)=>{response.writeHead(status,{"content-type":"application/json"});response.end(JSON.stringify(value));};
@@ -43,9 +45,9 @@ const peer=createServer(async(request,response)=>{
       if(failProvider&&!prompt.startsWith("RESEARCH_QUERY_VARIANTS"))return json({message:"Ordinary controlled provider outage."},503);
       const output=prompt.startsWith("RESEARCH_QUERY_VARIANTS")?{queries:["duration","interval","policy","schedule","rule","period","context"].map(word=>`${prompt.split("QUESTION:\n")[1].split(" ")[0]} Synthetic obligation ${word}`)}:wire;
       if(!prompt.startsWith("RESEARCH_QUERY_VARIANTS")){
-        assert.equal(JSON.parse(prompt.split("\nEVIDENCE:\n")[1]).length,50);assert.equal(body.generationConfig.maxOutputTokens,4096);
-        assert.ok(prompt.includes(investigating?"research-entity-wire/1":"research-obligation-wire/1"));
-        if(investigating)assert.ok(prompt.includes(JSON.stringify(fixture.targets)));
+        assert.equal(JSON.parse(prompt.split("\nEVIDENCE:\n")[1]).length,sourceCount);assert.equal(body.generationConfig.maxOutputTokens,4096);
+        assert.ok(prompt.includes(investigating?"research-entity-wire/1":diligence?"research-diligence-wire/1":"research-obligation-wire/1"));
+        if(investigating||diligence)assert.ok(prompt.includes(JSON.stringify(fixture.targets)));
       }
       return json({candidates:[{finishReason:"STOP",content:{parts:[{text:JSON.stringify(output)}]}}]});
     }
@@ -66,7 +68,7 @@ const peer=createServer(async(request,response)=>{
       if(body.p_operation==="claim"){run={...run,state:"running"};return json({claimed:true,token,run});}
       if(body.p_operation==="commit") {
         maxResultBytes=Math.max(maxResultBytes,Buffer.byteLength(JSON.stringify(body.p_result)));
-        run={...run,position:run.position+1,state:run.position===10?"completed":"queued",results:[...run.results,body.p_result]};
+        run={...run,position:run.position+1,state:run.position===questionCount-1?"completed":"queued",results:[...run.results,body.p_result]};
         return json({claimed:false,run});
       }
       interrupted=body.p_error;run={...run,state:"interrupted",error_code:body.p_error};return json({claimed:false,run});
@@ -101,13 +103,13 @@ try {
     await new Promise(resolve=>setTimeout(resolve,250));
   }
   assert.ok(ready,output);let maxRequests=0,maxWall=0;
-  for(let position=0;position<11;position++) {
+  for(let position=0;position<questionCount;position++) {
     const before=requests.length,response=await fetch(`http://127.0.0.1:${port}/execute`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({position}),signal:AbortSignal.timeout(90000)});
     const receipt=await response.json();assert.equal(response.status,200);assert.deepEqual(peerErrors,[]);assert.equal(interrupted,null,JSON.stringify({stepCalls,output}));
-    assert.equal(run.position,position+1);assert.equal(receipt.ack,1);assert.equal(receipt.retry,0);assert.equal(receipt.sent.length,position===10?0:1);
-    const result=run.results[position],analysis=investigating?result.entities:result.obligations;
-    assert.equal(analysis.candidates.length,12);assert.equal(result.sources.length,investigating?12:50);assert.equal(result.query_retrieval.completed_queries,8);
-    assert.equal(analysis.documents.length,50);assert.equal(analysis.documents.flatMap(doc=>doc.consulted_sources).length,50);
+    assert.equal(run.position,position+1);assert.equal(receipt.ack,1);assert.equal(receipt.retry,0);assert.equal(receipt.sent.length,position===questionCount-1?0:1);
+    const result=run.results[position],analysis=investigating?result.entities:diligence?result.diligence:result.obligations;
+    assert.equal((diligence?analysis.observations:analysis.candidates).length,12);assert.equal(result.sources.length,investigating?12:diligence?48:50);assert.equal(result.query_retrieval.completed_queries,8);
+    assert.equal(analysis.documents.length,sourceCount);assert.equal(analysis.documents.flatMap(doc=>doc.consulted_sources).length,sourceCount);
     if(investigating) {
       assert.deepEqual(analysis.requested_targets,fixture.targets);
       for(const candidate of analysis.candidates) {
@@ -118,6 +120,14 @@ try {
           assert.equal(Array.from(row[field].quote).length,300);
         assert.ok(candidate.limitations.every(text=>Array.from(text).length===240));
       }
+    }else if(diligence) {
+      assert.deepEqual(analysis.requested_targets,fixture.targets);assert.equal(analysis.gaps.length,12);
+      for(const observation of analysis.observations) {
+        assert.equal(observation.evidence.length,4);assert.equal(observation.limitations.length,4);
+        assert.equal(observation.identity_state,"NOT_RESOLVED");assert.equal(observation.decision_state,"NO_AUTOMATIC_ADVERSE_DECISION");
+        assert.equal(Array.from(observation.summary).length,240);assert.ok(observation.evidence.every(anchor=>Array.from(anchor.quote).length===300));
+        assert.ok(observation.limitations.every(text=>Array.from(text).length===240));
+      }
     }else assert.ok(result.answer.length>16000);
     assert.ok(Array.from(result.answer).length<=16000);
     for(const source of result.sources){const original=originals.find(row=>row.id===source.chunk_id);
@@ -125,11 +135,12 @@ try {
       assert.equal(source.content,Array.from(original.original_text).slice(0,1200).join(""));}
     maxRequests=Math.max(maxRequests,requests.length-before);maxWall=Math.max(maxWall,receipt.wall_ms);assert.ok(requests.length-before<50);
   }
-  assert.equal(run.state,"completed");assert.equal(prompts.filter(prompt=>!prompt.startsWith("RESEARCH_QUERY_VARIANTS")).length,11);
-  console.log(JSON.stringify({marker:`ACTUAL_WORKER_${label}_COMBINED_CAPACITY_PASS`,documents:50,questions:11,candidates_each:12,query_variants_each:8,
+  assert.equal(run.state,"completed");assert.equal(prompts.filter(prompt=>!prompt.startsWith("RESEARCH_QUERY_VARIANTS")).length,questionCount);
+  console.log(JSON.stringify({marker:`ACTUAL_WORKER_${label}_COMBINED_CAPACITY_PASS`,documents:sourceCount,questions:questionCount,...(diligence?{observations_each:12}:{candidates_each:12}),query_variants_each:8,
     ...(investigating?{targets:100,anchors_each:40,relationships_each:4,limitations_each:4,identity_resolved:false}:{}),
+    ...(diligence?{targets:100,evidence_anchors_each:4,limitations_each:4,gaps_each:12,identity_resolved:false,summary_codepoints:240}:{}),
     candidate_rows:200,original_bytes_each:32768,quote_codepoints:300,
-    ...(investigating?{limitation_codepoints:240}:{control_codepoints:240,qualifying_anchors_each:25}),
+    ...(investigating||diligence?{limitation_codepoints:240}:{control_codepoints:240,qualifying_anchors_each:25}),
     result_json_bytes:maxResultBytes,run_results_json_bytes:Buffer.byteLength(JSON.stringify(run.results)),max_prompt_utf8_bytes:maxPromptBytes,
     max_controlled_http_requests_per_step:maxRequests,max_wall_ms:maxWall,production_queue_and_http_storage_adapter:true,
     provider_wire_bytes:Buffer.byteLength(wireText),provider_wire_sha256:createHash("sha256").update(wireText).digest("hex"),configured_output_tokens:4096,

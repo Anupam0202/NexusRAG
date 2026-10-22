@@ -26,6 +26,11 @@ async function fixture(t,options={}) {
     run.results=[];
     run.deadline=new Date(Date.now()+600000).toISOString();
   }
+  if(options.diligence) {
+    run.mode="DUE_DILIGENCE";run.entity_scope=["Synthetic policy issuer"];
+    run.questions=Array.from({length:13},(_,i)=>`Which source assertions and unresolved qualifications need review for criterion ${i+1}?`);
+    run.deadline=new Date(Date.now()+600000).toISOString();
+  }
   if(options.documentCount) {
     while(run.source_snapshot.length<options.documentCount) {
       const n=run.source_snapshot.length+1,document_id=`10000000-0000-4000-8000-${String(n).padStart(12,"0")}`;
@@ -109,7 +114,9 @@ async function fixture(t,options={}) {
       const prompt=JSON.parse(init.body).contents[0].parts[0].text;
       if(prompt.startsWith("RESEARCH_QUERY_VARIANTS"))return json({candidates:[{finishReason:"STOP",content:{parts:[{text:JSON.stringify({queries:options.variantQueries||[]})}]}}]});
       const sources=options.documentCount||options.contradiction||options.obligation?JSON.parse(prompt.split("\nEVIDENCE:\n")[1]):null;
-      const answer=options.obligation?JSON.stringify({candidates:[sources[0],sources.at(-1)].filter((source,index,items)=>index===0||source.citation_id!==items[0].citation_id).map(source=>({
+      const answer=options.diligence?JSON.stringify({schema_version:"research-diligence-wire/1",anchors:[sources[0],sources.at(-1)].map(source=>({citation_id:source.citation_id,quote:source.content})),
+        texts:["First and last selected source assertions require independent review.","The source does not establish verified issuer identity or complete current coverage.","Later amendments have not been established."],
+        observations:[{topic:"OPERATIONS",summary:0,evidence:[0,1],limitations:[1]}],gaps:[{document_id:null,description:2}]}):options.obligation?JSON.stringify({candidates:[sources[0],sources.at(-1)].filter((source,index,items)=>index===0||source.citation_id!==items[0].citation_id).map(source=>({
         provision:{citation_id:source.citation_id,quote:source.content},authority:null,jurisdiction:null,actor:null,action:{citation_id:source.citation_id,quote:"retain reports"},
         applicability:null,deadline:{citation_id:source.citation_id,quote:"30 days"},valid_from:null,valid_to:null,definitions:[],exceptions:[],amendments:[],supersedes:[],
         control_candidate:"Propose a report-retention review; confirm exceptions and applicability.",limitations:["Independent review remains required."]}))}):options.deep?JSON.stringify({answer:"The synthetic retention period is30days [S1].",limitations:["Independent review is required."],gaps:[]}):options.contradiction?JSON.stringify({pairs:[{left:{citation_id:sources[0].citation_id,quote:sources[0].content},right:{citation_id:sources.at(-1).citation_id,quote:sources.at(-1).content},
@@ -133,6 +140,25 @@ async function fixture(t,options={}) {
   return {env,db,run,calls,sent,provider,hash,reservations,reads};
 }
 
+test("actual Due Diligence executor consults all60sources and preserves first/last observations,queries,gaps and ordinary queue progress",async t=>{
+  const {env,db,calls,sent,reads}=await fixture(t,{diligence:true,documentCount:60,noDense:true,more:true,pageNumber:null,
+    variantQueries:["identity","ownership","filings","operations","qualifications","amendments","limitations"].map(topic=>`Synthetic issuer ${topic} for criterion 1`)});
+  const result=await processResearchMessage(env,message,db),saved=calls.find(call=>call.p_operation==="commit")?.p_result;
+  assert.equal(result?.state,"queued");assert.equal(result.questions.length,13);assert.equal(result.position,1);
+  assert.equal(saved?.diligence?.schema_version,"research-diligence/1");assert.equal(saved.diligence.documents.length,60);
+  assert.equal(saved.diligence.observations[0].evidence.at(-1).document_id,"10000000-0000-4000-8000-000000000060");
+  assert.equal(saved.diligence.observations[0].decision_state,"NO_AUTOMATIC_ADVERSE_DECISION");assert.equal(saved.diligence.gaps.length,1);
+  assert.ok(saved.diligence.documents.every(document=>document.consulted_sources.length===1));
+  assert.equal(saved.diligence.documents[59].consulted_sources[0].page_number,null);
+  assert.equal(saved.query_retrieval.max_queries,8);assert.equal(saved.query_retrieval.completed_queries,8);
+  assert.ok(reads.some(path=>path.startsWith("documents?")&&path.endsWith("limit=60")));
+  assert.equal(sent.length,1);assert.equal(sent[0].position,1);
+});
+test("ordinary Due Diligence provider interruption retains a durable interrupted run without false completion or queue retry",async t=>{
+  const {env,db,calls,sent}=await fixture(t,{diligence:true,documentCount:60,providerError:true});
+  assert.equal(await processResearchMessage(env,message,db),null);assert.equal(calls.filter(call=>call.p_operation==="commit").length,0);
+  assert.equal(calls.filter(call=>call.p_operation==="interrupt").length,1);assert.equal(sent.length,0);
+});
 test("actual Obligation Analysis executor consults all50sources and retains source-linked provisional first/last duties",async t=>{
   const {env,db,calls}=await fixture(t,{obligation:true,documentCount:50,noDense:true,more:true,pageNumber:null});
   const result=await processResearchMessage(env,message,db);

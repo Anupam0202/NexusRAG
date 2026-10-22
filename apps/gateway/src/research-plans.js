@@ -8,7 +8,7 @@ for (const limits of Object.values(RESEARCH_MODE_LIMITS)) Object.freeze(limits);
 const invalid = message => { throw Object.assign(new Error(message), { status: 422, code: "INVALID_RESEARCH_PLAN" }); };
 function text(value, name, max, optional = false) {
   if (optional && value == null) return null;
-  if (typeof value !== "string" || !value.trim() || value.length > max || value.includes("\0")) invalid(`${name} is required and must contain at most ${max} characters.`);
+  if (typeof value !== "string" || !value.trim() || Array.from(value).length > max || value.includes("\0")) invalid(`${name} is required and must contain at most ${max} characters.`);
   return value.trim();
 }
 function list(value, name, max, itemLength, minimum = 0) {

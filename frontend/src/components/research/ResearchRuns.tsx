@@ -15,6 +15,7 @@ import { ResearchQueryCoverage } from "./ResearchQueryCoverage";
 import { DeepResearchReport } from "./DeepResearchReport";
 import { ObligationCandidates } from "./ObligationCandidates";
 import { EntityCandidates } from "./EntityCandidates";
+import { DiligenceObservations } from "./DiligenceObservations";
 
 const button="inline-flex items-center justify-center gap-2 rounded-lg border border-[var(--border)] px-3 py-2 text-sm disabled:opacity-50";
 function ResearchSourceDetails({source,id}:{source:ResearchRun["results"][number]["sources"][number];id:string}) {
@@ -34,7 +35,7 @@ export function ResearchRuns({plan,workspaceId,userId,canWrite}:{plan:ResearchPl
   const alive=useRef(true),pending=useRef(false),sequence=useRef(0),startKey=useRef<string|null>(null),heading=useRef<HTMLHeadingElement>(null);
   const copyPending=useRef(false),copySequence=useRef(0);
   const context={workspaceId,expectedUserId:userId};
-  const supported=["QUICK_LOOKUP","EVIDENCE_ANSWER","COMPARE","TIMELINE","CONTRADICTION_ANALYSIS","DEEP_RESEARCH","OBLIGATION_ANALYSIS","ENTITY_INVESTIGATION"].includes(plan.plan.mode),comparing=plan.plan.mode==="COMPARE",investigating=plan.plan.mode==="ENTITY_INVESTIGATION",batched=comparing||plan.plan.mode==="TIMELINE";
+  const supported=["QUICK_LOOKUP","EVIDENCE_ANSWER","COMPARE","TIMELINE","CONTRADICTION_ANALYSIS","DEEP_RESEARCH","OBLIGATION_ANALYSIS","ENTITY_INVESTIGATION","DUE_DILIGENCE"].includes(plan.plan.mode),comparing=plan.plan.mode==="COMPARE",investigating=["ENTITY_INVESTIGATION","DUE_DILIGENCE"].includes(plan.plan.mode),batched=comparing||plan.plan.mode==="TIMELINE";
   const scopeMissing=comparing?new Set(plan.plan.private_source_ids).size<2:!plan.plan.private_source_ids.length;
   const steps=selected?.total_steps||selected?.questions.length||1,units=batched?"batches":"questions";
   const unsupported=plan.plan.public_provider_ids.length||(!investigating&&plan.plan.entity_scope.length)||plan.plan.rights_constraints.length||plan.plan.expected_calculations.length
@@ -129,6 +130,7 @@ export function ResearchRuns({plan,workspaceId,userId,canWrite}:{plan:ResearchPl
         {result.deep&&<DeepResearchReport report={result.deep} sourcePrefix={`${selected.id}-${index}`} runPrefix={selected.id}/>}
         {result.obligations&&<ObligationCandidates analysis={result.obligations} sourcePrefix={`${selected.id}-${index}`}/>}
         {result.entities&&<EntityCandidates analysis={result.entities} sourcePrefix={`${selected.id}-${index}`}/>}
+        {result.diligence&&<DiligenceObservations analysis={result.diligence} sourcePrefix={`${selected.id}-${index}`}/>}
         <ResearchFindingAction runId={selected.id} index={index} result={result} workspaceId={workspaceId} userId={userId} canWrite={canWrite}/>
         {result.sources.map(source=><ResearchSourceDetails key={source.citation_id} source={source} id={`${selected.id}-${index}-${source.citation_id}`}/>)}
         <p className="text-xs text-[var(--text-muted)]">{result.coverage.chunks_considered} candidate chunks considered / bounded retrieval, not exhaustive / provider cost {result.provider_cost_status.toLowerCase()}</p>

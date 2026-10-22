@@ -12,6 +12,7 @@ export function researchResultsClipboardText(results: readonly ResearchRunResult
       `Deep Research evidence and lineage:\n${JSON.stringify(result.deep, null, 2)}`);
     if (result.obligations) parts.push(`Obligation Analysis (provisional; applicability undetermined):\n${JSON.stringify(result.obligations, null, 2)}`);
     if (result.entities) parts.push(`Entity Investigation (independent review required; identities unresolved):\n${JSON.stringify(result.entities, null, 2)}`);
+    if (result.diligence) parts.push(`Due Diligence (bounded source review; no automatic adverse decision):\n${JSON.stringify(result.diligence, null, 2)}`);
     if (result.query_retrieval) parts.push(`Search queries (not evidence): ${result.query_retrieval.queries.join(" | ")}`);
     return parts.join("\n");
   }).join("\n\n");

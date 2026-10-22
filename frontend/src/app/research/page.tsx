@@ -65,6 +65,7 @@ function ResearchWorkbench() {
   }
   const save = () => operate(async current => {
     const payload = { ...draft, ...Object.fromEntries(fields.map(([key]) => [key, lines[key].split("\n").map(value => value.trim()).filter(Boolean)])) } as ResearchPlanInput;
+    if(Array.from(payload.question).length>10000) throw new Error("Question must contain at most 10000 characters.");
     const body = JSON.stringify(payload);
     if (saveIdentity.current?.body !== body) saveIdentity.current = { body, key: crypto.randomUUID() };
     setSaving(true);
@@ -112,7 +113,7 @@ function ResearchWorkbench() {
           <div className="grid min-w-0 gap-4 sm:grid-cols-2"><label className="text-sm">Mode<select aria-label="Mode" className={`${control} mt-1`} value={draft.mode} disabled={busy || !canWrite}
             onChange={event => setDraft({ ...draft, mode: event.target.value as ResearchMode })}>{researchModes.map(mode => <option key={mode} value={mode}>{modeLabel(mode)}</option>)}</select></label>
             <label className="text-sm">Jurisdiction<input aria-label="Jurisdiction" className={`${control} mt-1`} value={draft.jurisdiction || ""} maxLength={128} disabled={busy || !canWrite} onChange={event => setDraft({ ...draft, jurisdiction: event.target.value || null })} /></label></div>
-          <label className="block text-sm">Question<textarea aria-label="Question" required rows={3} maxLength={10000} className={`${control} mt-1`} value={draft.question} disabled={busy || !canWrite} onChange={event => setDraft({ ...draft, question: event.target.value })} /></label>
+          <label className="block text-sm">Question<textarea aria-label="Question" required rows={3} maxLength={20000} className={`${control} mt-1`} value={draft.question} disabled={busy || !canWrite} onChange={event => setDraft({ ...draft, question: event.target.value })} /></label>
           <fieldset className="rounded-lg border border-[var(--border)] p-3"><legend className="px-1 text-sm">Private documents</legend>
             {documentError && <p role="alert" className="text-sm text-red-600">{documentError}</p>}
             {!documents.length && <p className="text-sm text-[var(--text-muted)]">{documentsLoading ? "Loading documents..." : "No documents"}</p>}

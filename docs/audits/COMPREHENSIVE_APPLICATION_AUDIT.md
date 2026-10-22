@@ -1,5 +1,47 @@
 # Comprehensive application audit
 
+## Due Diligence Execution - Functional052
+
+Latest13:59:14Z reviewed local source:all16owning/build/native PASS;
+631backend+10/698Gateway/567frontend88files/57isolated/107scripts. Real SQL
+Unicode/executor/concurrency/65table174function restore,164Research/4intentional
+SKIP,8Chat/cold4contexts PASS. First full161PASS/3FAIL/4SKIP retained. Unicode
+test tried20001UTF16units beyond the input's native20000unit ceiling;use10001
+ASCII to exercise the existing codepoint error,not clipped input. Unchanged old
+mobile Obligation resume timeout is unexplained;new passes are not a causal fix.
+Opt-in synthetic queue timing diagnostics do not alter scheduling/assertions.
+Actual public13:55:09Z1101Ray a4e8ff7e493ae231;CFChrome control still times out.
+These results supersede earlier pending labels below only for enumerated checks.
+Save/current CI/fresh complete recovery remain pending;no hosted/production proof.
+
+Uncommitted on e699ab6; PARTIAL_NOT_COMPLETE, not a deployed or complete product.
+Missing Due UI, accepted13-step receipt and query subject context reproduced;
+structured qualified observations, gaps, exact source locators, saved review and
+Findings lineage are now wired across UI, Gateway, actual executor and local SQL.
+
+First owning/build/native pass:631backend+10,694Gateway,564frontend88files,
+57isolated,107scripts,lint/typecheck/foundation/baseline,26routes/six probes.
+Added contract cases passed697Gateway. Actual disposable SQL passed60sources,
+13steps,100subjects,combined maximum observation fields, ordinary concurrency,
+retry/cancel/resume/ambiguous-write readback and65table174function backup/restore.
+Twelve focused desktop/mobile browser journeys pass. First six browser failures
+were invalid focus locators/premature completion expectations; kept and corrected
+without raising timeouts. Invalid SQL-generation/capacity fixtures and inaccurate
+initial native receipt labels are also retained, not product acceptance evidence.
+
+Review reproduced three Unicode boundary failures:SQL permits10,000 Unicode
+characters but draft/Gateway/client counted UTF16. The scoped correction preserves
+the character bound and aggregate byte guards; focused33Gateway/12client tests
+pass. New SQL and full Research/owning/build/Chat/recovery/current CI are pending.
+Read RESEARCH_DILIGENCE_EXECUTION_052.md for limitations and exact local receipts.
+
+No052hosted approval/install or private/customer/provider/destructive/deployment
+operation. Public11:56:18Z Research1101Ray a4e851678e6573d3 and Cloudflare Chrome
+tab-control timeout remain unresolved. Required gates/paused022 and wider accepted
+product/mode/quality/rights/budgets/private/lifecycle/release work remain open.
+Frozen051752source/461evidence recovery and35fresh receipts passed;required
+dependency/image/summary failed. Historical failures remain unwaived.
+
 ## Deferred Citation Bodies - Functional051
 
 Latest revision2local18:56:35Z:631backend+10/682Gateway/556frontend85files/
