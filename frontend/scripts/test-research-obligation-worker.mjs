@@ -1,8 +1,7 @@
 // Combined valid bounds through the actual Worker queue; all peers are local synthetic data.
 import assert from "node:assert/strict";
-import {spawn,spawnSync} from "node:child_process";
+import {startLocalWorker} from "./local-worker-harness.mjs";
 import {createHash,randomUUID} from "node:crypto";
-import {once} from "node:events";
 import {mkdtemp,writeFile} from "node:fs/promises";
 import {createServer} from "node:http";
 import {tmpdir} from "node:os";
@@ -77,7 +76,7 @@ const peer=createServer(async(request,response)=>{
   }catch(error){peerErrors.push(String(error));json({message:"Controlled peer failure."},500);}
 });
 await new Promise(resolve=>peer.listen(0,"127.0.0.1",resolve));
-const reserve=createServer();await new Promise(resolve=>reserve.listen(0,"127.0.0.1",resolve));const port=reserve.address().port;await new Promise(resolve=>reserve.close(resolve));
+let runtime,port;
 const directory=await mkdtemp(join(tmpdir(),"nexusrag-obligation-workerd-")),base=`http://127.0.0.1:${peer.address().port}`;
 const entry=join(directory,"obligation-entry.mjs"),config=join(directory,"wrangler.json");
 await writeFile(entry,`import worker from ${JSON.stringify(join(root,"apps/gateway/src/preview-worker.js").replaceAll("\\","/"))};
@@ -90,19 +89,11 @@ export default {async fetch(request,env){if(new URL(request.url).pathname==="/he
  {...env,INGESTION_QUEUE:{send:async body=>{sent.push(body)}}});return Response.json({ack,retry,sent,wall_ms:performance.now()-start});}};`);
 await writeFile(config,JSON.stringify({name:"nexusrag-synthetic-obligation-worker",main:entry,compatibility_date:"2026-09-20",vars:{SUPABASE_URL:base,
   SUPABASE_SERVICE_ROLE_KEY:"synthetic-service",GOOGLE_API_KEY:"synthetic-not-live",QDRANT_URL:base,QDRANT_API_KEY:"synthetic-not-live"}}));
-const environment=Object.fromEntries(Object.entries(process.env).filter(([key])=>["path","systemroot","windir","temp","tmp","comspec"].includes(key.toLowerCase())));
-Object.assign(environment,{HOME:directory,USERPROFILE:directory,WRANGLER_SEND_METRICS:"false",CI:"true"});
-const child=spawn(process.execPath,[join(root,"frontend/node_modules/wrangler/bin/wrangler.js"),"dev","--config",config,"--local","--ip","127.0.0.1","--port",String(port),"--inspector-port","0","--log-level","error"],
-  {cwd:directory,env:environment,stdio:["ignore","pipe","pipe"]});
-let output="";child.stdout.on("data",value=>output+=value);child.stderr.on("data",value=>output+=value);
+let output="";
 try {
-  let ready=false;
-  for(let attempt=0;attempt<80;attempt++){
-    if(child.exitCode!==null)throw Error(`Owned runtime exited: ${output}`);
-    try{if((await fetch(`http://127.0.0.1:${port}/health`,{signal:AbortSignal.timeout(1000)})).ok){ready=true;break;}}catch{ /* Owned local runtime is still starting. */ }
-    await new Promise(resolve=>setTimeout(resolve,250));
-  }
-  assert.ok(ready,output);let maxRequests=0,maxWall=0;
+  runtime=await startLocalWorker({frontend:join(root,"frontend"),directory,configPath:config});
+  port=runtime.port;
+  let maxRequests=0,maxWall=0;
   for(let position=0;position<questionCount;position++) {
     const before=requests.length,response=await fetch(`http://127.0.0.1:${port}/execute`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({position}),signal:AbortSignal.timeout(90000)});
     const receipt=await response.json();assert.equal(response.status,200);assert.deepEqual(peerErrors,[]);assert.equal(interrupted,null,JSON.stringify({stepCalls,output}));
@@ -152,8 +143,9 @@ try {
   assert.equal(receipt.ack,1);assert.equal(receipt.retry,0);assert.equal(receipt.sent.length,0);
   console.log(`ACTUAL_WORKER_${label}_ORDINARY_OUTAGE_PASS: no commit or automatic provider/queue repeat; controlled peers only`);
 }finally{
-  if(child.exitCode===null){if(process.platform==="win32")spawnSync("taskkill",["/PID",String(child.pid),"/T","/F"],{stdio:"ignore"});else child.kill("SIGTERM");if(child.exitCode===null)await once(child,"exit");}
-  await new Promise(resolve=>peer.close(resolve));
+  try{if(runtime)await runtime.close();}finally{
+    await new Promise(resolve=>peer.close(resolve));
+  }
 }
 const released=createServer();await new Promise((resolve,reject)=>{released.once("error",reject);released.listen(port,"127.0.0.1",resolve);});await new Promise(resolve=>released.close(resolve));
 console.log(`ACTUAL_WORKER_${label}_OWNED_LISTENER_RELEASED`);

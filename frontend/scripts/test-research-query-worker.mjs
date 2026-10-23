@@ -1,7 +1,6 @@
 // Execute the real batch transport in local Workerd with explicit synthetic peers.
 import assert from "node:assert/strict";
-import {spawn,spawnSync} from "node:child_process";
-import {once} from "node:events";
+import {startLocalWorker} from "./local-worker-harness.mjs";
 import {mkdtemp,writeFile} from "node:fs/promises";
 import {createServer} from "node:http";
 import {tmpdir} from "node:os";
@@ -33,7 +32,7 @@ const authority=createServer(async(request,response)=>{
   return json({});
 });
 await new Promise(resolve=>authority.listen(0,"127.0.0.1",resolve));
-const reserve=createServer();await new Promise(resolve=>reserve.listen(0,"127.0.0.1",resolve));const port=reserve.address().port;await new Promise(resolve=>reserve.close(resolve));
+let runtime,port;
 const directory=await mkdtemp(join(tmpdir(),"nexusrag-query-workerd-")),base=`http://127.0.0.1:${authority.address().port}`;
 const entry=join(directory,"query-entry.mjs"),config=join(directory,"wrangler.json");
 await writeFile(entry,`import {searchChunkVariants} from ${JSON.stringify(join(root,"apps/gateway/src/worker-pipeline.js").replaceAll("\\","/"))};
@@ -45,19 +44,9 @@ if(path==="/literals")return Response.json({results:${JSON.stringify(literalCase
 return Response.json({hits:await searchChunkVariants(env,{queries:Array.from({length:8},(_,i)=>"Synthetic query "+i),workspaceId:${JSON.stringify(workspace)},documentIds:[${JSON.stringify(id)}],versionIds:[${JSON.stringify(id)}],indexGenerations:["synthetic"],limit:3,dataClassification:"non_sensitive",signal:AbortSignal.timeout(10000)})});}catch(error){return Response.json({code:error.code},{status:503});}}};`);
 await writeFile(config,JSON.stringify({name:"nexusrag-synthetic-query-worker",main:entry,compatibility_date:"2026-09-20",vars:{SUPABASE_URL:base,
   SUPABASE_SERVICE_ROLE_KEY:"synthetic-service",GOOGLE_API_KEY:"synthetic-not-live",QDRANT_URL:base,QDRANT_API_KEY:"synthetic-not-live"}}));
-const environment=Object.fromEntries(Object.entries(process.env).filter(([key])=>["path","systemroot","windir","temp","tmp","comspec"].includes(key.toLowerCase())));
-Object.assign(environment,{HOME:directory,USERPROFILE:directory,WRANGLER_SEND_METRICS:"false",CI:"true"});
-const child=spawn(process.execPath,[join(root,"frontend/node_modules/wrangler/bin/wrangler.js"),"dev","--config",config,"--local","--ip","127.0.0.1","--port",String(port),"--inspector-port","0","--log-level","error"],
-  {cwd:directory,env:environment,stdio:["ignore","pipe","pipe"]});
-let output="";child.stdout.on("data",value=>output+=value);child.stderr.on("data",value=>output+=value);
 try {
-  let ready=false;
-  for(let i=0;i<80;i++) {
-    if(child.exitCode!==null)throw Error(`Owned runtime exited: ${output}`);
-    try {if((await fetch(`http://127.0.0.1:${port}/health`,{signal:AbortSignal.timeout(1000)})).ok){ready=true;break;}}catch { /* The owned local runtime is still starting. */ }
-    await new Promise(resolve=>setTimeout(resolve,250));
-  }
-  assert.ok(ready,output);
+  runtime=await startLocalWorker({frontend:join(root,"frontend"),directory,configPath:config});
+  port=runtime.port;
   const literalResponse=await fetch(`http://127.0.0.1:${port}/literals`,{signal:AbortSignal.timeout(15000)});
   assert.equal(literalResponse.status,200);
   const literalResults=(await literalResponse.json()).results;
@@ -82,6 +71,7 @@ try {
   console.log(JSON.stringify({marker:"ACTUAL_WORKER_RESEARCH_QUERY_BATCH_PASS",queries:8,dimensions:768,actual_controlled_http_requests:successRequests,partial_batch_rejected:true,
     production_implementation:true,hosted_or_provider_processing:false,actual_hosted_cpu_latency_acceptance:false}));
 } finally {
-  if(child.exitCode===null){if(process.platform==="win32")spawnSync("taskkill",["/PID",String(child.pid),"/T","/F"],{stdio:"ignore"});else child.kill("SIGTERM");if(child.exitCode===null)await once(child,"exit");}
-  await new Promise(resolve=>authority.close(resolve));
+  try{if(runtime)await runtime.close();}finally{
+    await new Promise(resolve=>authority.close(resolve));
+  }
 }

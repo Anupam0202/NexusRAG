@@ -1,5 +1,50 @@
 # NexusRAG execution checkpoint
 
+## Active Functional Batch: owned-worker-lifecycle-054
+
+Latest reviewed local10:56:48ZOct23:all17owning/build/native checks PASS;
+631backend+10subtests/698Gateway/568frontend88files/57isolated/109scripts,
+lint/type/foundation/baseline/NextOpenNext26routes,actual gateway fixtures,
+two API lifecycle cases and all five native research capacity/outage probes.
+Exact execution bodies and final Deep/Obligation rebind are unchanged. Initial
+lint failure is retained/corrected;old052failure and required gates are unwaived.
+Save/exact-tree CI/NEW complete771source/fresh dependency/evidence recovery remain
+pending. Earlier pending labels below are superseded only for these local checks.
+
+053 final external BATCH053_HANDOFF.md supersedes its earlier pending notes:
+complete768source ZIP6e03c574...and436file evidence ZIPf40f2343...recover exactly
+into NEW directories;26fresh selected owning/build/browser receipts PASS10:50:06Z.
+168Research/4intentionalSKIP,8Chat,20builtWorker/6HTTP and paused022551entries
+verified. This is UI-scoped recovery,not a retest/clearance of052native failure
+or hosted/private/provider/production acceptance. Required gates still FAILED.
+054first lint rejected an empty catch;comment-only correction/lint02/lifecycle
+recheck pass. Broader17owning checks are running;do not infer their completion.
+
+Uncommitted on published053770fe4c2ac335a58ddd9bc2a44824edf850a16aa/tree
+36115bc0a8523862dfc1fb014f83abfeacdf0f3a. Shared pinned Wrangler4.148.0
+createTestHarness startup allocates port0 atomically and close() is awaited before
+the unchanged Deep/Obligation final rebind assertions. Query/Deep/Obligation,
+Entity and Due capacity/outage probes plus two real lifecycle cases and109script
+tests PASS locally. Owning review/lint/fresh recovery/current CI remain pending.
+No production implementation,SQL,dependency lock,capacity/outage assertion or
+timeout changed. Read OWNED_WORKER_LIFECYCLE_054.md. No security work/paused022
+resumption or hosted/private/provider/customer/destructive/paid/deploy operation.
+
+053 is published on existing draft PR12;complete768source ZIP SHA256
+6e03c574c168728bd19dbe068ceb49ba9ea1661bb1cc097f4efcd3630e46156a
+recovers all bytes/path/hash/size/archive/Git-index modes/rawmanifest in NEW
+batch053/recovered053. Fresh scoped dependency checks are still running. Exact-tree
+CI ordinary frontend168Research/4intentionalSKIP and65table174function database
+restore PASS;required dependency/image/summary gates FAILED. No findings logs or
+manual scan reruns. Frozen052fresh native cleanup failure/strict guard and older
+browser/APT/timing failures remain unwaived. Current public Research10:24:41ZOct23
+still1101,Ray a4f0088dcc7de204. CFChrome binding times out;read-only Wrangler
+whoami reports loggedIn:false. Active source/log correlation is unconfirmed.
+Public frontend _nexus-build.json still declares2fbc5c98f6859824ebdc4c1f0c0f5d4cb8d2642e,
+not current053;this self-reported manifest is not authenticated artifact attestation.
+All224requirements/tenproducts/twelvemodes/quality/rights/budgets and release
+prerequisites remain accepted and incomplete. No new hosted approval inferred.
+
 ## Active Functional Batch: research-source-picker-053
 
 Latest reviewed local10:03:17ZOct23:568frontend88files/698Gateway/108scripts,

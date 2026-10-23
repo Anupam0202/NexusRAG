@@ -89,7 +89,25 @@ class ResearchWorkflowTests(unittest.TestCase):
         worker=(ROOT / "frontend/scripts/test-research-query-worker.mjs").read_text()
         self.assertIn("apps/gateway/src/worker-pipeline.js",worker)
         self.assertIn("ACTUAL_WORKER_RESEARCH_QUERY_BATCH_PASS",worker)
-        self.assertIn("--local",worker)
+        self.assertIn("startLocalWorker",worker)
+        harness=(ROOT / "frontend/scripts/local-worker-harness.mjs").read_text()
+        self.assertIn("createTestHarness",harness)
+        self.assertIn('dev:{ip:"127.0.0.1",port:0,inspector_port:0}',harness)
+
+    def test_owned_native_worker_lifecycle_runs_without_reserving_a_released_port(self):
+        workflow=yaml.safe_load((ROOT / ".github/workflows/v6-foundation-ci.yml").read_text())
+        steps=workflow["jobs"]["frontend"]["steps"]
+        step=next(row for row in steps if row.get("run")=="node scripts/test-local-worker-harness.mjs")
+        self.assertEqual(step.get("working-directory"),"frontend")
+        for name in ("deep","query","obligation"):
+            script=(ROOT / f"frontend/scripts/test-research-{name}-worker.mjs").read_text()
+            self.assertIn("await startLocalWorker",script)
+            self.assertIn("await runtime.close()",script)
+            self.assertNotIn("reserve.listen",script)
+            self.assertNotIn('spawnSync("taskkill"',script)
+        for name in ("deep","obligation"):
+            script=(ROOT / f"frontend/scripts/test-research-{name}-worker.mjs").read_text()
+            self.assertIn('released.listen(port,"127.0.0.1"',script)
 
     def test_original_delivery_policy_is_copied_into_the_real_sql_rehearsal(self):
         workflow=(ROOT / ".github/workflows/v6-database-rehearsal.yml").read_text()

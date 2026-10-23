@@ -124,6 +124,9 @@ jobs:
       - name: Actual Worker research batch transport
         run: node scripts/test-research-query-worker.mjs
         working-directory: frontend
+      - name: Actual local Worker lifecycle and ordinary failure cleanup
+        run: node scripts/test-local-worker-harness.mjs
+        working-directory: frontend
       - name: Actual Worker large Deep execution and ordinary outage
         run: node scripts/test-research-deep-worker.mjs
         working-directory: frontend

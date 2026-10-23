@@ -1,8 +1,7 @@
 // Valid supported Deep Research boundaries through the production Worker queue.
 import assert from "node:assert/strict";
-import {spawn,spawnSync} from "node:child_process";
+import {startLocalWorker} from "./local-worker-harness.mjs";
 import {createHash,randomUUID} from "node:crypto";
-import {once} from "node:events";
 import {mkdtemp,writeFile} from "node:fs/promises";
 import {createServer} from "node:http";
 import {tmpdir} from "node:os";
@@ -95,7 +94,7 @@ const authority=createServer(async(request,response)=>{
   }catch(error){state.peer_errors.push(String(error));json({message:"Synthetic peer failed."},500);}
 });
 await new Promise(resolve=>authority.listen(0,"127.0.0.1",resolve));
-const reserve=createServer();await new Promise(resolve=>reserve.listen(0,"127.0.0.1",resolve));const port=reserve.address().port;await new Promise(resolve=>reserve.close(resolve));
+let runtime,port;
 const directory=await mkdtemp(join(tmpdir(),"nexusrag-deep-workerd-")),base=`http://127.0.0.1:${authority.address().port}`;
 const entry=join(directory,"deep-entry.mjs"),config=join(directory,"wrangler.json");
 await writeFile(entry,`import worker from ${JSON.stringify(join(root,"apps/gateway/src/preview-worker.js").replaceAll("\\","/"))};
@@ -110,19 +109,10 @@ export default {async fetch(request,env){if(new URL(request.url).pathname==="/he
  return Response.json({ack,retry,sent,wall_ms:performance.now()-start,hosted_cpu_acceptance:false});}};`);
 await writeFile(config,JSON.stringify({name:"nexusrag-synthetic-deep-worker",main:entry,compatibility_date:"2026-09-20",vars:{SUPABASE_URL:base,
   SUPABASE_SERVICE_ROLE_KEY:"synthetic-service",GOOGLE_API_KEY:"synthetic-not-live",QDRANT_URL:base,QDRANT_API_KEY:"synthetic-not-live"}}));
-const environment=Object.fromEntries(Object.entries(process.env).filter(([key])=>["path","systemroot","windir","temp","tmp","comspec"].includes(key.toLowerCase())));
-Object.assign(environment,{HOME:directory,USERPROFILE:directory,WRANGLER_SEND_METRICS:"false",CI:"true"});
-const child=spawn(process.execPath,[join(root,"frontend/node_modules/wrangler/bin/wrangler.js"),"dev","--config",config,"--local","--ip","127.0.0.1","--port",String(port),"--inspector-port","0","--log-level","error"],
-  {cwd:directory,env:environment,stdio:["ignore","pipe","pipe"]});
-let output="";child.stdout.on("data",value=>output+=value);child.stderr.on("data",value=>output+=value);
+let output="";
 try {
-  let ready=false;
-  for(let attempt=0;attempt<80;attempt++){
-    if(child.exitCode!==null)throw Error(`Owned runtime exited: ${output}`);
-    try{if((await fetch(`http://127.0.0.1:${port}/health`,{signal:AbortSignal.timeout(1000)})).ok){ready=true;break;}}catch{ /* Owned local runtime is starting. */ }
-    await new Promise(resolve=>setTimeout(resolve,250));
-  }
-  assert.ok(ready,output);
+  runtime=await startLocalWorker({frontend:join(root,"frontend"),directory,configPath:config});
+  port=runtime.port;
   for(const [position,providerUnavailable] of [[0,false],[12,false],[12,true]]){
     reset(position,providerUnavailable);
     const response=await fetch(`http://127.0.0.1:${port}/execute`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({position}),signal:AbortSignal.timeout(90000)});
@@ -167,8 +157,9 @@ try {
       real_rights_budget_or_model_quality_acceptance:false,provider_processing:false}));
   }
 }finally{
-  if(child.exitCode===null){if(process.platform==="win32")spawnSync("taskkill",["/PID",String(child.pid),"/T","/F"],{stdio:"ignore"});else child.kill("SIGTERM");if(child.exitCode===null)await once(child,"exit");}
-  await new Promise(resolve=>authority.close(resolve));
+  try{if(runtime)await runtime.close();}finally{
+    await new Promise(resolve=>authority.close(resolve));
+  }
 }
 const released=createServer();
 await new Promise((resolve,reject)=>{released.once("error",reject);released.listen(port,"127.0.0.1",resolve);});

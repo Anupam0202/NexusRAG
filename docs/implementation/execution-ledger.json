@@ -13,6 +13,21 @@
   "interpretation": "OPEN_ENGINEERING includes implemented but not fully accepted requirements; it does not assert that no code or scoped evidence exists. External approvals do not close unfinished internal work.",
   "entries": [
     {
+      "id":"ENGINEERING-OWNED-WORKER-LIFECYCLE",
+      "requirement":"Use an awaited owned local Worker listener lifecycle while preserving real production-queue capacity/outage verification",
+      "normative_source":"Adopted functional reliability/reproducible recovery;all224definitions and full product/mode/quality scope unchanged",
+      "status":"IN_PROGRESS",
+      "environment":"Uncommitted054 on published053770fe4c;actual pinned Wrangler4.148.0 local runtime and controlled peers,not hosted/provider/private acceptance",
+      "next_action":"Reviewed10:56:48ZOct23 all17owning/build/native PASS:631backend+10/698Gateway/568frontend88files/57isolated/109scripts/lint/type/foundation/baseline/NextOpenNext26routes/actual gateway fixtures/two API lifecycle cases/five native probes. Save/current exact-tree CI/NEW complete771source/fresh dependency/evidence recovery required. Initial empty-catch lint rejection/correction retained. Original capacity/outage/timeouts/final rebind assertions unchanged. Frozen052fresh EADDRINUSE cause/owner unknown,strict guard/failure unwaived.053768source/436evidence NEW recovery and26fresh selected checks PASS,required gatesFAIL. PublicResearch1101/CFChrome timeout/CLI loggedIn:false persist. No security,paused022,SQL,lock,hosted,provider/private/customer/destructive/paid/deploy changes;full accepted scope remains incomplete.",
+      "acceptance_evidence":[{
+        "environment":"actual production Worker queue/storage adapters under owned local native runtime and explicit synthetic HTTP peers",
+        "observed_at":"2026-10-23T10:36:28Z",
+        "source_identity":"published053770fe4c plus uncommitted054 native test lifecycle changes",
+        "command_or_url":"batch054/logs/source054-lifecycle-01.log;source054-{query,deep,obligation,entity,diligence}-api-01.log;source054-scripts-01.log",
+        "result":"Actual normal/callback-failure cleanup and idempotent close/port rebind pass;all five original execution/outage probes and109scripts pass. No full verification,release clearance,causal waiver of old failures or production acceptance."
+      }]
+    },
+    {
       "id":"ENGINEERING-RESEARCH-SOURCE-PICKER",
       "requirement":"Keep large document selection bounded, searchable and usable without losing selected or unavailable references",
       "normative_source":"Adopted ordinary Research workspace UI/reliability/accessibility and exact source scope;full224definitions unchanged",
