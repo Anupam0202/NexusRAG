@@ -93,10 +93,27 @@ it("keeps unavailable copied document references visible and removable", async (
   await screen.findByRole("status");
   fireEvent.click(screen.getByRole("button", {name: "Copy to a new plan"}));
   const document = screen.getByRole("checkbox", {name: "unavailable-document (not currently available)"});
+  fireEvent.change(screen.getByRole("searchbox",{name:"Find private documents"}),{target:{value:"No matching filename"}});
+  expect(document).toBeVisible();
   expect(document).toBeChecked();
   fireEvent.click(document);
   fireEvent.click(screen.getByRole("button", {name: "Save plan"}));
   await waitFor(() => expect(api.createResearchPlan).toHaveBeenCalled());
   expect(api.createResearchPlan.mock.calls[0][0].private_source_ids).toEqual([]);
   expect(api.createResearchPlan.mock.calls[0][0].plan_id).not.toBe(stored.plan.plan_id);
+});
+it("keeps selected and unavailable references inspectable when the document search changes",async()=>{
+  render(<ResearchPage />);
+  await waitFor(()=>expect(screen.getByRole("button",{name:"Save plan"})).toBeEnabled());
+  const search=screen.getByRole("searchbox",{name:"Find private documents"});
+  fireEvent.change(search,{target:{value:"does not match"}});
+  expect(screen.queryByRole("checkbox",{name:"Synthetic policy.txt"})).not.toBeInTheDocument();
+  expect(screen.getByText("No matching documents")).toBeVisible();
+  fireEvent.change(search,{target:{value:"SYNTHETIC POLICY"}});
+  fireEvent.click(screen.getByRole("checkbox",{name:"Synthetic policy.txt"}));
+  fireEvent.change(search,{target:{value:"does not match"}});
+  expect(screen.getByRole("checkbox",{name:"Synthetic policy.txt"})).toBeChecked();
+  fireEvent.click(screen.getByRole("button",{name:"New plan"}));
+  expect(search).toHaveValue("");
+  expect(screen.getByRole("checkbox",{name:"Synthetic policy.txt"})).not.toBeChecked();
 });

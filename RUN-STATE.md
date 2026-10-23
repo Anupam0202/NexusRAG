@@ -1,5 +1,40 @@
 # NexusRAG execution checkpoint
 
+## Active Functional Batch: research-source-picker-053
+
+Latest reviewed local10:03:17ZOct23:568frontend88files/698Gateway/108scripts,
+lint/type/foundation/baseline/NextOpenNext26routes and full168Research browser
+checks PASS,4intentionalSKIP not counted. New unavailable-reference search
+assertion is included. Four actual before layout failures and4focused after
+passes remain. Original Timeline/Obligation assertions/timeouts are byte-unchanged;
+current passes do not causally explain their earlier failures. Save/current exact
+CI/NEW scoped source/dependency/evidence recovery still pending,not production.
+Final052external handoff now records exact766source/710evidence NEW recovery,
+fresh35PASS/1FAIL Deep cleanup with strict guard rejection;CI ordinary frontend
+failed/databaseAPTcancel/required gatesfailed. Frozen source6f850e68... and
+INCOMPLETE evidence4e7c54ad...are unwaived. Earlier pending notes below are
+historical for the enumerated checks only. No new security or hosted operations.
+
+Uncommitted on published0522b4a1006c5017e275ed654cdd307ea6423e2da0e/tree
+d17f95a1e47e02349637cee90cf88fb0e54b85d6. Actual before regression4FAIL:
+private-source fieldset reaches7829px with over200documents. The bounded searchable
+selector now passes4desktop/mobile cases and8page tests;selected/unavailable IDs
+remain inspectable/removable and copying resets only the search. No source limit
+or original Timeline assertion/timeout changed. Full owning/build/browser/CI/NEW
+recovery still pending. Read RESEARCH_SOURCE_PICKER_053.md;full scope incomplete.
+
+External052source ZIP6f850e68... recovers all766bytes/paths/sizes/modes/manifest.
+Fresh dependency owning suites/build pass;Deep native final rebind FAILED
+EADDRINUSE after execution/outage assertions. Strict052finish guard unchanged;
+no blind Deep retry or successful fresh-recovery claim. Independent remaining
+recovered checks continue from the next probe,not from the failed one.
+Exact-tree CI frontend163PASS/1FAIL/4SKIP(Timeline mobile consent scroll30s),
+database APT update cancellation/failed required summary,dependency/image/summary
+failures are retained. Ordinary logs only;no new security work or paused022
+resumption. Public1101/source drift/private/provider/lifecycle/rights/budgets and
+all224/tenproducts/twelvemodes/quality remain open. No hosted052approval/install,
+new hosted users,paid/private/customer/destructive/provider/deployment operation.
+
 ## Active Functional Batch: research-diligence-execution-052
 
 Latest reviewed local result 2026-10-22T13:59:14Z: all16 owning/build/native checks

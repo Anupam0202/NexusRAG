@@ -13,6 +13,21 @@
   "interpretation": "OPEN_ENGINEERING includes implemented but not fully accepted requirements; it does not assert that no code or scoped evidence exists. External approvals do not close unfinished internal work.",
   "entries": [
     {
+      "id":"ENGINEERING-RESEARCH-SOURCE-PICKER",
+      "requirement":"Keep large document selection bounded, searchable and usable without losing selected or unavailable references",
+      "normative_source":"Adopted ordinary Research workspace UI/reliability/accessibility and exact source scope;full224definitions unchanged",
+      "status":"IN_PROGRESS",
+      "environment":"Uncommitted053 on published0522b4a100;actual production components with controlled synthetic peers,not hosted/private/provider acceptance",
+      "next_action":"Reviewed10:03:17Z:568frontend88files/698Gateway/108scripts/lint/type/foundation/baseline/NextOpenNext26routes and168Research+4intentionalSKIP PASS. New unavailable-reference search assertion included;old Timeline/Obligation assertions/timeouts unchanged and earlier failures unwaived. Save/current exact-tree CI/NEW scoped complete source/fresh dependency/evidence recovery pending. Final052766source/710evidence bytes recover exactly,but fresh35PASS/1FAIL Deep cleanup is rejected by strict guard;ordinary frontend/databaseAPT/required-gate failures retained. No security/paused022/hosted/private/provider/deployment operations;all accepted224/products/modes/quality/rights/budgets/lifecycle/release work stays open.",
+      "acceptance_evidence":[{
+        "environment":"actual production ResearchPage under controlled local browser fixture;not real private OAuth/model or deployed acceptance",
+        "observed_at":"2026-10-23T07:12:17Z",
+        "source_identity":"published0522b4a1006c5017e275ed654cdd307ea6423e2da0e plus uncommitted053",
+        "command_or_url":"batch053/logs/source053-picker-before-01-tests.log;source053-picker-after-01-tests.log;source053-picker-client-01.log",
+        "result":"Four actual source-list height failures preserved;bounded searchable list passes4desktop/mobile cases and8page tests,retains selected references on filter change/copy. New unavailable-reference search assertion and full verification pending. No full functional or production acceptance."
+      }]
+    },
+    {
       "id":"ENGINEERING-RESEARCH-DILIGENCE-EXECUTION",
       "requirement":"Complete Due Diligence evidence review with qualified observations,gaps,source inspection,durable execution and independent Findings review",
       "normative_source":"Adopted Due Diligence/Counterparty Evidence Graph/P16/P17;60sources/12subquestions/eightqueries/600seconds;exact224definitions unchanged",

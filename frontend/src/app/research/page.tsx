@@ -29,6 +29,7 @@ function ResearchWorkbench() {
   const [nextAfter, setNextAfter] = useState<string | null>(null), [role, setRole] = useState("viewer"), [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null), [reload, setReload] = useState(0);
   const [saving, setSaving] = useState(false);
+  const [sourceSearch,setSourceSearch]=useState("");
   const pending = useRef(false), alive = useRef(true), sequence = useRef(0);
   const saveIdentity = useRef<{ body: string; key: string } | null>(null);
   const storedHeading = useRef<HTMLHeadingElement>(null);
@@ -36,6 +37,9 @@ function ResearchWorkbench() {
   const context = { workspaceId, expectedUserId: authMode === "authenticated" ? userId ?? null : undefined };
   const canWrite = ["owner", "admin", "editor"].includes(role);
   const limits = modeLimits[draft.mode];
+  const sourceQuery=sourceSearch.trim().toLocaleLowerCase();
+  const visibleDocuments=documents.filter(doc=>doc.status==="ready"&&(draft.private_source_ids.includes(doc.document_id)
+    ||doc.filename.toLocaleLowerCase().includes(sourceQuery)));
   useEffect(() => { const counter = sequence; alive.current = true; return () => { alive.current = false; counter.current++; }; }, []);
   useEffect(() => {
     if (selected) { storedHeading.current?.focus({preventScroll: true}); storedHeading.current?.scrollIntoView?.({block: "start"}); }
@@ -61,7 +65,7 @@ function ResearchWorkbench() {
   function newDraft(copy?: ResearchPlanInput) {
     const value = copy ? { ...copy, plan_id: crypto.randomUUID() } : emptyResearchPlan();
     setDraft(value); setLines(Object.fromEntries(fields.map(([key]) => [key, value[key].join("\n")])) as Record<LinesField, string>);
-    setSelected(null); setError(null); saveIdentity.current = null;
+    setSelected(null); setError(null); setSourceSearch(""); saveIdentity.current = null;
   }
   const save = () => operate(async current => {
     const payload = { ...draft, ...Object.fromEntries(fields.map(([key]) => [key, lines[key].split("\n").map(value => value.trim()).filter(Boolean)])) } as ResearchPlanInput;
@@ -115,12 +119,17 @@ function ResearchWorkbench() {
             <label className="text-sm">Jurisdiction<input aria-label="Jurisdiction" className={`${control} mt-1`} value={draft.jurisdiction || ""} maxLength={128} disabled={busy || !canWrite} onChange={event => setDraft({ ...draft, jurisdiction: event.target.value || null })} /></label></div>
           <label className="block text-sm">Question<textarea aria-label="Question" required rows={3} maxLength={20000} className={`${control} mt-1`} value={draft.question} disabled={busy || !canWrite} onChange={event => setDraft({ ...draft, question: event.target.value })} /></label>
           <fieldset className="rounded-lg border border-[var(--border)] p-3"><legend className="px-1 text-sm">Private documents</legend>
+            <input aria-label="Find private documents" type="search" placeholder="Search documents" className={`${control} mb-2`} value={sourceSearch}
+              disabled={busy} onChange={event=>setSourceSearch(event.target.value)}/>
             {documentError && <p role="alert" className="text-sm text-red-600">{documentError}</p>}
             {!documents.length && <p className="text-sm text-[var(--text-muted)]">{documentsLoading ? "Loading documents..." : "No documents"}</p>}
+            {documents.length>0&&!visibleDocuments.length&&!draft.private_source_ids.length&&<p className="text-sm text-[var(--text-muted)]">No matching documents</p>}
+            <div aria-label="Available private documents" role="region" tabIndex={0} className="max-h-72 overflow-y-auto overscroll-contain">
             {draft.private_source_ids.filter(id => !documents.some(doc => doc.document_id === id && doc.status === "ready")).map(id => <label key={id} className="flex items-start gap-2 py-1 text-sm"><input type="checkbox" className="mt-1" checked disabled={busy || !canWrite}
               onChange={() => setDraft({ ...draft, private_source_ids: draft.private_source_ids.filter(source => source !== id) })} /><span className="break-all">{id} (not currently available)</span></label>)}
-            {documents.filter(doc => doc.status === "ready").map(doc => <label key={doc.document_id} className="flex items-start gap-2 py-1 text-sm"><input type="checkbox" className="mt-1" checked={draft.private_source_ids.includes(doc.document_id)} disabled={busy || !canWrite}
-              onChange={event => setDraft({ ...draft, private_source_ids: event.target.checked ? [...draft.private_source_ids, doc.document_id] : draft.private_source_ids.filter(id => id !== doc.document_id) })} /><span className="break-all">{doc.filename}</span></label>)}</fieldset>
+            {visibleDocuments.map(doc => <label key={doc.document_id} className="flex items-start gap-2 py-1 text-sm"><input type="checkbox" className="mt-1" checked={draft.private_source_ids.includes(doc.document_id)} disabled={busy || !canWrite}
+              onChange={event => setDraft({ ...draft, private_source_ids: event.target.checked ? [...draft.private_source_ids, doc.document_id] : draft.private_source_ids.filter(id => id !== doc.document_id) })} /><span className="break-all">{doc.filename}</span></label>)}
+            </div></fieldset>
           <div className="grid min-w-0 gap-4 sm:grid-cols-2">{(["date_from", "date_to"] as const).map(key => <label key={key} className="text-sm">{key === "date_from" ? "Start date" : "End date"}<input aria-label={key === "date_from" ? "Start date" : "End date"} type="date" className={`${control} mt-1`} value={draft[key] || ""} disabled={busy || !canWrite} onChange={event => setDraft({ ...draft, [key]: event.target.value || null })} /></label>)}</div>
           <div className="grid min-w-0 gap-4 sm:grid-cols-2">{fields.map(([key, label]) => <label key={key} className="text-sm">{label}<textarea aria-label={label} rows={3} required={key === "completion_criteria"} className={`${control} mt-1`} value={lines[key]} disabled={busy || !canWrite} onChange={event => setLines({ ...lines, [key]: event.target.value })} /></label>)}</div>
           <div className="flex flex-wrap items-center justify-between gap-3"><span className="text-xs text-[var(--text-muted)]">{limits.max_subquestions} subquestions / {limits.max_sources} sources</span>

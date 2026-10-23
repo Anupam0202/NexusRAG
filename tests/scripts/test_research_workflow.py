@@ -218,5 +218,14 @@ class ResearchWorkflowTests(unittest.TestCase):
         self.assertIn("No processing will start", runs)
         self.assertIn("not currently available", page)
 
+    def test_large_source_picker_stays_in_ordinary_browser_ci(self):
+        workflow=(ROOT / ".github/workflows/v6-foundation-ci.yml").read_text()
+        browser=(ROOT / "frontend/src/e2e/research-picker.spec.ts").read_text()
+        self.assertIn("research-picker.spec.ts",workflow)
+        self.assertIn("toBeGreaterThan(200)",browser)
+        self.assertIn("toBeLessThanOrEqual(420)",browser)
+        self.assertIn("No synthetic file has this name",browser)
+        self.assertIn('name:"Copy to a new plan"',browser)
+
 if __name__ == "__main__":
     unittest.main()

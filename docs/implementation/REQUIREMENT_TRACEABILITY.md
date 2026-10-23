@@ -1,5 +1,18 @@
 # Requirement traceability
 
+053reviewed10:03:17Z local:568frontend/698Gateway/108scripts/lint/type/build26routes
+and168Research+4intentionalSKIP PASS,including unavailable references/search/copy.
+Exact224definitions and denominator unchanged;no normative or wider product
+closure. Save/current CI/NEW scoped recovery pending;052fresh35PASS/1FAIL/native
+cleanup and ordinary/required CI failures remain retained and unwaived.
+
+053bounded searchable source picker is IN_PROGRESS,not normative closure.
+Four actual before geometry failures(7829px) and4after browser/8page passes
+support the enumerated UI correction only. All selected/unavailable/copied scope
+and accepted limits remain;full owning/build/CI/NEW recovery pending.052fresh
+Deep rebind and exact-tree frontend/database/required-gate failures remain failed
+and retained. No security/hosted/provider/deployment work or full acceptance.
+
 052reviewed13:59:14Z local source:631backend+10/698Gateway/567frontend88files/
 57isolated/107scripts/all16owning-build-native checks,realSQL Unicode/executor/
 concurrency/65table174function restore,164Research+4intentionalSKIP/8Chat/cold4
