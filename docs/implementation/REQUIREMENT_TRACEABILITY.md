@@ -1,5 +1,17 @@
 # Requirement traceability
 
+055revision2review13:18:29Z:635backend+19/59stdlib-only isolated PASS,4method ASTs
+unchanged;production/SQL/frontend/locks/CI/runners/exclusions byte-unchanged.
+First779source207c4098...and failed280evidenceab234a2c...NEW recovery PASS.
+Corrected780source/save/CI/fresh recovery pending;no normative/release closure.
+
+055revision1e89eaa1f/779source recovers exactly but isolated CI FAILS2API tests in
+the dependency-free job. NEW stdlib-only venv reproduces errors;local61passes were
+not equivalent isolation proof. Revision2 moves both unchanged API methods into
+full-backend ownership;59isolated PASS,not dropped coverage or a runner/CI change.
+Full backend/review/CI/NEW corrected recovery pending. First source207c4098...and
+failed receipts remain frozen/unwaived. All normative definitions/scope unchanged.
+
 055reviewed12:59:37Z:all17owning/build/native,635backend+19/703Gateway/575frontend/
 61isolated/110scripts/lint/type/build26routes/two lifecycle/five native probes,
 176Research+4intentionalSKIP,8passport and SQL65table175function restore PASS.

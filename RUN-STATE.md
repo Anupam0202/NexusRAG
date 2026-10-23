@@ -2,6 +2,24 @@
 
 ## Active Functional Batch: product-passport-subject-055
 
+Revision2review13:18:29Z:full635backend+19subtests PASS;59isolated PASS in NEW
+stdlib-only venv with FastAPI/Pydantic/pytest absent. All4method ASTs match the
+first revision exactly;production code/SQL/frontend/locks/CI/runners/exclusions
+are byte-unchanged. First779source207c4098...and failed280file evidenceab234a2c...
+recover NEW exactly. Corrected save/exact-tree CI/NEW780source/fresh dependency/
+evidence recovery remain pending. This is a test-ownership repair,not gate waiver.
+
+055revision2 is uncommitted on published e89eaa1f6d77f6cf7a10c995c4cb76e0aa3c8563,
+tree1d667ca19a3ff6517324d915cc25592372784789. First779source ZIP207c4098...
+recovers exactly but exact-tree CI isolated suite FAILS2new API tests because
+FastAPI/Pydantic are absent by design. Local61isolated passes used a full dependency
+environment and did not prove dependency-free CI compatibility. A NEW standard-
+library-only venv reproduces both old errors. Moving the2unchanged API tests into
+the owning full backend suite yields59isolated PASS;no assertion,CI dependency or
+runner/exclusion changes. Domain tests remain isolated. Full backend recheck,
+AST-preservation review,corrected publication/CI/NEW recovery are pending. This
+supersedes any earlier pending/green inference for first-revision CI acceptance.
+
 Latest reviewed12:59:37ZOct23:all17owning/build/native checks PASS;
 635backend+19subtests/703Gateway/575frontend89files/61isolated/110scripts,
 lint/type/foundation/baseline/NextOpenNext26routes/actual gateway fixtures/two

@@ -2,6 +2,19 @@
 
 ## Product Passport Declared Subject - Functional055
 
+Revision2review13:18:29Z:635backend+19/59stdlib-only isolated PASS;all4method ASTs
+identical and production/SQL/frontend/locks/CI/runner/exclusions unchanged.
+First779source207c4098...and failed280evidenceab234a2c...recover NEW exactly.
+Corrected save/CI/NEW780source/fresh recovery pending;not release acceptance.
+
+Revision1e89eaa1f exact-tree isolated CI FAILS2new API tests: FastAPI/Pydantic are
+intentionally absent in that job. Earlier local61passes used installed dependencies,
+not the CI contract. NEW stdlib-only venv reproduces both errors. Revision2 moves
+both unchanged API methods to full backend ownership;59isolated PASS. Assertions,
+runner/exclusions and CI dependencies remain unchanged. First779source ZIP207c4098...
+is frozen and recovers exactly,but is not accepted. Corrected source/full backend/
+review/CI/NEW recovery remain pending. Do not hide the failed first revision.
+
 Reviewed12:59:37Z:17owning/build/native PASS635backend+19/703Gateway/575frontend/
 61isolated/110scripts/lint/type/build26routes,two lifecycle/five native probes;
 176Research/4intentionalSKIP,8focused passport and SQL65table175function restore

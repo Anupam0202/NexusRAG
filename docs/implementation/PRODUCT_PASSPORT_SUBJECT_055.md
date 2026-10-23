@@ -41,6 +41,21 @@ name; a separately reviewed repair can restore that definition if ever needed.
 
 ## Evidence And Limits
 
+Revision2review13:18:29Z:635backend+19subtests and59genuinely dependency-free
+isolated tests pass. All4moved/retained method ASTs are identical;production/SQL/
+frontend/locks/CI/runners/exclusions are byte-unchanged. First revision complete
+779source207c4098...and failed280file evidenceab234a2c...recover into NEW directories.
+Corrected source/CI/NEW780source/fresh dependency/evidence recovery are pending.
+
+Revision1 published e89eaa1f/tree1d667ca1 has complete779source recovery,SHA256
+207c40989c23cdd26f44c015cad98dc969cbf3c4f28ab0658c0776086213c7c6.
+Exact-tree isolated CI FAILS2new API tests due to absent FastAPI/Pydantic. Earlier
+local61isolated passes were not dependency-free environment proof. A new stdlib-only
+venv reproduces both errors. Revision2 moves those exact methods to the complete
+backend suite;59isolated pass without third-party packages. No test assertion,
+runner,exclusion or CI dependency change. Current source correction/review/full
+backend/CI/NEW recovery are not yet accepted. Failed revision/evidence is retained.
+
 Reviewed12:59:37ZOct23:all17owning/build/native checks pass635backend+19subtests,
 703Gateway,575frontend89files,61isolated,110scripts,lint/type/foundation/baseline,
 Next/OpenNext26routes,actual gateway fixtures,two lifecycle/five native probes.
