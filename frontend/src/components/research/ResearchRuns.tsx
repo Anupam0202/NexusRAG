@@ -1,11 +1,12 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import { Copy, ExternalLink, Play, RefreshCw, Square } from "lucide-react";
 import Link from "@/components/layout/StaticLink";
 import { listResearchRuns, researchRunCommand } from "@/lib/api";
 import type { ResearchRun } from "@/lib/research-run";
 import type { ResearchPlanRecord } from "@/lib/research-plan";
 import { researchResultsClipboardText } from "@/lib/research-run-copy";
+import { reuseResearchRunResults } from "@/lib/research-run-reconcile";
 import { clipboardFailureMessage, writeClipboardText } from "@/lib/clipboard-write";
 import { ResearchFindingAction } from "./ResearchFindingAction";
 import { ComparisonMatrix } from "./ComparisonMatrix";
@@ -28,6 +29,25 @@ function ResearchSourceDetails({source,id}:{source:ResearchRun["results"][number
     {expanded&&<Link href={`/documents/${encodeURIComponent(source.document_id)}`} className={button}><ExternalLink size={14}/>Inspect document</Link>}
   </details>;
 }
+const ResearchResultArticle=memo(function ResearchResultArticle({runId,index,result,workspaceId,userId,canWrite}:{
+  runId:string;index:number;result:ResearchRun["results"][number];workspaceId:string;userId:string;canWrite:boolean;
+}) {
+  const prefix=`${runId}-${index}`;
+  return <article id={prefix} className="mb-5 min-w-0 border-t border-[var(--border)] pt-4">
+    <h4 className="mb-2 whitespace-pre-wrap break-words font-medium">{result.question}</h4>
+    <p className="mb-2 text-xs text-[var(--text-muted)]">{result.claim_state==="UNSUPPORTED"?"No supported answer":"Review required; citation presence is not entailment"}</p>
+    {result.comparison?<ComparisonMatrix matrix={result.comparison} sourcePrefix={prefix}/>:result.timeline?<p className="mb-3 text-sm">{result.timeline.events.length} source events / criterion {result.timeline.criterion_index+1} / batch {result.timeline.batch_index+1}</p>:result.contradiction?<ContradictionPairs analysis={result.contradiction} sourcePrefix={prefix}/>:result.obligations?.candidates.length||result.entities?.candidates.length?null:<p className="mb-3 whitespace-pre-wrap break-words text-sm">{result.answer}</p>}
+    {result.query_retrieval&&<ResearchQueryCoverage retrieval={result.query_retrieval}/>}
+    {result.deep&&<DeepResearchReport report={result.deep} sourcePrefix={prefix} runPrefix={runId}/>}
+    {result.obligations&&<ObligationCandidates analysis={result.obligations} sourcePrefix={prefix}/>}
+    {result.entities&&<EntityCandidates analysis={result.entities} sourcePrefix={prefix}/>}
+    {result.diligence&&<DiligenceObservations analysis={result.diligence} sourcePrefix={prefix}/>}
+    <ResearchFindingAction runId={runId} index={index} result={result} workspaceId={workspaceId} userId={userId} canWrite={canWrite}/>
+    {result.sources.map(source=><ResearchSourceDetails key={source.citation_id} source={source} id={`${prefix}-${source.citation_id}`}/>)}
+    <p className="text-xs text-[var(--text-muted)]">{result.coverage.chunks_considered} candidate chunks considered / bounded retrieval, not exhaustive / provider cost {result.provider_cost_status.toLowerCase()}</p>
+    {result.coverage.lexical_limit_reached&&<p className="mt-1 text-xs text-amber-700 dark:text-amber-300">Lexical candidate limit reached. Additional chunks were not lexically ranked; dense retrieval may include later evidence.</p>}
+  </article>;
+});
 export function ResearchRuns({plan,workspaceId,userId,canWrite}:{plan:ResearchPlanRecord;workspaceId:string;userId:string;canWrite:boolean}) {
   const [items,setItems]=useState<ResearchRun[]>([]),[selected,setSelected]=useState<ResearchRun|null>(null),[after,setAfter]=useState<string|null>(null);
   const [busy,setBusy]=useState(false),[error,setError]=useState<string|null>(null),[attested,setAttested]=useState(false),[copied,setCopied]=useState(false);
@@ -55,7 +75,7 @@ export function ResearchRuns({plan,workspaceId,userId,canWrite}:{plan:ResearchPl
       researchRunCommand(plan.id,{workspaceId,expectedUserId:userId},"read",selected.id).then(value=>{
         if(current){
           if(value.position!==selected.position||value.generation!==selected.generation||value.source_state!==selected.source_state){copySequence.current++;setCopied(false);}
-          setSelected(value);setItems(items=>items.map(item=>item.id===value.id?value:item));
+          setSelected(previous=>reuseResearchRunResults(previous,value));setItems(items=>items.map(item=>item.id===value.id?value:item));
         }
       }).catch(error=>{if(current)setError(error instanceof Error?error.message:"Run refresh failed.");});
     },1500);
@@ -67,7 +87,7 @@ export function ResearchRuns({plan,workspaceId,userId,canWrite}:{plan:ResearchPl
     const operation=++sequence.current,current=()=>alive.current&&sequence.current===operation;
     try {
       const result=await action();
-      if(current()&&result){setSelected(result);setItems(items=>[result,...items.filter(item=>item.id!==result.id)]);heading.current?.focus({preventScroll:true});}
+      if(current()&&result){setSelected(previous=>reuseResearchRunResults(previous,result));setItems(items=>[result,...items.filter(item=>item.id!==result.id)]);heading.current?.focus({preventScroll:true});}
     } catch(error){if(current())setError(error instanceof Error?error.message:"Run operation failed.");}
     finally{if(current()){pending.current=false;setBusy(false);}}
   }
@@ -122,20 +142,7 @@ export function ResearchRuns({plan,workspaceId,userId,canWrite}:{plan:ResearchPl
       </div>
       {copyError&&<p role="alert" className="mb-3 rounded-lg border border-red-300 p-3 text-sm text-red-700 dark:text-red-300">{copyError}</p>}
       {selected.source_state==="CURRENT"&&selected.mode==="TIMELINE"&&selected.results.length>0&&<TimelineOverview run={selected}/>}
-      {selected.source_state!=="CURRENT"?<p role="status" className="text-sm text-amber-700 dark:text-amber-300">Evidence was removed or changed. Stored answers are unavailable; create a new plan against current sources.</p>:selected.results.map((result,index)=><article key={`${selected.id}:${index}`} id={`${selected.id}-${index}`} className="mb-5 min-w-0 border-t border-[var(--border)] pt-4">
-        <h4 className="mb-2 whitespace-pre-wrap break-words font-medium">{result.question}</h4>
-        <p className="mb-2 text-xs text-[var(--text-muted)]">{result.claim_state==="UNSUPPORTED"?"No supported answer":"Review required; citation presence is not entailment"}</p>
-        {result.comparison?<ComparisonMatrix matrix={result.comparison} sourcePrefix={`${selected.id}-${index}`}/>:result.timeline?<p className="mb-3 text-sm">{result.timeline.events.length} source events / criterion {result.timeline.criterion_index+1} / batch {result.timeline.batch_index+1}</p>:result.contradiction?<ContradictionPairs analysis={result.contradiction} sourcePrefix={`${selected.id}-${index}`}/>:result.obligations?.candidates.length||result.entities?.candidates.length?null:<p className="mb-3 whitespace-pre-wrap break-words text-sm">{result.answer}</p>}
-        {result.query_retrieval&&<ResearchQueryCoverage retrieval={result.query_retrieval}/>}
-        {result.deep&&<DeepResearchReport report={result.deep} sourcePrefix={`${selected.id}-${index}`} runPrefix={selected.id}/>}
-        {result.obligations&&<ObligationCandidates analysis={result.obligations} sourcePrefix={`${selected.id}-${index}`}/>}
-        {result.entities&&<EntityCandidates analysis={result.entities} sourcePrefix={`${selected.id}-${index}`}/>}
-        {result.diligence&&<DiligenceObservations analysis={result.diligence} sourcePrefix={`${selected.id}-${index}`}/>}
-        <ResearchFindingAction runId={selected.id} index={index} result={result} workspaceId={workspaceId} userId={userId} canWrite={canWrite}/>
-        {result.sources.map(source=><ResearchSourceDetails key={source.citation_id} source={source} id={`${selected.id}-${index}-${source.citation_id}`}/>)}
-        <p className="text-xs text-[var(--text-muted)]">{result.coverage.chunks_considered} candidate chunks considered / bounded retrieval, not exhaustive / provider cost {result.provider_cost_status.toLowerCase()}</p>
-        {result.coverage.lexical_limit_reached&&<p className="mt-1 text-xs text-amber-700 dark:text-amber-300">Lexical candidate limit reached. Additional chunks were not lexically ranked; dense retrieval may include later evidence.</p>}
-      </article>)}
+      {selected.source_state!=="CURRENT"?<p role="status" className="text-sm text-amber-700 dark:text-amber-300">Evidence was removed or changed. Stored answers are unavailable; create a new plan against current sources.</p>:selected.results.map((result,index)=><ResearchResultArticle key={`${selected.id}:${index}`} runId={selected.id} index={index} result={result} workspaceId={workspaceId} userId={userId} canWrite={canWrite}/>)}
     </div>}
   </section>;
 }

@@ -1,5 +1,36 @@
 # Comprehensive application audit
 
+## Merge/Cleanup And Saved Report Updates - Functional056
+
+PARTIAL_NOT_COMPLETE. Fresh GitHub inventory: draft PR12/three branches,104candidate
+commits not in main,protected branch/failed required checks block merge. Only PR12
+obsolete status prose updated and read back exactly. Six Cloudflare Workers/queues
+include active shared traffic/required DLQs/KEEP_RECOVERY. Prod Supabase has seven
+actual Storage objects despite zero catalog estimates; no resource is disposable
+by name/count. Independent Qdrant count returns17legacy/four v6zero/aliasesempty,
+not erasure/orphan proof. Full index inventory unverified. No merge/delete/deploy.
+Corrected13-file cleanup ZIPd78fb206... recovers; first wrong-target/argument errors
+retained before fresh correct780-source/551-paused-source preservation PASS.
+
+Actual React regression: all saved reports rerender on checkbox/busy/parsed refresh
+updates. Four before failures; initial19after tests pass with memoized existing
+article and exact-result references only within same run/generation/source snapshot.
+Changed content,roles and unavailable evidence still update. Reviewed18:30:14Z:
+595frontend/91files,lint/type/build26routes,176Research/4intentionalSKIP PASS,including
+20new unit/polling and six original maximum-field desktop/mobile cases. Owned server
+stopped;save/current CI/NEW complete784source/fresh dependency recovery pending.
+All original content/hash/copy/
+citation DOM retained; no test timeout or accepted limits changed. This proves
+avoidable work,not every prior browser/native timeout's cause. Read056doc.
+
+055final source92a9562/tree621c90df has exact780-file recovery but fresh verification
+FAILS27PASS/2FAIL(native Due timeout;171Research/5FAIL/4SKIP);failed271-file evidence
+417b9101... frozen and strict guard unchanged. Exact-tree ordinary CI passes;
+required dependency/runtime-build/summary fail,scan steps skipped. Public1101and
+favicon preview-props loadManifest exception share active version5db33e20...,not
+Research-Ray stack/Git-SHA proof. Older source/schema remains deployed. Scope and
+all production acceptance gaps stay open;no new security or hosted/private work.
+
 ## Product Passport Declared Subject - Functional055
 
 Revision2review13:18:29Z:635backend+19/59stdlib-only isolated PASS;all4method ASTs

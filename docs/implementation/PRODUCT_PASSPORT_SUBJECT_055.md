@@ -1,5 +1,15 @@
 # Product Passport Declared Subject - Functional055
 
+Final external BATCH055_HANDOFF supersedes source-time pending notes below:
+published92a9562/tree621c90df,complete780-file source6aebb57e... recovers exactly;
+fresh verification FAILED27PASS/2FAIL. Native Due timeout has no confirmed stage;
+Research browser171PASS/5FAIL/4intentionalSKIP. Frozen271-file evidence417b9101...
+and strict guard remain. Exact-tree ordinary CI passes,required dependency/runtime-
+build/summary fail with later scans skipped. Declared-subject browser cases pass,
+but whole recovery is not accepted.056addresses separately reproduced unnecessary
+report rerenders without clearing all old failures. Hosted055migration remains
+unapproved/unapplied and execution/review/packages unfinished. No production claim.
+
 PARTIAL_NOT_COMPLETE. This batch completes the declared-identity draft journey,
 not Product Passport execution or production acceptance. Base is published054
 d70b752c818afbf193645d1b2e1e16c9d743c834/tree5c37d78a809c6c5b99bbc079b2ff53c9f74ec624.
