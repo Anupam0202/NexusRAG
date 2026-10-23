@@ -7,6 +7,25 @@ const workspace = "11111111-1111-4111-8111-111111111111", user = "22222222-2222-
 const planId = "33333333-3333-4333-8333-333333333333", policy = "44444444-4444-4444-8444-444444444444";
 const plan = { plan_id: planId, mode: "QUICK_LOOKUP", question: "What is the synthetic policy retention period?",
   private_source_ids: ["document-one"], completion_criteria: ["Inspect the exact source paragraph."] };
+const passportSubject = { product_id: "sample-product-42", product_name: "Synthetic sensor", product_version: "2.1", supplier: "Synthetic supplier" };
+
+test("a Product Passport draft retains its declared product identity instead of discarding it", () => {
+  const input={...plan,mode:"PRODUCT_PASSPORT",passport_subject:{...passportSubject,product_name:" Synthetic sensor "}};
+  const result=validateResearchPlan(input);
+  assert.deepEqual(result.plan.passport_subject,passportSubject);
+  result.plan.passport_subject.product_name="Separate copy";
+  assert.equal(input.passport_subject.product_name," Synthetic sensor ");
+});
+test("passport identity validates complete bounded fields and never attaches to another research mode",()=>{
+  for(const value of [null,[],{}, {...passportSubject,product_version:" "},{...passportSubject,product_id:"x".repeat(129)},
+    {...passportSubject,product_name:"\u{1f4ca}".repeat(257)},{...passportSubject,supplier:"sup\0plier"},{...passportSubject,verified:true}]) {
+    assert.throws(()=>validateResearchPlan({...plan,mode:"PRODUCT_PASSPORT",passport_subject:value}),{code:"INVALID_RESEARCH_PLAN"});
+  }
+  assert.throws(()=>validateResearchPlan({...plan,passport_subject:passportSubject}),{code:"INVALID_RESEARCH_PLAN"});
+  assert.equal(validateResearchPlan({...plan,mode:"PRODUCT_PASSPORT",passport_subject:{...passportSubject,product_name:"\u{1f4ca}".repeat(256)}}).plan.passport_subject.product_name.length,512);
+  assert.equal(Object.hasOwn(validateResearchPlan(plan).plan,"passport_subject"),false);
+  assert.equal(Object.hasOwn(validateResearchPlan({...plan,mode:"PRODUCT_PASSPORT"}).plan,"passport_subject"),false);
+});
 
 for (const mode of Object.keys(RESEARCH_MODE_LIMITS)) test(`research input preserves the accepted ${mode} limits and plan fields`, () => {
   const result = validateResearchPlan({ ...plan, mode });
@@ -65,6 +84,21 @@ test("ordinary research plan creation returns a durable receipt and can be liste
 });
 
 const headers = { authorization: "Bearer synthetic", "x-workspace-id": workspace, "content-type": "application/json", "idempotency-key": "synthetic-plan-creation" };
+test("Product Passport identity survives create, JSONB-order readback and list",async t=>{
+  const {env}=fixture(t),input={...plan,mode:"PRODUCT_PASSPORT",passport_subject:passportSubject};
+  const create=await handle(new Request("https://gateway.invalid/api/v2/research/plans",{method:"POST",headers,body:JSON.stringify(input)}),env);
+  assert.equal(create.status,201);assert.deepEqual((await create.json()).plan.passport_subject,passportSubject);
+  const read=await handle(new Request(`https://gateway.invalid/api/v2/research/plans/${planId}`,{headers}),env);
+  assert.equal(read.status,200);assert.deepEqual((await read.json()).plan.passport_subject,passportSubject);
+  const list=await handle(new Request("https://gateway.invalid/api/v2/research/plans",{headers}),env);
+  assert.equal(list.status,200);assert.deepEqual((await list.json()).items[0].plan.passport_subject,passportSubject);
+});
+for(const subject of [undefined,{...passportSubject,product_version:"3.0"}])test(`an omitted or changed declared product is not a confirmed save (${subject?.product_version||"missing"})`,async t=>{
+  const {env}=fixture(t,{rpc:(data,json)=>json({id:planId,workspace_id:workspace,owner_id:user,state:"planned",persistence_state:"PERSISTED",execution_supported:false,
+    schema_version:"research-plan/1",limits:RESEARCH_MODE_LIMITS.PRODUCT_PASSPORT,plan:{...data.p_plan,passport_subject:subject}})});
+  const response=await handle(new Request("https://gateway.invalid/api/v2/research/plans",{method:"POST",headers,body:JSON.stringify({...plan,mode:"PRODUCT_PASSPORT",passport_subject:passportSubject})}),env);
+  assert.equal(response.status,503);assert.equal((await response.json()).error.code,"PERSISTENCE_UNCONFIRMED");
+});
 test("a stored plan survives ordinary JSONB key ordering and can be read by ID", async t => {
   const { env }=fixture(t);
   const create=await handle(new Request("https://gateway.invalid/api/v2/research/plans",{method:"POST",headers,body:JSON.stringify(plan)}),env);

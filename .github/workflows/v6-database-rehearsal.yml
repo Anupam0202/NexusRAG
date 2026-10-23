@@ -102,6 +102,7 @@ jobs:
           cp "$GITHUB_WORKSPACE/supabase/migrations/20261020123354_finding_creation_audit_replay.sql" "$source_dir/supabase/migrations/"
           cp "$GITHUB_WORKSPACE/supabase/migrations/20261021100301_research_entity_execution.sql" "$source_dir/supabase/migrations/"
           cp "$GITHUB_WORKSPACE/supabase/migrations/20261022120413_research_diligence_execution.sql" "$source_dir/supabase/migrations/"
+          cp "$GITHUB_WORKSPACE/supabase/migrations/20261023123558_research_passport_subject.sql" "$source_dir/supabase/migrations/"
           chmod -R a+rX "$source_dir"
           cleanup() {
             sudo -u postgres dropdb --if-exists -h /var/run/postgresql -p "$port" "$db" >/dev/null 2>&1 || true
@@ -129,6 +130,8 @@ jobs:
             grep -F 'BACKEND_PRIVATE_TURN_AUTHORITY_PASS' "$log"
             grep -F 'BACKEND_PRIVATE_TURN_CONCURRENT_AUTHORITY_PASS' "$log"
             grep -F 'RESEARCH_PLAN_SQL_PASS' "$log"
+            grep -F 'RESEARCH_PASSPORT_SUBJECT_SQL_PASS' "$log"
+            grep -F 'POSTGRES_PASSPORT_SUBJECT_CONCURRENT_RETRY_PASS' "$log"
             grep -F 'RESEARCH_TIMELINE_SQL_PASS' "$log"
             grep -F 'TIMELINE_NATIVE_DATE_PARITY_PASS cases=146' "$log"
             grep -F 'REAL_SQL_PRODUCTION_TIMELINE_EXECUTOR_PASS' "$log"

@@ -1,5 +1,33 @@
 # Comprehensive application audit
 
+## Product Passport Declared Subject - Functional055
+
+Reviewed12:59:37Z:17owning/build/native PASS635backend+19/703Gateway/575frontend/
+61isolated/110scripts/lint/type/build26routes,two lifecycle/five native probes;
+176Research/4intentionalSKIP,8focused passport and SQL65table175function restore
+PASS.14cross-client/Gateway contract vectors and551paused022entries preserved.
+Save/current exact-tree CI/NEW complete779source/fresh recovery still pending;
+earlier local pending notes below superseded only for these enumerated checks.
+
+Two Gateway/four UI before failures reproduce discarded product identity/missing
+inputs. Typed declared product/version/supplier input now persists with ordinary
+draft create/read/reload/copy/retry;subject omission/version mismatch cannot be
+reported as a confirmed save. Legacy drafts remain readable and normal non-passport
+payloads unchanged. Retained Python truthfully remains validation-only. Eight
+focused desktop/mobile cases and actual SQL/concurrency/65table175function restore
+pass. New test exact-text failure/theme-reload coverage corrections are retained;
+owning/exact-tree CI/save/NEW fresh recovery pending. Read
+PRODUCT_PASSPORT_SUBJECT_055.md. Execution/claims/reviews/exports/full product remain
+unfinished,not accepted by these inputs. No224definition or denominator reduction.
+
+054final handoff records exact source recovery but FAILED26PASS/1FAIL fresh suite;
+strict guard/failure unwaived.055startup diagnostic568/88 passes unchanged criteria,
+not causal proof. Historical/current runtime receipts both24.22.1;initial summary-
+derived version-change claim is withdrawn. Old052and earlier failures retained.
+Cloudflare Chrome control still times out;live source/log correlation unverified.
+No security work,paused022resumption,hosted approval/install,private/provider/
+customer/destructive/paid/deploy operation. Required release gates remain failed.
+
 ## Owned Worker Lifecycle - Functional054
 
 Reviewed10:56:48ZOct23:all17owning/build/native PASS;

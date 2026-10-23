@@ -36,6 +36,7 @@ import type {
 import { getApiHeaders } from "@/lib/api-context";
 import { buildBackendUrl } from "@/lib/backend-url";
 import { modeLimits, researchModes, type ResearchPlanInput, type ResearchPlanRecord } from "@/lib/research-plan";
+import { passportSubjectIdentity } from "@/lib/product-passport-subject";
 import { confirmedResearchRun, type ResearchRun } from "@/lib/research-run";
 import { confirmedCalculation, type CalculationInput, type CalculationRecord } from "@/lib/research-calculation";
 import { canonicalAggregationInput, confirmedAggregation, type AggregationInput, type AggregationRecord } from "@/lib/research-aggregation";
@@ -434,6 +435,10 @@ export async function getCurrentWorkspace(context: ApiRequestContext = {}): Prom
 function confirmedResearchPlan(value: unknown): value is ResearchPlanRecord {
   if (!value || typeof value !== "object") return false;
   const row = value as ResearchPlanRecord;
+  if(row.plan&&Object.hasOwn(row.plan,"passport_subject")) {
+    if(row.plan.mode!=="PRODUCT_PASSPORT")return false;
+    try { passportSubjectIdentity(row.plan.passport_subject); } catch { return false; }
+  }
   return typeof row.id === "string" && typeof row.workspace_id === "string" && typeof row.owner_id === "string" &&
     row.schema_version === "research-plan/1" && row.persistence_state === "PERSISTED" && row.state === "planned" &&
     row.execution_supported === false && typeof row.plan?.question === "string" && typeof row.plan.plan_id === "string" &&
@@ -460,7 +465,10 @@ export async function createResearchPlan(body: ResearchPlanInput, key: string, c
   const result = await request<ResearchPlanRecord>("/api/v2/research/plans", {
     method: "POST", headers: { "Idempotency-Key": key }, body: JSON.stringify(body),
   }, context);
-  if (!confirmedResearchPlan(result) || result.plan.plan_id !== body.plan_id)
+  let subjectMatches=false;
+  try { subjectMatches=Object.hasOwn(body,"passport_subject")===Object.hasOwn(result?.plan||{},"passport_subject")
+    &&(!Object.hasOwn(body,"passport_subject")||passportSubjectIdentity(body.passport_subject)===passportSubjectIdentity(result?.plan?.passport_subject)); } catch { subjectMatches=false; }
+  if (!confirmedResearchPlan(result) || result.plan.plan_id !== body.plan_id || !subjectMatches)
     throw new ApiRequestError("Research plan save was not confirmed. Refresh before retrying.", "PERSISTENCE_UNCONFIRMED");
   return result;
 }

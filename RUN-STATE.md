@@ -1,5 +1,47 @@
 # NexusRAG execution checkpoint
 
+## Active Functional Batch: product-passport-subject-055
+
+Latest reviewed12:59:37ZOct23:all17owning/build/native checks PASS;
+635backend+19subtests/703Gateway/575frontend89files/61isolated/110scripts,
+lint/type/foundation/baseline/NextOpenNext26routes/actual gateway fixtures/two
+lifecycle cases/five native probes. Full176Research browser checks PASS,4intentional
+SKIP not counted;8focused passport cases and actual SQL65table175function restore
+pass.14cross-client/Gateway subject vectors and paused022551entry preservation
+pass13:01Z. Save/exact-tree CI/NEW complete779source/fresh dependency/evidence
+recovery pending. These supersede only the local pending notes below;no release,
+full-product,private/provider or054failure clearance is implied.
+
+PARTIAL_NOT_COMPLETE. Uncommitted on published054d70b752/tree5c37d78a;
+declared ProductPassport identifier/name/version/supplier now save/read/reload/
+copy/retry through the actual Research UI/client/Gateway and private JSONB plan
+contract. Legacy drafts remain readable;other modes keep their JSON. Source-only
+CLI migration20261023123558 is not hosted approved/applied. Passport execution,
+qualified evidence/reviews/packages remain unfinished;all224definitions/tenproducts/
+twelvemodes/400+125quality and release prerequisites remain accepted/incomplete.
+Read PRODUCT_PASSPORT_SUBJECT_055.md. Reviewed owning/build/native,broader browser,
+exact-tree CI,source save and NEW complete recovery are still being verified.
+
+054final external BATCH054_HANDOFF.md supersedes its source-time pending notes:
+complete771source bytes recover exactly but fresh verification FAILED26PASS/1FAIL,
+552frontend/87files plus one unhandled fork-start timeout;16callback tests never
+ran. Immutable strict guard fe219e7e...correctly rejects. Independent next20checks
+and exact-tree ordinary frontend/database passed;required release gates failed.
+055bounded diagnostic568tests/88original files passes without pool/isolation/
+timeout changes;max start acknowledgement28599ms does not prove cause or waive
+054. Both authoritative054runtime receipt/current diagnostic use24.22.1;the old
+summary's24.19.0 claim and initial055runtime-change note are withdrawn. No causal
+memory claim or unrelated process termination. All historical failures retained.
+
+055before2Gateway/4UI failures,8corrected focused browser cases and real disposable
+SQL identity/replay/version-conflict/concurrency/65table175function restore pass.
+First browser exact-text fixture error and a dark-reload coverage correction are
+retained;not application theme fixes. Full owning and broader UI/fresh recovery
+still pending. Chrome connection4opened expected CF Workers page,then AX read
+timed out;authenticated bindings/logs remain unverified. Rehearsal38migration
+registry still ends048Entity. No security/paused022/hosted/private/customer/provider/
+destructive/paid/deployment operations or new branches/merges are authorized here.
+
 ## Active Functional Batch: owned-worker-lifecycle-054
 
 Latest reviewed local10:56:48ZOct23:all17owning/build/native checks PASS;

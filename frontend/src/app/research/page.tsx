@@ -10,6 +10,7 @@ import { useStore } from "@/hooks/useStore";
 import { useDocuments } from "@/hooks/useDocuments";
 import { CalculationTools } from "@/components/research/CalculationTools";
 import { ResearchRuns } from "@/components/research/ResearchRuns";
+import { normalizePassportSubject, passportSubjectFields } from "@/lib/product-passport-subject";
 
 const control = "w-full min-w-0 rounded-lg border border-[var(--border)] bg-[var(--bg-primary)] px-3 py-2 text-sm";
 const button = "inline-flex items-center justify-center gap-2 rounded-lg border border-[var(--border)] px-3 py-2 text-sm font-medium disabled:opacity-50";
@@ -63,13 +64,15 @@ function ResearchWorkbench() {
     finally { if (current()) { pending.current = false; setBusy(false); } }
   }
   function newDraft(copy?: ResearchPlanInput) {
-    const value = copy ? { ...copy, plan_id: crypto.randomUUID() } : emptyResearchPlan();
+    const value = copy ? { ...copy, ...(copy.passport_subject ? {passport_subject:{...copy.passport_subject}} : {}), plan_id: crypto.randomUUID() } : emptyResearchPlan();
     setDraft(value); setLines(Object.fromEntries(fields.map(([key]) => [key, value[key].join("\n")])) as Record<LinesField, string>);
     setSelected(null); setError(null); setSourceSearch(""); saveIdentity.current = null;
   }
   const save = () => operate(async current => {
     const payload = { ...draft, ...Object.fromEntries(fields.map(([key]) => [key, lines[key].split("\n").map(value => value.trim()).filter(Boolean)])) } as ResearchPlanInput;
     if(Array.from(payload.question).length>10000) throw new Error("Question must contain at most 10000 characters.");
+    if(payload.mode==="PRODUCT_PASSPORT") payload.passport_subject=normalizePassportSubject(payload.passport_subject);
+    else delete payload.passport_subject;
     const body = JSON.stringify(payload);
     if (saveIdentity.current?.body !== body) saveIdentity.current = { body, key: crypto.randomUUID() };
     setSaving(true);
@@ -105,6 +108,11 @@ function ResearchWorkbench() {
           <button className={button} disabled={busy || !canWrite} onClick={() => newDraft(selected.plan)}><Copy size={16} />Copy to a new plan</button></div>
           <p role="status" className="mb-4 text-sm text-emerald-700 dark:text-emerald-300">{selected.plan.mode==="CALCULATION"?"Saved plan. Calculations are tracked separately.":"Saved plan. Executions are tracked separately."}</p>
           <p className="mb-4 whitespace-pre-wrap break-words">{selected.plan.question}</p>
+          {selected.plan.mode==="PRODUCT_PASSPORT"&&<section aria-label="Declared product" className="mb-4 min-w-0 border-y border-[var(--border)] py-3">
+            <h3 className="mb-2 text-sm font-semibold">Declared product</h3>
+            {selected.plan.passport_subject?<dl className="grid min-w-0 gap-3 sm:grid-cols-2">{passportSubjectFields.map(([key,label])=><div key={key} className="min-w-0"><dt className="text-xs text-[var(--text-muted)]">{label}</dt>
+              <dd className="mt-1 whitespace-pre-wrap break-words text-sm [overflow-wrap:anywhere]">{selected.plan.passport_subject![key]}</dd></div>)}</dl>:<p className="text-sm text-[var(--text-muted)]">Product identity not recorded</p>}
+          </section>}
           <details open={selected.plan.mode!=="CALCULATION"} className="mb-4"><summary className="mb-3 cursor-pointer text-sm font-semibold">Plan details</summary>
           <dl className="grid min-w-0 gap-4 sm:grid-cols-2">{fields.map(([key, label]) => <div key={key}><dt className="text-xs font-semibold text-[var(--text-muted)]">{label}</dt>
             <dd className="mt-1 whitespace-pre-wrap break-words text-sm">{selected.plan[key].join("\n") || "-"}</dd></div>)}
@@ -118,6 +126,10 @@ function ResearchWorkbench() {
             onChange={event => setDraft({ ...draft, mode: event.target.value as ResearchMode })}>{researchModes.map(mode => <option key={mode} value={mode}>{modeLabel(mode)}</option>)}</select></label>
             <label className="text-sm">Jurisdiction<input aria-label="Jurisdiction" className={`${control} mt-1`} value={draft.jurisdiction || ""} maxLength={128} disabled={busy || !canWrite} onChange={event => setDraft({ ...draft, jurisdiction: event.target.value || null })} /></label></div>
           <label className="block text-sm">Question<textarea aria-label="Question" required rows={3} maxLength={20000} className={`${control} mt-1`} value={draft.question} disabled={busy || !canWrite} onChange={event => setDraft({ ...draft, question: event.target.value })} /></label>
+          {draft.mode==="PRODUCT_PASSPORT"&&<fieldset className="min-w-0 border-y border-[var(--border)] py-3"><legend className="text-sm font-semibold">Declared product</legend>
+            <div className="grid min-w-0 gap-4 sm:grid-cols-2">{passportSubjectFields.map(([key,label,maximum])=><label key={key} className="min-w-0 text-sm">{label}<input required aria-label={label} maxLength={maximum*2} className={`${control} mt-1`}
+              value={draft.passport_subject?.[key]||""} disabled={busy||!canWrite} onChange={event=>setDraft({...draft,passport_subject:{product_id:"",product_name:"",product_version:"",supplier:"",...draft.passport_subject,[key]:event.target.value}})}/></label>)}</div>
+          </fieldset>}
           <fieldset className="rounded-lg border border-[var(--border)] p-3"><legend className="px-1 text-sm">Private documents</legend>
             <input aria-label="Find private documents" type="search" placeholder="Search documents" className={`${control} mb-2`} value={sourceSearch}
               disabled={busy} onChange={event=>setSourceSearch(event.target.value)}/>

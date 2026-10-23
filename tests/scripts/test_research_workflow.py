@@ -10,6 +10,18 @@ import yaml
 ROOT = Path(__file__).resolve().parents[2]
 
 class ResearchWorkflowTests(unittest.TestCase):
+    def test_declared_passport_identity_persistence_and_browser_journey_run_in_required_ci(self):
+        migration="20261023123558_research_passport_subject.sql"
+        workflow=(ROOT/".github/workflows/v6-database-rehearsal.yml").read_text()
+        rehearsal=(ROOT/"tests/postgres/local-rehearsal.sh").read_text()
+        self.assertIn(migration,workflow)
+        self.assertIn(migration,rehearsal)
+        for file in ("research-passport-subject-assertions.sql","research-passport-subject-concurrency.sh"):
+            self.assertIn(file,rehearsal)
+        for marker in ("RESEARCH_PASSPORT_SUBJECT_SQL_PASS","POSTGRES_PASSPORT_SUBJECT_CONCURRENT_RETRY_PASS"):
+            self.assertIn(f"grep -F '{marker}'",workflow)
+        self.assertIn("research-passport-subject.spec.ts",(ROOT/".github/workflows/v6-foundation-ci.yml").read_text())
+
     def test_diligence_persistence_capacity_native_and_browser_journeys_are_in_required_ci(self):
         migration="20261022120413_research_diligence_execution.sql"
         workflow=(ROOT/".github/workflows/v6-database-rehearsal.yml").read_text()

@@ -2,11 +2,12 @@
 from __future__ import annotations
 
 from datetime import date, datetime
+from dataclasses import asdict
 from decimal import Decimal
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from src.api.auth import WorkspaceContext, WorkspaceRole, require_enterprise_workspace_role
 from src.api.dependencies import verify_api_key
@@ -23,7 +24,7 @@ from src.domain.product_passport import (
     PassportClaimStatus,
     ProductPassport,
 )
-from src.domain.research_planner import MODE_LIMITS, ResearchMode, ResearchPlan
+from src.domain.research_planner import MODE_LIMITS, PassportSubject, ResearchMode, ResearchPlan
 from src.domain.setup_center import CHECK_IDS
 from src.domain.standards_mapping import mapping_report
 
@@ -104,6 +105,21 @@ class PassportExportInput(BaseModel):
     claims: list[PassportClaimInput] = Field(max_length=200)
 
 
+class PassportSubjectInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    product_id: str = Field(min_length=1, max_length=128)
+    product_name: str = Field(min_length=1, max_length=256)
+    product_version: str = Field(min_length=1, max_length=128)
+    supplier: str = Field(min_length=1, max_length=256)
+
+    @field_validator("product_id", "product_name", "product_version", "supplier")
+    @classmethod
+    def normalize_identity_text(cls, value: str) -> str:
+        if not value.strip() or "\0" in value:
+            raise ValueError("Declared product identity must contain nonempty text")
+        return value.strip()
+
+
 class ResearchPlanInput(BaseModel):
     plan_id: str = Field(min_length=1, max_length=128)
     mode: ResearchMode
@@ -118,6 +134,15 @@ class ResearchPlanInput(BaseModel):
     rights_constraints: list[str] = Field(default_factory=list, max_length=100)
     expected_calculations: list[str] = Field(default_factory=list, max_length=50)
     completion_criteria: list[str] = Field(min_length=1, max_length=50)
+    passport_subject: PassportSubjectInput | None = None
+
+    @model_validator(mode="after")
+    def validate_passport_mode(self) -> "ResearchPlanInput":
+        if "passport_subject" in self.model_fields_set and (
+            self.passport_subject is None or self.mode != ResearchMode.PRODUCT_PASSPORT
+        ):
+            raise ValueError("Declared product identity requires a complete Product Passport subject")
+        return self
 
 
 @router.get("/capabilities")
@@ -213,6 +238,7 @@ async def create_research_plan(
         tuple(payload.rights_constraints),
         tuple(payload.expected_calculations),
         tuple(payload.completion_criteria),
+        PassportSubject(**payload.passport_subject.model_dump()) if payload.passport_subject else None,
     )
     limits = MODE_LIMITS[plan.mode]
     return {
@@ -229,6 +255,7 @@ async def create_research_plan(
         "state": "VALIDATED_NOT_PERSISTED",
         "execution_supported": False,
         "persistence_state": "NOT_PERSISTED",
+        **({"passport_subject": asdict(plan.passport_subject)} if plan.passport_subject else {}),
     }
 
 

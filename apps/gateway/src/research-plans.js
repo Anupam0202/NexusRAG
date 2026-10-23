@@ -42,6 +42,13 @@ export function validateResearchPlan(input) {
     expected_calculations: list(input.expected_calculations, "Expected calculations", 50, 1000),
     completion_criteria: list(input.completion_criteria, "Completion criteria", 50, 1000, 1),
   };
+  if (Object.hasOwn(input, "passport_subject")) {
+    const subject=input.passport_subject;
+    const fields={product_id:128,product_name:256,product_version:128,supplier:256};
+    if (input.mode!=="PRODUCT_PASSPORT" || !subject || typeof subject!=="object" || Array.isArray(subject)
+      || Object.keys(subject).length!==4 || Object.keys(subject).some(key=>!Object.hasOwn(fields,key))) invalid("Choose a complete declared Product Passport identity.");
+    plan.passport_subject=Object.fromEntries(Object.entries(fields).map(([key,max])=>[key,text(subject[key],key,max)]));
+  }
   if (plan.private_source_ids.length + plan.public_provider_ids.length > limits.max_sources) invalid("Combined source limit exceeded for this mode.");
   if (plan.date_from && plan.date_to && plan.date_to < plan.date_from) invalid("End date must not precede start date.");
   if (plan.public_provider_ids.length && !plan.rights_constraints.length) invalid("Public sources require recorded rights constraints.");

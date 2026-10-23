@@ -1,4 +1,5 @@
 import limits from "./research-modes.json";
+import type { PassportSubject } from "./product-passport-subject";
 
 export const researchModes = Object.keys(limits) as Array<keyof typeof limits>;
 export type ResearchMode = keyof typeof limits;
@@ -16,6 +17,7 @@ export interface ResearchPlanInput {
   rights_constraints: string[];
   expected_calculations: string[];
   completion_criteria: string[];
+  passport_subject?: PassportSubject;
 }
 export interface ResearchPlanRecord {
   id: string;
