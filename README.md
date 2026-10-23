@@ -28,6 +28,7 @@ The deployed Cloudflare gateway is the bounded, tenant-scoped runtime; the Pytho
 - Consult [the comprehensive audit](docs/audits/COMPREHENSIVE_APPLICATION_AUDIT.md) for validated checks and remaining release blockers. Production readiness and defect-free operation are not claimed.
 - Qdrant Free clusters can suspend after inactivity. Check cluster health before diagnosing a gateway failure; reactivation does not establish a production availability SLA.
 - `main` is the canonical source branch. Candidate deployment is manual, main-only, and restricted to the isolated rehearsal backend. Production deployment remains separately guarded; merging code does not deploy production.
+- Current branch/recovery decisions and cleanup exclusions are recorded in [the repository cleanup checkpoint](docs/implementation/REPOSITORY_CLEANUP_057.md). The active candidate is reviewed in [PR12](https://github.com/Anupam0202/NexusRAG/pull/12); it is not the released production source.
 
 ## Local/research feature inventory
 
@@ -125,7 +126,7 @@ Customer evidence and business records remain authoritative in Supabase. Qdrant 
 | **Vector Store** | Qdrant primary + BM25Okapi; local FAISS fallback for development/demo |
 | **Streaming** | WebSocket (native JSON frames) |
 | **Deploy** | Cloudflare Workers/OpenNext + Supabase + Qdrant |
-| **Styling** | TailwindCSS 3, Inter font, Lucide icons |
+| **Styling** | TailwindCSS 4, Inter font, Lucide icons |
 
 ---
 
@@ -134,8 +135,8 @@ Customer evidence and business records remain authoritative in Supabase. Qdrant 
 ### Prerequisites
 
 - **Python 3.11+**
-- **Node.js 18+**
-- **Google API Key** — get one free at [Google AI Studio](https://aistudio.google.com/apikey)
+- **Node.js 24**, matching the CI baseline. Locked Next.js requires Node `>=20.9.0`.
+- **Google API Key** for provider-backed local runs, configured only with the applicable rights and budget approval. [Google AI Studio](https://aistudio.google.com/apikey) manages provider keys; a key does not guarantee free quota.
 
 ### 1. Clone & Setup Backend
 
@@ -160,7 +161,7 @@ cp .env.example .env
 
 ```bash
 cd ../frontend
-npm install
+npm ci
 cp .env.example .env.local
 # Edit .env.local if backend is not on localhost:8000
 ```
@@ -204,13 +205,18 @@ docker compose up --build
 
 ## Deployment
 
-The preview deployment is automated by `.github/workflows/cloudflare-preview-deploy.yml` using the protected GitHub `Preview` environment.
+Candidate deployment is **opt-in**, **main-only**, and uses the protected GitHub
+`NexusRAG-Candidate-Preview` environment through
+`.github/workflows/cloudflare-preview-deploy.yml`. Ordinary PR publication does
+not deploy. The workflow checks the isolated rehearsal target; it must not replace
+shared preview or production services. Successful deployment is not production acceptance.
+
+Build the candidate locally without publishing it:
 
 ```bash
 cd frontend
 npm ci --ignore-scripts
 npm run cf:build
-npm run cf:deploy
 ```
 
 Required public configuration points the frontend at the Cloudflare gateway and the connected Supabase project. Provider credentials remain protected secrets. See `docs/DEPLOYMENT_FREE.md` and `docs/DEPLOYMENT_PRODUCTION.md` for the exact environment contract and promotion gates.
@@ -319,7 +325,7 @@ NexusRAG/
 | `ENABLE_SEMANTIC_CHUNKING` | `true` | Smart chunking routing |
 | `ENABLE_QUERY_EXPANSION` | `true` | LLM query variants for broader retrieval recall; automatically skipped in constrained memory mode |
 | `ENABLE_LIGHTWEIGHT_EMBEDDINGS` | `false` | Use deterministic hash embeddings instead of local transformer embeddings |
-| `CONSTRAINED_MEMORY` | `false` | Enables free-tier memory guards for Render-sized instances |
+| `CONSTRAINED_MEMORY` | `false` | Enables memory guards for constrained local/research instances |
 | `ENABLE_ASYNC_INGESTION` | `false` | Returns uploads quickly while ingestion continues in the background |
 | `QDRANT_URL` | empty | Optional managed Qdrant endpoint for production vector search |
 | `QDRANT_API_KEY` | empty | Qdrant API key when `QDRANT_URL` is configured |
@@ -347,11 +353,12 @@ NexusRAG/
 | `NEXT_PUBLIC_API_URL` | `http://localhost:8000` locally | Cloudflare gateway URL |
 | `NEXT_PUBLIC_SUPABASE_URL` | empty | Supabase project URL supplied by the GitHub Preview environment |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` / `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | empty | Supabase publishable key supplied by the GitHub Preview environment |
-| `NEXT_PUBLIC_SITE_URL` | current browser origin | Canonical production frontend origin for email auth callbacks |
+| `NEXT_PUBLIC_SITE_URL` | current browser origin | Configured application origin for OAuth callbacks; loopback development uses the current origin |
+| `NEXT_PUBLIC_OAUTH_PROVIDERS` | `google,github` when unset | Comma-separated enabled OAuth providers; the example environment sets `github`. Enable and configure each selected provider in Supabase before use |
 
 The canonical split between GitHub `Preview` environment secrets and variables
-is documented in [GitHub environments](docs/GITHUB_ENVIRONMENTS.md).
-| `NEXT_PUBLIC_OAUTH_PROVIDERS` | `github` | Comma-separated OAuth providers shown on the login screen; set `google,github` only after both providers are enabled in Supabase |
+is documented in [GitHub environments](docs/GITHUB_ENVIRONMENTS.md). Candidate
+deployment uses its dedicated environment as described above, not the shared Preview target.
 
 ---
 
@@ -408,13 +415,15 @@ PDF uploads are preflighted before ingestion. Normal text PDFs use the standard 
 
 ## Rate Limit & API Key Handling
 
-NexusRAG ships with a default API key for quick evaluation. When the free-tier quota is exhausted:
+NexusRAG ships no usable provider key. Provider-backed runs require an approved
+operator key or explicit BYOK rights and budget consent; neither validation nor
+failover guarantees free quota. When the provider quota is exhausted:
 
 1. Backend detects `429 RESOURCE_EXHAUSTED` and sends a `QUOTA_EXCEEDED` WebSocket frame
 2. Frontend shows a modal prompting the user to enter their own Google API key
-3. Key is validated server-side using a free `list_models()` call
-4. On success, the key is stored encrypted for the active workspace and resolved per request
-5. User can immediately continue chatting with their own quota without exposing the raw key in API responses
+3. Key validation uses a bounded server-side provider model-list request
+4. The configured runtime stores and resolves the key using its documented scope: account-scoped in the Cloudflare gateway, workspace-scoped in the local/research backend
+5. New requests remain subject to provider availability, rights and budget admission; raw keys are not returned in API responses
 
 ---
 

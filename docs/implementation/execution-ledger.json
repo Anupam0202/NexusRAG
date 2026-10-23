@@ -13,6 +13,21 @@
   "interpretation": "OPEN_ENGINEERING includes implemented but not fully accepted requirements; it does not assert that no code or scoped evidence exists. External approvals do not close unfinished internal work.",
   "entries": [
     {
+      "id":"ENGINEERING-REPOSITORY-CLEANUP",
+      "requirement":"Consolidate redundant repository refs and correct setup/status metadata without losing unique work,data,accepted scope or release protections",
+      "normative_source":"Adopted owner-requested dependency-aware GitHub/platform cleanup;exact224normative definitions unchanged",
+      "status":"IN_PROGRESS",
+      "environment":"Uncommitted057 on published6f388ae/treee48914cf;authenticated GitHub administration and read-only platform metadata,not deployment or production acceptance",
+      "next_action":"Source116ordinary scripts/sixREADME contracts/ledger/foundation/migrations/paused551PASS23:18:09ZOct23UTC;save/exact-head CI/NEW full source/dependency/evidence recovery pending. Only retired superseded closedPR8 release6e5126f after zero-unique ancestry/full-history bundle47ea19ad...NEW recovery/fsck;normal Restore control and API two-ref readback verified. Keep protectedmain85b14f and sole draftPR12 candidate;required dependency/runtime/summary failed,so no merge. About description/eight topics saved/readback. README locked Node/Tailwind/npm/manual candidate/OAuth table/provider-quota contracts corrected,with5old failures reproduced. Fresh Supabase7production Storage objects/35migrations and0rehearsal objects/38migrations retained;CFsixWorkers/sixqueues andQdrantfree1.19.1confirmed. Independent fresh exact counts17legacy/fourv6zero;initialMonaco client bracket error corrected,not server failure. Fullindex/alias/snapshot inventory not repeated;056detailed evidence remains historical. No hosted/data/Auth/provider/security/paid/deploy operation,unique-work loss or scope reduction. Full224/products/modes/quality/private/lifecycle/rights/budget/release scope remains open.",
+      "acceptance_evidence":[{
+        "environment":"authenticated GitHub repository administration;not code promotion or deployed acceptance",
+        "observed_at":"2026-10-23T23:13:22.558Z",
+        "source_identity":"6f388ae3bb5feabe4006a437337ed65105fea58d;retiredancestor6e5126fd8f58035061aad341c32ab988dfc2db61",
+        "command_or_url":"PR8 normal Delete/Restore branch;batch057/GITHUB_PRE_RETIREMENT.json;CLEANUP_READBACK.json;pre-cleanup-public-refs.bundle",
+        "result":"Two required branches remain;old ref has zero unique commits and complete verified full-history recovery. SolePR12 stays draft/unmerged/blocked;no protections or data changed. Source-time selected checks/recovery/current CI are pending."
+      }]
+    },
+    {
       "id":"ENGINEERING-RESEARCH-RESULT-RECONCILIATION",
       "requirement":"Avoid rerendering unchanged saved research reports during ordinary UI refresh and polling while preserving full content,source inspection and current changes",
       "normative_source":"Adopted functional reliability and complete research user journeys;all224definitions and full product/mode/quality scope unchanged",
