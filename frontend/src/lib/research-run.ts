@@ -2,6 +2,8 @@ import modeLimits from "./research-modes.json";
 import { confirmedObligations,type ResearchObligations } from "./research-obligations";
 import {confirmedEntities,type ResearchEntities} from "./research-entities";
 import {confirmedDiligence,type ResearchDiligence} from "./research-diligence";
+import {confirmedPassport,confirmedPassportSubject,type ResearchPassport} from "./research-passport";
+import type {PassportSubject} from "./product-passport-subject";
 export type ResearchQueryRetrieval={schema_version:"research-query-retrieval/1";queries:string[];max_queries:number;completed_queries:number;
   expansion_status:"EXPANDED"|"ORIGINAL_ONLY"|"INVALID_RESPONSE_ORIGINAL_ONLY";rejected_queries:number;expansion_model:string;
   expansion_usage:Record<string,unknown>;evidence_interpretation:"SEARCH_QUERIES_NOT_EVIDENCE";paid_fallback:false};
@@ -41,14 +43,14 @@ export type ResearchRunResult = {
   sources:Array<{citation_id:string;document_id:string;version_id:string;chunk_id:string;filename:string;content:string;
     original_content_hash:string;location:unknown;page_number:number|null;chunk_index:number;excerpt:boolean}>;
   validated_citation_ids:string[];model:string|null;coverage:{completeness:string;chunks_considered:number;lexical_limit_reached?:boolean};
-  provider_cost_status:string;review_state:string;comparison?:ResearchComparison;timeline?:ResearchTimeline;contradiction?:ResearchContradiction;deep?:ResearchDeep;obligations?:ResearchObligations;entities?:ResearchEntities;diligence?:ResearchDiligence;query_retrieval?:ResearchQueryRetrieval;
+  provider_cost_status:string;review_state:string;comparison?:ResearchComparison;timeline?:ResearchTimeline;contradiction?:ResearchContradiction;deep?:ResearchDeep;obligations?:ResearchObligations;entities?:ResearchEntities;diligence?:ResearchDiligence;passport?:ResearchPassport;query_retrieval?:ResearchQueryRetrieval;
 };
 export type ResearchRun = {
   id:string;plan_id:string;workspace_id:string;owner_id:string;schema_version:"research-run/1";persistence_state:"PERSISTED";
   state:"queued"|"running"|"interrupted"|"completed"|"cancelled";generation:number;position:number;questions:string[];
   results:ResearchRunResult[];source_state:"CURRENT"|"UNAVAILABLE_OR_CHANGED";error_code:string|null;created_at:string;
   dispatch_state?:"ENQUEUED"|"PENDING_RECOVERY";
-  mode?:"QUICK_LOOKUP"|"EVIDENCE_ANSWER"|"COMPARE"|"TIMELINE"|"CONTRADICTION_ANALYSIS"|"DEEP_RESEARCH"|"OBLIGATION_ANALYSIS"|"ENTITY_INVESTIGATION"|"DUE_DILIGENCE";total_steps?:number;entity_scope?:string[];
+  mode?:"QUICK_LOOKUP"|"EVIDENCE_ANSWER"|"COMPARE"|"TIMELINE"|"CONTRADICTION_ANALYSIS"|"DEEP_RESEARCH"|"OBLIGATION_ANALYSIS"|"ENTITY_INVESTIGATION"|"DUE_DILIGENCE"|"PRODUCT_PASSPORT";total_steps?:number;entity_scope?:string[];passport_subject?:PassportSubject;
   results_included?:boolean;
   source_snapshot?:Array<{document_id:string;version_id:string;index_generation:string;lifecycle_epoch:number}>;
 };
@@ -56,19 +58,20 @@ const uuid=(value:unknown)=>typeof value==="string"&&/^[0-9a-f]{8}(-[0-9a-f]{4})
 export function confirmedResearchRun(value:unknown,planId:string):value is ResearchRun {
   if(!value||typeof value!=="object")return false;
   const row=value as ResearchRun;
-  const comparing=row.mode==="COMPARE",timelining=row.mode==="TIMELINE",contradicting=row.mode==="CONTRADICTION_ANALYSIS",deepening=row.mode==="DEEP_RESEARCH",obligating=row.mode==="OBLIGATION_ANALYSIS",investigating=row.mode==="ENTITY_INVESTIGATION",diligence=row.mode==="DUE_DILIGENCE",batched=comparing||timelining,count=row.source_snapshot?.length||0,batches=batched?Math.ceil(count/8):1,total=row.questions?.length*batches;
+  const comparing=row.mode==="COMPARE",timelining=row.mode==="TIMELINE",contradicting=row.mode==="CONTRADICTION_ANALYSIS",deepening=row.mode==="DEEP_RESEARCH",obligating=row.mode==="OBLIGATION_ANALYSIS",investigating=row.mode==="ENTITY_INVESTIGATION",diligence=row.mode==="DUE_DILIGENCE",passport=row.mode==="PRODUCT_PASSPORT",batched=comparing||timelining,count=row.source_snapshot?.length||0,batches=batched?Math.ceil(count/8):1,total=row.questions?.length*batches;
   return uuid(row.id)&&row.plan_id===planId&&uuid(row.workspace_id)&&uuid(row.owner_id)&&row.schema_version==="research-run/1"&&row.persistence_state==="PERSISTED"
     &&["queued","running","interrupted","completed","cancelled"].includes(row.state)&&Number.isSafeInteger(row.generation)&&row.generation>=1&&row.generation<=10
-    &&Array.isArray(row.questions)&&row.questions.length>=1&&row.questions.length<=(deepening||diligence?13:contradicting||obligating||investigating?11:batched?9:5)&&row.questions.every(q=>typeof q==="string"&&q.length>0&&Array.from(q).length<=10000)
+    &&Array.isArray(row.questions)&&row.questions.length>=1&&row.questions.length<=(deepening||diligence||passport?13:contradicting||obligating||investigating?11:batched?9:5)&&row.questions.every(q=>typeof q==="string"&&q.length>0&&Array.from(q).length<=10000)
     &&(!batched||Array.isArray(row.source_snapshot)&&count>=(comparing?2:1)&&count<=40&&row.source_snapshot.every(s=>uuid(s.document_id))&&row.total_steps===total)
     &&(!(investigating||diligence)||Array.isArray(row.entity_scope)&&row.entity_scope.length<=100&&row.entity_scope.every(value=>typeof value==="string"&&value.trim()&&Array.from(value).length<=128))
-    &&(!(contradicting||deepening||obligating||investigating||diligence)||Array.isArray(row.source_snapshot)&&count>=1&&count<=(deepening||diligence?60:50)&&row.source_snapshot.every(s=>uuid(s.document_id)&&uuid(s.version_id)
+    &&(!(contradicting||deepening||obligating||investigating||diligence||passport)||Array.isArray(row.source_snapshot)&&count>=1&&count<=(deepening||diligence||passport?60:50)&&row.source_snapshot.every(s=>uuid(s.document_id)&&uuid(s.version_id)
       &&typeof s.index_generation==="string"&&s.index_generation.length>0&&Number.isSafeInteger(s.lifecycle_epoch)&&s.lifecycle_epoch>=1)&&row.total_steps===total)
+    &&(!passport||confirmedPassportSubject(row.passport_subject))
     &&Number.isSafeInteger(row.position)&&row.position>=0&&row.position<=total&&Array.isArray(row.results)
-    &&["CURRENT","UNAVAILABLE_OR_CHANGED"].includes(row.source_state)&&(row.results_included===false?(batched||contradicting||deepening||obligating||investigating||diligence)&&row.results.length===0:row.source_state==="CURRENT"?row.results.length===row.position:row.results.length===0)
+    &&["CURRENT","UNAVAILABLE_OR_CHANGED"].includes(row.source_state)&&(row.results_included===false?(batched||contradicting||deepening||obligating||investigating||diligence||passport)&&row.results.length===0:row.source_state==="CURRENT"?row.results.length===row.position:row.results.length===0)
     &&(row.state!=="completed"||row.position===total)&&row.results.every((result,index)=>result.question===row.questions[Math.floor(index/batches)]
-      &&typeof result.answer==="string"&&result.answer.length>0&&(obligating||investigating||diligence?Array.from(result.answer).length:result.answer.length)<=16000&&["REVIEW_REQUIRED","UNSUPPORTED"].includes(result.claim_state)
-      &&typeof result.abstained==="boolean"&&Array.isArray(result.sources)&&result.sources.length<=(deepening&&index===total-1?156:diligence?60:obligating||investigating?50:12)
+      &&typeof result.answer==="string"&&result.answer.length>0&&(obligating||investigating||diligence||passport?Array.from(result.answer).length:result.answer.length)<=16000&&["REVIEW_REQUIRED","UNSUPPORTED"].includes(result.claim_state)
+      &&typeof result.abstained==="boolean"&&Array.isArray(result.sources)&&result.sources.length<=(deepening&&index===total-1?156:diligence||passport?60:obligating||investigating?50:12)
       &&result.coverage?.completeness==="NOT_EXHAUSTIVE"&&Number.isSafeInteger(result.coverage.chunks_considered)&&result.coverage.chunks_considered>=0&&result.coverage.chunks_considered<=200
       &&(result.coverage.lexical_limit_reached===undefined||typeof result.coverage.lexical_limit_reached==="boolean")
       &&(result.query_retrieval===undefined||confirmedQueryRetrieval(result.query_retrieval,result.question,row.mode||"QUICK_LOOKUP"))
@@ -77,7 +80,7 @@ export function confirmedResearchRun(value:unknown,planId:string):value is Resea
         &&typeof source.filename==="string"&&typeof source.content==="string"&&/^[a-f0-9]{64}$/.test(source.original_content_hash))
       &&Array.isArray(result.validated_citation_ids)&&result.validated_citation_ids.every(id=>result.sources.some(source=>source.citation_id===id))
       &&(!comparing||confirmedComparison(result,index,row))&&(!timelining||confirmedTimeline(result,index,row))&&(!contradicting||confirmedContradiction(result,index,row))
-      &&(!deepening||confirmedDeep(result,index,row))&&(!obligating||confirmedObligations(result,index,row))&&(!investigating||confirmedEntities(result,index,row))&&(!diligence||confirmedDiligence(result,index,row)));
+      &&(!deepening||confirmedDeep(result,index,row))&&(!obligating||confirmedObligations(result,index,row))&&(!investigating||confirmedEntities(result,index,row))&&(!diligence||confirmedDiligence(result,index,row))&&(!passport||confirmedPassport(result,index,row)));
 }
 function confirmedDeep(result:ResearchRunResult,index:number,run:ResearchRun) {
   const report=result.deep,snapshot=run.source_snapshot!,phase=index===run.questions.length-1?"SYNTHESIS":"SUBQUESTION";

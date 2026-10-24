@@ -1,7 +1,27 @@
-import {expect,test} from "@playwright/test";
+import {expect,test,type Page} from "@playwright/test";
 import {randomUUID} from "node:crypto";
 
 test.skip(!process.env.E2E_RESEARCH_COMPONENT_FIXTURE,"Requires controlled synthetic UI/Gateway peers, not a hosted origin.");
+test.use({trace:"retain-on-failure",screenshot:"only-on-failure"});
+const startup=new WeakMap<Page,Array<Record<string,unknown>>>();
+test.beforeEach(({page},info)=>{
+  const events:Array<Record<string,unknown>>=[];startup.set(page,events);
+  const record=(event:string,detail:Record<string,unknown>={})=>{if(events.length<2000)events.push({at:new Date().toISOString(),event,...detail});};
+  const path=(value:string)=>{const url=new URL(value);return url.hostname==="127.0.0.1"?url.pathname.slice(0,240):"OTHER_ORIGIN_NOT_CAPTURED";};
+  record("test-begin",{project:info.project.name});
+  page.on("request",request=>record("request",{path:path(request.url()),type:request.resourceType()}));
+  page.on("response",response=>record("response",{path:path(response.url()),status:response.status()}));
+  page.on("requestfailed",request=>record("request-failed",{path:path(request.url()),error:request.failure()?.errorText}));
+  page.on("pageerror",error=>record("page-error",{message:error.message.slice(0,600)}));
+  page.on("domcontentloaded",()=>record("dom-content-loaded"));page.on("load",()=>record("load"));
+});
+test.afterEach(async({page},info)=>{
+  if(info.status===info.expectedStatus)return;
+  const events=startup.get(page)||[];
+  try{events.push({at:new Date().toISOString(),event:"failure-body",text:(await page.locator("body").innerText({timeout:1000})).slice(0,1500)});}
+  catch(error){events.push({event:"failure-body-unavailable",message:String(error).slice(0,600)});}
+  await info.attach("synthetic-browser-startup.json",{body:JSON.stringify(events,null,2),contentType:"application/json"});
+});
 const subject={"Product identifier":"synthetic-sensor-42","Product name":"Synthetic sensor","Product version":"2.1","Supplier":"Synthetic supplier"};
 async function fill(page: import("@playwright/test").Page,question:string,theme="light"){
   await page.goto(`/?actor=${randomUUID()}&theme=${theme}`);await expect(page.getByRole("button",{name:"Save plan",exact:true})).toBeEnabled();
@@ -16,7 +36,7 @@ for(const theme of ["light","dark"])test(`${theme}: declared passport identity s
   await page.getByRole("button",{name:"Save plan",exact:true}).click();
   const declared=page.getByRole("region",{name:"Declared product",exact:true});
   await expect(declared).toBeVisible();for(const value of Object.values(subject))await expect(declared.getByText(value,{exact:true})).toBeVisible();
-  await expect(page.getByText("Execution is not implemented for this mode. The saved plan remains available.",{exact:true})).toBeVisible();
+  await expect(page.getByRole("button",{name:"Start research",exact:true})).toBeDisabled();
   await page.reload();await page.getByRole("button",{name:`Open research plan: ${question}`,exact:true}).click();
   await expect(page.locator("body")).toHaveCSS("background-color",background);
   await expect(declared.getByText("2.1",{exact:true})).toBeVisible();await page.getByRole("button",{name:"Copy to a new plan"}).click();

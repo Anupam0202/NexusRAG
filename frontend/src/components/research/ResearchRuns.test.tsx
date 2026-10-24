@@ -49,7 +49,7 @@ it("does not silently ignore date-constrained or unimplemented mode plans",async
   const view=render(<ResearchRuns {...props} plan={{...plan,plan:{...plan.plan,date_from:"2026-10-15"}}}/>);
   await screen.findByText(/constraints that execution cannot yet honor/);
   fireEvent.click(screen.getByRole("checkbox"));expect(screen.getByRole("button",{name:"Start research"})).toBeDisabled();
-  view.unmount();render(<ResearchRuns {...props} plan={{...plan,plan:{...plan.plan,mode:"PRODUCT_PASSPORT"},limits:modeLimits.PRODUCT_PASSPORT}}/>);
+  view.unmount();render(<ResearchRuns {...props} plan={{...plan,plan:{...plan.plan,mode:"PROCUREMENT_RESEARCH"},limits:modeLimits.PROCUREMENT_RESEARCH}}/>);
   expect(await screen.findByText(/Execution is not implemented for this mode/)).toBeVisible();
   expect(screen.queryByRole("button",{name:"Start research"})).not.toBeInTheDocument();
 });

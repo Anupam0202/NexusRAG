@@ -10,6 +10,7 @@ import { RESEARCH_MODE_LIMITS } from "../../apps/gateway/src/research-plans.js";
 import {obligationCapacity,obligationWire} from "../../tests/fixtures/research-obligation-capacity.mjs";
 import {entityData,entityProposals,entityWire,entityCapacity} from "../../tests/fixtures/research-entity-data.mjs";
 import {diligenceData,diligenceWire,diligenceCapacity} from "../../tests/fixtures/research-diligence-data.mjs";
+import {passportCapacity,passportWire} from "../../tests/fixtures/research-passport-data.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const port = Number(process.argv[2] || 3024);
@@ -74,8 +75,8 @@ fixtureDocuments.push(...capacity.documents.map((doc,i)=>({...doc,workspace_id:w
 fixtureVersions.push(...capacity.originals.map(row=>({id:row.version_id,document_id:row.document_id,workspace_id:workspace,
   publication_state:"ready",data_classification:"non_sensitive",index_generation:"synthetic-capacity",lifecycle_epoch:1})));
 fixtureChunks.push(...capacity.originals.map(row=>({...row,workspace_id:workspace,content:row.original_text,metadata:{}})));
-const entityFixtures=entityData(),entityMaximum=entityCapacity(),diligenceFixtures=diligenceData(),diligenceMaximum=diligenceCapacity();
-for(const data of [entityFixtures,entityMaximum,diligenceFixtures,diligenceMaximum]) {
+const entityFixtures=entityData(),entityMaximum=entityCapacity(),diligenceFixtures=diligenceData(),diligenceMaximum=diligenceCapacity(),passportMaximum=passportCapacity();
+for(const data of [entityFixtures,entityMaximum,diligenceFixtures,diligenceMaximum,passportMaximum]) {
   fixtureDocuments.push(...data.documents.map((doc,i)=>({...doc,workspace_id:workspace,active_version_id:data.originals[i].version_id,
     status:"ready",file_type:"txt",chunk_count:1,file_size:32768,lifecycle_state:"active",lifecycle_epoch:1})));
   fixtureVersions.push(...data.originals.map(row=>({id:row.version_id,document_id:row.document_id,workspace_id:workspace,
@@ -129,6 +130,19 @@ globalThis.fetch = async (input, init = {}) => {
       const sources=JSON.parse(prompt.split("\nEVIDENCE:\n")[1]);
       const answer=sources.map(source=>`${source.content} [${source.citation_id}]`).join("\n");
       return result({candidates:[{finishReason:"STOP",content:{parts:[{text:JSON.stringify({answer,limitations:["Synthetic context still requires independent review."],gaps:["No external evidence was acquired."]})}]}}]});
+    }
+    if(prompt.includes("PASSPORT_DOCUMENTS:\n")) {
+      const sources=JSON.parse(prompt.split("\nEVIDENCE:\n")[1]),question=prompt.split("QUESTION:\n")[1].split("\nDECLARED_PRODUCT_NOT_VERIFIED:")[0];
+      if(question.includes("Synthetic interrupted passport")&&!interruptedQuestions.has(question)){
+        interruptedQuestions.add(question);return new Response("Synthetic passport interruption",{status:503});
+      }
+      const empty={schema_version:"research-passport-wire/1",anchors:[],texts:[],claims:[],gaps:[]};
+      const wire=question.includes("Synthetic empty passport")?empty:question.includes("maximum-field passport")?passportWire(sources):{
+        schema_version:"research-passport-wire/1",anchors:[[sources[0].citation_id,0,Math.min(200,Array.from(sources[0].content).length)]],
+        texts:["Certificate reference","Supplier-reported C-1","Current validity and declared-product applicability require independent review.","Later reports and amendments not established."],
+        claims:[{kind:"CERTIFICATE",property:0,value:1,status:"ASSERTED_BY_SUPPLIER",evidence:[0],qualifications:[2]}],
+        gaps:[{document_id:null,description:3}]};
+      return result({candidates:[{finishReason:"STOP",content:{parts:[{text:JSON.stringify(wire)}]}}]});
     }
     if(prompt.includes("DILIGENCE_DOCUMENTS:\n")) {
       const sources=JSON.parse(prompt.split("\nEVIDENCE:\n")[1]),question=prompt.split("QUESTION:\n")[1].split("\nREQUESTED_SUBJECTS_NOT_VERIFIED_IDENTITIES:")[0];
@@ -250,6 +264,7 @@ globalThis.fetch = async (input, init = {}) => {
   if(url.pathname==="/rest/v1/rpc/nexus_research_obligation_contract")return json({schema_version:"research-obligations/1",max_sources:50,max_subquestions:10,max_steps:11,max_query_variants:8,runtime_seconds:420,max_candidates:12,max_result_bytes:1000000,max_run_bytes:11000000});
   if(url.pathname==="/rest/v1/rpc/nexus_research_entity_contract")return json({schema_version:"research-entities/1",max_sources:50,max_subquestions:10,max_steps:11,max_query_variants:8,runtime_seconds:420,max_candidates:12,max_result_bytes:1000000,max_run_bytes:11000000});
   if(url.pathname==="/rest/v1/rpc/nexus_research_diligence_contract")return json({schema_version:"research-diligence/1",max_sources:60,max_subquestions:12,max_steps:13,max_query_variants:8,runtime_seconds:600,max_observations:12,max_result_bytes:1000000,max_run_bytes:13001000});
+  if(url.pathname==="/rest/v1/rpc/nexus_research_passport_contract")return json({schema_version:"research-passport/1",max_sources:60,max_subquestions:12,max_steps:13,max_query_variants:8,runtime_seconds:600,max_claims:12,max_result_bytes:1000000,max_run_bytes:13001000});
   if(url.pathname==="/rest/v1/rpc/nexus_research_deep_context") {
     const run=runs.get(data.p_id),ids=new Set(run.results.flatMap(result=>result.sources.map(source=>source.chunk_id)));
     return json({schema_version:"research-deep-context/1",run_id:run.id,generation:run.generation,position:run.position,items:fixtureChunks.filter(chunk=>ids.has(chunk.id))});
@@ -280,7 +295,7 @@ globalThis.fetch = async (input, init = {}) => {
         source_research_run_id:run.id,source_research_position:data.p_command.result_index,authored_markdown:"",generated_markdown:answer.answer,
         source_unavailable:false,evidence:answer.sources.map(s=>({id:s.chunk_id,document_id:s.document_id,version_id:s.version_id,original_text:fixtureChunks.find(c=>c.id===s.chunk_id).original_text,
           original_content_hash:s.original_content_hash,location:s.location,citation_id:s.citation_id,filename:s.filename,available:true,freshness:"current"})),
-        research_origin:{run_id:run.id,result_index:data.p_command.result_index,plan_id:run.plan_id,question:answer.question,comparison:answer.comparison||null,timeline:answer.timeline||null,contradiction:answer.contradiction||null,deep:answer.deep||null,obligations:answer.obligations||null,entities:answer.entities||null,diligence:answer.diligence||null,query_retrieval:answer.query_retrieval||null,claim_state:"REVIEW_REQUIRED",source_state:"CURRENT"},
+        research_origin:{run_id:run.id,result_index:data.p_command.result_index,plan_id:run.plan_id,question:answer.question,comparison:answer.comparison||null,timeline:answer.timeline||null,contradiction:answer.contradiction||null,deep:answer.deep||null,obligations:answer.obligations||null,entities:answer.entities||null,diligence:answer.diligence||null,passport:answer.passport||null,query_retrieval:answer.query_retrieval||null,claim_state:"REVIEW_REQUIRED",source_state:"CURRENT"},
         export_state:"RIGHTS_REVIEW_REQUIRED",reviews:[],participants:[],created_at:new Date().toISOString(),updated_at:new Date().toISOString(),permission:"owner"};
       findings.set(f.id,f);findingKeys.set(data.p_key,f.id);
       return json({code:"08006",message:"Synthetic interrupted finding response after commit"},503);
@@ -309,21 +324,21 @@ globalThis.fetch = async (input, init = {}) => {
   if(url.pathname==="/rest/v1/rpc/nexus_research_run") {
     fixtureEvent(`run_${data.p_operation}`,data);
     if(data.p_operation==="list")return json({items:[...runs.values()].filter(run=>run.owner_id===data.p_context.user_id&&run.plan_id===data.p_plan).reverse()
-      .map(run=>["COMPARE","TIMELINE","CONTRADICTION_ANALYSIS","DEEP_RESEARCH","OBLIGATION_ANALYSIS","ENTITY_INVESTIGATION","DUE_DILIGENCE"].includes(run.mode)?{...run,results:[],results_included:false}:run),next_after:null});
+      .map(run=>["COMPARE","TIMELINE","CONTRADICTION_ANALYSIS","DEEP_RESEARCH","OBLIGATION_ANALYSIS","ENTITY_INVESTIGATION","DUE_DILIGENCE","PRODUCT_PASSPORT"].includes(run.mode)?{...run,results:[],results_included:false}:run),next_after:null});
     if(data.p_operation==="create") {
       if(runKeys.has(data.p_key))return json(runs.get(runKeys.get(data.p_key)));
       const draft=records.get(data.p_plan).plan;
       const run={id:randomUUID(),plan_id:data.p_plan,workspace_id:workspace,owner_id:data.p_context.user_id,schema_version:"research-run/1",persistence_state:"PERSISTED",state:"queued",
         generation:1,position:0,questions:draft.mode==="DEEP_RESEARCH"?[...draft.subquestions,draft.question]:[draft.question,...draft.subquestions],results:[],source_state:"CURRENT",error_code:null,created_at:new Date().toISOString(),
-        mode:draft.mode,...(["ENTITY_INVESTIGATION","DUE_DILIGENCE"].includes(draft.mode)?{entity_scope:draft.entity_scope}:{}),source_snapshot:fixtureVersions.filter(v=>draft.private_source_ids.includes(v.document_id)).map(v=>({document_id:v.document_id,version_id:v.id,index_generation:v.index_generation,lifecycle_epoch:1})),admission:{credential_mode:"platform_trial"}};
+        mode:draft.mode,...(draft.mode==="PRODUCT_PASSPORT"?{passport_subject:draft.passport_subject}:{}),...(["ENTITY_INVESTIGATION","DUE_DILIGENCE"].includes(draft.mode)?{entity_scope:draft.entity_scope}:{}),source_snapshot:fixtureVersions.filter(v=>draft.private_source_ids.includes(v.document_id)).map(v=>({document_id:v.document_id,version_id:v.id,index_generation:v.index_generation,lifecycle_epoch:1})),admission:{credential_mode:"platform_trial"}};
       run.total_steps=run.questions.length*(["COMPARE","TIMELINE"].includes(run.mode)?Math.ceil(run.source_snapshot.length/8):1);
-      run.deadline=new Date(Date.now()+(["DEEP_RESEARCH","DUE_DILIGENCE"].includes(run.mode)?600000:["CONTRADICTION_ANALYSIS","OBLIGATION_ANALYSIS","ENTITY_INVESTIGATION"].includes(run.mode)?420000:["COMPARE","TIMELINE"].includes(run.mode)?300000:run.mode==="QUICK_LOOKUP"?30000:90000)).toISOString();
+      run.deadline=new Date(Date.now()+(["DEEP_RESEARCH","DUE_DILIGENCE","PRODUCT_PASSPORT"].includes(run.mode)?600000:["CONTRADICTION_ANALYSIS","OBLIGATION_ANALYSIS","ENTITY_INVESTIGATION"].includes(run.mode)?420000:["COMPARE","TIMELINE"].includes(run.mode)?300000:run.mode==="QUICK_LOOKUP"?30000:90000)).toISOString();
       runs.set(run.id,run);runKeys.set(data.p_key,run.id);return json(run);
     }
     const run=runs.get(data.p_id);
     if(data.p_operation==="cancel")run.state="cancelled";
     if(data.p_operation==="resume"&&(!["queued","running"].includes(run.state)||Date.parse(run.deadline)<=Date.now())){
-      run.state="queued";run.generation++;run.error_code=null;run.deadline=new Date(Date.now()+(["DEEP_RESEARCH","DUE_DILIGENCE"].includes(run.mode)?600000:["CONTRADICTION_ANALYSIS","OBLIGATION_ANALYSIS","ENTITY_INVESTIGATION"].includes(run.mode)?420000:["COMPARE","TIMELINE"].includes(run.mode)?300000:run.mode==="QUICK_LOOKUP"?30000:90000)).toISOString();
+      run.state="queued";run.generation++;run.error_code=null;run.deadline=new Date(Date.now()+(["DEEP_RESEARCH","DUE_DILIGENCE","PRODUCT_PASSPORT"].includes(run.mode)?600000:["CONTRADICTION_ANALYSIS","OBLIGATION_ANALYSIS","ENTITY_INVESTIGATION"].includes(run.mode)?420000:["COMPARE","TIMELINE"].includes(run.mode)?300000:run.mode==="QUICK_LOOKUP"?30000:90000)).toISOString();
     }
     return json(run);
   }

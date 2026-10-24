@@ -30,6 +30,22 @@ function fixture(t, options={}) {
 }
 const request=(method="GET",suffix="",body)=>new Request(`https://gateway.invalid/api/v2/research/plans/${plan}/runs${suffix}`,{method,headers,body:body?JSON.stringify(body):undefined});
 
+for(const mismatch of [null,"absent","limits"])test(`Product Passport confirms durable scope and declared product before admission: ${mismatch}`,async t=>{
+  const {env,receipt,calls,sent}=fixture(t);
+  const subject={product_id:"P-42",product_name:"Synthetic sensor",product_version:"2.1",supplier:"Example Components"};
+  Object.assign(receipt,{mode:"PRODUCT_PASSPORT",passport_subject:subject,source_snapshot:Array.from({length:60},(_,i)=>({
+    document_id:`00000059-0000-4000-8000-${String(i).padStart(12,"0")}`})),questions:Array.from({length:13},(_,i)=>`Criterion ${i+1}`),total_steps:13});
+  const original=globalThis.fetch;
+  t.mock.method(globalThis,"fetch",async(input,init)=>new URL(input).pathname==="/rest/v1/rpc/nexus_research_passport_contract"
+    ?new Response(JSON.stringify(mismatch==="absent"?{code:"PGRST202",message:"Function is absent"}:{schema_version:"research-passport/1",
+      max_sources:mismatch==="limits"?50:60,max_subquestions:12,max_steps:13,max_query_variants:8,runtime_seconds:600,
+      max_claims:12,max_result_bytes:1000000,max_run_bytes:13001000}),{status:mismatch==="absent"?404:200}):original(input,init));
+  const response=await handle(request("POST","",{non_sensitive_attested:true,execution_mode:"PRODUCT_PASSPORT"}),env);
+  assert.equal(response.status,mismatch?503:201);assert.equal(calls.length,mismatch?0:1);assert.equal(sent.length,mismatch?0:1);
+  if(mismatch)assert.match((await response.json()).error.message,/research_passport_execution/);
+  else {const result=await response.json();assert.equal(result.source_snapshot.length,60);assert.equal(result.questions.length,13);assert.deepEqual(result.passport_subject,subject);}
+});
+
 for(const mismatch of [null,"absent","limits"])test(`Due Diligence confirms its installed60source13criterion contract before ordinary admission: ${mismatch}`,async t=>{
   const {env,receipt,calls,sent}=fixture(t);
   Object.assign(receipt,{mode:"DUE_DILIGENCE",entity_scope:["Example Works"],source_snapshot:Array.from({length:60},(_,i)=>({

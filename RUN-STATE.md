@@ -1,5 +1,64 @@
 # NexusRAG execution checkpoint
 
+## Active Functional Batch: product-passport-execution-059
+
+PARTIAL_NOT_COMPLETE. Uncommitted059 on published9108ed5/tree90c7d47e;
+owner-paused022 remains separate.058final external BATCH058_HANDOFF confirms
+791source/97evidence recovery and all20fresh ordinary checks;required gates FAIL.
+Only approved052Due/055subject rehearsal installs were fulfilled once as
+20261024113229/20261024113258;rehearsal40migrations,unchanged aggregate data.
+Do not replay them or infer approval for the new059migration/deployment.
+
+Implementing Passport durable create/read/step/Findings,typed readback and UI.
+Three Gateway regressions reproduce missing contract admission/full-scope receipts;
+new guard passes35owning cases. Three actual-executor frontend regressions
+reproduce unreadable/copied-incomplete Passport reports;corrected typed reader
+and copier pass8Passport+Due cases. Initial fixture import and terminal encoding
+errors are harness failures,not product evidence. New migration generated through
+inspected Supabase CLI2.105.0,20261024113940_research_passport_execution.sql,
+is LOCAL_ONLY_UNAPPROVED;actual local SQL proof is not hosted approval. First local SQL flow interrupted
+on a provider fixture's JSON-property-order assertion;structured subject comparison
+now preserves all four exact values. Second owned SQL flow PASS:60sources/13steps,
+all maximum claim fields,concurrent starts/Findings,revision2independent review,
+cancel/resume,outage/ambiguous response and65table182function backup/restore.
+This WSLNode22test is compatibility evidence,not exact Node24release acceptance.
+Source UI/start/Finding inspection connected after SQL proof;15owning UI unit
+cases pass. First actual browser14PASS/6FAIL:four dynamic details-focus selectors
+lost the target after clicking summary,two delayed-two-step tests needed existing
+per-step progress assertions. No app/test limits or timeouts changed;traces retained.
+Second browser19PASS/1FAIL:all12new Passport journeys pass,but an existing mobile
+dark subject-save case never mounted its form within the unchanged5second expect.
+Cause is unestablished. Startup/network/trace observation added;third20PASS does
+not explain or waive the earlier failure. Maximum Unicode fields at320pixels pass
+but29.4second duration is near the unchanged30second test budget. Latest owned SQL
+adds readable legacy/no-admission and maximum four-field subject create/start/read/
+cancel proof;unchanged Due compatibility and65table182function restore also pass.
+First broad frontend run caught one stale unsupported-mode fixture:it now uses the
+still-unimplemented PROCUREMENT_RESEARCH mode with the same assertions;dedicated
+Passport legacy tests retain coverage. Next117script run caught missing new SQL
+copy in database CI;packaging and required Passport-result marker added without
+gate changes. Full corrected broad checks/review/save/CI/recovery remain pending.
+Read PRODUCT_PASSPORT_EXECUTION_059.md. No hosted059,provider or release operation.
+
+Public ChromeResearch11:26:30ZOct24 remains1101,Ray a4f8a07bc9c4e22e. Current
+9108ed5dependency/runtime/summary gates fail;PR12stays draft/unmerged/blocked.
+Keep all224definitions/tenproducts/twelvemodes/quality/private/lifecycle/rights/
+budget/rollout/rollback scope open;no new excluded security work.
+
+059pre-save review12:41:32ZOct24:all20planned ordinary check categories PASS
+across source-checks-ci-packaging(first6) and source-checks-type-corrected(last14).
+635backend+19subtests,722Gateway,603frontend/94files,59genuinely isolated,117scripts,
+lint/type/foundation/migrations,Next/OpenNext26routes,actualWorker fixtures/lifecycle,
+six native probes,ledger and paused551entry preservation pass. The three test-only
+TestingLibrary selectors now use anchored exact names instead of unsupported
+Playwright options;24owning cases pass after that correction. No test limits,
+gate thresholds,accepted field sizes or protections changed. Manual functional
+review covered new SQL,Gateway admission/readback,typed reader,copier,UI and CI
+packaging. No independent patch reviewer was run or implied. GitHub identity/head/
+two refs/sole draftPR12 revalidated;detailed main-protection API is403inaccessible,
+not proven absent. Reviewed source save/publication/exact-head CI and complete
+NEW800file source/fresh dependencies/SQL/browser/evidence recovery are still pending.
+
 ## Active Functional Batch: product-passport-executor-058
 
 PARTIAL_NOT_COMPLETE. On published13b225b/treebf07ac93; owner-paused022 preserved.

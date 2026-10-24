@@ -1,5 +1,19 @@
 # Requirement traceability
 
+059 is IN_PROGRESS, not normative closure. Local Passport run persistence and
+independent Finding review now pass actual owned SQL at60sources/13criteria/full
+qualified fields;typed readback/copy/UI are connected after that proof. Hosted059,
+actual private/model quality,packages,full source recovery and release remain
+unverified. Browser14PASS/6FAIL and19PASS/1FAIL remain retained;corrected focus-target/
+per-step assertions and scoped startup observation yield20PASS without changed
+timeouts,but the prior mobile form mount failure is unexplained,not waived.
+Latest real SQL adds legacy/no-admission,max Unicode subject and unchanged Due
+compatibility. Broad checks caught and corrected missing SQL packaging in CI;
+review/save/exact-head CI/full recovery remain pending.058final external
+handoff proves791source/97evidence recovery and exact two approved rehearsal
+installs,not product closure. All224definitions remain unchanged. The058paragraph
+below is its historical source-writing snapshot,not latest059execution availability.
+
 058 is IN_PROGRESS, not normative closure. Product Passport gains a real
 mode-specific source executor with declared-version context, bounded exact-source
 claims/qualifications/gaps and60source/13criterion native coverage. SQL persistence,

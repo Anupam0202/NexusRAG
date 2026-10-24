@@ -19,6 +19,7 @@ import { DeepResearchReport } from "@/components/research/DeepResearchReport";
 import { ObligationCandidates } from "@/components/research/ObligationCandidates";
 import { EntityCandidates } from "@/components/research/EntityCandidates";
 import { DiligenceObservations } from "@/components/research/DiligenceObservations";
+import { PassportClaims } from "@/components/research/PassportClaims";
 
 const control = "w-full rounded-lg border border-[var(--border)] bg-[var(--bg-primary)] px-3 py-2 text-sm";
 const button = "rounded-lg border border-[var(--border)] px-3 py-2 text-sm font-medium disabled:opacity-50";
@@ -177,6 +178,7 @@ function FindingsWorkbench() {
               {selected.research_origin.obligations&&<ObligationCandidates analysis={selected.research_origin.obligations} sourcePrefix={`finding-${selected.id}`}/>}
               {selected.research_origin.entities&&<EntityCandidates analysis={selected.research_origin.entities} sourcePrefix={`finding-${selected.id}`}/>}
               {selected.research_origin.diligence&&<DiligenceObservations analysis={selected.research_origin.diligence} sourcePrefix={`finding-${selected.id}`}/>}
+              {selected.research_origin.passport&&<PassportClaims analysis={selected.research_origin.passport} sourcePrefix={`finding-${selected.id}`}/>}
               <p className="text-xs text-[var(--text-muted)]">Source-backed export requires an approved export-rights decision. Review does not grant source rights or certify the claim.</p>
             </div>}
             {selected.source_unavailable && <p role="alert">Source evidence is unavailable. Generated content is withheld.</p>}

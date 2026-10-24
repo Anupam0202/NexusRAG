@@ -4,6 +4,7 @@ import { Copy, ExternalLink, Play, RefreshCw, Square } from "lucide-react";
 import Link from "@/components/layout/StaticLink";
 import { listResearchRuns, researchRunCommand } from "@/lib/api";
 import type { ResearchRun } from "@/lib/research-run";
+import { confirmedPassportSubject } from "@/lib/research-passport";
 import type { ResearchPlanRecord } from "@/lib/research-plan";
 import { researchResultsClipboardText } from "@/lib/research-run-copy";
 import { reuseResearchRunResults } from "@/lib/research-run-reconcile";
@@ -17,6 +18,7 @@ import { DeepResearchReport } from "./DeepResearchReport";
 import { ObligationCandidates } from "./ObligationCandidates";
 import { EntityCandidates } from "./EntityCandidates";
 import { DiligenceObservations } from "./DiligenceObservations";
+import { PassportClaims } from "./PassportClaims";
 
 const button="inline-flex items-center justify-center gap-2 rounded-lg border border-[var(--border)] px-3 py-2 text-sm disabled:opacity-50";
 function ResearchSourceDetails({source,id}:{source:ResearchRun["results"][number]["sources"][number];id:string}) {
@@ -42,6 +44,7 @@ const ResearchResultArticle=memo(function ResearchResultArticle({runId,index,res
     {result.obligations&&<ObligationCandidates analysis={result.obligations} sourcePrefix={prefix}/>}
     {result.entities&&<EntityCandidates analysis={result.entities} sourcePrefix={prefix}/>}
     {result.diligence&&<DiligenceObservations analysis={result.diligence} sourcePrefix={prefix}/>}
+    {result.passport&&<PassportClaims analysis={result.passport} sourcePrefix={prefix}/>}
     <ResearchFindingAction runId={runId} index={index} result={result} workspaceId={workspaceId} userId={userId} canWrite={canWrite}/>
     {result.sources.map(source=><ResearchSourceDetails key={source.citation_id} source={source} id={`${prefix}-${source.citation_id}`}/>)}
     <p className="text-xs text-[var(--text-muted)]">{result.coverage.chunks_considered} candidate chunks considered / bounded retrieval, not exhaustive / provider cost {result.provider_cost_status.toLowerCase()}</p>
@@ -55,7 +58,8 @@ export function ResearchRuns({plan,workspaceId,userId,canWrite}:{plan:ResearchPl
   const alive=useRef(true),pending=useRef(false),sequence=useRef(0),startKey=useRef<string|null>(null),heading=useRef<HTMLHeadingElement>(null);
   const copyPending=useRef(false),copySequence=useRef(0);
   const context={workspaceId,expectedUserId:userId};
-  const supported=["QUICK_LOOKUP","EVIDENCE_ANSWER","COMPARE","TIMELINE","CONTRADICTION_ANALYSIS","DEEP_RESEARCH","OBLIGATION_ANALYSIS","ENTITY_INVESTIGATION","DUE_DILIGENCE"].includes(plan.plan.mode),comparing=plan.plan.mode==="COMPARE",investigating=["ENTITY_INVESTIGATION","DUE_DILIGENCE"].includes(plan.plan.mode),batched=comparing||plan.plan.mode==="TIMELINE";
+  const supported=["QUICK_LOOKUP","EVIDENCE_ANSWER","COMPARE","TIMELINE","CONTRADICTION_ANALYSIS","DEEP_RESEARCH","OBLIGATION_ANALYSIS","ENTITY_INVESTIGATION","DUE_DILIGENCE","PRODUCT_PASSPORT"].includes(plan.plan.mode),comparing=plan.plan.mode==="COMPARE",investigating=["ENTITY_INVESTIGATION","DUE_DILIGENCE"].includes(plan.plan.mode),batched=comparing||plan.plan.mode==="TIMELINE";
+  const subjectMissing=plan.plan.mode==="PRODUCT_PASSPORT"&&!confirmedPassportSubject(plan.plan.passport_subject);
   const scopeMissing=comparing?new Set(plan.plan.private_source_ids).size<2:!plan.plan.private_source_ids.length;
   const steps=selected?.total_steps||selected?.questions.length||1,units=batched?"batches":"questions";
   const unsupported=plan.plan.public_provider_ids.length||(!investigating&&plan.plan.entity_scope.length)||plan.plan.rights_constraints.length||plan.plan.expected_calculations.length
@@ -113,10 +117,10 @@ export function ResearchRuns({plan,workspaceId,userId,canWrite}:{plan:ResearchPl
       })}><RefreshCw size={16}/>Refresh executions</button></header>
     {error&&<p role="alert" className="mb-3 rounded-lg border border-red-300 p-3 text-sm text-red-700 dark:text-red-300">{error}</p>}
     {!supported?<p className="text-sm text-[var(--text-muted)]">Execution is not implemented for this mode. The saved plan remains available.</p>:<>
-      {unsupported?<p role="status" className="mb-3 text-sm text-amber-700 dark:text-amber-300">This plan includes constraints that execution cannot yet honor. No processing will start.</p>:scopeMissing?<p className="mb-3 text-sm">{comparing?"Select at least two distinct documents for comparison.":"A selected-document scope is required."}</p>:null}
+      {unsupported?<p role="status" className="mb-3 text-sm text-amber-700 dark:text-amber-300">This plan includes constraints that execution cannot yet honor. No processing will start.</p>:subjectMissing?<p role="status" className="mb-3 text-sm text-amber-700 dark:text-amber-300">The saved draft has no complete declared product identifier, name, version and supplier.</p>:scopeMissing?<p className="mb-3 text-sm">{comparing?"Select at least two distinct documents for comparison.":"A selected-document scope is required."}</p>:null}
       <label className="mb-3 flex items-start gap-2 text-sm"><input type="checkbox" checked={attested} disabled={busy||!canWrite} onChange={event=>setAttested(event.target.checked)} className="mt-1"/>
         <span>I confirm that all questions and selected documents contain only non-sensitive information and consent to Gemini processing. One account query is admitted per run; provider quotas also apply.</span></label>
-      <button className={button} disabled={busy||!canWrite||!attested||Boolean(unsupported)||scopeMissing||Boolean(active)} onClick={()=>void operate(async()=>{
+      <button className={button} disabled={busy||!canWrite||!attested||Boolean(unsupported)||subjectMissing||scopeMissing||Boolean(active)} onClick={()=>void operate(async()=>{
         startKey.current??=crypto.randomUUID();const result=await researchRunCommand(plan.id,context,"create",undefined,startKey.current,plan.plan.mode);startKey.current=null;return result;
       })}><Play size={16}/>{busy?"Working...":"Start research"}</button>
     </>}
