@@ -1,5 +1,23 @@
 # Product Passport Execution059
 
+## Revision1: Integrated Fixture Correction
+
+First published sourceeecdbad8/treeb920d632 is not accepted:exact-head database
+CI found duplicate tenant/chunk IDs when Passport followed Due combined capacity.
+The ordinary fixtures sharedff525200andff520000appendix namespaces. New regression
+fails before correction;distinctff595900/ff590000Passport IDs pass11owning tests.
+Expanded actual PostgreSQL rehearsal runs Due ordinary+capacity BEFORE Passport.
+13:01:08ZPASS retains60sources/13criteria/all max-fields,revision2review,recovery
+and65table182function restore. No assertions,source counts,limits or SQL changed.
+The first complete800file sourcebf8bddf6...recovers byte/mode-exactly and full Git
+history restores/fsck,but its npm stage is UNCONFIRMED after stopping only the
+uniquely verified superseded recovery process and child. Failed CI,all completed/
+incomplete stages and raw logs remain. Corrected source save/publication/current
+CI and NEW complete source/fresh dependency/SQL/browser/evidence recovery pending.
+059SQL has no hosted approval;058exact two rehearsal approvals are fulfilled only.
+
+## Original Source-Time Notes
+
 UNCOMMITTED_UNVERIFIED/PARTIAL_NOT_COMPLETE on published9108ed5,tree90c7d47e.
 The full224definition/tenproduct/twelvemode contract remains unchanged.
 Owner-paused022 is separate;no excluded security work or hosted059approval.

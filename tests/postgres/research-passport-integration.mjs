@@ -46,7 +46,7 @@ for(const [i,original] of fixture.originals.entries())sql(`
 sql(`insert into public.document_chunks(id,workspace_id,document_id,version_id,chunk_index,content,original_text,original_content_hash,page_number,location,embedding_space_id)
  select (:'prefix'||lpad(n::text,12,'0'))::uuid,:'ws',:'doc',:'version',n,'Unrelated appendix.','Unrelated appendix.',
  encode(sha256(convert_to('Unrelated appendix.','UTF8')),'hex'),3,'{"page":3}','synthetic-space' from generate_series(1,399) n;`,
- {ws,doc:fixture.documents[0].id,version:fixture.originals[0].version_id,prefix:capacityMode?"ff525200-0000-4000-8100-":"ff520000-0000-4000-8100-"});
+ {ws,doc:fixture.documents[0].id,version:fixture.originals[0].version_id,prefix:capacityMode?"ff595900-0000-4000-8100-":"ff590000-0000-4000-8100-"});
 const ctx=sql(`select jsonb_build_object('workspace_id',w.id,'user_id',:'actor','membership_revision',w.capability_revision,
  'policy_id',s.active_policy_id,'policy_version',s.policy_version,'deadline',clock_timestamp()+interval '20 minutes')
  from public.workspaces w join public.workspace_settings s on s.workspace_id=w.id where w.id=:'ws';`,{actor,ws});

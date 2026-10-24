@@ -1,5 +1,12 @@
 # Requirement traceability
 
+059revision1:exact-head database CI caught shared Due/Passport appendix IDs.
+New namespace regression reproduces failure;distinct IDs pass11owning cases.
+Actual ordered Due ordinary+capacity then Passport/all-max recovery and65table/
+182function backup PASS13:01:08Z. First800source byte/history recovery is retained,
+but interrupted npm is UNCONFIRMED;corrected source/CI/full NEW recovery pending.
+No hosted059approval,SQL change,threshold weakening or normative/product closure.
+
 059 is IN_PROGRESS, not normative closure. Local Passport run persistence and
 independent Finding review now pass actual owned SQL at60sources/13criteria/full
 qualified fields;typed readback/copy/UI are connected after that proof. Hosted059,

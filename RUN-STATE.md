@@ -2,6 +2,22 @@
 
 ## Active Functional Batch: product-passport-execution-059
 
+Revision1 on publishedeecdbad8/treeb920d632,PARTIAL_NOT_COMPLETE. Exact-head
+database CI FAILS after Due capacity:the Passport appendix fixture inherited the
+sameff525200tenant/chunk IDs. No product constraints or stored data are implicated.
+New ordinary namespace regression fails before and11owning cases pass after
+distinctff595900/ff590000prefixes. Expanded owned SQL now runs Due ordinary+maximum
+BEFORE Passport,matching CI;13:01:08ZPASS with all max-fields/independent review/
+recovery and65table182function backup. Required CI failure is retained,not waived.
+First800file source archivebf8bddf6... and history restore PASS;fresh Python specs
+installed,but first npm install stopped UNCONFIRMED when old head was superseded.
+Stop guard initially rejected700ns GetProcess/CIM resolution difference;exact
+original GetProcess PID/start/path then confirmed and only owned25708/27880stopped.
+No source/archive/log was overwritten. Corrected reviewed save/publication/exact-head
+CI and NEW complete source/dependency/SQL/browser/evidence recovery remain pending.
+New059SQL remains byte-identical/local-only/unapproved;058two approvals fulfilled.
+Prior mobile mount/timing/public1101/required gates/full accepted scope remain open.
+
 PARTIAL_NOT_COMPLETE. Uncommitted059 on published9108ed5/tree90c7d47e;
 owner-paused022 remains separate.058final external BATCH058_HANDOFF confirms
 791source/97evidence recovery and all20fresh ordinary checks;required gates FAIL.
