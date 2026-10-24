@@ -1,5 +1,54 @@
 # Product Passport Execution059
 
+## Revision2: Exact Bulk Scope And Search Keyboard Behavior
+
+Reviewed19:02:15ZOct24:all20ordinary categories pass with635backend+19subtests,
+722Gateway,614frontend/95files,59stdlib-only,118scripts,lint/type/foundation/
+migrations,Next/OpenNext26routes,actual fixtures/lifecycle,six native probes,
+ledger and551owner-paused entries unchanged. Manual functional patch review
+complete;no independent reviewer was run. Save/publication/current exact-head CI/
+NEW complete801source/fresh dependencies/SQL/browser/evidence recovery still next.
+These current outcomes supersede the pending owning-check notes below only.
+
+Published9d08e4f/tree16df6916 resolves the first database fixture collision:
+all9ordinary CI jobs pass,including188Research/4intentionalSKIP and database;
+required dependency/runtime/summary gates fail and two deploy jobs skip. Metadata
+only was read for excluded gates. The original recovery runner disappeared and
+left an empty progress receipt;no backend pass is inferred from partial dots.
+NEW resumed800file restore,locked npm install,exact revalidation of batch-created
+Python profiles,all20ordinary categories and ordered real SQL/backuprestore pass.
+The resumed browser stage fails19PASS/1FAIL:maximum Passport exceeded its original
+30second test budget at final source60inspection. No completed recovery/freeze is
+claimed. Source bytes reverified after failure;all failed receipts remain.
+
+Synthetic trace inspection shows60individual selection commands plus13report
+waits sharing the execution test budget. It does not establish missing evidence
+or explain previous native/mobile mount failures. The actual Research page now
+offers tri-state selection of all ready filename matches only when the entire
+union fits the current mode cap. No arbitrary prefix is selected. Clearing only
+matches preserves out-of-filter/unavailable references;copied over-cap selections
+are not silently lost. Clear matching remains available for partial over-cap sets.
+The list stays bounded/scrollable and ordinary roles/loading/errors remain honored.
+The maximum execution journey uses this real UI;an additional individual60-source
+save/read/reload/copy journey retains the original individual-selection coverage.
+
+A new actual-browser edge case reproduces unintended draft submission on Enter
+in document search in both desktop/mobile. PreventDefault is scoped to Enter in
+that search input only. The same journey now proves ordinary keyboard activation
+of Save still creates exactly one persisted plan. Before9bulk unit failures and
+2keyboard browser failures are retained. Initial24focused units/28browser cases
+pass,and the final normal-Save keyboard assertion passes2cases. Original30second
+test/5second expect guards,maximum13positions/60sources/claim/Unicode/layout/source
+assertions remain. No SQL/dependency/CI/protection/accepted-capacity change.
+
+Current revision2 is uncommitted and not deployed or hosted verified. Full owning
+checks,source review/save/current CI and NEW complete801source recovery are pending.
+Strict revision1 recovery/freeze is not weakened or relabeled pass. Public IAB
+Research still1101at18:14:37ZOct24;Chrome is not advertised,not assumed signed out.
+059SQL remains unapproved/local-only;058two exact rehearsal approvals fulfilled.
+All224definitions/products/modes/quality/private/lifecycle/rights/budget/release
+criteria and prior unexplained failures remain open. No independent reviewer ran.
+
 ## Revision1: Integrated Fixture Correction
 
 First published sourceeecdbad8/treeb920d632 is not accepted:exact-head database

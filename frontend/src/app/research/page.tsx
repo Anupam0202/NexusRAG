@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Copy, FileSearch, Plus, RefreshCw, Save } from "lucide-react";
+import { Copy, FileSearch, Plus, RefreshCw, Save, X } from "lucide-react";
 import Link from "@/components/layout/StaticLink";
 import { AuthRequiredState } from "@/components/auth/AuthRequiredState";
 import { createResearchPlan, getCurrentWorkspace, listResearchPlans, readResearchPlan } from "@/lib/api";
@@ -39,8 +39,21 @@ function ResearchWorkbench() {
   const canWrite = ["owner", "admin", "editor"].includes(role);
   const limits = modeLimits[draft.mode];
   const sourceQuery=sourceSearch.trim().toLocaleLowerCase();
+  const matchingSourceIds=[...new Set(documents.filter(doc=>doc.status==="ready"&&doc.filename.toLocaleLowerCase().includes(sourceQuery)).map(doc=>doc.document_id))];
+  const selectedMatches=matchingSourceIds.filter(id=>draft.private_source_ids.includes(id)).length;
+  const allMatchesSelected=matchingSourceIds.length>0&&selectedMatches===matchingSourceIds.length;
+  const matchingSelectionTooLarge=new Set([...draft.private_source_ids,...matchingSourceIds]).size>limits.max_sources;
+  const bulkUnavailable=busy||!canWrite||documentsLoading||Boolean(documentError)||!matchingSourceIds.length;
   const visibleDocuments=documents.filter(doc=>doc.status==="ready"&&(draft.private_source_ids.includes(doc.document_id)
     ||doc.filename.toLocaleLowerCase().includes(sourceQuery)));
+  function changeMatchingSources(checked:boolean) {
+    if(bulkUnavailable)return;
+    setDraft(current=>{
+      const private_source_ids=checked?[...new Set([...current.private_source_ids,...matchingSourceIds])]:current.private_source_ids.filter(id=>!matchingSourceIds.includes(id));
+      if(checked&&private_source_ids.length>modeLimits[current.mode].max_sources)return current;
+      return {...current,private_source_ids};
+    });
+  }
   useEffect(() => { const counter = sequence; alive.current = true; return () => { alive.current = false; counter.current++; }; }, []);
   useEffect(() => {
     if (selected) { storedHeading.current?.focus({preventScroll: true}); storedHeading.current?.scrollIntoView?.({block: "start"}); }
@@ -132,11 +145,21 @@ function ResearchWorkbench() {
           </fieldset>}
           <fieldset className="rounded-lg border border-[var(--border)] p-3"><legend className="px-1 text-sm">Private documents</legend>
             <input aria-label="Find private documents" type="search" placeholder="Search documents" className={`${control} mb-2`} value={sourceSearch}
-              disabled={busy} onChange={event=>setSourceSearch(event.target.value)}/>
+              disabled={busy} onChange={event=>setSourceSearch(event.target.value)} onKeyDown={event=>{if(event.key==="Enter")event.preventDefault();}}/>
+            <div className="mb-2 flex min-h-8 flex-wrap items-center justify-between gap-2">
+              <label className="flex min-h-8 items-center gap-2 text-sm"><input type="checkbox" aria-label="Select matching documents" aria-controls="available-private-documents" aria-describedby="private-document-selection-count"
+                ref={element=>{if(element)element.indeterminate=selectedMatches>0&&!allMatchesSelected;}} checked={allMatchesSelected}
+                disabled={bulkUnavailable||(!allMatchesSelected&&matchingSelectionTooLarge)}
+                title={matchingSourceIds.length>0&&!allMatchesSelected&&matchingSelectionTooLarge?`Selecting all matching documents would exceed the ${limits.max_sources}-source limit.`:undefined}
+                onChange={event=>changeMatchingSources(event.target.checked)}/><span>Select matching documents</span></label>
+              <button type="button" aria-label="Clear matching selection" title="Clear matching selection" className={`${button} h-8 w-8 p-0`}
+                disabled={bulkUnavailable||selectedMatches===0} onClick={()=>changeMatchingSources(false)}><X size={14}/></button>
+              <span id="private-document-selection-count" className="w-full text-xs text-[var(--text-muted)]">{matchingSourceIds.length} matching / <span>{draft.private_source_ids.length} selected / {limits.max_sources} limit</span></span>
+            </div>
             {documentError && <p role="alert" className="text-sm text-red-600">{documentError}</p>}
             {!documents.length && <p className="text-sm text-[var(--text-muted)]">{documentsLoading ? "Loading documents..." : "No documents"}</p>}
             {documents.length>0&&!visibleDocuments.length&&!draft.private_source_ids.length&&<p className="text-sm text-[var(--text-muted)]">No matching documents</p>}
-            <div aria-label="Available private documents" role="region" tabIndex={0} className="max-h-72 overflow-y-auto overscroll-contain">
+            <div id="available-private-documents" aria-label="Available private documents" role="region" tabIndex={0} className="max-h-64 overflow-y-auto overscroll-contain">
             {draft.private_source_ids.filter(id => !documents.some(doc => doc.document_id === id && doc.status === "ready")).map(id => <label key={id} className="flex items-start gap-2 py-1 text-sm"><input type="checkbox" className="mt-1" checked disabled={busy || !canWrite}
               onChange={() => setDraft({ ...draft, private_source_ids: draft.private_source_ids.filter(source => source !== id) })} /><span className="break-all">{id} (not currently available)</span></label>)}
             {visibleDocuments.map(doc => <label key={doc.document_id} className="flex items-start gap-2 py-1 text-sm"><input type="checkbox" className="mt-1" checked={draft.private_source_ids.includes(doc.document_id)} disabled={busy || !canWrite}

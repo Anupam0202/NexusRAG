@@ -1,5 +1,23 @@
 # Requirement traceability
 
+059revision2review19:02:15Z:all20ordinary categories pass,635backend+19/722Gateway/
+614frontend95files/59stdlib-only/118scripts,lint/type/build26routes/native probes/
+ledger/551paused entries. Manual functional review only;no independent review.
+Save/current CI/NEW801source/fresh dependency/SQL/browser/evidence recovery next.
+No normative/product/release closure;historical failure receipts remain intact.
+
+059revision2:9d08ordinary CI passes but required dependency/runtime/summary gates
+fail. Resumed800source recovery verifies bytes/fresh dependencies/all20ordinary
+checks/ordered real SQL,then FAILS19browser PASS/1FAIL at maximum30second budget.
+Failure retained,strict freeze unweakened. Real bounded bulk-match selection and
+independent individual60-source persistence coverage are added. A separate actual
+desktop/mobile regression reproduces Enter-search unexpectedly saving a draft;
+narrow search-only prevention preserves normal keyboard Save exactly once.
+24focused units/28browsers and2final keyboard-Save cases pass;full owning checks,
+review/save/current CI and NEW complete801source recovery pending. No normative
+closure,hosted059approval/deployment/security work,limit/assertion weakening or
+scope reduction. Read PRODUCT_PASSPORT_EXECUTION_059.md;prior failures remain open.
+
 059revision1:exact-head database CI caught shared Due/Passport appendix IDs.
 New namespace regression reproduces failure;distinct IDs pass11owning cases.
 Actual ordered Due ordinary+capacity then Passport/all-max recovery and65table/

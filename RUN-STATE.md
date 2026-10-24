@@ -2,6 +2,45 @@
 
 ## Active Functional Batch: product-passport-execution-059
 
+Revision2 reviewed19:02:15ZOct24:all20ordinary source categories PASS,including
+635backend+19subtests,722Gateway,614frontend/95files,59genuine stdlib isolated,
+118scripts,lint/type/foundation/migrations,Next/OpenNext26routes,actualWorker
+fixtures/lifecycle,six native probes,ledger and551paused-source entries. Manual
+functional review covers bulk union/clear/current-cap behavior,role/loading/error
+states,search-only Enter handling,individual source retention and unchanged full
+maximum output assertions. No independent reviewer was run or claimed. Save/
+publication/current exact-head CI and NEW801source/fresh dependency/SQL/browser/
+evidence recovery are next;no source-only proof is hosted or production acceptance.
+
+Revision2 on published9d08e4f/tree16df6916,PARTIAL_NOT_COMPLETE. All9ordinary
+exact-head CI jobs pass,including603frontend/188Research+4intentionalSKIP and
+the ordered PostgreSQL rehearsal;dependency/runtime/required summary gates FAIL,
+two deployments SKIPPED. No excluded finding logs or new scan. Complete800source
+recovery is exact,real fresh dependency revalidation and all20ordinary categories
+pass,as does ordered Due capacity/Passport/65table182function backup/restore. That
+resumed recovery nevertheless FAILS19browser PASS/1FAIL at unchanged30seconds in
+the maximum Passport case. Final source bytes were reverified manually;the strict
+revision1 freeze remains rejected. The first interrupted zero-byte progress receipt
+and all failed/incomplete attempts are retained,not reconstructed as passes.
+
+Review of the synthetic trace shows60individual selection commands and13report
+waits consume the same test budget;this does not establish absent data or the
+production cause of older timing failures. A real ready-document bulk checkbox now
+selects the entire exact filename-match set only when it fits the mode cap,without
+first60truncation. Clear matching preserves other/unavailable references. Mode
+changes never silently discard selections;the bounded list remains scrollable.
+Separate individual60-source save/reload/copy coverage is retained. New ordinary
+browser reproduction also confirms Enter in document search wrongly submitted a
+curated draft in desktop/mobile;only that input now prevents implicit submission.
+Normal keyboard Save still persists exactly once. Before9unit failures and2browser
+failures retained;after24focused unit and28browser cases plus2final keyboard-Save
+checks pass. Original30second/5second bounds and all maximum output assertions
+remain. Source review/full owning checks/save/current CI/NEW complete801source and
+fresh recovery remain pending. No SQL/locks/gates/hosted/deployed changes in revision2.
+059migration stays local-only/unapproved;exact058two approvals are fulfilled once.
+Latest public IAB Research18:14:37ZOct24 still1101;owner Chrome is not advertised,
+not an Auth-signout claim. Full224scope and prior unexplained failures stay open.
+
 Revision1 on publishedeecdbad8/treeb920d632,PARTIAL_NOT_COMPLETE. Exact-head
 database CI FAILS after Due capacity:the Passport appendix fixture inherited the
 sameff525200tenant/chunk IDs. No product constraints or stored data are implicated.

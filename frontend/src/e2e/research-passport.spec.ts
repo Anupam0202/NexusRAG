@@ -2,10 +2,11 @@ import {expect,test,type Page} from "@playwright/test";
 import {randomUUID} from "node:crypto";
 import {selectWorkspaceReviewer} from "./research-review-helpers";
 import type {ResearchRun} from "../lib/research-run";
+import type {ResearchPlanRecord} from "../lib/research-plan";
 
 test.skip(!process.env.E2E_RESEARCH_COMPONENT_FIXTURE,"Requires actual pages/Gateway/executor with controlled synthetic peers,not hosted identity or model quality.");
 test.use({trace:"retain-on-failure",screenshot:"only-on-failure"});
-async function start(page:Page,question:string,subquestions:string[]=[],maximum=false) {
+async function fillPlan(page:Page,question:string,subquestions:string[]=[],maximum=false) {
   await page.getByRole("combobox",{name:"Mode",exact:true}).selectOption("PRODUCT_PASSPORT");
   for(const [name,value] of Object.entries({"Product identifier":maximum?"X".repeat(128):"P-42",
     "Product name":maximum?"\u{1f4ca}".repeat(256):"Synthetic sensor","Product version":maximum?"v".repeat(128):"2.1",
@@ -13,7 +14,14 @@ async function start(page:Page,question:string,subquestions:string[]=[],maximum=
   await page.getByRole("textbox",{name:"Question",exact:true}).fill(question);
   await page.getByRole("textbox",{name:"Subquestions",exact:true}).fill(subquestions.join("\n"));
   await page.getByRole("textbox",{name:"Completion criteria",exact:true}).fill("Independently review product version,source dates,qualifications and applicability;not certification.");
-  for(let i=1;i<=(maximum?60:2);i++)await page.getByRole("checkbox",{name:`Synthetic product evidence ${i}.txt`,exact:true}).check();
+}
+async function start(page:Page,question:string,subquestions:string[]=[],maximum=false) {
+  await fillPlan(page,question,subquestions,maximum);
+  if(maximum){
+    await page.getByRole("searchbox",{name:"Find private documents",exact:true}).fill("Synthetic product evidence");
+    await page.getByRole("checkbox",{name:"Select matching documents",exact:true}).check();
+    await expect(page.getByRole("region",{name:"Available private documents",exact:true}).getByRole("checkbox",{checked:true})).toHaveCount(60);
+  }else for(let i=1;i<=2;i++)await page.getByRole("checkbox",{name:`Synthetic product evidence ${i}.txt`,exact:true}).check();
   await page.getByRole("button",{name:"Save plan",exact:true}).click();
   await page.getByRole("checkbox",{name:/I confirm that all questions/}).check();
   await page.getByRole("button",{name:"Start research",exact:true}).click();
@@ -94,4 +102,18 @@ test("maximum Passport fields and Unicode declared identity survive reload at320
   await report.getByText("Consulted source scope (60)",{exact:true}).click();await expect(report.getByText("Synthetic product evidence 60.txt",{exact:true})).toBeVisible();
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);expect(errors).toEqual([]);
   await report.getByText("Unresolved product evidence gaps",{exact:true}).scrollIntoViewIfNeeded();await page.screenshot({path:info.outputPath("passport-maximum-fields.png")});
+});
+test("all sixty Passport sources remain individually selectable and save as one exact durable scope",async({page})=>{
+  const question=`Synthetic individual maximum-source passport ${randomUUID()}`;await page.goto(`/?actor=${randomUUID()}`);
+  await fillPlan(page,question,[],true);
+  for(let i=1;i<=60;i++)await page.getByRole("checkbox",{name:`Synthetic product evidence ${i}.txt`,exact:true}).check();
+  await expect(page.getByRole("region",{name:"Available private documents",exact:true}).getByRole("checkbox",{checked:true})).toHaveCount(60);
+  const response=page.waitForResponse(value=>new URL(value.url()).pathname==="/api/v2/research/plans"&&value.request().method()==="POST");
+  await page.getByRole("button",{name:"Save plan",exact:true}).click();
+  const stored=await(await response).json() as ResearchPlanRecord;
+  expect(stored.plan.private_source_ids).toHaveLength(60);expect(new Set(stored.plan.private_source_ids).size).toBe(60);
+  await expect(page.getByRole("region",{name:"Stored research plan",exact:true}).getByText(question,{exact:true})).toBeVisible();
+  await page.reload();await page.getByRole("button",{name:`Open research plan: ${question}`,exact:true}).click();
+  await page.getByRole("button",{name:"Copy to a new plan",exact:true}).click();
+  await expect(page.getByRole("region",{name:"Available private documents",exact:true}).getByRole("checkbox",{checked:true})).toHaveCount(60);
 });

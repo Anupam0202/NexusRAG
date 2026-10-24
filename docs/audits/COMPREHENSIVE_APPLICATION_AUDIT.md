@@ -1,5 +1,20 @@
 # Comprehensive application audit
 
+## Exact Passport Scope And Keyboard Drafts - Functional059 Revision2
+
+All ordinary9d08CI passes;required dependency/runtime/summary still fail.
+NEW resumed800source/fresh dependencies/all20checks/ordered SQL recovery passes
+until19browser PASS/1FAIL at the unchanged30second maximum Passport budget. The
+failed guard is retained,not called a complete recovery. Source bytes reverified.
+Actual ready-document bulk selection now preserves exact matches/caps and pinned
+references;individual60-source save/reload/copy remains separately covered. New
+ordinary desktop/mobile reproduction confirms Enter in search unexpectedly saves
+a curated draft. Only that input prevents implicit submission;normal keyboard
+Save persists once.24focused/28browser plus2final keyboard-Save cases pass;full
+owning/current CI/NEW801source recovery pending. No limit/timeout/gate change or
+proof that all older timing failures are explained. No hosted059approval,deployment,
+provider/private/customer/destructive/security work.224definitions unchanged.
+
 ## Merge/Cleanup And Saved Report Updates - Functional056
 
 PARTIAL_NOT_COMPLETE. Fresh GitHub inventory: draft PR12/three branches,104candidate
