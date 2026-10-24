@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "@/components/layout/StaticLink";
 import { getSettings, getSystemStatus, updateSettings } from "@/lib/api";
 import { AuthRequiredState } from "@/components/auth/AuthRequiredState";
@@ -23,7 +23,12 @@ import { useStore } from "@/hooks/useStore";
 import { reloadStatic } from "@/lib/static-navigation";
 
 export default function SettingsPage() {
-  const { authMode, canAccessWorkspaceApi } = useWorkspaceApiAccess();
+  const identity = useStore(state => JSON.stringify([state.authMode, state.authUser?.id, state.workspaceId]));
+  return <WorkspaceRuntimeSettings key={identity} />;
+}
+function WorkspaceRuntimeSettings() {
+  const userId = useStore(state => state.authUser?.id);
+  const { authMode, isWorkspaceLoading, canAccessWorkspaceApi } = useWorkspaceApiAccess();
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [systemStatus, setSystemStatus] = useState<SystemStatusResponse | null>(null);
   const [draft, setDraft] = useState<SettingsUpdate>({});
@@ -32,10 +37,14 @@ export default function SettingsPage() {
   const workspaceId = useStore((state) => state.workspaceId);
   const setWorkspaceId = useStore((state) => state.setWorkspaceId);
 
+  const expectedUserId = authMode === "authenticated" ? userId ?? null : undefined;
+  const context = { workspaceId, expectedUserId };
+  const alive = useRef(true);
+  useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
   useEffect(() => {
-    if (!canAccessWorkspaceApi) return;
+    if (!canAccessWorkspaceApi || isWorkspaceLoading) return;
     let cancelled = false;
-    Promise.all([getSettings(), getSystemStatus().catch(() => null)])
+    Promise.all([getSettings({ workspaceId, expectedUserId }), getSystemStatus({ workspaceId, expectedUserId }).catch(() => null)])
       .then(([s, status]) => {
         if (cancelled) return;
         setSettings(s);
@@ -60,24 +69,26 @@ export default function SettingsPage() {
     return () => {
       cancelled = true;
     };
-  }, [canAccessWorkspaceApi]);
+  }, [canAccessWorkspaceApi, isWorkspaceLoading, workspaceId, expectedUserId]);
 
   const save = async () => {
-    if (!canAccessWorkspaceApi) return;
+    if (!canAccessWorkspaceApi || isWorkspaceLoading) return;
     setSaving(true);
     try {
       const updated = await updateSettings({
         llm_temperature: draft.llm_temperature,
         retrieval_top_k: draft.retrieval_top_k,
         hybrid_search_alpha: draft.hybrid_search_alpha,
-      });
+      }, context);
+      if (!alive.current) return;
       setSettings(updated);
-      getSystemStatus().then(setSystemStatus).catch(() => {});
+      getSystemStatus(context).then(status => { if (alive.current) setSystemStatus(status); }).catch(() => {});
       toast.success("Settings saved successfully");
     } catch (err: unknown) {
+      if (!alive.current) return;
       toast.error(err instanceof Error ? err.message : "Failed to save settings");
     } finally {
-      setSaving(false);
+      if (alive.current) setSaving(false);
     }
   };
 

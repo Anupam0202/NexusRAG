@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { writeFile } from "node:fs/promises";
 
 const providerLabels: Record<string, string> = {
   github: "GitHub",
@@ -15,22 +16,31 @@ const routes = [
   { path: "/settings/security", heading: "Account Security" },
   { path: "/evidence-os", heading: "Evidence Intelligence OS" },
   { path: "/findings", heading: "Sign in to your evidence workbench" },
+  { path: "/research", heading: "Sign in to your research workspace" },
 ];
 
 for (const route of routes) {
-  test(`${route.path} renders without console errors`, async ({ page }) => {
+  test(`${route.path} renders without console errors`, async ({ page },testInfo) => {
     const errors: string[] = [];
+    const failedRequests:Array<{resource:string;error:string|null}>=[];
+    page.on("requestfailed",request=>{
+      const url=new URL(request.url());
+      failedRequests.push({resource:url.origin+url.pathname,error:request.failure()?.errorText||null});
+    });
     page.on("console", (message) => {
       if (message.type() === "error") errors.push(message.text());
     });
     page.on("pageerror", (error) => errors.push(error.message));
 
-    await page.goto(route.path);
-    await expect(
-      page.getByRole("heading", { name: route.heading }).first()
-    ).toBeVisible();
-
-    expect(errors).toEqual([]);
+    try {
+      await page.goto(route.path);
+      await expect(
+        page.getByRole("heading", { name: route.heading }).first()
+      ).toBeVisible();
+      expect(errors).toEqual([]);
+    } finally {
+      if(failedRequests.length)await writeFile(testInfo.outputPath("public-request-failures.json"),JSON.stringify(failedRequests,null,2));
+    }
   });
 }
 
@@ -160,9 +170,22 @@ test("auth callback shows a provider-neutral recoverable error state", async ({
   await expect(page.getByText(/sensitive provider details/i)).toHaveCount(0);
   await expect(page.getByRole("link", { name: "Back to sign in" })).toHaveAttribute(
     "href",
-    "/auth/login"
+    "/auth/login?next=%2Fdocuments"
   );
 });
+
+for (const next of ["/settings/security", "https://attacker.invalid/steal", "/documents/..//attacker.invalid"]) {
+  test(`callback recovery retains only a safe destination: ${next}`, async ({ page }) => {
+    await page.goto(`/auth/callback?error=access_denied&error_description=synthetic-private-detail&next=${encodeURIComponent(next)}`);
+    await expect(page.getByRole("alert").filter({ hasText: "Authentication could not be completed" })).toBeVisible();
+    await expect(page).not.toHaveURL(/error_description|access_denied/);
+    await expect(page.getByText("synthetic-private-detail")).toHaveCount(0);
+    const expected = next === "/settings/security" ? next : "/documents";
+    await page.getByRole("link", { name: "Back to sign in" }).click();
+    await expect(page).toHaveURL(new RegExp(`/auth/login\\?next=${encodeURIComponent(expected)}$`));
+    await expect(page.getByRole("button", { name: "Continue with Google" })).toBeVisible();
+  });
+}
 
 test("layout reflows without horizontal overflow", async ({ page }) => {
   await page.goto("/evidence-os");
@@ -190,4 +213,30 @@ test("reduced-motion preference preserves the evidence content", async ({ page }
   await expect(
     page.getByRole("heading", { name: "Evidence Intelligence OS" })
   ).toBeVisible();
+});
+
+
+test("navigation has named collapsed links and a mobile focus loop", async ({ page }) => {
+  await page.goto("/evidence-os", { waitUntil: "networkidle" });
+  if ((page.viewportSize()?.width || 1280) < 1024) {
+    const opener = page.getByRole("button", { name: "Open navigation menu" });
+    await opener.click();
+    const dialog = page.getByRole("dialog", { name: "Navigation menu" });
+    await expect(dialog).toBeVisible();
+    expect(await page.locator("main").evaluate(element => Boolean(element.closest("[inert]")))).toBe(true);
+    await expect(dialog.getByRole("button", { name: "Dismiss navigation menu" })).toBeFocused();
+    for (let index = 0; index < 12; index++) {
+      await page.keyboard.press("Tab");
+      expect(await dialog.evaluate(element => element.contains(document.activeElement))).toBe(true);
+    }
+    await page.keyboard.press("Escape");
+    await expect(dialog).not.toBeVisible();
+    await expect(opener).toBeFocused();
+    expect(await page.locator("main").evaluate(element => Boolean(element.closest("[inert]")))).toBe(false);
+  } else {
+    await page.getByRole("button", { name: "Collapse navigation sidebar" }).click();
+    await expect(page.getByRole("link", { name: "Documents", exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "Expand navigation sidebar" }).click();
+    await expect(page.getByRole("link", { name: "Documents", exact: true })).toBeVisible();
+  }
 });

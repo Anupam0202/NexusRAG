@@ -1,6 +1,7 @@
 import { chunkText, indexChunks, MAX_DOCUMENT_CHUNKS, MAX_INDEX_BATCH_CHUNKS, sha256 } from "./worker-pipeline.js";
 import { deleteQdrantGeneration, extractFileText, verifyQdrantGeneration } from "./worker-lifecycle.js";
 import { loadUserGeminiKey } from "./user-gemini-key.js";
+import { processResearchMessage, sweepResearchRuns } from "./research-executor.js";
 
 const iso = () => new Date().toISOString();
 const err = (code, message, retryable = false) => Object.assign(new Error(message), { code, status: 503, retryable });
@@ -156,7 +157,7 @@ async function processIngestionMessage(env, message) {
       });
       if (!original.ok) throw err("PERSISTENCE_UNAVAILABLE", "Original unavailable.", true);
       const file = new File([await original.arrayBuffer()], document.filename, { type: document.content_type });
-      const extracted = await extractFileText(env, file, { workspaceId: job.workspace_id, priority: "background", dataClassification: version.data_classification, userApiKey, credentialMode });
+      const extracted = await extractFileText(env, file, { workspaceId: job.workspace_id, priority: "background", dataClassification: version.data_classification, actorId: document.uploaded_by, userApiKey, credentialMode });
       const chunks = chunkText(extracted.text);
       if (!chunks.length) throw err("EMPTY_DOCUMENT", "The document contains no indexable text.");
       if (chunks.length > MAX_DOCUMENT_CHUNKS) throw err("CAPACITY_REACHED", "Document exceeds the 400-chunk bounded ingestion limit.");
@@ -196,7 +197,7 @@ async function processIngestionMessage(env, message) {
     const points = await indexChunks(env, {
       workspaceId: job.workspace_id, documentId: job.document_id, versionId: job.version_id,
       generation, filename: document.filename, chunks: batch, initializeIndex: offset === 0,
-      dataClassification: version.data_classification, userApiKey, credentialMode,
+      dataClassification: version.data_classification, actorId: document.uploaded_by, userApiKey, credentialMode,
     });
     const stagedChunks = await Promise.all(points.map(async (point, index) => {
       const chunk = batch[index];
@@ -272,7 +273,8 @@ async function processIngestionMessage(env, message) {
 async function handleQueue(batch, env) {
   for (const message of batch.messages) {
     try {
-      await processIngestionMessage(env, message.body);
+      if (message.body?.kind === "research") await processResearchMessage(env, message.body, db);
+      else await processIngestionMessage(env, message.body);
       message.ack();
     } catch (error) {
       if (error.retryable) message.retry({ delaySeconds: 15 });
@@ -305,6 +307,10 @@ async function sweepJobs(env) {
     await env.INGESTION_QUEUE.send(queueMessage(job, offset));
     enqueued += 1;
   }
-  return { enqueued };
+  // Older hosted schemas may not contain research runs yet. Existing ingestion
+  // recovery must continue, while a missing new table is not research success.
+  let researchEnqueued = null;
+  try { researchEnqueued = await sweepResearchRuns(env, db); } catch { /* Next cron or explicit start retries dispatch, never generation. */ }
+  return { enqueued, research_enqueued: researchEnqueued, research_dispatch_state: researchEnqueued === null ? "UNAVAILABLE" : "CHECKED" };
 }
 export { handleQueue, processIngestionMessage, sweepJobs };

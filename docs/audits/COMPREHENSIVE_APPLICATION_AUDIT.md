@@ -1,8 +1,1360 @@
 # Comprehensive application audit
 
+## Merge/Cleanup And Saved Report Updates - Functional056
+
+PARTIAL_NOT_COMPLETE. Fresh GitHub inventory: draft PR12/three branches,104candidate
+commits not in main,protected branch/failed required checks block merge. Only PR12
+obsolete status prose updated and read back exactly. Six Cloudflare Workers/queues
+include active shared traffic/required DLQs/KEEP_RECOVERY. Prod Supabase has seven
+actual Storage objects despite zero catalog estimates; no resource is disposable
+by name/count. Independent Qdrant count returns17legacy/four v6zero/aliasesempty,
+not erasure/orphan proof. Full index inventory unverified. No merge/delete/deploy.
+Corrected13-file cleanup ZIPd78fb206... recovers; first wrong-target/argument errors
+retained before fresh correct780-source/551-paused-source preservation PASS.
+
+Actual React regression: all saved reports rerender on checkbox/busy/parsed refresh
+updates. Four before failures; initial19after tests pass with memoized existing
+article and exact-result references only within same run/generation/source snapshot.
+Changed content,roles and unavailable evidence still update. Reviewed18:30:14Z:
+595frontend/91files,lint/type/build26routes,176Research/4intentionalSKIP PASS,including
+20new unit/polling and six original maximum-field desktop/mobile cases. Owned server
+stopped;save/current CI/NEW complete784source/fresh dependency recovery pending.
+All original content/hash/copy/
+citation DOM retained; no test timeout or accepted limits changed. This proves
+avoidable work,not every prior browser/native timeout's cause. Read056doc.
+
+055final source92a9562/tree621c90df has exact780-file recovery but fresh verification
+FAILS27PASS/2FAIL(native Due timeout;171Research/5FAIL/4SKIP);failed271-file evidence
+417b9101... frozen and strict guard unchanged. Exact-tree ordinary CI passes;
+required dependency/runtime-build/summary fail,scan steps skipped. Public1101and
+favicon preview-props loadManifest exception share active version5db33e20...,not
+Research-Ray stack/Git-SHA proof. Older source/schema remains deployed. Scope and
+all production acceptance gaps stay open;no new security or hosted/private work.
+
+## Product Passport Declared Subject - Functional055
+
+Revision2review13:18:29Z:635backend+19/59stdlib-only isolated PASS;all4method ASTs
+identical and production/SQL/frontend/locks/CI/runner/exclusions unchanged.
+First779source207c4098...and failed280evidenceab234a2c...recover NEW exactly.
+Corrected save/CI/NEW780source/fresh recovery pending;not release acceptance.
+
+Revision1e89eaa1f exact-tree isolated CI FAILS2new API tests: FastAPI/Pydantic are
+intentionally absent in that job. Earlier local61passes used installed dependencies,
+not the CI contract. NEW stdlib-only venv reproduces both errors. Revision2 moves
+both unchanged API methods to full backend ownership;59isolated PASS. Assertions,
+runner/exclusions and CI dependencies remain unchanged. First779source ZIP207c4098...
+is frozen and recovers exactly,but is not accepted. Corrected source/full backend/
+review/CI/NEW recovery remain pending. Do not hide the failed first revision.
+
+Reviewed12:59:37Z:17owning/build/native PASS635backend+19/703Gateway/575frontend/
+61isolated/110scripts/lint/type/build26routes,two lifecycle/five native probes;
+176Research/4intentionalSKIP,8focused passport and SQL65table175function restore
+PASS.14cross-client/Gateway contract vectors and551paused022entries preserved.
+Save/current exact-tree CI/NEW complete779source/fresh recovery still pending;
+earlier local pending notes below superseded only for these enumerated checks.
+
+Two Gateway/four UI before failures reproduce discarded product identity/missing
+inputs. Typed declared product/version/supplier input now persists with ordinary
+draft create/read/reload/copy/retry;subject omission/version mismatch cannot be
+reported as a confirmed save. Legacy drafts remain readable and normal non-passport
+payloads unchanged. Retained Python truthfully remains validation-only. Eight
+focused desktop/mobile cases and actual SQL/concurrency/65table175function restore
+pass. New test exact-text failure/theme-reload coverage corrections are retained;
+owning/exact-tree CI/save/NEW fresh recovery pending. Read
+PRODUCT_PASSPORT_SUBJECT_055.md. Execution/claims/reviews/exports/full product remain
+unfinished,not accepted by these inputs. No224definition or denominator reduction.
+
+054final handoff records exact source recovery but FAILED26PASS/1FAIL fresh suite;
+strict guard/failure unwaived.055startup diagnostic568/88 passes unchanged criteria,
+not causal proof. Historical/current runtime receipts both24.22.1;initial summary-
+derived version-change claim is withdrawn. Old052and earlier failures retained.
+Cloudflare Chrome control still times out;live source/log correlation unverified.
+No security work,paused022resumption,hosted approval/install,private/provider/
+customer/destructive/paid/deploy operation. Required release gates remain failed.
+
+## Owned Worker Lifecycle - Functional054
+
+Reviewed10:56:48ZOct23:all17owning/build/native PASS;
+631backend+10/698Gateway/568frontend88files/57isolated/109scripts,
+lint/type/build26routes/actual gateway fixtures/two API lifecycle cases/five
+native research probes. Exact execution bodies/final rebind unchanged;old052
+failure remains unwaived. Initial empty-catch lint rejection/correction retained.
+Save/current exact-tree CI/NEW complete771source/fresh recovery remain pending.
+
+Uncommitted on published053770fe4c. Documented pinned Wrangler API now owns
+port0 allocation and awaited runtime closure for query/Deep/Obligation (plus
+Entity/Due wrappers). Two real lifecycle cases,five native capacity/outage probes
+and109script tests PASS;full lint/review/source recovery/current CI remain pending.
+Original execution assertions/timeouts and final Deep/Obligation rebind remain.
+The frozen052EADDRINUSE cause/owner is unknown and failure/strict guard unwaived.
+Read OWNED_WORKER_LIFECYCLE_054.md. No production/SQL/lock/security/hosted changes.
+
+053768source ZIP6e03c574...recovers exactly;fresh scoped dependency verification
+is running independently. Exact-tree ordinary frontend168Research/4intentionalSKIP
+and database65table174function restore PASS;required dependency/image/summary
+FAIL. No excluded findings logs/new investigations. PublicOct23 10:24:41Z Research
+1101,Ray a4f0088dcc7de204;CFChrome control timeout and CLI loggedIn:false prevent
+current deployed-source/log correlation. Full accepted scope remains incomplete.
+
+## Research Source Picker - Functional053
+
+Reviewed10:03:17Z:568frontend88files/698Gateway/108scripts/lint/type/foundation/
+baseline/build26routes and full168Research+4intentionalSKIP PASS. Unavailable
+reference search assertion included;old Timeline/Obligation assertions/timeouts
+unchanged and earlier failures unwaived. Save/current CI/fresh scoped recovery
+pending. Final052strict guard rejects fresh35PASS/1FAIL Deep cleanup;766source/
+710evidence bytes recover NEW,INCOMPLETE evidence4e7c54ad...and CI failures kept.
+No full normative/product/private/provider/performance/production acceptance.
+
+Actual fieldset7829px/over200sources reproduces in4desktop/mobile failures.
+Bounded searchable list correction4browser/8page tests pass;selected/unavailable
+references and copied scope remain intact. No limit/old assertion/timeout changed.
+Broader verification/CI/NEW recovery pending;read RESEARCH_SOURCE_PICKER_053.md.
+No causal claim for052Timeline/Obligation timeouts. Frozen052fresh Deep rebind
+failed EADDRINUSE;strict guard intact/remaining independent recovery in progress.
+Exact-tree052CI frontend1FAIL,databaseAPTcancel/summaryFAIL,required gatesFAIL
+remain unwaived. No new security,hosted/private/provider/deployment operations.
+
+## Due Diligence Execution - Functional052
+
+Latest13:59:14Z reviewed local source:all16owning/build/native PASS;
+631backend+10/698Gateway/567frontend88files/57isolated/107scripts. Real SQL
+Unicode/executor/concurrency/65table174function restore,164Research/4intentional
+SKIP,8Chat/cold4contexts PASS. First full161PASS/3FAIL/4SKIP retained. Unicode
+test tried20001UTF16units beyond the input's native20000unit ceiling;use10001
+ASCII to exercise the existing codepoint error,not clipped input. Unchanged old
+mobile Obligation resume timeout is unexplained;new passes are not a causal fix.
+Opt-in synthetic queue timing diagnostics do not alter scheduling/assertions.
+Actual public13:55:09Z1101Ray a4e8ff7e493ae231;CFChrome control still times out.
+These results supersede earlier pending labels below only for enumerated checks.
+Save/current CI/fresh complete recovery remain pending;no hosted/production proof.
+
+Uncommitted on e699ab6; PARTIAL_NOT_COMPLETE, not a deployed or complete product.
+Missing Due UI, accepted13-step receipt and query subject context reproduced;
+structured qualified observations, gaps, exact source locators, saved review and
+Findings lineage are now wired across UI, Gateway, actual executor and local SQL.
+
+First owning/build/native pass:631backend+10,694Gateway,564frontend88files,
+57isolated,107scripts,lint/typecheck/foundation/baseline,26routes/six probes.
+Added contract cases passed697Gateway. Actual disposable SQL passed60sources,
+13steps,100subjects,combined maximum observation fields, ordinary concurrency,
+retry/cancel/resume/ambiguous-write readback and65table174function backup/restore.
+Twelve focused desktop/mobile browser journeys pass. First six browser failures
+were invalid focus locators/premature completion expectations; kept and corrected
+without raising timeouts. Invalid SQL-generation/capacity fixtures and inaccurate
+initial native receipt labels are also retained, not product acceptance evidence.
+
+Review reproduced three Unicode boundary failures:SQL permits10,000 Unicode
+characters but draft/Gateway/client counted UTF16. The scoped correction preserves
+the character bound and aggregate byte guards; focused33Gateway/12client tests
+pass. New SQL and full Research/owning/build/Chat/recovery/current CI are pending.
+Read RESEARCH_DILIGENCE_EXECUTION_052.md for limitations and exact local receipts.
+
+No052hosted approval/install or private/customer/provider/destructive/deployment
+operation. Public11:56:18Z Research1101Ray a4e851678e6573d3 and Cloudflare Chrome
+tab-control timeout remain unresolved. Required gates/paused022 and wider accepted
+product/mode/quality/rights/budgets/private/lifecycle/release work remain open.
+Frozen051752source/461evidence recovery and35fresh receipts passed;required
+dependency/image/summary failed. Historical failures remain unwaived.
+
+## Deferred Citation Bodies - Functional051
+
+Latest revision2local18:56:35Z:631backend+10/682Gateway/556frontend85files/
+57isolated/106scripts,lint/type/build26routes/five native/realSQL65table167function
+restore/cold4/150Research+8Chat PASS,4intentionalSKIP. Unchanged four maximum
+tests/30s limits pass on current changed source;old050failures remain unwaived,
+not causally attributed. Two mobile stress screenshots manually reviewed;keyboard/
+closed source hash find/inspection preserved. Save/current CI/NEW complete source/
+fresh dependency/evidence recovery pending;not private/provider/production proof.
+
+Failed050source/evidence WIP recovered/frozen,not published;Research146PASS/4FAIL/
+4SKIP/Chat8PASS remain. Prototype1whole-body deferral REJECTED:baseline closed-hash
+Chromium window.find true/prototypefalse. Complete752file WIPace10035...recovered;
+failed test typecheck retained/corrected. Revision2keeps text/hash searchable in
+DOM,defers only unopened ancillary controls.30focused tests PASS18:36:19Z;
+actual old-source browser control assertion fails as intended,after probe PASS
+18:37:36Z with closed searchtrue/links0/exact expanded content. Not owner-Chrome
+Ctrl+F/private/performance acceptance. Whole revision2owning/browser/fresh recovery/
+CI pending;no old timeout/gate waiver. See RESEARCH_SOURCE_PANELS_051.md.
+Full224/tenproducts/twelvemodes/quality and known release prerequisites remain open.
+
+## Component Fixture Startup - Functional050
+
+049fresh bytes/dependencies/owning/build/native/SQL/150Research browser pass but
+Chat7PASS/1FAIL before first Selected click. Original30second timeout is retained,
+not overwritten by source/CI passes. Cold unchanged-source diagnostics reproduce
+late Chat optimizer reload and aborted module requests;both pages eventually
+render,so exact attribution of that30s failure is NOT claimed. Chat's virtual
+HTML lacked Research's established explicit TSX entry. Corrected actual source
+scripts pass4cold Chromium contexts with one navigation/no startup failures and
+owned listeners closed. New ordinary CI regression added. Owning631backend+10/
+682Gateway/554frontend/57isolated/106scripts,lint/type/build26routes/native/SQL
+65table167function restore PASS;initial harness lint failure retained/corrected
+and actual4cold contexts rerun17:58:23Z. Full browser/current CI/fresh recovery
+FAILED146PASS/4FAIL/4intentionalSKIP18:11:07Z across both desktop/mobile maximum
+Entity/Obligation cases at unchanged30s limit. Chat8PASS separately18:12:33Z;
+original failures not retried/reclassified and exact cause not proven. Current
+CI/fresh recovery not done;save guard unmodified,DO NOT PUBLISH this WIP.
+Public18:04:38Z Research1101 persists;local fix is not deployed repair.
+PR12description consolidated after exact-byte preservation,no history/branch loss.
+See COMPONENT_FIXTURE_STARTUP_050.md. Due remains
+unimplemented with3actual before failures preserved in complete750file WIP.
+No new security work,hosted/deployment operation or old failure/gate waiver.
+
+## Clipboard Confirmation - Functional049
+
+Reviewed local update13:50:24Z:whole554frontend84files/682Gateway/631backend+10/
+57isolated/105scripts,lint/type/foundation/baseline/build26routes/five native
+probes/actual65table167function restore PASS.150Research browser PASS/4intentional
+SKIP,8Chat PASS;desktop/mobile Chrome light/dark warnings and explicit recovery
+inspected,owned fixtures stopped. Manual functional review only. Save/current CI/
+NEW source/dependency/evidence recovery remain;older unexplained failures and
+known release gates/deployed1101 are not repaired or waived by these passes.
+
+Source-only049 begins on published04836a4af4/treedbae8f68. External final048
+handoff proves745file source/784file evidence recovery and fresh current CI,
+including failed required dependency/image/summary gates and retained first
+Windows timing failures. Approved exact048SQL installed rehearsalONCEas
+20261021132053;complete stored SQL checksum matches3fa2c84e...,sevenfunction/
+fiveconstraint/read-onlycontract metadata verified. This is installation only,
+not hosted execution or real private-user acceptance;no business/provider runs.
+
+Actual production React component regressions reproduce four cases of Copy
+remaining disabled after10000ms when browser clipboard confirmation never
+arrives.20existing cases pass. Source helper now invokes browser write directly
+in click activation and bounds confirmation;29focused cases pass13:29:03Z.
+Timeout reports uncertainty and warns the native write may finish later. No
+automatic retry/cancel claim or OS clipboard-order guarantee. Whole owning,
+browser/build/native/current CI/NEW complete recovery remain pending. Read
+docs/implementation/CLIPBOARD_CONFIRMATION_049.md. Full accepted scope and all
+existing release blockers remain PARTIAL_NOT_COMPLETE;no new security work.
+
+## Entity Investigation - Provisional Functional048
+
+Final local full browser150PASS/4intentionalSKIP/0FAIL12:25:18Z; same768px drawer
+passes after context-isolation correction. Latest fixture typecheck passes;
+paused022551entries/HEAD remain unchanged. Current CI/NEW recovery still required.
+
+Reviewed Oct21 update:actualSQL/executor/Findings persistence and independent
+review pass11criteria/50sources/100targets/eightqueries/12candidates,including
+all40anchor maximum fields and65table167function restore. Real stored results
+pass client/copy validation. Unicode128target receipt and repeated-name quote-
+only relationship defects reproduced/fixed; all11module/682Gateway tests pass.
+Full owning/build/native checks631backend+10/545frontend83files/57isolated/
+105scripts/26routes pass. Focused12Entity browser PASS; full149PASS/4SKIP/1FAIL
+is shared synthetic-user rate-limit contamination,not a raised product limit.
+Independent context fixture identity correction awaits whole rerun. Current CI/
+NEW clean recovery and hosted/private/model/budget acceptance still pending.
+Fresh IAB public/research1101Ray a4e032b55debe231 at12:17:15UTC; Cloudflare Chrome
+dashboard control timeout prevents source/log correlation. No hosted mutation.
+
+Parent04716ee652/tree01254b84. UI1FAIL/11PASS,no Start; actual Gateway1FAIL/27PASS,
+503vs201; real ownedSQLMODE_NOT_EXECUTABLE. Full-target fixture repeated against
+frozen047fails identically. Provisional candidate/executor/client/run/Findings UI
+and CLI-generated20261021100301SQL now exist but remain uncommitted/unverified.
+Actual draft SQL50sources11questions start/retry/read and65table167function
+restore PASS10:08:56Z;37Gateway/candidate,17client checks/typecheck PASS10:17:27Z.
+Initial type fixture errors retained/corrected without weaker assertions. Full
+Entity persisted execution/recovery/concurrency/independent review/maximum/native/
+browser/owning/build/CI/NEW recovery remain. No hosted approval/application,
+provider/customer/private/destructive/deployment operation or new security work.
+Completed047artifacts:732source/515evidence files recoveredNEW; source13fa9260.../
+evidence8dc7dfe8... in external BATCH047_HANDOFF. Required image/summary FAIL,
+actual deployed/research1101and unexplained cleanup/timing limitations remain.
+Full224/tenproducts/twelvemodes/quality/private/lifecycle/rights/budgets/rollout
+remain PARTIAL_NOT_COMPLETE. WIP preservation is not production acceptance.
+
 Status: **PARTIAL_NOT_COMPLETE — locally tested implementation; not production verified**
 
 This receipt supersedes historical status claims only where it records a fresh observation. It does not certify a complete product, production release, provider rights, or absence of all defects.
+
+## Clipboard Transitions - Active Functional047
+
+Uncommitted047 on published046fa19aa1; frozen046729file source/recovery stays
+unchanged while its remaining checks/current image CI continue. New before-run
+seven intended failures/13passes,not a timeout: Research copy during selection,
+chat silent failure/missing API,duplicate pending writes,stale response feedback
+and overlapping success timers. Reduced-motion fixture retains visibility
+assertions; repeat before still seven failures. Scoped guards/feedback lifecycle
+correction passes39focused tests19:19:11Z. Browser journeys/CI inclusion added,
+owning/build/current CI/full NEW recovery remain; do not publish and cancel046CI.
+No new migration/provider/hosted/private/destructive/deployment/dependency/security
+work. Full accepted scope/failed gates/paused022/prior timing/old1101 remain open.
+See CLIPBOARD_TRANSITIONS_047.md; not private or production acceptance.
+Later corrected Research16and chat/summary8browser PASS19:45:37Z,including actual
+old-UI before/after selection parity and returned-answer byte equality/no repeat
+chat submission. Route lifecycle preparation failure retained/corrected with
+documented wait,no ignoreErrors/assertion/timeout relaxation. Manual dark desktop/
+mobile screenshots reviewed. Whole539frontend81files/631backend+10/669Gateway/
+57isolated/104scripts,lint/type/foundation/baseline and SQL65table160function
+restore PASS19:53:44Z; build/native/full post-build/current CI/NEW recovery remain.
+Later reviewed15checks PASS19:56:07Z,Next/OpenNext26routes/four native probes;
+full post-build Research138PASS/4SKIP/chat-summary8PASS20:02:57Z,owned ports closed.
+Manual review only. Explicit bundled Vitest/native runtime is not proof every
+installed npm lifecycle child uses it; actual command scope recorded. Prior
+timing/proxy failures not proven repaired. Save/current CI/NEW recovery remain;
+later external final047handoff governs those milestones,not production acceptance.
+
+## Research Copy Parity - Active Functional046
+
+Actual component before-run18:22:43Z fails seven tests/one client exception, not
+a fixture-authority failure: all synthetic records pass actual saved-run parsing.
+Comparison/timeline/paired-statement/Deep copied summaries omit complete saved
+structures; retry retains old error,missing API throws and late completion marks
+another execution Copied. Scoped formatter and guarded async action plus22focused
+tests pass18:27:36Z, including old query/Obligation behavior and multi/empty results.
+Further four ordinary active-copy failures18:40:22Z corrected by independent
+clipboard error/pending/progress feedback state.24focused and final15owning checks
+PASS18:49:43Z:631backend+10/669Gateway/532frontend80files/57isolated/103scripts,
+lint/type/build/real65table160function restore and four native probes. Earlier045
+timing/proxy failures unresolved; manual functional review only. Actual Chrome
+18:47:08Z still deployed1101Raya4da3074ce619a62; no new log correlation/version
+check or deployment. No persisted research/source data is altered. Controlled
+browser/current CI/NEW source/dependency/evidence recovery remain pending; not full
+mode/product/private/production acceptance. See RESEARCH_COPY_PARITY_046.md.
+Later same-source controlled browser138PASS/4intentionalSKIP18:54:59Z,including
+all16copy desktop/mobile/light/dark journeys and reload/API record parity. Owned
+fixture stopped. Manual desktop/mobile dark screenshot review only; clipboard
+permission/private/OAuth/quality not accepted. Existing PR12/current-tree CI and
+NEW full source/dependency/evidence recovery still separate; external final046
+handoff governs later saved-source milestones once present.
+
+Only exact045owner approval installedONCEas rehearsal20261020181645;37function/
+sixconstraint equality,only five bodies changed,36prior registry records unchanged.
+Separate16file recovered addendum SHA52a8476b...; complete external handoff has full
+checksum. Frozen045archives unchanged. Failed gates,unexplained timing/dev-proxy,
+active old1101/drift,paused022and full remaining accepted scope are not cleared.
+
+## Finding Creation Replay - Active Functional045
+
+Actual ordinary concurrent/sequential SQL regression fails with seven paths
+reporting2then3creation events for one Finding/version; Obligation remains1/1.
+Forward045migration preserves five old handler definitions except creation-audit
+guard and serialized prelookup for manual saves. No historical data correction,
+new table/grants or provider call. Stronger after-edit retry/revision and full
+SQL/65table160function restore PASS12:38:02Z; all eight paths one creation event.
+Owning suites/review/current CI/new full recovery pending, not hosted acceptance.
+See FINDING_CREATION_REPLAY_045.md.
+Completed044fresh recovery now in external BATCH044_HANDOFF.md. Oct20Chrome
+still1101; old activeCloudflare5db33e20/source2fbc5c9, Gateway46bb14f/NOT_PROBED.
+No deployed repair, failed-gate merge, new security investigation or broad approval.
+
+## Obligation Analysis - Completed044 Recovery, Scope Still Open
+
+Source-preparation stage37 full post-build suite with two workers122PASS/4SKIP;
+latest519frontend/lint/type/build PASS. Save/current CI/complete fresh source/
+dependency/evidence recovery remain separate at source freeze; newest completed
+BATCH044_HANDOFF.md/final receipts govern later observations. Deployed source
+still old, metadata health not acceptance,044not hosted, all release gaps open.
+
+Latest stage30 whole cold121PASS/4SKIP/1FAIL is retained: desktop maximum progress
+wait5000ms at8/11, mobile maximum PASS. Independent rendering regressions fail
+before: all12full bodies eager and duplicate answer prose. Native disclosures
+now mount candidate1initially and every other full qualifier body on demand;
+stored/copy data unchanged. Client source conversion cost400per max result also
+fails a bounded-work regression, corrected to50without relaxed literal checks.
+Disclosure/copy5tests, client8tests, four repeated maximum cases and later whole
+12Obligation browser journeys PASS; latest519frontend/lint/typecheck PASS.
+No timeout increase, no assertion dropped, no proof of previous timing causes
+or performance vitals claimed. Complete current build/cold/CI/recovery required.
+
+Later stage26/27: provider capacity fixture was not provider-budget faithful.
+Its full quoted JSON measures387856offline tokens; compact wire rehydrates the
+same complete canonical result from5157bytes/2986offline tokens with unchanged
+4096request. Exact SDK-selected tokenizer hash and reproducible helper/receipts
+retained externally; no provider inference/countTokens call or budget increase.
+56focused/669Gateway/native queue/full real SQL65table160function restore PASS.
+Maximum-field320px desktop/mobile browser11answers/12candidates/50sources,
+reload/reopen/all qualifier fields/no detected overflow/page errors PASS. This
+does not prove real generation/offset accuracy/quality/performance targets or
+universal maximum distinct-note capacity; overflow still honestly interrupts.
+New transport, full latest tree/recovery/current CI remain unaccepted until
+their own fresh checks; prior frozen stage02 is not these later bytes.
+Read-only authenticated CF log now matches Chrome11:34:17ZRay a4cf79009ef19a42:
+Unexpected loadManifest(/.next/server/preview-props.json) call!,5db33e20version.
+Chrome11:52:56ZRay a4cf9456ea12c0a0still1101; latest log not obtained. Existing
+local source correction is not deployed. No hosted/private/customer/provider/
+deployment changes, required release failures and paused022 still unchanged.
+
+Latest11:35Z: post-build cold120controlled research PASS/4intentional skips;
+20ordinary actual builtWorker browser and GET/HEAD200/404/405 PASS. Real SQL retry
+regression confirms duplicate Finding-create audits2vs1; new044-only first-create
+guard passes full SQL/capacity/Finding replay/65table160function restore. Current
+unapproved SQLSHA328c6d13f516867fe913e7fdc654de91b1ae32e6892f9f00ac26d773443c0bb9;
+no hosted installation. Later515frontend PASS/2five-second timeouts retained;
+unchanged subsequent parallel517PASS with other owned checks stopped is not a
+repair. Earlier043timing failure unresolved. Fresh11:34Chrome research1101Ray
+a4cf79009ef19a42, frontend2fbc5c9/gateway46bb14f CONFIGURED/production_verified:false.
+Source/publication/CI/fresh dependencies/provider token/global budget/maximum UI/
+constrained plans/wider register/full accepted scope remain unfinished.
+
+Later02:38Z ordinary recovery/review and combined-capacity evidence passes:
+10focused controlled browser journeys, actual SQL cancellation/resume/deadline/
+503/incomplete/lost-response preservation and independent revision2review;
+50source/11question/12candidate/25anchor/8query8472402byte run exact reread,
+50source Finding10 and65table160function restore. Actual native Worker200row
+pool/32768byte originals/8410814byte results/30requests per step and503no-repeat
+passes. Maximum-field Unicode reopening failed before the Obligation-only client
+code-point correction.517frontend/665Gateway/102scripts/typecheck PASS; source
+picker real-timer harness failure retained/corrected with explicit250ms fake
+clock. No current saved-source CI/full cold/browser/build/fresh complete recovery
+or hosted/model/budget/private/whole-product acceptance.044SQL remains unapproved.
+Fresh Chrome02:26:50research1101Ray a4cc571a9849a26a/version5db33e20; no new
+matching exception event obtained; Supabase/Qdrant healthy metadata only.
+
+Uncommitted PARTIAL_NOT_COMPLETE on verified043f248b5c. Actual ResearchRuns UI
+and50source executor regressions fail before correction; current source adds
+literal provisional candidate extraction, complete adopted mode bounds, SQL/
+Gateway/client/result and Findings UI.661Gateway/66focused/33initial client/
+19later report and existing Findings tests/typecheck pass. Actual local SQL
+executes11questions/550receipts with exact source/null pages, two independently
+concurrent starts/one admission, persisted reread/Finding10 and65table160function
+restore. No hosted/provider/private/deployment acceptance. Maximum combined
+payload/budget, ordinary cancellation/resume/independent review, actual browser,
+full owning/build/current CI/new complete dependency/source/evidence recovery
+and all supported plan constraints/wider obligation product remain incomplete.
+New20261019015325migration LOCAL_ONLY_UNAPPROVED. Preserve paused022 and full224
+requirements/tenproducts/twelvemodes/400+125quality. See implementation044record.
+
+Later044owning665Gateway/516frontend79files/102scripts/lint/typecheck/foundation/
+baseline/diff checks pass. Result copy/reopen retains all qualifiers and unknown
+applicability. These source checks do not close the outstanding browser, new-mode
+review/cancel/resume/combined capacity/budget/native/build/CI/recovery criteria.
+
+Verified043708source/475evidence/28fresh receipts are frozen externally. Required
+image117784077454/summary117789192073 FAILED metadata only; no excluded work or
+waiver. Initial043browser5000ms timing failure remains unexplained. Owner's read-
+only Chrome/Cloudflare investigation reproduces research1101 at01:40:32Z, old
+frontend2fbc5c9/version5db33e20 and sampled OpenNext preview-props initialization
+exception; current source correction is not deployed. Gateway46bb14f remains
+NOT_PROBED. Healthy Supabase/Qdrant metadata does not prove private workflows.
+
+## Native Deep Boundary - Active Batch043
+
+Frozen042533f7dc/705source and324file evidence recoveredNEW with26fresh owning/
+SQL/browser/build/native receipts. Only narrow041rehearsal schema installed
+once20261018163237 after recovery;31functions/sixconstraints match reference,
+prior34registry unchanged. BATCH042_HANDOFF.md binds those exact milestones;
+source-time pending notes below are historical, not production acceptance.
+
+Actual production Worker queue/storage adapter now has a local long-original
+probe at60documents/eightqueries/32768byte originals,144prior originals,
+156synthesis contexts/344consulted originals/953789prompt bytes. Initial1202vs1200
+Unicode assertion failure was a peer split-buffer decoder defect; whole-byte
+decoding preserves the unchanged1200character/hash/location/page assertions.
+Both phases and ordinary503interruption/no commit/no automatic repeat/retry/
+settlement PASS with31/32/30controlled HTTP calls. These peers prove mechanics,
+not live SQL/quality/rights/budget or hosted CPU/memory/latency. No production
+behavior change was needed. New CI wiring remains uncommitted; fresh owning,
+saved-source CI/full recovery remain required. Full224definitions/tenproducts/
+twelvemodes/quality and excluded release prerequisites remain unfinished; image
+117719525924/summary117724355376FAILED by metadata only. No new hosted operation.
+
+Final043source-time owning631backend+10/651Gateway/506frontend76files/57isolated/
+101scripts/type/foundation/baseline/realSQL65table154function restore/NextOpenNext
+26assets/three native probes/20ordinary builtWorker browser/GET-HEAD200-404-405 PASS.
+New structured YAML regression fails for displaced query-step directory before
+the fix, then passes with both native steps running from frontend; explicit
+pinned script dependencies also pass101tests in a clean minimal Python environment.
+Original cold browser109pass/onefail/four intentional skips is retained: mobile
+dark400chunk execution remains running at unchanged5000ms assertion. No proven
+cause/repair; six diagnostic repeats and separate cold110pass/four skips do not
+erase that unexplained failure. Actual deployed Chrome/researchError1101 persists.
+Final save/review/current exact-tree CI/full708file fresh recovery remain open;
+not complete products/modes/private/live-quality/production or excluded clearance.
+
+## Original Research Page Metadata - Active Batch042
+
+Frozen04108d7c23 complete703source/d5fda13b and348file/3ea52488 evidence recoveredNEW
+with26fresh checks, not complete mode/production acceptance. Its final review
+found a NULL-to0 presentation mismatch missed by positive-page fixtures.042actual
+executor before-fix cases fail in Deep/Contradiction, and real SQL rejects the
+actual Contradiction commit at step0 with NR:SOURCE_UNAVAILABLE. Original-row page
+metadata now survives retrieval and prior-original synthesis rehydration; nullable
+client/display contracts match. No relaxed SQL, new migration, changed global
+retrieval display convention or reduced source/query/runtime limits.
+
+50focused executor/domain/22client/UI, full651Gateway/506frontend/631backend+10/
+57isolated/100scripts/lint/typecheck/foundation/baseline PASS. Actual SQL preserves
+NULL/0/positive receipts in50source11criterion and60source13step/156context paths,
+exact Finding/reread/65table154function restore. Four controlled pageless desktop/
+mobile cases PASS; old-name provider fixture and unsupported Testing Library
+option were harness gaps, fixed without assertion/timeout waivers, failed logs
+retained. Complete705file WIP recoveredNEW; later edits separate. Full cold/
+build/native/manual review/publication/CI/new dependency recovery remain open,
+as do all224requirements/tenproducts/twelvemodes/quality/private/rights/lifecycle/
+rollout and failed required gates. No hosted041approval or excluded work.
+
+## Deep Research - Active Batch041
+
+Uncommitted selected-source functional work on frozen040ac46dad, not a complete
+mode or production acceptance. Actual UI lacks execution and ordinary executor
+cannot serve60selected sources before correction. New durable SQL/Gateway/
+executor/client/UI/Finding contracts preserve60sources/12subquestions plus distinct
+main synthesis/8variants/600seconds and rehydrate prior originals, not generated
+notes as evidence. Coverage/gaps/limits/progress/reload/interruption/resume/review
+remain explicit.642Gateway/500frontend76files/typecheck and actual60source13step
+780receipt SQL persistence/reread/Finding12/concurrent-start/one-admission/
+65table154function restore PASS. Six controlled mobile/desktop/light/dark320px
+browser journeys PASS, mobile PNG inspected. Initial syntax/DDL/shared-trial/top-K/
+new-browser timing failures retained; correction changes fixture preparation and
+asserts intermediate progress with unchanged timeout, not product limits.
+
+Draft041SQL is LOCAL_ONLY_UNAPPROVED. Exact039rehearsal approval fulfilled once,
+not general authority. Cold regression/lint/build/other owning checks/manual
+review/saved-source CI/new full dependency/source/evidence recovery are pending.
+Full156original actual SQL/native boundary, complete constraints/public acquisition/
+semantic/representative quality and all broader accepted scope remain unfinished.
+Native owner Chrome local URL blocked before load, no bypass or verification
+claim. Deployed candidate/research Error1101 and failed required image/summary
+remain release prerequisites; no excluded work or paused022 resumption.
+
+Final source-time041631backend+10/642Gateway/500frontend/57isolated/100scripts/
+lint/typecheck/foundation/baseline/NextOpenNext26assets/native fixtures/106cold
+controlled+20ordinary Worker browser/GET-HEAD200-404-405 PASS,4intentional skips
+not passed. Second actual SQL executor scenario persists and rereads144distinct
+prior originals+12new contexts/156total and Finding12,65table154function restore.
+These replace the earlier pending cold/lint/build/owning/SQL-boundary labels only;
+native max-prompt/CPU/full semantics/quality/constraints/acquisition, final manual
+review/saved-source CI/full new dependency recovery and all broader acceptance
+remain unfinished. Keep full224/tenproducts/twelvemodes/400+125denominator.
+
+## Research Query Literals - Active Batch040
+
+Uncommitted ordinary functional correction from saved039a99f211/treec855f3ce.
+Actual parser three cases accept changed identifiers/quantities by substring.
+Complete-token/conditional compound-continuation matching now rejects these,
+while original-span extraction and a merged range sweep preserve full quantities
+and bounded long inputs. First correction rejected sentence punctuation; positive
+regressions caught and corrected it, failed evidence retained.629Gateway and
+nine native Workerd positive/negative cases PASS; original-only embedding and
+durable rejection receipts verified through actual executor. Four actual UI/reload/
+Finding desktop/mobile/theme320px cases and native Chrome original-only/reload
+PASS with controlled peers. Final lint/typecheck pass; native PNG saved, initial
+capture diagnostics retained. Full owning/build/cold UI/SQL compatibility,
+exact-source CI/new dependency/source/evidence recovery remain required.
+
+039complete source7792451a8d20da4f52e4bd2c89fb9f52dec4ab4db9685591370b408455576f60
+recovered NEW; fresh dependencies and631backend+10/610Gateway/496frontend/57isolated/
+100scripts recovered checks pass, remainder running at this source-time note.
+Its exact-tree ordinary database/frontend CI passes, but required image117481523246
+and summary117487248923 FAILED by metadata only. No new security work, gate waiver,
+paused022 mutation,039hosted approval/application or production claim. Full224/
+tenproducts/twelvemodes/400+125quality and broader semantics/rights/lifecycle/
+private/deployed/rollout prerequisites remain incomplete. See RESEARCH_QUERY_LITERALS_040.md.
+
+Final040pre-save629Gateway/631backend+10/496frontend75files/57isolated/100scripts,
+lint/typecheck/foundation/baseline, Next/OpenNext26assets, actual Worker fixtures
+and real65table148function SQL concurrency/restore PASS. Cold100controlled and
+20ordinary builtWorker browser/GET-HEAD200-404-405 PASS; four intentional skips
+are not passes. QA servers stopped and temporary system requests released;
+paused022551entries unchanged. Manual functional diff reviewed, not independent/
+security clearance. Exact saved-source/current CI/full new dependency recovery
+remain separately required; source-time passes are not hosted/private/production
+acceptance. Frozen039complete milestone is bound externally by BATCH039_HANDOFF.md.
+
+## Research Query Retrieval - Active Batch039
+
+Actual executor before-fix lacks query variants and makes68reads/provider calls
+before quota calls for50sources, incompatible with free Worker50subrequests.
+New one-request fair lexical read, batched Gemini/Qdrant APIs and original-first
+mode-specific2/4/6/8queries retain201row/200candidate/50source/11criterion/420s
+bounds. Durable typed UI and Finding receipts distinguish search queries from
+evidence; fallback/rejected alternatives/quota uncertainty remain visible.
+609Gateway/16focused frontend/typecheck/16desktop-mobile-theme-320px browser
+checks and real local SQL50source/11criterion/8query/550receipt/Finding10/reread/
+ordinary concurrency/65table148function restore PASS. Every controlled executor
+step remains below50transport requests; hosted CPU/latency/quality not measured.
+Initial patch's Timeline ordering regression corrected, failure retained.
+Full owning/build/cold browser/review/exact-source CI/new dependency recovery
+and full semantic/temporal/graph/constraints/rights/quality/products remain open.
+New039SQL LOCAL_ONLY_UNAPPROVED. Exact038rehearsal approval fulfilled once and
+its automatic image/summary FAILED (metadata only); frozen external addendum
+supersedes older pending labels. No new security/provider/hosted/production or
+deployment work; paused022/full224/tenproducts/twelvemodes/400+125 preserved.
+
+Later pre-save610Gateway/631backend+10subtests/495frontend before one passing copy
+regression/57isolated/100scripts/final lint/typecheck/source-baseline/NextOpenNext
+26assets and native Worker fixtures PASS. Actual eight-query native transport uses
+seven controlled HTTP requests; fair SQL300chunks/50sources retains all50 within
+201read rows. Cold96controlled plus20ordinary builtWorker browser cases PASS;
+four intentional skips are not passes. First cold94pass/twofail retained. Download
+timeout overlaps independently recorded54minute Windows sleep; separate Save
+locator failure remains unexplained. Affected14/new cold96 pass without changed
+source/assertions/timeouts, not a production waiver. Final owning frontend and
+exact saved-source/CI/new dependency recovery remain separately required. Manual
+functional diff reviewed; no independent/security clearance. Native saved coverage
+and reload verified; second native capture timeout retained without invented PNG.
+
+## Research Contradiction Execution - Active Batch038
+
+Uncommitted partial source only. Actual Chrome saves a contradiction plan with no
+execution; actual executor regression lacks source-paired output before correction.
+33focused/586Gateway cases now pass, preserving50source complete-scope first/last
+pairing, exact Unicode anchors/receipt hashes, provisional interpretation and
+honest abstention. CLI2.121.0 generated local-only migration20261017074502; real
+disposable50source/11criterion/550consulted receipts/420s/retry/in-flight cancel/
+resume/late-result fencing/list/read/Finding10 and all retained65table145function
+backup/restore PASS. UI regression still FAILS at missing execution control.
+Complete typed client/Gateway/UI, actual executor-to-SQL/independent concurrency/
+full edge cases/CI/build/full source recovery; do not call this complete mode,
+semantic/representative quality or production acceptance. Full constraints/
+8query variants/rights and all224/tenproducts/twelvemodes/400+125quality remain.
+
+Frozen037source and284entry evidence/new dependencies/recovery completed externally;
+its image117339064175/requiredsummary117343018360 subsequently FAILED by fresh
+metadata only, bound in BATCH037_CI_ADDENDUM_2026-10-17.md. No findings read/new
+security work, hosted migration/user/provider/customer/destructive/paid/deployment
+operation, gate bypass, original paused022 mutation or source publication.
+See RESEARCH_CONTRADICTION_EXECUTION_038.md.
+
+Later038source supersedes the missing-control note only for its tested slice:
+591Gateway/492frontend74files/631backend+10subtests/57isolated/99scripts,
+lint/typecheck and12focused desktop/mobile/theme/320px browser paths PASS.
+Contract preflight/client/UI/exact citation/reload/Finding retry/independent review/
+interrupted resume/empty abstention work under controlled peers. Native Chrome
+saved result and citation reload verified. Actual executor-to-SQL50sources/
+11criteria/550consulted receipts/two-connection deduplicated starts/Finding10
+and65table145function restore PASS. Synthetic fixture chunk-ID collision fixed,
+failed log preserved. Full cold browser/build/exact-source CI/new dependencies/
+recovery, hosted approval/application and full accepted mode/product remain open.
+No security/hosted/provider/customer/destructive/deployment operation.
+
+## Research Source Diversity - Active Batch037
+
+Actual executor regressions reproduce1of8selected sources in Compare and Timeline
+when a400chunk first document fills the global lexical window. Per-source reads
+now share the unchanged201row total budget/200candidate cap with explicit source
+canaries and bounded dense rehydration. Real disposable SQL9sources/6batches/
+27cells-or-events/concurrent start/later Findings/146date parity and65table140function
+restore PASS.12affected desktop/mobile/light/dark/320px/reload/review/resume browser
+cases PASS; actual Chrome retains both date-bearing sources, honest appendix gap,
+exact locators/citations and saved reload. Initial wrong test copy-label and one
+native locator timeout are preserved; actual visible accessibility commands work.
+No production defect is inferred from that browser-driver timeout.
+
+Full fresh owning/build/cold browser/exact saved-source CI/new dependency recovery
+remain required. Frozen036677source/287evidence/fresh recovery is bound externally
+by BATCH036_HANDOFF.md, superseding its source-time pending labels only where proven.
+Required036image/summary FAILED by metadata only; no findings read/new security
+work or bypass. No037SQL/hosted/private/provider/destructive/deployment operation.
+This is not Contradiction Analysis implementation; all224/tenproducts/twelvemodes/
+400+125quality and known release prerequisites remain incomplete. See
+RESEARCH_SOURCE_DIVERSITY_037.md.
+
+Final pre-save631backend+10/578Gateway/487frontend73files/57isolated/99scripts/
+lint/typecheck/source+baseline/NextOpenNext26assets/actualWorkerd fixtures PASS.
+Cold80controlled browser cases PASS;4intentional duplicate-width skips not counted.
+551original paused022entries remain byte-identical. Manual functional diff reviewed,
+not independent/security clearance. Exact source/CI/new recovery remain external.
+
+## Document Original Delivery - Active Batch036
+
+Final pre-save fresh487frontend73files/570Gateway/631backend+10subtests/57isolated/
+97scripts/lint/typecheck/source+baseline, real SQL original quota/concurrent admission
+and65table140function restore PASS.78controlled browser journeys PASS,4intentional
+duplicate-width skips not passed. Unicode filename500 and actual Workerd missing
+Content-Length are reproduced and fixed; nine transfer cases and actual Workerd
+GET/HEAD bytes/hash/headers PASS. Initial Next policy import/root/tracing failures
+preserved; single policy inside existing frontend package and unchanged Next config
+now build successfully with26OpenNext assets. Exact-source CI/new full source and
+fresh dependency recovery remain separately required, not inferred. Manual review
+is not independent/security clearance; no hosted/private/provider/release acceptance.
+
+PARTIAL_NOT_COMPLETE. Actual missing Gateway original-file route reproduced404;
+new private current-version streaming and browser byte/SHA256 verification expose
+native original download in actual detail/drawer. Eight controlled desktop/mobile
+light/dark download/cancel/interruption journeys pass, with saved bytes/hash checked.
+New real SQL quota test first fails due to incomplete local REST join simulation;
+corrected peer must rerun. Full owning/build/current CI/fresh source recovery pending.
+No hosted/provider/private-user/production acceptance, new migration, budget
+activation, security investigation or paused022 resumption. Required035image/summary
+failed by metadata only. All224/tenproducts/twelvemodes/400+125quality remain required.
+
+## Document Source Inspection - Active Batch035
+
+PARTIAL_NOT_COMPLETE. Failing-before ordinary next-page network regression proves
+loaded originals were hidden. Retain those previews with an explicitly unverified
+inventory label and exact-cursor retry; API refusals/version/cursor conflicts still
+require refresh. Optional original hash/version receipts do not invent legacy data.
+Actual Research citation now navigates natively to production DocumentDetail and
+client/Gateway; all400unique chunks, final-chunk search, exact receipt, zero/reset,
+refresh/reload and real library drawer/escape-focus restoration are exercised.
+
+476frontend71files/561Gateway/631backend+10subtests/57isolated/97scripts/lint/
+typecheck/NextOpenNext26assets/actualWorker fixtures/source+baseline integrity PASS.
+Full70controlled research desktop/mobile/light/dark/320px/768px cases PASS; four
+additional-width cases intentionally run only in mobile project and are SKIPPED
+in desktop,not counted passed. Earlier command omitted fixture env/skipped12,
+retained and not PASS. Actual Chrome final chunk/hash/version/drawer/Escape PASS;
+native screenshot times out, saved Playwright320dark drawer PNG visually inspected.
+Missing local route/metadata/order were fixture gaps,not production defects.
+
+No full original/download delivery, real OAuth/hosted private/provider/model-quality
+or complete source/product/mode/quality acceptance. Exact saved-source currentCI
+and new-directory fresh dependency recovery/relevant reruns remain separately
+required.034complete source/evidence/recovery frozen externally; required image
+117071692810/summary117081323262 now FAILED by metadata only. No finding logs/new
+security work/paused022/SQL/hosted/provider/destructive/production/deployment changes.
+All224/tenproducts/twelvemodes/400+125quality and other release prerequisites stay
+incomplete. See DOCUMENT_SOURCE_INSPECTION_035.md and external batch035receipts.
+
+## Large-Source Research - Active Batch034
+
+PARTIAL_NOT_COMPLETE. Actual executor rejects accepted201/400chunk documents
+before dense search,despite ingestion400chunk maximum. Failing-before tests prove
+the mismatch. Bounded200unique-original pool now keeps later dense rows and
+deduplicates against the lexical canary without enlarging source/context budgets.
+Explicit limited lexical coverage survives saved result reads/reloads; no complete
+lexical/semantic evidence claim. Missing ranked evidence still abstains.
+
+561Gateway,focused23frontend,97scripts,lint/typecheck,real400chunk SQL-to-production
+executor/Finding and65table140function restore pass;36affected desktop/mobile/theme
+browser cases pass. Actual local Chrome inspects later evidence and reloads with
+retained warning. Native screenshot capture timed out; Playwright evidence exists.
+First browser command omitted fixture env and skipped36; not counted as PASS.
+Full frontend/build/final saved-source/CI/fresh recovery separately pending.
+
+033complete664source/257evidence recovery frozen. Exact033rehearsal approval is
+FULFILLED ONCE,registry20261016115728,17function definitions/configurations and
+sixconstraints match fresh reference; no business/private/provider/customer
+operations. Separate approval/catalog addendum recovered,hashcf31c393e675274e927a4fbe16b8d52c90b4da3899335a8632b5c6ac95464020.
+Required033image/summaryFAILED by metadata only. No new security work/paused022,
+production/deployment or release acceptance. All224/tenproducts/twelvemodes/full
+quality and remaining functional/release prerequisites stay incomplete.
+
+## Source-Anchored Timeline - Active Batch033
+
+PARTIAL_NOT_COMPLETE. Chrome confirms saved Timeline execution missing; actual
+executor before-fix regression has no timeline. New events preserve quoted
+date wording,precision,roles,Unicode locators,current source hashes and explicit
+gaps. Overview retrieval has a failing-before scoped original fallback correction;
+partial date fragments and CE/timezone boundary cases remain independently tested.
+Existing runs/queue/cancel/resume/Findings/separate review are reused. Global saved
+chronology spans batches without confusing reused citation IDs or asserting causal
+order. Full40source/ninecriterion/45batch720event actualSQL,production executor-toSQL
+27events/sixbatches/concurrent-start and65table140function backuprestore pass before
+final boundary refinements.471frontend71files/557Gateway/631backend+10subtests/
+57isolated/97scripts/lint/typecheck pass; final146native-date parity/build/58cold
+research/exact-source CI/full fresh recovery remain separately required.
+
+Ten focused Timeline browser cases and actual local Chrome are synthetic/controlled,
+not hosted private/provider/quality acceptance. No033hosted approval. Exact031
+schema approval fulfilled only; no production/deployment/newuser/customer/provider
+or destructive operation. Original paused022 remains byte-identical. Completed032
+external handoff supersedes source-time pending notes; its image116852230509 and
+requiredsummary116861008881 subsequently FAILED by metadata,no findings read.
+All224/tenproducts/twelvemodes/400+125quality remain accepted/incomplete. Preserve
+scope,rights/source-export blockers,full temporal/graph/constraint/semantic/lifecycle
+work and release gates. See RESEARCH_TIMELINE_EXECUTION_033.md.
+
+## Findings Inner-Panel Clipping - Active Batch032
+
+PARTIAL_NOT_COMPLETE. Completed031 exact source/recovery is frozen separately in
+BATCH031_HANDOFF.md,including fulfilled031rehearsal schema approval and source/
+evidence checksums. The green html-width check missed a real570px inner Findings
+panel inside412px viewport. New container-level regression fails both mobile
+themes before correction. Two actual grid items now use min-width0, preserving
+all source columns and the separately focusable table scroller. Six original and
+14expanded comparison/review/resume cases pass at native desktop/mobile plus320px/
+768px light/dark; inspected original hashes and review text wrap.468frontend70files/
+lint/typecheck PASS. Final48cold cases now include source-link focus/reachability;
+build/exact-source/current CI/full fresh recovery remain required. No SQL change
+or hosted/private/provider/newuser/production/deployment operations. Not full
+responsive/product/mode/224requirement or production acceptance.031image pending
+at frozen06:43UTC is not clearance; paused022/old failed gates remain binding.
+
+## Selected-Source Comparison - Active Batch031
+
+PARTIAL_NOT_COMPLETE. Actual production-executor regression reproduces a missing
+matrix. New SQL/Gateway/queue/client/UI persists the adopted40source/ninecriterion
+45batch360cell scope, separate document evidence/citations/gaps, progress/cancel/
+resume and later-batch Findings with existing revision/independent-review history.
+Each eight-document batch reserves the same4096output-token bound it requests.
+List receipts exclude full matrices while preserving progress; detail reads remain
+complete. No automatic semantic equivalence/ranking or completion certification.
+
+Actual local PG17.11/pgvector0.8.7 passes maximum45batch scope, ordinary concurrent
+start, production executor-to-SQL27cells/sixbatches/Finding-position5 and65table
+134function backuprestore. Fresh546Gateway/468frontend70files/631backend+10subtests/
+57isolated/97scripts/lint/typecheck, Next/OpenNext26assets/Workerfixtures and40cold
+synthetic desktop/mobile light/dark research cases pass before final reservation
+assertion. Actual Chrome matrix/originalhash/page/save/retry/share/separate-review/
+reload inspected; not OAuth, hosted persistence or provider-quality acceptance.
+The interrupted-save error now truthfully says unconfirmed, possibly saved.
+Retained initial SQL/fixture/browser failures were corrected without weakened
+limits/assertions. Exact source/current CI/fresh recovery must still bind these
+changes externally.030rehearsal approval fulfilled only; no031hosted operation.
+
+030automatic image116725960410/summary116733021202 are now FAILED by metadata,
+not pending or cleared. No findings investigation/new security work or paused022
+changes. All224/tenproducts/twelvemodes/400+125quality, source export rights,
+semantic support/constraints/public/temporal/graph/lifecycle/private/deployed1101/
+rights-budget/rollout/rollback remain unfinished. No full requirement closed.
+
+## Research Answer To Findings - Active Batch030
+
+PARTIAL_NOT_COMPLETE. Actual typed-origin regression fails before implementation.
+New SQL/Gateway/client/UI links the actual saved cited answer to existing versioned
+findings/share/review/audit. Current original hashes/locators are rehydrated, changed
+or missing evidence withholds generated content; removed research runs clear linked
+generated versions without erasing independently authored notes. Independent review
+is revision-scoped, not claim certification or export rights. Older schemas are
+detected before creating an empty manual note. Source-backed export stays blocked;
+manual-note export is retained. This closes no full product/mode/definition.
+
+Actual local PG17.11/pgvector0.8.7 and production executor-to-Workbench handler/
+SQL two-connection retry pass;65tables129functions backuprestore.34cold synthetic
+research browser journeys and actual local Chrome save/retry/hash/deep-link/revision/
+share/separate-review/reload pass before final UI receipt refinements.461frontend,
+536Gateway,631backend+10subtests pass; final owning/build/recovery/CI pending.
+Initial missing-local-member SQL fixture, wrapped-label locators, shared synthetic
+reviewer rate120 and omitted CI migration copy failures are retained, corrected
+without weakening thresholds or assertions. No security investigation, paused022,
+new hosted users, provider/customer/private/production/deployment operations.029
+exact rehearsal approval fulfilled only. See RESEARCH_FINDING_LINEAGE_030.md and
+newest external handoff for exact saved evidence, never inherit historical PASS.
+
+## Durable Selected-Source Research - Active Batch029
+
+PARTIAL_NOT_COMPLETE. Actual /runs create/list404 regressions precede new SQL,
+Gateway, typed existing queue, production executor, client and UI. Owned immutable
+question/source scope, account-once start/replay, bounded runtime/rows/paging,
+committed-question progress/results, cancel/explicit resume/dispatch recovery and
+source availability are implemented for a QUICK_LOOKUP/EVIDENCE_ANSWER selected
+private non-sensitive slice. Other accepted modes/constraints/products remain open;
+no public connector activation, hosted processing or deployment.
+
+Actual new PG17.11/pgvector0.8.7 passes transitions, ordinary independent retry/
+claim concurrency and65table126function restore before final refinements. Browser
+finds numeric citation IDs incompatible with the new client's S1 contract. New
+regression fails before boundary-only normalization; fresh restarted server14
+desktop/mobile journeys and actual Chrome save/run/hash/reload/copy succeed. Old
+fixture API/status failures and stale Node-server rerun preserved. Resource-heavy
+overlapped frontend run has two timeouts; bounded-worker fresh full452pass before
+four additional component regressions. No timeout/assertion/gate weakened. Final
+exact current source/tests/build/recovery/CI must be bound in external receipts.
+
+028exact025-028 rehearsal schema approvals fulfilled and independent catalog
+matched, frozen addendum e57680f99fe3bb5cb4a354ad52ae2fc64144861aa76eaaaf09ae4ad847ef656b.
+This is not hosted user-workflow acceptance or029approval. Existing old deployed
+1101/source drift/required gates/paused022, real approved private quality/lifecycle/
+erasure/rights/budget/canonical-origin/rollout/recovery remain unmet. No new security
+investigation or owner-excluded remediation. Full224/tenproducts/twelvemodes/400+125
+remain unchanged and incomplete. See RESEARCH_ANSWER_EXECUTION_029.md.
+
+## Exact Source Quantity Capture - Active Batch028
+
+Two desired actual Gateway quantity capture/read requests return404 before new
+source implementation. Current uncommitted SQL/Gateway/client/UI persist exact
+numeric/unit spans and version/hash/locator identity, ordinary retry/read/paging,
+source unavailable/stale status and checked reuse across binary/series/conversion
+worksheets. Unicode-codepoint offsets agree between SQL and UI. Partial grouped/
+contiguous numeric fragments are rejected; no hidden locale normalization.
+
+Actual disposable PG17.11 passes source span/hash/locator, bound arithmetic kinds,
+factor/mismatch, stale/unavailable, ordinary retries, source-copy cascade rollback
+and64table122function restore.196/756/140retained arithmetic parity preserved.
+445frontend/510Gateway/97scripts and22synthetic browser journeys pass before final
+refinements/builds/source recovery/CI. Original failed fixtures/test registration/
+a11y/ambiguous label/numeric selector are preserved without weakened checks.
+No automatic source support/review, complete mode/product, hosted/private or
+production claim. No hosted025/026/027/028/deploy/provider/customer operation.
+All224/tenproducts/twelvemodes/quality and known release gates remain incomplete.
+See RESEARCH_SOURCE_QUANTITIES_028.md and completed027external recovery handoff.
+
+## Supplied-Factor Conversion And Deployed Failure - Bounded Batch027
+
+Actual new SQL/Gateway/client/Convert worksheet replaces two404regressions with
+atomic exact decimal conversion/input/date/unit/formula/reference persistence,
+ordinary retry/conflict/paging/shared capacity and three-form draft preservation.
+140real SQL retained-engine parity plus196binary/756aggregate/concurrency and
+63table119function backuprestore pass.493Gateway/434frontend/96scripts/lint/typecheck
+and18cold synthetic browser journeys pass; saved exact-source recovery/CI remains
+separate. Caller-supplied evidence is not verified source support or complete mode.
+
+Owner-restored Cloudflare Chrome access confirms100%candidate version5db33e20,
+configured source2fbc5c98; variable identity is not a bundle attestation. Existing
+read-only live log captures /research1101/raya4ae6d1dfee1e1f1 at11:18:59.546Z:
+Unexpected loadManifest(/.next/server/preview-props.json) call during NextNodeServer
+initialization. Logging/configuration unchanged; live view stopped. New local
+static success cannot establish dynamic-path repair or deployed acceptance.
+
+Existing026image/requiredsummary FAILED, findings not investigated. No hosted
+025/026/027, deployment/provider/customer/new-user/destructive operation;024exact
+rehearsal approval fulfilled only. All224/tenproducts/twelvemodes/quality and known
+release blockers remain. See RESEARCH_CONVERSION_EXECUTION_027.md.
+
+## Exact Aggregate Worksheet - Bounded Batch026
+
+Two ordinary Gateway aggregate regressions fail404 before source implementation.
+Actual SQL/Gateway/client/Research worksheet now cover nine aggregate operations,
+weighted/grouped inputs, explicit missing-value policy and retained exclusions,
+ranked unrounded source-index rows, five descriptive metrics, atomic immutable
+save/retry/read/paging and binary-v1 compatibility.756real SQL/retained Decimal
+engine parity cases plus196binary cases/concurrency/shared capacity/63table116
+function restore pass.14synthetic desktop/mobile light/dark journeys pass;413
+frontend/631backend+10subtests/95scripts pass. Final saved-source/build/recovery/CI
+belongs in external receipts. References remain caller-supplied, not verified.
+
+Fresh Chrome actual candidate /research reproduces Cloudflare1101, ray
+a4ad00557b2c5412 at2026-10-15T07:09:58Z; Settings settles Gateway reachable.
+The active deployment is not these locally tested journeys. Existing025image/
+summary now FAIL; findings not investigated under owner functional-only scope.
+No025/026hosted approval/application, protected merge, deploy, provider/customer
+operation or new identity. All224/tenproducts/twelvemodes/400+125quality and existing
+release prerequisites remain unfinished. See RESEARCH_AGGREGATE_EXECUTION_026.md.
+
+## Exact Calculation Worksheet - Bounded Batch025
+
+New ordinary source UI/client/Gateway/SQL journey replaces404 for seven binary
+decimal operations and atomically stored inputs/results/units/formula/references.
+It preserves retry identity and input after ambiguous responses, lists/reloads
+saved results and labels caller-supplied evidence/review limits. Actual PG numeric
+execution/196retained Python Decimal parity/concurrent retry and63table111function
+backuprestore pass. Ten synthetic browser journeys pass desktop/mobile light/dark
+planning plus calculation retry/reload; these do not exercise hosted SQL/OAuth.
+385frontend/631backend+10subtests/93scripts and initial447Gateway pass; final source/
+build/recovery/CI evidence remains external. See RESEARCH_CALCULATION_EXECUTION_025.md.
+
+Exact024approval is now fulfilled schema-only on rehearsalukgjygzfhyvnrsecdcuu,
+registry20261015052629_research_plan_persistence: approved SQLd76b949f,all3stored
+bodies match,10columns/4indexes/0rows. BATCH024_HANDOFF.md binds saved70593cb/treeb4e50c7c,
+571source and71sanitized evidence entries. Final024DB/frontend pass; image/runtime
+and required summary fail, deploy skipped. No new findings investigated; no025
+hosted approval/application. Frozen source-time notes below remain historical.
+No full normative definition/product/mode is closed, no production readiness,
+no paused022/security work or customer/provider/deployment/destructive operation.
+
+## Durable Functional Research Drafts - Bounded Batch024
+
+Parent4696a51 isolated source implements the previously404 create/list/read journey
+through a reviewed new SQL/RPC, actual Gateway/API client and private Research UI.
+Immutable drafts preserve all twelve mode limits and accepted fields. Confirmed
+receipts, stable idempotent retry, bounded keyset paging/storage, source selection,
+read/copy/refresh and truthful draft-only status are exercised. Planning reserves
+no provider processing and starts no execution. No paused022 files are included.
+
+Fresh444Gateway/375frontend/631backend+10subtests/57isolated/92scripts and lint/
+typecheck/Next/OpenNext26assets/actual Worker fixtures pass. Six synthetic browser
+journeys cover desktop/mobile light/dark save/reload/read/copy/focus and interrupted
+save recovery through production page/client/Gateway with simulated Supabase peers.
+Separate actual PostgreSQL17.11/pgvector0.8.7 persistence/calendar/paging/capacity/
+mode parity/concurrent retry/62table108function backuprestore passes. Not hosted
+OAuth/private users, representative model quality, complete modes or production.
+
+Failed fixture/syntax/label/packaging/CI assertions remain in external sanitized
+receipts; constraints/rate limits/test assertions/required image gates are intact.
+Current PR12 draft/three branches/main/release identities revalidated. Chrome
+candidate still presents incomplete products; public Gateway is older46bb14f
+CONFIGURED/NOT_PROBED production_verified:false. Rehearsal ends at021. No024 hosted
+approval/application/deployment/provider/customer/destructive operation. Prior023
+runtime and required summary now failed; no new finding investigation. Full224/
+tenproducts/twelve-mode execution/quality and excluded prerequisites stay open.
+Exact saved-source recovery, manifests and final CI bind in external handoff.
+
+## Functional summary targeting - bounded batch023
+
+Actual parent810 Gateway synthetic regressions reproduce named cover-letter/resume
+mixing and false success for ambiguous/missing targets:3fail/1pass. Independent
+functional checkout adds literal unique targeting before quota/provider admission,
+shares the resolved document/version scope across dense/lexical context and saved
+citations, and preserves explicit caller selection/exact filename filters.
+Ordinary UI recovery opens the existing document picker, preserves a newer draft,
+requires deliberate selection/attestation/retry and dismisses obsolete recovery.
+
+Fresh420Gateway,363frontend,630backend+10subtests,57isolated,88scripts,
+lint/typecheck/Next/OpenNext25assets/actual local Worker fixtures pass. Four local
+browser journeys use real production components/client/hooks and synthetic REST
+responses:desktop/mobile-emulated,light/dark,focus,draft recovery,exact chosen source
+text and viewport bounds. Not real hosted OAuth, durable hosted SQL, Gemini quality
+or production acceptance. Chrome extension blocked local origins; no bypass.
+Fixture middleware/environment and one incorrect hook-field assertion failures
+are retained in separate logs. Existing required CI gates remain unchanged;
+functional browser test is added to ordinary CI. Exact saved/recovered source and
+remote CI outcomes are bound in later external receipts.
+
+Final functional review independently reproduces two additional absent-title
+failures with only an unrelated resume. The resolver no longer falls back to it.
+An empty-library quota-status compatibility regression was caught and corrected
+without changing its402gate; fresh422Gateway/no skips pass. No remote branch was
+advanced before that correction. Failed follow-up logs remain.
+
+Owner's batch022 PAUSED_BY_OWNER_SCOPE is preserved in the original checkout and
+complete frozen WIP, excluded here. No investigation/remediation of its findings or
+the failed107-match image gate. Fresh read-only rehearsal metadata confirms latest
+021 registry; no hosted changes. All224/tenproducts/twelve modes, representative
+400+125 quality and complete private/lifecycle/release acceptance remain unfinished.
+See SUMMARY_TARGETING_023.md; an isolated functional fix is not PRODUCTION_READY.
+
+## Retained Python private turns - bounded batch021
+
+PARTIAL_NOT_COMPLETE. Actual synthetic helper/repository reproduction shows
+foreign-owner writes and false success after a split-pair failure. Candidate uses
+caller-bound current context before effects/rechecks after quota, request-owned
+memory, server-attested atomic pair/revision/epoch mutation and confirmed protocol
+receipts. One independent candidate review found four gaps; parent regressions
+and corrections cover authority-await changes, source-bound history withholding,
+generation-usage truth and disconnect/accounting.630backend+10 pass.
+
+Actual unprivileged PostgreSQL17.11/pgvector0.8.7 synthetic baseline/forward
+authority/grant/rollback/concurrency/backuprestore passes61tables105functions;
+the new cluster is stopped and fixture database dropped. Auth/Storage stand-ins
+are not hosted OAuth. See BACKEND_PRIVATE_TURN_AUTHORITY_021.md. New hosted SQL
+approval, complete source recovery/builds/exact CI/image and real private journeys
+remain required. No paid/provider/customer/production/deployment operation.
+All224/tenproducts and general source/rights/lifecycle/legal-hold/erasure/release
+acceptance remain open. Parent required image remains107matches/failed, not waived.
+
+## Context-bound answer cache - bounded batch020
+
+PARTIAL_NOT_COMPLETE. Twelve actual Python cache/chain regressions fail before
+history/options/mode identity and deep snapshot correction. Cached paths now
+record local memory consistently. Matching contexts still reuse answers;
+workspace/filter isolation and cache limits remain. See QUERY_CACHE_CONTEXT_020.md.
+This is not live private UI, caller authority, source/rights fences, lifecycle
+erasure or complete-product acceptance. Final saved-source checks remain required.
+
+Final019 BATCH019_HANDOFF.md binds539source/33sanitized-evidence exact recoveries,
+fresh suites and139public browser checks. Real disposable PostgreSQL authority,
+forgery denial/rollback/concurrency/60table101function backuprestore pass. Exact
+native image passes; required scan/summary fail107backend matches101Medium6Low,
+frontend0/ignored0. Explicit019 rehearsal-only installation fulfilled and six
+stored function bodies/grants verified; no history/customer/provider/production
+operation or deployment. All224/tenproducts and remaining private/lifecycle/
+source-schema/product/rights/release gates stay open.
+
+## Atomic private Gateway turn - bounded batch019 (source-time observations)
+
+PARTIAL_NOT_COMPLETE. Synthetic handler reproduction at19285 returned200 and
+wrote an assistant record after stale membership preflights. Candidate replaces
+direct service-role conversation writes with caller-bound owner context and
+atomic turn/revision/admission-consumption RPCs.398 Gateway checks pass; exact
+SQL authority/rollback/concurrency/recovery/CI and hosted acceptance remain required.
+See PRIVATE_TURN_AUTHORITY_019.md; no full private-session closure claimed.
+
+Final018 source/recovery/CI receipts supersede018 pending observations below:
+534source/33evidence exact recoveries and fresh suites pass; native and original
+nine-Go absence pass, full scan/required summary fail107matches101Medium6Low.
+Read-only Qdrant independently confirms legacy17/four0/aliases[]; no exact erasure
+or orphan/binding proof. Older privacy UI lacks valid processing/operator approval.
+All224definitions/tenproducts and remaining lifecycle/private/product gates stay open.
+
+## Unused base runtime tool - bounded batch018
+
+**PARTIAL_NOT_COMPLETE; actual candidate image pending.** Parent017 scan/native
+results were acquired exactly: native PASS,116backend matches/failed summary,
+frontend0/ignored0. All nine Go findings locate only/usr/bin/pebble; remaining
+107matches include101Medium. No executable attacker path was demonstrated merely
+by package matching. Exact base layers/config prove one regular unowned launcher
+and no examined aliases/copies/ownership/hooks; repository consumers use Python,
+Uvicorn and preserved native/model libraries, not Pebble.
+
+Candidate final-stage removal is exact-hash/ownership/status/symlink guarded;
+actual probe requires absence and default/nondefault startup. Two new guards
+failed before correction,10focused/87scripts/syntax pass afterward. Fresh
+independent investigator completed; candidate review hit account limit, parent
+separate review recorded without independent candidate-review clearance. Actual
+new native/scan and complete source/recovery still required. No dpkg metadata,
+accepted capability, gate, threshold or provider/production configuration removed.
+All224definitions/tenproducts and remaining private/lifecycle/erasure/product
+engineering stay accepted, not discarded as cleanup or relabeled complete.
+
+## Hosted read and exact recovery - bounded batch017
+
+**PARTIAL_NOT_COMPLETE.** Direct user approval was limited to rehearsal
+`ukgjygzfhyvnrsecdcuu` and exact `20261011185509_gateway_private_history_read.sql`
+SHA256c6e67215400eda00a05fa52aef1b09012cfab7ba12ce5183e048eef435a7d17c.
+Installed as hosted20261012131630 after fresh identity/prerequisite/hash preflight.
+All three stored bodies match the approved source, fixed search paths and
+authenticated-only function execution remain, and no history-table privileges
+were added. No customer-history invocation, production/deployment/provider change
+or two-user OAuth acceptance is implied. Approval fulfilled, not transferable.
+
+New checkpoint test reproduced verified-manifest reformatting/Windows newline
+conversion. Recovery now copies original archive bytes;10 focused cases pass.
+Earlier016 evidence recovery verified100 receipt files but normalized metadata;
+retain that attempt and frozen archives, then rehearse all-entry exact recovery
+into a NEW directory. Fresh new saved-source recovery and tests remain pending.
+
+Final016 actual supported native image succeeds separately from FAILED mandatory
+scan/summary:116backend scanner matches1Critical/7High/101Medium/6Low/1Unknown,
+frontend0,ignored0. All224 definitions/tenproducts, private write/revision/cache
+authority, hosted source/schema drift, real two-user flows, complete workflows,
+lifecycle/legal holds/erasure/Qdrant proof and release acceptance remain open.
+
+## Current retention schedule-write fencing — bounded batch004
+
+**LOCALLY_TESTED; full application PARTIAL_NOT_COMPLETE.** After a workspace reset, trusted batch003 ZIP SHA256212226bc808b23b52899aaf3e13496096ae8429b5fb520204b1d530b4a9de047 was restored byte-for-byte. All490files/hash/modes matched8faa; git metadata was associated without rewriting recovered bytes. Selected suites freshly passed before edits. New isolated test environment installed from the existing requirements-test profile; resolved transitive versions retained externally, dependency source/lockfiles unchanged.
+
+Forward-only041 adds service-role-only SECURITY INVOKER finish_retention_claim with fixed search_path and runtime auth.role check. Row locking plus exact owner/claim-expiry/current retention-policy and database-clock post-lock expiry prevents stale scheduler completion or retry from overwriting a current claim. Response-loss retry after committed success cannot undo that success. No unfenced compatibility fallback; unexpected RPC shape fails closed. The scheduler rejects missing/foreign/expired/malformed claim metadata before cleanup, reports lease loss/ambiguous retry failure without pretending scheduling succeeded, continues later rows and retains lifecycle-reported partial counts.18new backend regressions and real local SQL/concurrency cases exercise these paths; prior privacy/safety assertions remain. CI/local replay explicitly includes041; immutable applied history/baseline untouched.
+
+Fresh475backend+10subtests,57isolated,269gateway/no skips,68scripts/foundation/migration integrity pass; backend runs in the newly installed test venv. Disposable PostgreSQL17 full baseline+026–041, role/policy/expiry/replay, simultaneous finish, post-lock expiry and logical backup/restore pass. Databases are dropped and local server stopped. Auth/Storage schemas are stand-ins, not hosted Supabase or OAuth proof. Final saved-source and ZIP-recovery receipts repeat checks with exact source/hash/mode identity; historical receipt logs are never recovered-source test passes.
+
+Completed exact8faa CI reports12successes/2intentional deployment skips but [image114222818422](https://github.com/Anupam0202/NexusRAG/actions/runs/38055440949/job/114222818422) and mandatory summary114227102083 FAILED. Detailed raw image evidence was not reacquired this batch; a04 counts remain scoped to a04. No suppression, threshold change, unstable runtime substitution or protected merge. New source needs independent exact-head gates.
+
+This only fences schedule writes: external deletion is not atomic with SQL, cleanup may outlive a lease/policy change, manual retention still needs scoped claim integration, legal hold/full erasure/durable worker acceptance remains unfinished. New frontend/build/browser/live provider/roles/Storage checks NOT_RUN locally. Ledger247rows unchanged at full accepted scope. No hosted040/041, deployment, retention/deletion, production/shared-resource cleanup, rights/credentials/security/DNS/paid-service or contributor operation. RUN-STATE.md is the current exact execution/recovery handoff; earlier receipts below remain historical.
+
+## Current retention failure isolation — bounded batch003
+
+**LOCALLY_TESTED; full application PARTIAL_NOT_COMPLETE.** Follow-up to exact published a04a01ce74f15369c583fdc0585720034962e0ab validates claimed retention JSON without coercion, requires explicit boolean enablement and positive integer days, counts malformed records and never executes their cleanup. Disabled rows skip safely. Retry-persistence exceptions no longer abort later claimed workspaces. Partial lifecycle-reported document/chat counts remain visible even if cleanup/completion scheduling fails. Successful scheduling alone increments completed. Retry write failures have a distinct counter; ambiguous writes prove neither scheduling nor lease release. No distributed lease fencing or atomic deletion claim follows.
+
+The operator CLI returns nonzero for failed/invalid runs, including retry-scheduling failure. Settings/vector/claim failures handled within main emit type-only diagnostics and controlled failure without raw private exception strings; import-time failures remain outside that handler. Cancellation propagates. Thirty-two new synthetic regressions cover malformed claims, hostile conversion hooks, disabled rows, two retry-failure stages, two partial-count stages, claim failure, cancellation and CLI success/failure. Existing partial-count expectations were corrected while privacy/safety assertions remain. Fresh initial457backend plus10subtests,57isolated,269gateway/no skips,68scripts and foundation pass. Final source/ZIP receipts contain exact-commit repeated checks. No fresh install/frontend/build/browser/PostgreSQL/live provider or hosted lifecycle acceptance in this batch.
+
+Completed exact-parent a04 CI was independently inspected:12successes,2intentional deployment skips, mandatory image and summary FAILED. Full [image job114207864203](https://github.com/Anupam0202/NexusRAG/actions/runs/38050262443/job/114207864203) raw SHA25654f31555ac3e6fee1f62619c2fb823a9ec1af9ff07de0702308171b100621164, exact source/complete footer/runtime markers verified. Grype0.118.0 reports163backend package/version/advisory matches:57High/50Medium/10Low/46Negligible,40packages/69distinct advisories,114wont-fix/47not-fixed/2fixed; frontend0/ignored0. Independent raw/parsed counts reconcile; these are scanner matches, not unique CVEs or exploitation proof. Actual native and offline neural runtime markers passed before the security gate failed. No vulnerability waiver/remediation, suppression, weakened gate, unstable runtime substitution or merge claim. The new batch requires its own exact-head CI.
+
+Before edits the trusted batch002 ZIP SHA25619bb189ea39d5002727f301dd7aa0a9e9afac3b203a188b607e0ad606c134ee2 and all489 source hashes matched clean a04. Full source/unchanged dependency specifications and locks are checkpointed; selected checks must be freshly repeated after recovery, not inherited. Ledger247rows:234OPEN_ENGINEERING/9IN_PROGRESS/1FAILED/2BLOCKED_EXTERNAL/1narrow VERIFIED. Legal hold, complete retention/erasure, durable lease completion fencing, retry ambiguity recovery and remaining private-log paths remain open. No hosted deployment/migration/retention/deletion, customer processing, platform cleanup, security/credential/DNS/paid-service or contributor operation. Earlier receipts below remain historical, scoped evidence.
+
+## Current lifecycle failure privacy — bounded batch002
+
+**LOCALLY_TESTED; application PARTIAL_NOT_COMPLETE.** Follow-up to published `37e1603fce3594fb2389ef3634b7ef93d82a2f86` repairs lifecycle cleanup error disclosure. Storage/Qdrant/local-vector/document-row and seven workspace resource cleanup failures now log exception class only, not raw provider/database/storage text. Document, scoped-row and workspace-row failure receipts contain static messages and stable DOCUMENT_CLEANUP_FAILED / WORKSPACE_CLEANUP_FAILED / WORKSPACE_DELETE_FAILED codes. Real deletion route failure details and retention audit metadata consume these safe receipts. Retention scheduler failure logging is type-only; existing retry schedule/lease behavior is unchanged. No exception string method is required on these handled paths.
+
+Deletion remains explicitly partial on failure: no workspace removal after document/resource failure, no cache invalidation confirming failed cleanup, and already-completed vector/chat counts remain accurate rather than claiming atomic rollback. Existing two raw-message assertions were tightened to static message/code expectations while all fail-closed assertions remain. Sixteen added synthetic regressions cover four document failure stages, all seven scoped resources, workspace-row denial, cleanup/success-schedule-write failures and both actual route functions consuming real lifecycle results. These are fixture transports/function calls, not live authenticated role/Storage/Qdrant erasure proof.
+
+Fresh initial checks:425offline backend plus10subtests,57isolated,269gateway/no skips,68scripts and foundation pass. The first run had424passes plus one new test failure: its deletion fixture used `confirm=True` instead of the existing required `confirmation="DELETE WORKSPACE"`. The fixture was corrected; the safety contract was not changed. Initial failure log is retained externally. Final exported logs bind repeated checks to the saved clean commit, never reuse previous test counts as recovery verification. Frontend, builds, browser, PostgreSQL and hosted/provider checks are NOT_RUN in this Python-only batch.
+
+Before edits, the trusted prior source ZIP SHA256 was verified and all488 source hashes matched the clean37e1603 checkout; no reset or conversational reconstruction. RUN-STATE.md records this batch, exact recovery/test/export commands and unfinished scope. Complete source/lock/dependency specifications and fresh logs are exported as an immutable verified ZIP, with full-source recovery checks recorded separately.
+
+No hosted deletion/retention/migration/deployment, customer records, processing approval, production/shared resource cleanup, credentials/security/DNS/paid-service or contributor operation. Legal hold, complete retention/erasure receipts, distributed leases, retry-persistence failure recovery and other ingestion/API/retrieval private-log paths remain open. This is not a complete privacy/lifecycle implementation or live persisted-log proof. Ledger246rows:234OPEN_ENGINEERING/8IN_PROGRESS/1FAILED/2BLOCKED_EXTERNAL/1narrow VERIFIED. Mandatory image clearance and independent new-head CI remain required; prior37 image job was still in progress at inspection, not counted as a successful scan.
+
+## Current fail-closed missing-auth configuration
+
+**LOCALLY_TESTED; full application PARTIAL_NOT_COMPLETE.** Follow-up to published `8c221b3313174219efeb07c849905488230bcb45` removes automatic demo-mode fallback when public Supabase configuration is absent. Configuration is checked before restoring cached workspace scope; the existing signed-out transition clears prior actor/workspace/messages/documents/key/quota/modal state. No session/discovery API or auth subscription is started in this condition. Configured OAuth operation and server authorization remain unchanged; no password/provider/security settings change. Explicit isolated demo fixtures are not represented as authenticated authority.
+
+Fresh combined-source validation: **283frontend tests across48files;269gateway/no skips;409offline backend plus10subtests;57isolated**, lint, TypeScript, Next/OpenNext builds pass. Both builds intentionally omit public Supabase configuration. **Two local Chromium desktop/mobile-emulated passes each pass48checks without that configuration**, using unchanged original smoke/visual/Worker-routing tests and visual baselines. This fixes the earlier seven no-config/demo failures rather than hiding them with test configuration. Three added auth regressions cover missing configuration with absent/stale cached scope and the actual store's private-state reset. These are local/public synthetic tests, not real OAuth role/Storage/provider acceptance, physical devices or production deployment.
+
+Exact2ef completed image evidence was independently reacquired in full from [job114192606568](https://github.com/Anupam0202/NexusRAG/actions/runs/38044988701/job/114192606568), with exact source and Complete-job/footer markers verified. Raw SHA256 `fa955006153502d3d0b259c20def238530586eb0b1f15bed936e35802fbbbb4d`. Grype reports163backend package/version/advisory matches:57High/50Medium/10Low/46Negligible,40packages/69advisories;114wont-fix/47not-fixed/2fixed. Frontend0; ignored matches0. Independent raw-row and parsed counts reconcile. Profiling retains163rows without duplicates; constant backend image is expected because the frontend descriptor confirms an empty match list. Version identifiers are preserved as identifiers, not parsed dates. These are scanner matches, not unique vulnerabilities or proof of exploitation. The mandatory image and required-summary gates FAILED; no suppression, gate change, unstable runtime substitution, vulnerability-remediation or merge claim. New source requires independent exact-head checks. Full raw/profiling receipts are retained externally, not added as repository runtime artifacts.
+
+No hosted040 migration/deployment, provider processing, production/shared resource cleanup, credential/security/DNS/paid-service or contributor operation. Approval for exact candidate/rehearsal rollout remains distinct from production and processing rights. Internal complete-product, quality, lifecycle and real-role/pipeline work remains unfinished, not disguised as external approval. Ledger245rows:234OPEN_ENGINEERING/7IN_PROGRESS/1FAILED/2BLOCKED_EXTERNAL/1narrow VERIFIED. Earlier reports below preserve historical scope.
+
+## Current authoritative retrieval filters
+
+**LOCALLY_TESTED; application PARTIAL_NOT_COMPLETE.** Follow-up to published `2ef7f43e108e183c8a7522086bba775ad0eb01dc` implements exact case-sensitive filename, case-insensitive extension, UUID uploader, inclusive upload timestamps, page ranges, and literal scalar chunk-metadata scopes in the Worker source. Document filters query durable records; page/metadata filters establish an authoritative chunk-ID allowlist for both dense and lexical retrieval. Qdrant retains tenant/document/version/generation fences and adds `has_id`, without a new payload index. Cached vector names/pages/content/metadata cannot substitute for durable authority. Rehydration applies the same filters to both paths; current document fields and, for chunk scopes, fresh chunk fields/hashes are checked again before persistence/return. Empty matching evidence abstains without Qdrant/Gemini calls. Metadata dots are literal keys; text/number/boolean types remain distinct. Missing page data never matches page zero.
+
+Scopes above100matching documents or200page/metadata-matching chunks fail before account admission/session writes rather than being truncated. Unfiltered lexical retrieval remains explicitly bounded/non-exhaustive. UI date-only end bounds include the complete UTC day; explicit timestamps stay exact. Invalid calendar dates, unsafe page bounds, malformed uploader IDs, injected extension grammar, nested/unsafe/oversized metadata, incomplete metadata controls and excessive selections fail safely. UI explains exact matching/bounds/page-zero semantics and resets filters/question/attestation on workspace changes. This does not add arbitrary metadata authoring or fix page-accurate extraction.
+
+Fresh restored-source checks pass: **269gateway/no skips;280frontend across48files;409offline backend plus10subtests;57isolated;59scripts**. Clean npm install, lint, TypeScript, Next and OpenNext builds pass. Disposable PostgreSQL17 baseline/forward-migration authorization/concurrency rehearsal passes, including real SQL case/extension/inclusive-date/null-page/literal-key/scalar-type predicates. Temporary fixtures roll back; the dedicated database is removed and server stopped. These SQL semantics and synthetic route/provider/React transports are not hosted PostgREST/OAuth/provider acceptance.
+
+**Two local Chromium desktop/mobile-emulated passes each pass48checks**, including public smoke, original visual baselines and actual local Worker document routing. Both use CI's declared synthetic signed-out public auth configuration. The earlier no-auth-config build entered legacy demo mode and failed7of48checks; its reported console/usage/deep-link/visual failures remain acknowledged, not relabeled passes. Original baselines and thresholds were not changed. The platform then canceled the next call at its per-turn execution limit, and the subsequent wake reset the computer to an older checkout. Published2ef plus the hash-verified source checkpoint were restored, later source fixes reconstructed, and the entire source revalidated. Complete restored source was checkpointed again before longer work. This is not real-device, live authenticated, Firefox/WebKit, provider-quality or production acceptance.
+
+An added poisoned-vector case exposed an existing lexical-only fusion defect: the caller omitted workspace identity from its verified lexical payload, causing final409when no dense hit existed. That identity is now preserved without weakening the authority validator. Tests also cover combined filters, six empty scopes, capacity denial before usage, metadata/filename changes during generation, exact filter encoding, actual UI dispatch/invalid-input handling/workspace reset. Old assertions rejecting valid now-supported filters were replaced with malformed-filter denial cases plus positive full-route tests, not removed. Initial lint errors were fixed without suppressing rules.
+
+The exact2ef [actual-image job114192606568](https://github.com/Anupam0202/NexusRAG/actions/runs/38044988701/job/114192606568) and [required summary114196123888](https://github.com/Anupam0202/NexusRAG/actions/runs/38044988701/job/114196123888) failed. Its detailed raw scanner/runtime report has not been reacquired here; do not inherit77ac finding counts. No gate weakening, suppression, prerelease/unstable substitution or protected merge bypass. New published source requires independent exact-head CI.
+
+No hosted040 migration, deployment, provider processing, resource deletion, rights/credential/security/DNS/paid-service or contributor operation. Required candidate source/schema approval, live role/Storage/pipeline acceptance, ten complete products, representative quality, page fidelity, streaming and lifecycle/recovery remain unresolved at their actual scopes; unfinished engineering is not an external blocker.
+
+## Current telemetry privacy follow-up
+
+**LOCALLY_TESTED; full application PARTIAL_NOT_COMPLETE.** Follow-up to published `77ac1b7afc86ff1d769be751071659dcaa2accbe` closes telemetry redaction bypasses: metadata beyond the inspected depth bound is replaced by a redaction marker rather than stringified; opaque values and non-string keys never invoke arbitrary private `__str__`/`__repr__` methods. Explicit raw error/exception/traceback metadata is redacted while diagnostic `error_type`/`error_code` remains available. Four usage/audit persistence/read failure loggers emit type-only diagnostics, never raw transport exception text. Existing known-key redaction and bounded collection behavior remain; this does not complete every remaining upload/retrieval/audit/privacy surface or prove live persisted-log redaction.
+
+Fresh combined-source validation: **409 offline backend tests plus 10 subtests**, **57 isolated tests**, **224 gateway tests with no skips**, **59 script tests**, source foundation and whitespace checks pass. Ten added regressions exercise real telemetry failure handlers, deeply nested credentials, opaque key/value side-effect prevention, private error detail and retained safe diagnostic codes. Tests use synthetic markers, denied outbound networking and mocked unavailable persistence, not customer records or actual provider credentials. Changed executable/test source detect-secrets 1.5.0 reports zero candidates; the complete four-file scan has five verified public git/receipt hashes, no exclusions or suppression. Source checkpoint retained externally before browser/CI investigation. A new user wake reset the computer to an older clean tree; current published77ac was fetched and restored before further source work, never assuming the old checkout was current.
+
+### Exact77ac CI — independent completed source evidence
+
+The exact published77ac head completed with twelve core successes, two intentional deployment skips, and failed mandatory image/foundation checks. Packaged040 PostgreSQL authorization/concurrency and frontend lint/unit/type/build passed; this remains CI rehearsal, not a hosted migration/deployment. Complete raw [image job114170133752](https://github.com/Anupam0202/NexusRAG/actions/runs/38037218422/job/114170133752) was independently reacquired, exact source/runtime marker and Complete-job end verified. Raw SHA256 `0d8bc9e60069e21be15ca88e0070179562c3c2b8ce0906da6dd337128586e817`. Grype0.118.0 reports163 backend package/version/advisory matches (57High/50Medium/10Low/46Negligible;40packages/69advisories;114wont-fix/47not-fixed/2fixed), frontend0, ignored-match counts0. Counts reconcile independently with raw rows; these are scanner matches, not unique CVEs or proof of exploitation. Actual native/neural runtime passed before the scan failed; no vulnerability clearance follows. This is77ac evidence, not inheritedcda counts. No suppression, severity change, unsupported prerelease/unstable substitution or protected merge bypass. The next published source must receive its own exact-head CI.
+
+No hosted040 migration, Worker deployment, production/shared-resource deletion, rights/credential/security/DNS/paid-service or contributor operation. Earlier approved candidate source and recovery resources remain untouched; no new full platform-parity inspection is claimed. Execution ledger stays243rows with234OPEN_ENGINEERING/5IN_PROGRESS/1FAILED/2BLOCKED_EXTERNAL/1narrow VERIFIED. Internal ten-product/quality/lifecycle/role/Storage/pipeline gaps stay open, not disguised as external prerequisites or completion. Isolated exact-source/schema rollout approval and production/processing decisions remain separate gates.
+
+## Current streamed gateway JSON admission
+
+**LOCALLY_TESTED; complete product PARTIAL_NOT_COMPLETE.** Follow-up to published `4b6474243db4c09647f34d1f5f711ef88b9107a1` replaces unbounded `request.json()`/finding `request.text()` accumulation with one reusable streamed JSON reader. Ordinary JSON/finding requests are capped at100,000 bytes / five seconds; invitation requests retain4,096 bytes / five seconds and same-code timeout guidance. One fixed byte buffer avoids per-fragment allocation growth. Per-read cancellation/timers are detached rather than accumulating listeners on one pending promise. Elapsed checks prevent immediately resolved empty-chunk floods from starving the deadline; an independent2,048-fragment cap returns CAPACITY_REACHED / 413 even if a Worker clock is frozen. Declared length never overrides actual received bytes; malformed/unsafe lengths, missing bodies, aborted transport and invalid UTF-8 fail safely. Transport cancellation is best effort and never awaited. Invalid parser/stream input is not reflected. Duplicate invitation reader logic is removed without loosening its field allowlist/hash-only authority.
+
+Oversized inputs receive an actionable byte-limit413 and are **rejected, not silently truncated**. Gateway chat admission and finding mutation are not reached by over-limit input. The existing client sends full conversation history; sufficiently long envelopes can reach the explicit limit and must be reduced, rather than receiving fabricated coverage. This is bounded-request protection, not a claim of completed history compaction, progressive generation, whole-ingestion/multipart safety or distributed abuse controls. Existing finding 100 KB and invitation 4 KB semantics are retained. Valid JSON with a wrong root shape preserves ordinary gateway schema 422; malformed JSON remains 400. Two existing processing-policy tests initially caught 400-versus-422 contract drift; the implementation preserves 422 without modifying those tests or weakening policy.
+
+Fresh **224 gateway tests, no skips**, **59 script tests**, source foundation/diff/syntax checks and local-only Wrangler 4.148.0 bundle pass. Changed-whole-file detect-secrets 1.5.0 found five reviewed non-secrets: the existing API-key input expression and four public commit/receipt hashes; no ignore/exclusion/suppression or whole-history clearance. Twenty-four added regressions cover exact UTF-8 byte boundaries, malformed/forged lengths, unbounded/stalled/empty streams and cancellation, abort, private input/parser exceptions, schema compatibility and actual mutation/reservation denial. A final combined-source rerun also passes 399 offline backend tests plus 10 subtests and 57 isolated tests. Gateway dry run exits explicitly without deployment; no hosted bindings/queues/secrets/settings are changed. Python/frontend executable source is unchanged from 4b; its fresh 399 backend tests plus 10 subtests / 57 isolated tests and prior 338 local browser/build evidence retain their scopes, not new live acceptance.
+
+Public candidate identity reads using a browser-like User-Agent returned 200: frontend still 2fbc5c98f6859824ebdc4c1f0c0f5d4cb8d2642e, gateway still 46bb14f743a81c1d7095de467bdc53047229aa79 / readiness NOT_PROBED. Initial default-user-agent HTTP denials are not represented as application outages. Public build/health metadata does not establish current binding/schema parity, provider readiness, persisted URL redaction or production verification. No migration 040, candidate release, production/shared-resource cleanup, rights/credential/security/DNS/paid-resource or contributor operation. Exact new-head checks and fresh scoped candidate approval remain required. Execution ledger: 243 rows — 234 OPEN_ENGINEERING, 5 IN_PROGRESS, 1 FAILED, 2 BLOCKED_EXTERNAL, 1 narrowly VERIFIED.
+
+## Current provider-error privacy and fail-closed key verification
+
+**LOCALLY_TESTED; complete application PARTIAL_NOT_COMPLETE.** This Python-only follow-up to `cda71113604d2430eefd6f4e23f863cd797055c3` repairs a real `RateLimitError` constructor collision: its subclass code previously collided with the hardcoded `GenerationError` keyword, raising TypeError rather than the intended 429. Specific error codes/details and rate-limit policy are preserved. Model initialization/failover, global exception, provider-health persistence, generation fallback metadata and streaming failure/audit no longer log or reflect arbitrary provider exception text. Safe error classes/codes remain diagnostic; raw exception strings are inspected only in memory where classification requires them. Extractive fallback stays explicitly qualified, not fabricated generation.
+
+Default FastAPI validation and actual WebSocket validation now return static 422 / error messages rather than echoing rejected input values, unknown-field names or malformed JSON. This intentionally omits server-side field diagnostics that can expose secrets; client field validation remains unchanged. Actual WebSocket unknown-provider/quota failure frames and audit omit raw errors; quota guidance no longer implies that adding a potentially charged key is the necessary recovery. Python key verification now fails with 503 on unknown transport failures or missing both SDKs instead of continuing to activate an unverified key. Tests prove the key manager is never reached in those cases. Known authentication/quota denials remain 400. Key-persistence failure logging is also type-only; this increment does not claim to complete BYOK privacy/cost policy or every remaining ingestion/retrieval log surface.
+
+Fresh **399 full offline backend tests plus 10 subtests**, **57 isolated backend tests**, **200 gateway tests, no skips**, **59 script tests**, source/migration foundation and git whitespace checks pass. Twenty-six new synthetic regressions cover subclass429 construction, classification, model initialization/failover, provider-health failure, all three generation fallback paths, HTTP422 inputs/unknown fields/malformed JSON, actual WebSocket validation/error/audit, unavailable SDKs and unknown key verification with no activation/storage. Outbound networking is denied by the full/isolated runners; no real provider credentials, customer content or hosted mutation is used. Changed-whole-file detect-secrets 1.5.0 reported seven reviewed non-secret candidates: three synthetic API-key/model fixture expressions and four public commit/receipt hashes. No ignore, exclusion or baseline suppression was used; no whole-history clearance is claimed. No frontend/gateway executable change; previous 338 public browser/build results remain source-scoped, not freshly run or deployed acceptance. Recovered local changes were durably checkpointed before additional tests; the first browser text extraction was truncated, so exact image evidence was reacquired completely before counting.
+
+### Exact cda CI and actual-image gate — fresh independent evidence
+
+Published cda CI finished with **12 core successes, 2 intentional deployment skips and failed actual-image/required-foundation checks**. The corrected [PostgreSQL packaging/concurrency job114051093467](https://github.com/Anupam0202/NexusRAG/actions/runs/37998674667/job/114051093467) and its protected clean-baseline summary passed. This fixes338 CI packaging, but is not a hosted Supabase 040 migration.
+
+The complete raw [image job114051241841](https://github.com/Anupam0202/NexusRAG/actions/runs/37998675093/job/114051241841) was independently loaded and parsed, not inherited from an earlier count. Raw SHA256 `a2e5a6281ba37eb6bb616ecf1450cbf68e9384f2333e17874c56529353f73c7b`; source cda identity and final Complete-job marker verified. Grype 0.118.0 reported **163 backend package/version/advisory matches**, 40 packages / 69 distinct advisories: 57 High, 50 Medium, 10 Low, 46 Negligible; 114 wont-fix / 47 not-fixed / 2 fixed. Frontend: 0 matches; ignored-match counts: 0 on both images. Backend imageID `sha256:b55a84482a9a24762e8d72ac211a010f7ae03e7e01cae0635fd066e3d7d48a6e`; frontend `sha256:4828da54ea508f9d6950fccdc2a58c84df044efb3570517daf259c107b579dbd`. Actual offline native/neural runtime acceptance precedes scan failure; it does not establish vulnerability clearance or provider rights. Per-record counts reconcile independently with raw emitted rows. Match rows are not unique CVEs or proof of exploitation. Complete raw/normalized evidence is archived outside the application repository. The generic profiler failed on mixed inferred date/timezone types in version strings; a lossless version-prefixed semantic projection passed profiling, no records were dropped. Constant backend image values reflect frontend's empty match list, confirmed by its descriptor and scan log.
+
+No scanner suppression, lowered severity gate, unstable/prerelease replacement, protected merge bypass or CVE remediation claim. New source needs its own exact-head CI after publication. Execution ledger at this historical increment: 242 rows — 234 OPEN_ENGINEERING, 4 IN_PROGRESS, 1 FAILED, 2 BLOCKED_EXTERNAL, 1 narrowly VERIFIED. Hosted invitation/source approval, live persisted URL redaction, real-role/Storage/pipeline acceptance, ten complete-product workflows and representative quality remain unresolved at their actual scope. No hosted migration/deployment, resource deletion, production, rights/credential/security setting, paid-service or contributor change in this increment. Existing candidate and recoverable PR3/shared Preview resources remain untouched; no fresh full platform parity inspection is claimed here.
+
+## Current CI packaging repair and bounded local rate-limit tracking
+
+**LOCALLY_TESTED; hosted/production acceptance remains unverified.** Exact invitation head33806e9 database CI failed: [job114048764110](https://github.com/Anupam0202/NexusRAG/actions/runs/37997977608/job/114048764110) reported missing `040_recipient_bound_workspace_invitations.sql` in its temporary package. The fail-closed database summary correctly failed. The workflow now copies040, and a new regression verifies every forward SQL file referenced by the actual rehearsal is packaged. A fresh local mirror of the workflow's16baseline/forward SQL copies passed full authorization/lifecycle/concurrency and60table/93function backup/restore; the mirror/test DBs were removed and server stopped. This is not a hosted migration or a retrospective338 CI pass.
+
+The retained Python per-IP limiter previously kept every observed client indefinitely and used wall-clock time. It now uses a monotonic60-second sliding window, bounded deques and10,000tracked-client cap with amortized idle eviction. New-client admission at capacity fails closed without evicting live histories; denied traffic cannot extend/reorder expiration, reservations occur before downstream awaits, and delayed responses cannot resurrect expired buckets. Application120/minute remains unchanged and request121 is denied. This is per-process protection, not distributed or durable workspace-budget enforcement. Fresh373offline backend tests plus10subtests,57isolated,200gateway/no skips and59script tests/63subtests pass. No frontend/gateway executable change in this follow-up;338 public browser/build receipts remain source-scoped, not a new deployed acceptance claim. New exact-head CI is required after publication.
+
+Execution ledger241rows:234OPEN_ENGINEERING,3IN_PROGRESS,1FAILED,2BLOCKED_EXTERNAL,1narrow scopedVERIFIED. No full requirement/product closure is asserted. No hosted migration/deployment, production/shared-resource, provider-processing, credential/security/paid-resource or contributor change. Mandatory image clearance remains unresolved; earlier3ef findings are not suppressed. Candidate remains2fbc/46bb/schema039.
+
+## Current recipient-bound invitations — local source, hosted acceptance pending
+
+**LOCALLY_TESTED; complete product PARTIAL_NOT_COMPLETE.** Forward migration040 adds private, service-mediated recipient-bound workspace invitations with seven-day expiry, confirmed Auth email authority (not mutable profile email), owner/admin management, no owner-role grant, last-authority revalidation, workspace serialization, pending/member capacity, hash-only one-time codes, request idempotency, revocation, audit and capability-revision fencing. Accepted replay cannot regrant a removed membership. Direct browser and service-role table grants are revoked; only fixed-search-path service-only functions mediate authority. Expired invitations cannot be accepted or counted as pending, and replacement expiration is audited.
+
+Gateway and retained Python routes implement bounded inventory, create/revoke, unbound authenticated acceptance and actual migration-capability probing. Missing040 fails closed rather than enabling controls. Frontend Workspaces acceptance and owner/admin Members management use actor/workspace fences, in-memory-only codes, ambiguous-outcome retry of the same code/request, refresh/pagination and accessible labels. Manual private code sharing is functional source behavior; **no email delivery service is claimed**. Codes are never URL parameters or persisted in browser storage. Streamed POST bodies are bounded to4KiB/five seconds; stalled transport cancellation cannot delay a safe oversized-body denial; Python validation errors redact rejected inputs instead of echoing code or recipient values.
+
+Fresh recovery validation: **363 full offline backend tests plus10subtests**, **57 isolated backend tests**, **200 gateway tests/no skips**, **260 frontend tests/47files**, **58 script tests/48subtests**, lint/types and clean-install full npm audit zero findings passed. Local PostgreSQL17.10/pgvector0.8.2/pgcrypto1.3 full baseline-plus040 authorization/concurrency passed;16 concurrent acceptance/replay calls created one membership/audit,64 pending-admission calls respected50pending capacity. Logical backup/restore matched all60 synthetic tables and93functions. This is a disposable local database with Auth/Storage stand-ins, not hosted Supabase or real OAuth isolation. Next/OpenNext build and25static routes passed. Unchanged original public Chromium desktop/mobile-emulated smoke/visual/Worker-routing suites passed48/48 twice against this rebuilt local Worker; real Firefox functional coverage passed22/22 twice. No screenshot threshold/baseline changes. These public/local runs do not establish invitation OAuth/live-role acceptance, WebKit or physical-device coverage. A wrong readiness asset path produced500, and the first Firefox invocation used invalid variadic project syntax; corrected commands passed without altering tests. Local database fixtures and logical restore were removed after verification, zero matching test databases remained and the disposable server was stopped. No inherited pass is counted. Initial recovered fixture typecheck failure and sandbox-tooling restoration are retained in external logs, not hidden or fixed by weakening tests.
+
+Source recovery replayed only seventeen recorded local source-write/edit events, never historical shell/provider/deployment actions. Recovered code was checkpointed before fresh tests. Changed whole-file detect-secrets1.5.0 reported four reviewed non-secret candidates: two existing public baseline/main Git identifiers, the existing API-key input expression and an explicitly offline synthetic JWT fixture. No ignore/baseline suppression or whole-history clearance claim.
+
+Execution ledger now has240rows:234OPEN_ENGINEERING,2IN_PROGRESS,1FAILED,2BLOCKED_EXTERNAL,1narrowly scoped VERIFIED. Invitation implementation remains IN_PROGRESS until source review/CI and approved hosted real-role/lifecycle acceptance; all224 complete-product normative requirements and ten product scenarios remain open at their required scope. No040 hosted migration, candidate update, production cutover, resource deletion, credentials/security change or provider-processing approval was performed. Candidate stays approved2fbcfrontend/46bbgateway with hosted039, and contributor cleanup remains deferred.
+
+### Exact3ef CI recheck — mandatory image gate remains FAILED
+
+Independent GitHub recheck confirms review head `3ef393300f8e5b15b215cb510cdb49f30da5b990`: twelve core check successes, two intentional deployment skips, mandatory actual-image and foundation-summary failures. [Actual image job113974257066](https://github.com/Anupam0202/NexusRAG/actions/runs/37975974854/job/113974257066) produced Grype0.118.0 findings previously independently read from its complete raw log:163backend package/version/advisory matches (57High/50Medium/10Low/46Negligible;114wont-fix/47not-fixed/2fixed), frontend0. Raw receipt SHA256 `a856a5eb045019fad88845d7d38b05be65a9db8ceb1f5e7372904d6c1b9e8953`; the raw computer copy was lost on reset, so its hash and prior session inspection are not represented as a newly downloaded archive. Backend imageID `sha256:b5976e32f91dd8972d1060bdad0ce711acb322486e8b51d17fde547c3c018256`, frontend `sha256:fbc0193bb936ffcf3f3fed630c486ebdca1898d2f6c0c2d56c3b989c3a1fb5af`. Actual image runtime passed before scanning; that is not vulnerability clearance. No suppression, cutoff change, prerelease swap or protected merge bypass. The invitation source must run its own exact-head CI after publication.
+
+## Current active workspace inventory and release-closure safeguards
+
+**LOCALLY_TESTED — source work only; complete product remains PARTIAL_NOT_COMPLETE.** The active gateway previously capped workspace discovery at 50 records without a continuation or exact total. Its default discovery could choose an inactive/tombstoned membership before a valid active workspace. Gateway and Python paths now filter joined active workspace authority before default selection, order UUID keyset pages, return a separately observed exact actor-scoped HEAD total and continuation, and fail closed on unknown counts, invalid records or pagination. Pages are bounded to 1–100, including validated lookahead. The workspace UI supports on-demand load-more/retry, honest loaded-versus-total labels and stale-account/request fences. Creation refreshes authoritative inventory; failed discovery no longer advertises “no workspaces yet.” These are not transaction-snapshot totals, invitation completion or real-role live acceptance.
+
+Fresh local validation: **341 full offline backend tests plus 10 subtests**, **57 isolated backend tests**, **180 gateway tests with zero skips**, **253 frontend unit tests across 46 files**, **58 script tests**, frontend lint and TypeScript, clean `npm ci --ignore-scripts` with zero audit findings, Next/OpenNext builds and all 25 required static routes passed. Original public Chromium desktop/mobile-emulated smoke/visual/Worker-routing checks passed **48/48** against the local Wrangler Worker built with public-only rehearsal OAuth metadata. Original screenshot thresholds/baselines are unchanged. A second pass after the final rebuilt Worker again passed 48 Chromium and 22 Firefox checks; source and final-build results remain local-only. The first browser attempt failed because the reset sandbox lacked the test browser executable; downloading the pinned Playwright engine restored the run. After restoring the missing sandbox GTK3/libXcursor libraries, real Firefox functional checks passed **22/22** independently. Firefox initially failed at browser launch, not an application assertion. No WebKit or physical-device result is claimed; authenticated new-source acceptance remains unverified. Prior source passes are not inherited. Changed-whole-file detect-secrets 1.5.0 found four candidates: two verified public baseline/main commit IDs, an existing API-key input expression and an existing synthetic JWT test literal. Each was reviewed as non-secret without suppression; whole-history clearance is not claimed.
+
+The machine-readable `execution-ledger.json` contains all **224 exact normative requirements**, **ten complete-product acceptance scenarios** and five scoped defect/approval/resource entries: 234 OPEN_ENGINEERING, one IN_PROGRESS, one FAILED, two BLOCKED_EXTERNAL and one VERIFIED. OPEN_ENGINEERING includes source implementations lacking full current acceptance, not a claim that no implementation exists. The sole VERIFIED entry is the narrowly approved PR3 quarantine, not the product. Internal engineering is not relabeled external. `check_execution_ledger.py` rejects missing/duplicate normative IDs, wording drift, missing products, empty verification receipts and unspecified blockers. Its separate `--require-closure` fails for every unresolved entry, including approvals; both production component jobs now run it before configuration/deployment. Structural validation is not production verification or approval. This increment does not execute deployment.
+
+### Exact 59a container failure — independently inspected, not cleared
+
+Exact prior head `59a454725fee5d402ce91f70b352353eae293687` recorded twelve successful core checks, two intentional deployment skips, and failed mandatory image/foundation checks. The actual [image job 113953898006](https://github.com/Anupam0202/NexusRAG/actions/runs/37970000673/job/113953898006) ran Grype 0.118.0. Raw log SHA256 is `939dbd9d9e35946381ca3de310eb7a0c4a2b0e6c5e70203ea94aad75cbc5fb41`. Backend image digest is `sha256:8ed3705779fd574c143a03710dcde02315659d06006f17d93631bb8ee1cbf46d`; frontend is `sha256:0f7ea4e2e7a7395407f47cff32544fd63910f0f8da9b844fcc4ed2c59ab6c367`. Actual offline neural/native/document runtime checks and the 326-test backend image suite passed before scanning. The scanner emitted **163 package/version/advisory matches**, **40 packages**, **69 distinct advisory IDs**: 57 High, 50 Medium, 10 Low, 46 Negligible; 114 wont-fix, 47 not-fixed, two fixed; 161 Debian matches and two interpreter-binary matches. Frontend findings were empty. Match rows are not unique CVEs or proof of exploitability.
+
+Official evidence was read for [util-linux CVE-2026-3184](https://security-tracker.debian.org/tracker/CVE-2026-3184), [glibc CVE-2026-5435](https://security-tracker.debian.org/tracker/CVE-2026-5435) and [GCC CVE-2026-95619](https://security-tracker.debian.org/tracker/CVE-2026-95619): the installed stable Trixie versions remain listed vulnerable; examined fixed versions are in unstable, not validated replacements. The official [TemporaryDirectory CVE-2026-12345 record](https://www.cve.org/CVERecord?id=CVE-2026-12345) differs from the binary scanner's applicability/fix claim; the other interpreter match is poplib CVE-2025-15367, not the tempfile issue. Stable release context was checked at the [official Python release announcement](https://blog.python.org/2026/10/python-31022-31117/). This discrepancy is not a waiver or successful remediation. All actual match rows and normalization evidence are preserved in the external verification archive. No runtime package metadata was deleted, no package-only reduction was accepted as a fix, no alpha/RC/unstable substitution, advisory suppression, threshold reduction or protected merge bypass occurred.
+
+New source pins the observed stable Grype version and adds bounded image/distro/scanner-database, package namespace/layer/source metadata plus an actual installed dpkg runtime inventory before the existing real container test. These are diagnostic provenance improvements, **not CVE remediation**; the next exact published head still requires its own actual image build/runtime/security job. The image defect remains FAILED/internal OPEN_ENGINEERING. Docker is unavailable in the local sandbox; local helper regressions do not establish a newly built container result.
+
+### Preservation and approval boundary
+
+At **2026-10-09T18:35:21Z**, bounded independent reads reconfirmed PR3 frontend/gateway workers.dev/preview flags disabled, empty PR3 schedules and consumer list, and both retained queue/DLQ backlog count/bytes/oldest timestamp zero. A larger metadata batch timed out; this bounded retry is not a fresh complete active-version parity proof. Rehearsal aggregates at 18:34:47Z returned zero ingestion jobs, active leases, pending outbox and uploads; migration registry remains 20261008184100 (039). No additional Worker, queue, Supabase, Qdrant, production/shared Preview, DNS, data, rights, credential or paid-resource change occurred. Last qualified live candidate source remains frontend 2fbc/gateway 46bb; main remains 85b14f and PR #8 is unmerged. New source is not approved for isolated deployment by the earlier 2fbc-only consent. Production cutover and operator processing-rights decisions remain external prerequisites; all unfinished internal product/quality/role/pipeline engineering remains explicitly open. Contributor cleanup is still deferred.
+
+## Prior approved PR3 quarantine and Python member-contract alignment — historical source checkpoint
+
+**PREVIEW_VERIFIED — scoped reversible PR3 quarantine only.** The owner explicitly approved disabling both PR3 workers.dev/preview URLs, removing the PR3 gateway five-minute cron and detaching its ingestion consumer only after fresh no-pending-work checks. Before-image and exact restoration payloads were preserved outside the application repository. Fresh rehearsal aggregates and both retained PR3 queue/DLQ metrics were zero before detachment. No queue messages, database rows, Worker, queue, secret or key was deleted or rotated.
+
+The first API/public pass at 17:40–17:41Z confirmed the approved controls. A second independent pass at **2026-10-09T17:55:18Z–17:55:22Z**, conservatively beyond Cloudflare's documented fifteen-minute cron propagation window, reconfirmed disabled PR3 URL/preview flags, empty schedules and no ingestion consumer. PR3 frontend `/` and gateway `/health` returned 404 both times. Candidate and production-connected shared Preview returned 200; all four protected Workers' deployment IDs, active-version IDs, filtered bindings, URL flags and schedules match the preserved before-image exactly. All six Workers and six queues remain present. Rehearsal ingestion jobs, active leases, pending outbox and uploads are still zero; retained PR3 queue/DLQ backlogs and bytes are zero. This is bounded control/reachability verification, not proof of global historical cron execution or complete product acceptance.
+
+PR3 Workers/queues are now KEEP_RECOVERY, not active application paths. Original versions, bindings and unreadable secrets remain preserved. Recovery payloads restore prior URL flags/cron and the original bounded consumer/DLQ settings; recreating the consumer may allocate a new ID. Rollback was **not executed**, so no recovery rehearsal pass is claimed. Shared Preview still uses production authority and was not touched. Supabase rehearsal Site URL already points at the candidate and its exact OAuth callback is allowed; the two PR3 redirect allowlist entries remain unchanged pending separately scoped security-configuration approval. No Supabase, Qdrant, customer-data, provider-rights or paid-resource change occurred.
+
+The Python/FastAPI roster path also had an unbounded PostgREST read and reported downloaded row count as the workspace total. It now aligns with the gateway: bounded 1–100 UUID-keyset pages, `user_id` ordering, exact workspace-scoped HEAD count selecting `user_id`, continuation and `total_is_exact`. Unknown/malformed/unsafe counts and invalid member records fail closed; read-time membership revocation returns 403 instead of roster data. Provider transport failures have a safe 503 response. Demo compatibility is preserved. Exact count and page reads are separate observations, not a claimed transaction snapshot under concurrent member changes.
+
+Fresh **326 full offline backend tests plus 10 subtests**, **57 isolated backend tests**, **169 gateway tests with zero skips**, **44 script tests**, root foundation validation and diff whitespace checks pass. Twenty-one additional backend regression cases cover three pages/205 members, malformed/unsafe count headers, injected cursors/invalid limits, role compatibility, revocation, unknown count and invalid records. These use offline synthetic authorization and mocked REST transport; they do not replace real OAuth/role/Storage acceptance. The pinned detect-secrets 1.5.0 scan of the seven changed whole files reported ten candidates: five verified public Git commit identifiers, four existing offline test-only credential literals and one explanatory scan-review sentence. All were reviewed as non-secret without suppression; whole-history clearance is not claimed. No frontend executable code changed in this increment. The backend repair is LOCALLY_TESTED, not a deployed durable Python runtime or production verification.
+
+Exact preceding b30 CI independently recorded twelve core successes, two intentional deployment skips and mandatory image/foundation failures. Its actual raw image job reported 163 backend package findings (57 High, 50 Medium, 10 Low, 46 Negligible), 114 wont-fix/47 not-fixed/two scanner-reported interpreter fixes naming Python alpha/RC releases; frontend findings were empty. No suppression, pre-release runtime substitution, threshold reduction or protected integration bypass was used. New review source must run its own exact-head checks. Protected main, deployed candidate frontend 2fbc/gateway 46bb and approved schema 039 remain unchanged. Complete-product/internal engineering, rights, quality and real-role/pipeline/production gates remain incomplete; contributor cleanup remains deferred.
+
+## Pre-quarantine membership and platform inspection — historical checkpoints
+
+### Historical b30 membership correctness repair — bounded inventory, not sampled totals
+
+Fresh independently loaded raw evidence for completed review head `234487e455676c5efe014f3d441c39488486c357` confirms 12 successful checks, two intentionally skipped deployments, and failed mandatory image/security and summary checks. The actual backend image contains 163 reported package findings (57 High, 50 Medium, 10 Low, 46 Negligible); frontend scan findings are empty. The two scanner-reported fixes name Python 3.15 alpha/RC builds, not an accepted stable runtime replacement. No suppressions, threshold changes, pre-release runtime substitution or protection bypass were used. These are scanner package findings, not a count of unique CVEs or proof of exploitability; normalization preserves the package/CVE/version grain. New source work below does not inherit this head's CI success or deployment identity.
+
+The gateway previously returned only the first 100 workspace members and labeled that page length as the total. The source repair uses an exact workspace-scoped HEAD count selecting the real `user_id` column (this table has no `id`), bounded UUID keyset pages, stable user-ID ordering, a continuation cursor and post-read membership revalidation. Missing/unsafe counts and malformed cursors fail closed. The member screen and finding-reviewer picker support loading additional pages without eager bulk roster reads. The member screen adds retries and refresh, preserves actor/workspace stale-response fences and hides all mutation controls when management capability is unavailable. Add/remove refresh the authoritative inventory rather than inventing a revised total. Fresh stabilized validation: **249 frontend tests in 46 files**, **169 gateway tests with zero skips**, frontend lint and TypeScript checks, Next build and OpenNext build with 25 required prerendered routes all passed. The full offline backend suite passed **305 tests plus 10 subtests**, the isolated runner passed **57 tests**, and **44 script tests** passed. Against the stabilized local Worker with rehearsal public OAuth metadata, original Chromium desktop/mobile-emulated smoke/visual/routing baselines passed **48/48 twice**, and real Firefox passed **22/22**. An initial build without public Supabase configuration exercised demo rather than signed-out states and failed seven browser checks; rebuilding with the correct isolated public metadata resolved them without test/baseline changes. WebKit launch is unavailable in this sandbox because required system libraries are missing; no WebKit or physical-device pass is claimed.
+
+GitHub targeted secret scanning returned “Advanced Security not enabled”; the pinned local detect-secrets 1.5.0 fallback found six candidates: four public commit identifiers, one existing API-key input expression and one explanatory metadata sentence, reviewed as non-secret without suppression. This is local source work, not yet deployed member acceptance, invitation completion, or production verification.
+
+### Historical pre-approval cleanup inspection — superseded by approved quarantine above
+
+Browser confirmation found **active PR3 traffic**, not an unused resource: the PR3 gateway provider aggregate reported 2,355 invocations and 7,623 subrequests for 2026-10-02T16:28:55Z inclusive through 2026-10-09T16:28:55Z exclusive. The PR3 frontend static-asset aggregate reported 193 requests for 2026-10-02T16:30:04Z inclusive through 2026-10-09T16:30:04Z exclusive, despite its Worker invocation panel displaying zero. Static assets bypassing the Worker explain why a zero invocation badge is insufficient retirement evidence. Counts do not identify human versus bot/test traffic or separate cron/queue/HTTP events. The ledger records actual query filters, distinct windows and these limitations. PR3 quarantine remains owner-approval-required; no live resource, data, secret, cron, queue consumer or URL was changed. A fresh Qdrant console view still showed NexusRAG Healthy/Free, but its existing Open Cluster UI link timed out again. Collection inventory remains unresolved; no collection/key/data change or empty-inventory claim was made.
+
+Fresh inspection at review head `b87b88ad9bb653f5ed8a04eaee63f7f73966f0c0` confirms six Cloudflare Workers and six queues. All queue metrics returned zero backlog/bytes; this is a point-in-time precheck, not deletion permission. Candidate, PR3 and shared Preview gateways each retain a five-minute schedule. Candidate and PR3 use rehearsal but different vector collections; shared Preview active authority is production although latest uploaded metadata points to rehearsal. Active-version resources, not latest settings, were checked. Pages, KV, D1, Vectorize, Hyperdrive, zones and Worker custom-domain inventories are empty. R2 is not enabled. A subsequent fresh Workflows list returned HTTP 200, empty results and total_count 0; this closes the earlier unknown inventory without enabling resources.
+
+The obsolete PR3 frontend/gateway deployment configurations have no references in executable workflows/scripts/package commands. They are removed only from this review source; immutable b87 history preserves recovery. Canonical main dispatch already targets only candidate resources. A new validation regression rejects reintroduced retired config paths, preventing silent recreation. Fresh script suite: **44 tests passed**; root foundation check and **158 gateway tests passed, zero skips**. Targeted source secret scan had four candidates, all checked as existing public Git commit identifiers; no suppression or whole-history clearance is claimed. The final four-file scan also flags the literal explanatory scan-review metadata sentence; it was inspected as non-secret, not suppressed. This is repository cleanup, not a claim that PR3 cloud resources were deleted.
+
+Source review found that `sweepJobs` selects due jobs from its Supabase project without runtime-target filtering. Thus keeping both old PR3 and candidate scheduled dispatch active is not a genuinely isolated ingestion topology, despite distinct queues/collections. Rehearsal read-only aggregates currently show zero ingestion jobs, active leases, pending outbox and upload rows. No customer content was read, no job/message was purged and no provider processing was approved. The proposed first retirement is reversible quarantine of PR3 public/preview URLs, its cron and its empty queue consumer, while retaining Worker versions/secrets, queues and all data. It requires exact owner approval and another fresh drift/backlog/lease check. Irreversible Worker deletion still requires verified secret provisioning/escrow; exporting code does not back up unreadable secrets or stable encryption keys.
+
+Both Supabase projects are healthy and necessary for their observed production-connected/rehearsal roles. Each has 56 public tables with RLS flags and a private documents bucket; production has 79 public functions versus rehearsal 88 and an older migration registry. Neither has Edge Functions or development branches. Flags/counts are not actual role/Storage acceptance, nor grounds to prune data/schema. Qdrant console shows one healthy Free 1.19.1 cluster; collection-level inventory remains UNRESOLVED_DO_NOT_TOUCH. No Supabase, Qdrant, production/shared Preview, credential or paid-resource cleanup has been performed.
+
+Latest b87 image evidence was independently downloaded and aggregated: 163 backend findings (57 High / 50 Medium / 10 Low / 46 Negligible), 114 wont-fix / 47 not-fixed / two scanner-reported fixes; frontend scan findings empty. Required image/foundation checks remain failed despite twelve core successes and two intentional deployment skips. No unsupported interpreter, scanner waiver, severity reduction or merge bypass was introduced. Deployed frontend remains approved 2fbc and gateway 46bb; protected main remains 85b14f. Contributor cleanup and the broader internal product gaps remain incomplete, not disguised as external blockers.
+
+The canonical `docs/implementation/cloudflare-ledger.json` now replaces stale two-Worker/zero-queue/READY claims with the current dependency snapshot, explicit preservation/retirement classifications and approval/recovery gates. Historical evidence remains in Git and dated audit sections; no duplicate completion report was added.
+
+## Earlier isolated 2fbc acceptance — historical checkpoint, still the actual deployed source
+
+The owner explicitly approved only frontend source `2fbc5c98f6859824ebdc4c1f0c0f5d4cb8d2642e`, drift/free-plan/isolation guards, rollback preservation and read-only real-user retesting. After the workspace reset, a fresh clean checkout rebuilt that exact published source with public rehearsal configuration; clean `npm ci --ignore-scripts` reported zero audit findings, lint and TypeScript passed, and OpenNext produced all 25 required static routes. The tested source had 242 unit tests / 46 files including seven Documents authority regressions. No secret values were printed or extracted from server bindings.
+
+**Actual isolated frontend:** active/latest `5db33e20-dcc8-4b51-ae8e-ceabe0a8c9a7`, deployment `aee921a9-38a2-457d-b4e8-9e7f80048f81`, rollback `c78d3513-c914-4d6a-9d6a-b9583d61112d`. Bundle SHA256 `3734f66c164ba1e6d43f72f326134d23d03b33a6da6c77a6f778347498d355c1`, 7,089,953 bytes; fresh deployed-module download matches the rebuilt approved bundle exactly. The 80-file manifest had 28 uploads and zero missing assets; upload completed cleanly without an ambiguous warning or write retry. The console reconfirmed Free / Current plan; frontend active/latest and unchanged rehearsal gateway were guarded before asset upload and again before activation. ASSETS/self-reference, compatibility flags, tags/tails/logpush and complete observability configuration were preserved. Query redaction is configured; persisted behavior is still NOT_PROVEN.
+
+**Real existing Google OAuth/no-workspace acceptance now passes ten of ten strict scenarios, twice:** Privacy, Documents, Findings, API keys and Evaluations at desktop and mobile-emulated sizes. All confirm absence through GET current-workspace/404, offer valid onboarding and keyboard-focusable retry, have no horizontal overflow or false backend-outage label, and make zero workspace-status, mutation or provider calls. No workspace/document/customer fixture or processing approval was created. The earlier eight-of-ten 415 result below is historical and not relabeled as a pass. Actual new-source public acceptance also passed 48 Chromium desktop/mobile-emulated smoke/visual/Worker checks and 22 real Firefox functional checks; original baselines/tolerances are unchanged. These are not physical-device or full-product acceptance.
+
+Ordinary local-scope sign-out and existing GitHub OAuth restored the owner without credentials, linking or account-security changes. Actual policy GET returns HTTP 200/response contract 038; owner region loads, no FORBIDDEN alert appears, and both approval/revocation controls remain disabled with operator rights review missing/stale/blocked. A first policy probe asserted before the asynchronous read finished and failed; diagnostic inspection plus a corrected wait for the actual policy response then passed. No authority or processing permission was changed to make the test pass.
+
+Independent final active-version inspection and browser public identity agree on frontend 2fbc. Gateway remains `46bb14f743a81c1d7095de467bdc53047229aa79`, active `f330d5f0-5389-4ffe-8a7d-ccc1eab29c4d`, its twelve bindings and rehearsal authority `ukgjygzfhyvnrsecdcuu` unchanged; executable gateway tree is identical. Approved schema 039 is untouched. A generic Python-urllib identity read was rejected with 403; supported browser-session identity reads succeeded. Production/shared Preview, provider keys, approval records, customer data and paid resources remain untouched.
+
+Exact 2fbc CI completed: twelve core successes, two intentionally skipped deployment jobs, mandatory self-managed image and foundation-summary failures. Its actual raw image log was independently retrieved, not borrowed from 415: backend 163 findings (57 High / 50 Medium / 10 Low / 46 Negligible), fix states 114 wont-fix / 47 not-fixed / two scanner-reported fixes naming Python pre-releases; frontend scan findings empty. No RC substitution, advisory suppression, lowered cutoff or integration bypass occurred. Main remains protected at `85b14f131f5eacb07082a32c7173f20be472772f`; PR #8 remains unmerged. This acceptance is **PREVIEW_VERIFIED only for the explicit read-only flows above**. Complete-product/internal implementation and rights/quality/role/Storage/pipeline/production gates below remain unresolved; contributor cleanup stays deferred.
+
+Any later receipt-only commit does not change the actual deployed SOURCE_COMMIT from 2fbc. Its exact-head CI must run independently; identical executable trees are not permission to relabel historical checks or deployment identities.
+
+## Earlier 415/Documents-source checkpoint — historical, superseded above
+
+The separately approved isolated frontend source `415610db33487d76cf368cfa2b0a752eb913513a` is now actually deployed. Active/latest version `c78d3513-c914-4d6a-9d6a-b9583d61112d`, deployment `01dccbd0-6bfe-4f5d-bc29-4b38f6bc3da5`, rollback `45ee76eb-69c3-488b-a96e-f14331f2e493`. The authenticated console reconfirmed Free / Current plan and exact expected source/resource identities before writing. Bundle SHA256 `0a3a66e1906db2ef5fc0db2b94826a58477a6897426a41f877375f157b1f6fe8`, 7,089,714 bytes; fresh deployed-module download matches byte-for-byte. All 80 static assets were present (29 uploaded); response succeeded without an ambiguous-upload warning. ASSETS, candidate self-reference, compatibility flags, named OpenNext exports, Worker-first `/documents/*` routing and observability configuration were preserved. Persisted query redaction remains NOT_PROVEN. Gateway remains 46bb / active `f330d5f0-5389-4ffe-8a7d-ccc1eab29c4d`, bound to rehearsal `ukgjygzfhyvnrsecdcuu`; approved migration 039 is unchanged. No production/shared Preview/gateway/schema/approval/key/paid-resource modification occurred.
+
+**Actual 415 public acceptance:** 48 Chromium desktop/mobile-emulated checks and 22 real Firefox functional checks passed, original baselines and tolerances unchanged. Real existing Google OAuth/no-workspace testing on five private routes at desktop and mobile sizes passed the strict global API gate in **eight of ten** scenarios. The corrected shared header consistently shows Workspace required without a status request or false backend-outage label. Privacy, Findings, API keys and Evaluations pass. Documents still makes one premature `/api/v1/status` GET in each layout before discovery settles. All ten show the proper no-workspace boundary; no workspace/document fixture, processing approval, mutation or provider call was made. This is a measured remaining defect, not a green ten-scenario claim.
+
+The new **LOCALLY_TESTED, not deployed** Documents correction guards upload-limit status reads on API access and authenticated actor/workspace authority, binds explicit request context, preserves demo/default limits and drops prior-account responses. Seven new regressions cover loading, signed-out, absent workspace, absent actor, viewer context, demo compatibility and account switching. Fresh full frontend validation passed **242 tests / 46 files**, zero-error/zero-warning lint, TypeScript and OpenNext/Next production build. These checks do not establish deployed acceptance of this additional source. All other status call sites were traced for startup access guards. Targeted local secret scanning of the three changed non-ignored files found zero candidates; this is not whole-history clearance. An exact-source isolated frontend update and another real-user strict pass are still required; no broader deployment permission is inferred from the earlier 415-only approval.
+
+Exact published 415 CI completed with twelve core successes, two intentionally skipped deployment jobs, and failed mandatory image/foundation checks. The independently retrieved actual 415 image log reports 163 backend findings: 57 High / 50 Medium / 10 Low / 46 Negligible; fix states 114 wont-fix / 47 not-fixed / two scanner-reported fixes; frontend zero. No gate, advisory, protection or baseline was weakened. Main remains protected at `85b14f131f5eacb07082a32c7173f20be472772f`; PR #8 is unmerged, production is not verified and contributor cleanup remains deferred. Complete-product/internal implementation gaps and rights/quality/role/Storage/pipeline acceptance below remain unresolved.
+
+## Earlier 1ef/header-source checkpoint — historical, superseded above
+
+The owner separately approved only the isolated candidate frontend update to `1ef459fbcffaf9324b7c9707b93412520b0064b8`, with renewed isolation/free-plan/binding checks and rollback preservation. The authenticated Cloudflare console showed Free / Current plan; existing frontend active/latest matched expected 46bb, gateway authority remained rehearsal `ukgjygzfhyvnrsecdcuu`, and public-only frontend configuration was rebuilt from exact clean published 1ef. No keys were rotated/read from server bindings, paid plans/resources enabled, or production/shared Preview/gateway/schema modified.
+
+**Actual candidate frontend:** active/latest version `45ee76eb-69c3-488b-a96e-f14331f2e493`, deployment `216a4c3d-e5e0-4702-b0f0-90431899edfc`, rollback `794602de-7258-40cf-b649-05eed90b5ac0`. Bundle SHA256 `9fccd98d1ec9e6b5276dffabdd38609056f7567a3e465999e5bd2b002909b46f`, 7,083,805 bytes; a fresh download of the deployed Worker module matches the reviewed local build byte-for-byte. The 79-asset manifest had zero missing assets before the script upload. Cloudflare returned HTTP 400/code 100312 after activation; the write was **not retried blindly**. Explicit active/version/settings inspection plus deployed-module hash and public `/_nexus-build.json` reconciled the ambiguous outcome to the approved source. ASSETS, exact candidate self-reference, compatibility flags, named OpenNext exports, Worker-first document routes and query-redaction configuration are preserved. Persisted redaction remains NOT_PROVEN. Gateway still serves 46bb, unchanged executable tree relative to 1ef; schema remains approved 039. This is isolated preview, not production.
+
+Actual new-source public acceptance: **48 Chromium desktop/mobile-emulated tests and 22 real Firefox tests passed**, original baselines unchanged. Existing real GitHub owner privacy-policy GET again returns 200 with response contract 038 and no FORBIDDEN alert; rights review is missing/stale/blocked and approval/revocation controls remain disabled. No provider processing or approvals occurred.
+
+The ordinary app's local-scope sign-out and existing Google OAuth authenticated the second, no-workspace actor without passwords/account linking. Across five private routes in desktop and mobile-sized layouts (ten actual scenarios), verified discovery returns 404, route bodies show onboarding/retry, keyboard focus works, and private route bodies do not mount; no workspace/document/provider/mutation fixture was created. **The strict global API gate still failed in all ten scenarios:** the shared header separately requests workspace-authorized `/api/v1/status` without a workspace and misrepresents the resulting failure as a backend outage. Those are partial route-body passes, not a complete workflow or zero-request claim.
+
+A targeted source correction now prevents those status probes until authenticated workspace authority exists; missing/loading/unavailable labels are distinct from sign-in or backend failure. Requests bind explicit actor/workspace context, late responses stay fenced, and authentication-context errors do not become outage labels. The header selects only its necessary store fields with shallow equality and exact effect dependencies (no exhaustive-deps suppression); a React Profiler regression confirms unrelated streaming/document updates do not rerender it. This additional correction is **LOCALLY_TESTED only, not yet deployed**. It does not relax the live test or seed authority. Fresh final checks passed on this corrected source: 235 frontend tests / 45 files, zero-error/zero-warning lint, TypeScript, Next and OpenNext with 25 required static routes. Eight combined actual-header/discovery Chromium desktop/mobile-sized source-component scenarios passed using synthetic Auth/API, explicitly asserting zero workspace-status calls without authority; they are not deployed acceptance. Targeted local secret scanning of the three changed non-ignored files found zero candidates. The real 1ef failed global gate is preserved rather than relabeled successful; no complete-product claim exists.
+
+Exact 1ef finished with twelve core successes, two intentionally skipped deployment jobs, and failed mandatory image/foundation checks. Its actual complete image log independently confirms 163 backend findings: 57 High / 50 Medium / 10 Low / 46 Negligible, 114 wont-fix / 47 not-fixed / two scanner-reported fixes; frontend zero. The prior 1b1c result was not reused as this evidence. Official [Python source releases](https://www.python.org/downloads/source/) still list 3.15.0rc3 under Pre-releases; scanner-reported Python 3.15 fix versions are not production-release or runtime-compatibility proof. No RC upgrade, advisory suppression, lowered severity gate, forced integration, production authorization or contributor cleanup occurred. Required complete-product workflows and rights/quality/isolation gates listed below remain incomplete.
+
+## Earlier 039/discovery-source checkpoint — historical, superseded above
+
+
+The owner explicitly approved exact forward migration 039 SHA256 `f0b16bfafe4681dff5cde07b27e49d294ff0e24c3e02e76006f3a3a8ff824866`, rehearsal only, recovery definitions and read-only live retesting. Ten preexisting bodies/owners/ACLs matched the expected immutable source; fresh full definitions and ACLs were saved outside the repository. Applied only to `ukgjygzfhyvnrsecdcuu` as registry version `20261008184100`. All ten deployed function-body fingerprints match reviewed 039; postgres ownership, fixed search paths, SECURITY DEFINER/invoker modes and all exact grants are unchanged. The internal `v6_reserve_budget` helper remains inaccessible to service_role. Modern verified claims with the legacy setting empty return compatibility metadata 039 under actual `SET ROLE service_role`; sensitive/unknown/absent-authority probes still return RIGHTS_BLOCKED in rolled-back transactions. No operator/workspace approval, quota, credential, document, customer fixture or production schema was seeded or changed.
+
+**Actual live owner-policy read is now PREVIEW_VERIFIED (read only):** existing real GitHub owner session, candidate `/settings/privacy`, policy GET HTTP 200, no FORBIDDEN alert, UI response contract 038 preserved. Owner approval is not currently valid and operator review is missing/stale/blocked; approval and revocation controls are disabled. No provider call or processing approval was attempted. This repairs the prior live role-compatibility failure; it does not verify approval mutations, provider availability, full processing or production readiness. Public frontend identity and gateway health still report `46bb14f743a81c1d7095de467bdc53047229aa79`; gateway is CONFIGURED / NOT_PROBED, production_verified false. Commit `1b1c146b28fd0a3bdb8b19bbc777e71d034a64ba` contains identical frontend/gateway executable trees to 46bb; neither Worker was redeployed for this schema-only activation.
+
+The no-workspace loading defect has an additional **LOCALLY_TESTED, not deployed** source fix: explicit loading/ready/missing/error discovery; 15-second bounded read-only session/workspace checks; confirmed absence alone offers onboarding; an outage offers retry without creating a workspace. Workspace-private routes do not mount their effects with missing authority. API access stays fail-closed without a selected workspace, existing cached selection survives transient failures, and identity/unmount/newer-selection fences preserve prior isolation protections. Onboarding reads share the deadline. Public/auth/onboarding routes and demo/signed-out behavior are preserved. Full frontend regression: 229 tests / 45 files, zero-error/zero-warning lint and TypeScript, Next/OpenNext build with 25 required static routes. Root gateway regression: 158 tests, no skipped tests. Eight real Chromium desktop/mobile-sized source-component browser scenarios passed: confirmed absence, outage, hung deadline and successful membership, with synthetic Auth/API only. They do not establish new-source live acceptance. Complete network-denied backend passed 305 tests plus 10 subtests. Separate isolated backend: 57 tests, no skips. These frontend checks were repeated after `npm ci --ignore-scripts`; a fresh full npm audit reports zero findings. GitHub targeted secret scanning is unavailable without Advanced Security; the installed local detect-secrets fallback scanned all 15 changed non-ignored source files with zero candidates (not whole-history clearance). After hosted 039, all 48 actual candidate public Chromium desktop/mobile-emulated smoke/visual/Worker tests passed again with unchanged original baselines. Active-version inspection reconfirms both Workers at 46bb and the gateway bound to rehearsal, not production.
+
+Exact published 1b1c image log was freshly downloaded and fully aggregated: 163 backend findings (57 High, 50 Medium, 10 Low, 46 Negligible), frontend zero; 114 wont-fix, 47 not-fixed, two scanner-reported fixes naming Python 3.15 releases. No pre-release interpreter substitution, advisory suppression, lowered cutoff or merge bypass is authorized. Required image/foundation gates remain FAILED. Main stays `85b14f131f5eacb07082a32c7173f20be472772f`, PR #8 remains unmerged, production/shared Preview untouched and contributor cleanup deferred. Invitations, complete deletion/retention/legal hold, advanced research/retrieval, ten durable product workflows, lawful connectors, source-backed exports and genuinely labeled/held-out quality acceptance remain internal implementation gaps; rights/budget/production decisions and complete real-role/Storage/pipeline acceptance remain unmet gates.
+
+## Earlier live follow-through — historical 46bb/039-candidate checkpoint, superseded above
+
+Owner survey explicitly authorized migration 038 and the isolated candidate update, not production or provider-processing approval. Rehearsal project identity/health and all preexisting admission function bodies/owners/grants were checked against immutable 037; fresh recovery definitions were saved outside the repository. Migration 038 was applied only to `ukgjygzfhyvnrsecdcuu`, registered as `20261008162505`. All four hosted bodies match the approved hash and retain fixed search paths, postgres ownership, denied anon/authenticated execution and service-only grants. Transaction-rolled-back sensitive/absent-authority probes deny processing. No approvals, quotas, customer fixtures or provider keys were seeded/rotated.
+
+Candidate gateway and frontend now both serve `46bb14f743a81c1d7095de467bdc53047229aa79`. Gateway active `f330d5f0-5389-4ffe-8a7d-ccc1eab29c4d` / deployment `d384ed4c-b773-412d-8132-4ba49d5b0407`, rollback `f61ffe6c-dfc5-46af-bddc-67dd07f5a330`, bundle SHA256 `ff4f7f32ef68ed1021ea530a15b4c385aca182c2fb80b1c27344955cc5b96bab`. Its twelve binding names and active rehearsal authority are preserved. Frontend active `794602de-7258-40cf-b649-05eed90b5ac0` / deployment `68fc7c55-9133-4fea-af84-e765b7089718`, rollback `a3a05cb4-d3d0-4969-9bd2-6aa0305b6553`, bundle SHA256 `d7b391a6f06cf32f5ed86ec244cd1bf26dd1748193071bd073c71138364f5bec`. Its 79-file static manifest completed with zero missing assets, self-service binding and Worker-first routes preserved. Active resources plus public frontend build identity/gateway health match 46bb after propagation; initial old public identity was not accepted as a pass. Redaction is configured, persisted behavior is still NOT_PROVEN. PR3/shared Preview/production resources remain unchanged.
+
+On the actual updated URL, 48 Chromium desktop/mobile-emulated smoke/visual/Worker checks and 22 real Firefox checks passed again. Existing GitHub OAuth returned to the app without entering or extracting credentials. **Authenticated policy acceptance failed:** the workspace can load but its policy RPC returns FORBIDDEN, so approval controls are unavailable rather than bypassed. The current source must not be described as a complete verified policy workflow.
+
+Hosted metadata confirms canonical Supabase `auth.role()` supports both the legacy setting and modern verified `request.jwt.claims`. Inspection found nine current public functions with legacy-only role handling, covering policy/BYOK, account admission/status, budget reservation/settlement and bounded expired-upload claims. The forward 039 candidate uses canonical role resolution, preserving existing grants (including the internal-only reservation helper), cost consent, rights/current-owner checks, version conflicts, quotas/idempotency/locks, settlement and bounded cleanup. It does not rewrite applied 038 or approve any provider processing. Candidate dispatch requires the 039 compatibility metadata; the application policy response contract remains version 038.
+
+039 SHA256 `f0b16bfafe4681dff5cde07b27e49d294ff0e24c3e02e76006f3a3a8ff824866` is LOCALLY_TESTED only and needs separate owner authorization before hosted application. Fresh real local service-role execution tests use modern claims with the legacy setting empty; service reads/admission/settlement succeed on synthetic fixtures, authenticated/anon modern roles remain denied, and owner/terms gates remain intact. Full baseline-through-039 security/concurrency plus backup/restore passed: 59 synthetic tables, 90 functions, pgcrypto 1.3, vector 0.8.2. Complete network-denied backend remains 305 tests plus 10 subtests; 43 script regressions and workflow YAML/immutable baseline integrity pass. Local stand-ins are not hosted Auth/Storage proof.
+
+Exact 46bb CI completed with twelve core successes and two intentionally skipped deployment jobs. Actual image and required foundation checks failed: backend 57 High / 50 Medium / 10 Low / 46 Negligible, frontend zero findings. These remain mandatory integration blockers; no advisory suppression, bypass or production authorization exists. A separately observed authenticated/no-workspace route can remain on a loading screen; correcting that discovery state remains an internal implementation gap, alongside the other complete-product gaps below.
+
+## Historical 5075 checkpoint — 2026-10-08, superseded by current follow-through above
+
+Repository main remains `85b14f131f5eacb07082a32c7173f20be472772f`; PR #8 remains protected/unmerged. Contributor cleanup is deferred under the owner's implementation-first priority. No production cutover, shared Preview mutation, Auth-user deletion, account linking, credential/security change, provider processing approval or customer-data processing occurred.
+
+### Actual isolated frontend and two-real-actor read boundary
+
+Candidate frontend currently serves `5075f90dcf42e8558007aca05a4edc40c42fb927`. Its public `/_nexus-build.json` and explicit active-version resources agree: active version `a3a05cb4-d3d0-4969-9bd2-6aa0305b6553`, deployment `fc864308-1a1e-405d-ab58-766f563d3df0`, 100% traffic, preserved ASSETS/self-service bindings and `/documents/*` Worker-first routing. Immediate rollback is `bb75b5ac-4e91-4c2b-a1c5-08b700a7a1ba`. On that actual URL, 48 Chromium desktop/mobile-emulated smoke/visual/Worker route checks and 22 real Firefox checks passed with unchanged original baselines. This is public acceptance, not full authenticated product acceptance or physical-device testing.
+
+Two distinct real test identities authenticated through GitHub and Google OAuth. The first actor had a verified owner workspace with one member and zero documents; its read-only Workspaces/Members/Privacy/Analytics/Findings requests returned 200. The second actor's six foreign-workspace gateway reads returned exactly 403/FORBIDDEN (workspace, members, documents, privacy, analytics, findings). Direct browser-role member-table GET returned 403/42501, and the service-only metadata RPC returned 42501. The table-grant denial is **not** a proof of empty row-level visibility; the earlier HEAD count was null and was not counted as zero. Actor fingerprints were distinct, and the prior workspace header was absent after switching. Browser-held session tokens never left the browser. No fixtures, permissions, documents or Auth accounts were created/deleted by these probes. This establishes real two-actor read-access denial only; role changes, authenticated Storage/file/pipeline/export/deletion and complete-product acceptance remain unverified.
+
+Candidate/PR3 gateways still separately serve `443290ef4c627748b46f4d01ea69d26fb0ff3932`; their active authority is rehearsal `ukgjygzfhyvnrsecdcuu`. Shared Preview's active production-backed version remains untouched. There is no claim that frontend, gateway and schema share one source identity. Redaction configuration is enabled on the candidate; the bounded request-specific persisted-log probe returned zero matching events, so actual persisted redaction remains **NOT_PROVEN**, not passed by absence.
+
+### New terms-bound owner controls — LOCALLY_TESTED, not activated
+
+Forward migration 038 SHA256: `fb92e12977236bf041df923d385b710f10a89088244d34f54d205c73bdd6da30`. The immutable baseline and already-applied historical migrations are unchanged. It tightens both BYOK and operator-funded admission so the workspace-owner review hash must match the current globally reviewed provider terms. Prior hash-unbound decisions fail closed and require explicit renewal; no approvals, budgets or credentials are seeded.
+
+New service-only atomic policy read/approve/revoke RPCs share the workspace-management lock, revalidate current owner authority, reject stale terms/version preconditions and persist decision audits. Non-owners may inspect bounded policy status through the authenticated gateway but cannot decide. Revocation remains possible when provider rights expire/disable. A dedicated schema-version RPC and fail-closed candidate-dispatch check prevent silently deploying approval controls without migration 038. This schema is not yet hosted/applied; approval and drift/recovery validation are required before activation.
+
+Privacy UI requires an owner acknowledgement plus exact typed confirmation, displays the operator-reviewed terms hash and renewal/rights state, prevents unreviewed/unsafe terms activation, preserves distinct BYOK cost consent, supports revocation and removes stale identity responses/drafts. Unknown mutation outcomes require refreshing authoritative policy before retrying. Neither this UI nor a decision receipt proves provider availability, sensitive-data permission, legal/commercial rights or free BYOK costs.
+
+Fresh combined-source checks: 207 frontend unit tests/43 files; zero-error/zero-warning lint and TypeScript; Next.js and OpenNext builds (25 required prerendered assets); 158 gateway tests/no skips; 43 script regressions; 305 network-denied backend tests plus 10 subtests. Four real Chromium/Firefox desktop/mobile-sized synthetic component scenarios cover keyboard approval, typed acknowledgement, exact terms/version/actor context, revocation and overflow; they are not live gateway acceptance. Fresh local PostgreSQL 17 baseline-through-038 assertions and quota/account/owner-decision concurrency passed. Racing owner decisions commit once, reject the stale rival and produce one audit. Backup/restore passed across 59 synthetic public/Auth/Storage tables, 90 functions, pgcrypto 1.3 and vector 0.8.2. Local Auth/Storage remain stand-ins. The changed-source secret scanner found one existing runtime variable-assignment candidate, context-reviewed as non-secret; no suppression or whole-history clearance is claimed.
+
+### Exact-head security gate remains FAILED
+
+At published source 5075, twelve core checks passed; image security and its required foundation summary failed. Actual non-root runtime/native/neural proofs, 305 backend tests/10 subtests and installed Python audit passed, but the actual backend image reports 57 High / 50 Medium / 10 Low / 46 Negligible findings; the frontend image has zero reported findings. These are scanner findings, not proof of exploitation, and no suppressions, lowered cutoff, skipped mandatory gate, RC interpreter substitution or merge bypass is authorized. New candidate source must independently repeat exact-head CI. Distribution rights, full ten-product workflows, invitations, verified deletion/retention/legal hold, advanced retrieval/research, lawful connector activation, source-backed durable exports and genuinely labeled/held-out quality acceptance remain incomplete. Do not relabel internal implementation gaps as exclusively external blockers.
 
 ## Current completion execution — authoritative scope
 
@@ -17,8 +1369,9 @@ Starting main identity: `f508abb7ebcef6b8b1992ae27c898f08256dc78a`. Full history
 | Portable authored-note export | Workbench JSON-LD download → export endpoint → hashed durable export receipt | Exact current record/review comparison and tampered-hash denial. Source-backed export stays rights-blocked. This is not standards or legal certification. |
 | Workspace creation | Name-only creation → actor-scoped deterministic slug/idempotency → atomic workspace/member/settings/audit | Payload replay/conflict and Unicode key regressions. |
 | Existing-account member management | Members settings → service-only `nexus_manage_member` → fresh role checks and capability-revision trigger | Owner/admin invariants; demotion fences; last-owner protection; confirmed Auth identity only. Invitations remain unimplemented. |
-| Identity transitions | Auth/workspace keyed pages and captured request context → late-response fences | Findings, privacy and member pages do not reuse prior-identity private state. |
-| Honest document inventory | Document list → keyset pagination → authorized active workspace | No sampled list labeled an exact inventory; duplicate/non-progress page failures stay visible. |
+| Identity transitions | Auth/workspace keyed pages and actor-bound request context → late-response fences | Credentials, onboarding/discovery, workspace/member/settings/privacy, chat and document/detail/chunk views erase old private drafts and drop stale reads/mutations. Session mismatch denies HTTP before private key/file/question bodies are sent. |
+| Honest document inventory | Document list → keyset pagination → authorized active workspace | No sampled list labeled an exact inventory; duplicate/non-progress page failures stay visible. Upload ambiguity is not resolved by matching filenames; bounded pending ingestion is not a completion receipt. |
+| Authoritative chunk search / inspection | Document detail → bounded full current-version chunk inventory → hash-verified immutable originals → version-bound UI pagination | Search covers all published chunks within the 400-chunk bound before UI paging. Exact totals require complete publication-count parity; corruption, foreign/tombstoned/staged rows, concurrent role/version changes, missing cursor version and capacity overflow fail closed. No poisoned derived display text is returned. Legacy limited responses explicitly retain unverified totals. |
 | Honest readiness and advertised API | Correct route titles / sign-in state; private-record MCP reads | CONFIGURED/NOT_PROBED is not READY. Unsupported product aliases fail rather than returning unrelated records. |
 | Deletion safety | Existing tombstone → explicitly blocked cleanup | Removed fabricated derived-data/remote-write receipts. Verified complete document cleanup is still required implementation, not a passed gate. |
 
@@ -28,27 +1381,119 @@ Forward migrations 035 and 036 were replayed against a disposable local PostgreS
 
 036 fixes the initially detected profile-email authority defect using a narrow service-only, fixed-search-path resolver of confirmed `auth.users` identities. Hosted metadata confirmed version 036 and denied anon/authenticated execution of that resolver. Local Auth/Storage tables are explicitly stand-ins, not hosted OAuth/Storage implementations.
 
+Forward migration 037 closes the BYOK processing-approval bypass: a user-funded key does not bypass current workspace researcher authority, affirmative user billing consent, verified current provider terms or fresh review by a current workspace owner. Each permitted BYOK call is durably audited without transmitting the provider key to the authority RPC or charging operator-funded quotas. The same current-owner approval is required for platform-funded Gemini admission. Browser retrieval/generation and queued extraction/embedding propagate the server actor. Missing schema or ambiguous rights deny provider calls. Fresh complete local baseline→037 replay, denied-role/foreign-owner/stale/future/prohibited/disabled/missing-consent assertions and backup/restore passed (59 tables, 88 public/Auth/Storage functions). These are synthetic local fixtures, not real approvals. With separate explicit owner approval, 037 was subsequently applied only to rehearsal project ukgjygzfhyvnrsecdcuu as version 20261008113028; production remains unchanged; candidate dispatch now requires its fail-closed authority probe in addition to 036 management metadata.
+
 The protected provider workflow had path filters that omitted docs/visual-only candidate heads. Those filters were removed while retaining trusted-branch-only secret access and non-cancellable disposable cleanup; a regression test prevents missing exact-head provider contexts.
 
-Candidate mapping was revalidated: dedicated candidate frontend/gateway Workers, candidate ingestion queue and rehearsal Supabase project. Existing candidate deployment/version IDs were retained externally for rollback; no live Worker, queue, database, object or production record was deleted. At this source publication boundary, live Workers still predate the changes and observed log redaction is false. Deployment is not yet claimed.
+Candidate mapping was revalidated for its dedicated frontend/gateway and ingestion queue. IMPORTANT: Worker script settings describe the latest uploaded version, not necessarily the active deployment. The earlier settings-only claim that all three gateways used rehearsal authority is superseded by explicit active-version resource inspection: candidate and PR3 use ukgjygzfhyvnrsecdcuu; shared Preview active version cd25c30b-6003-4df6-be85-4683bd2a610a uses production fcjaomiceajcdownarel, although its undeployed latest upload 95edecec-9fe4-4089-ab2c-c7a3cd528c68 points to rehearsal. Resource names and latest settings are not isolation proof. Shared Preview must remain untouched without a separately authorized production operation.
 
 Sensitive candidate credential headers are passed through a shell-owned curl configuration descriptor rather than process arguments. The isolated preview workflow now fails unless schema 036 is present, publishes non-secret exact-source identity in gateway health and a generated frontend asset, checks both deployed identities, and runs public Chromium/mobile-emulation plus Firefox/WebKit functional acceptance. Generated build metadata is ignored, not committed. Production cutover still needs explicit owner approval and its genuine acceptance gates.
 
 ### Fresh verification
 
-- Gateway: 102 passed; no skips.
-- Frontend: 106 unit tests in 25 files; ESLint and TypeScript passed.
-- Public Chromium desktop / Pixel 7 emulation: 42 smoke and visual checks passed, including keyboard, overflow and reduced motion.
-- Real Firefox engine: 19 public functional checks passed. WebKit cannot launch on this Amazon Linux host because compatible system libraries are missing; Ubuntu CI now runs that engine fail closed. No WebKit pass is claimed here.
+- Gateway: 144 passed; no skips. New provider-proof regressions reject missing/null/string/fractional/unsafe vector counts, remaining vectors and malformed JSON. Qdrant cleanup/publication requests are deadline-bounded; timeouts remain retryable and admitted usage is conservatively settled. This does not complete document/derived/remote-write erasure.
+- Frontend: 200 unit tests in 42 files (latest local evidence-rendering changes; deployed frontend remains the separately identified 196-test source); ESLint (zero warnings/errors) and TypeScript passed. Account/request-context, optional cost-consent dismissal, cached foreign workspace discovery, actual pending upload/reindex, private detail reads, version-fenced chunk pagination, document-library role controls and evidence-panel keyboard containment have regression coverage.
+- Public Chromium desktop / Pixel 7 emulation: 44 smoke and visual checks passed, including keyboard, overflow and reduced motion.
+- Real Firefox engine: 20 public functional checks passed. WebKit cannot launch on this Amazon Linux host because compatible system libraries are missing; Ubuntu CI now runs that engine fail closed. No local WebKit pass is claimed here. Public Ubuntu CI covers desktop WebKit plus explicit iPhone 13 WebKit emulation; neither is a physical iOS device test.
+- Navigation now has named collapsed icon links/controls, keyboard-visible tooltips, reduced-motion transitions and a mobile dialog with background inertness, focus looping, Escape dismissal and focus/scroll restoration. Three unit regressions and desktop/mobile browser regressions cover these states; closed-menu visual baselines remain unchanged. Sidebar store selection avoids unrelated message-state rerenders.
+- Axe 4.14.0 found no automated WCAG A/AA violations on seven public routes at desktop/mobile sizes or the mobile menu in light/dark themes. The gradient-brand checks remained incomplete; this is not full manual/screen-reader WCAG certification.
 - Only the two Evidence OS screenshot baselines were updated after inspecting the received desktop/mobile images: new functional workbench/library links, correct route title, honest sign-in and incomplete-readiness states. Original home baselines and all screenshot tolerances remain unchanged.
-- Complete network-denied backend suite: 275 passed plus 10 subtests. Isolated backend suite: 57 passed.
+- Complete network-denied backend suite: 305 passed plus 10 subtests (including anonymous liveness, immutable neural-model revision, bounded/context-independent decimal arithmetic, and authenticated reviewer identity regressions). Isolated backend suite: 57 passed.
 - Local PostgreSQL: private-finding authorization/revocation, role races, confirmed identity/spoofed profile tests, concurrent quota/account admission, extraction and Storage-policy stand-ins passed. Backup/restore passed with 59 local tables and 87 public functions (three tables are Auth/Storage stand-ins).
 - Immutable baseline and migration-integrity checks passed; whitespace and workflow YAML checks passed.
 - The isolated installed Python test environment audit reported no known vulnerabilities after upgrading vulnerable pip itself. This is not a heavyweight production-image audit.
 - GitHub secret scanning is unavailable because Advanced Security is not enabled. A free local `detect-secrets` changed-source scan flagged three candidates: a runtime variable assignment and two explicit synthetic test keys, reviewed as non-secrets. No suppressions or paid feature were enabled.
-- Docker source now fails model-prefetch errors, excludes secrets/runtime files and drops root privileges, but no Docker engine/image build or complete heavyweight dependency audit has been performed. The image is not an active Cloudflare runtime.
+- Optional self-managed Docker source now uses Node 24, public build-time browser configuration and non-root runtime users. Frontend context excludes environment/private/runtime files. Backend anonymous liveness no longer initializes vectors or exposes cross-workspace chunk counts. The public Apache-2.0 MiniLM model revision is pinned to `1110a243fdf4706b3f48f1d95db1a4f5529b4d41` and passed through the neural loader/cache identity. A standard-public-runner workflow now builds both actual images, checks non-root/secret exclusion/source labels, exercises the real cached neural embedding without networking, runs the complete suite against heavyweight runtime dependencies, inventories actual installed dependency licence metadata and fails on Python advisories. The first actual image CI run built both images and reached the full suite, then failed because repository-contract tests require migrations/configuration outside the backend-only production context (254 tests passed; 8 failures and 15 setup errors). The corrected derived verification image receives the exact git-archived tracked checkout, not ignored credentials/node_modules, while retaining actual heavyweight runtime dependencies. The protected foundation summary now depends on this reusable image job and fails if it fails or is cancelled. The second exact-head image run passed the real offline neural embedding (384 dimensions, pinned revision) and 277 tests/10 subtests against actual heavyweight dependencies, then correctly failed its installed-dependency audit on `setuptools` 81 (`PYSEC-2026-3447`, fixed in 83). The required foundation summary also failed; no failing gate was accepted. Docker build tooling now requires setuptools ≥83 and uses an isolated `/opt/venv`, rather than overlaying base site-packages/entrypoints. Unused base Python packaging tools are removed, actual licence metadata is retained in inventory, and long licence text is bounded/hash-identified in logs. The third exact-head run on `9eec7a8d4dfc237c9105b7419708908f37dc0889` succeeded: actual full-runtime builds, real pinned neural embedding, 304 backend tests/10 subtests, anonymous liveness, compiled frontend configuration and exact-source runtime completion marker. The installed Python audit reported no known vulnerabilities; the first-party `nexus-rag` distribution is explicitly not a PyPI-auditable dependency and remains covered by source review/tests rather than a fabricated advisory clearance. This success predates the subsequently added OS/full-image scan gate, which must pass again on its new exact head. No image push or new artifact storage is configured. A full-image OS/application-package gate now uses the reviewed immutable Anchore scan-action v7.4.2 commit `27805bf3b4e84b4a5c980df22ed233c00390a439` on both actual local images. No suppression/VEX or repository-auto-detected Grype configuration is permitted; no persistent DB cache, image registry push or new cloud artifacts are enabled. Medium/high/critical findings fail even without an available fix; unknown/missing/invalid/suppressed receipts also fail, while lower-severity findings stay visible for review. Both images are scanned even if the first scan fails (unless build failed/cancelled). The new scanner gates have not yet run successfully at this receipt. PyMuPDF/Poppler distribution rights remain a separate unresolved gate; licence metadata and a test-only dependency audit do not settle them. These images are not active Cloudflare runtimes.
 
-Fresh `npm ci --ignore-scripts`, ESLint, 106 unit tests, TypeScript, Next.js production build and OpenNext Cloudflare build passed; 25 required prerendered HTML assets were published locally. The full locked npm audit reports zero info/low/moderate/high/critical findings. Exact-head CI must independently repeat these gates. Passing source checks is not deployment or product acceptance.
+Earlier source receipt: `npm ci --ignore-scripts`, ESLint, 109 unit tests, TypeScript, Next.js production build and OpenNext Cloudflare build passed; 25 required prerendered HTML assets were published locally. The full locked npm audit reports zero info/low/moderate/high/critical findings. Exact-head CI must independently repeat these gates. Passing source checks is not deployment or product acceptance.
+
+### Current account/content and image follow-through — 2026-10-08
+
+The BYOK dialog is now keyboard-focus-contained, named, identity-keyed and always dismissible (Escape/Close/Cancel); dismissal does not clear quota enforcement. A key requires an authenticated hydrated workspace and explicit billing consent; configuration is not a processing-approval or cost guarantee. Sensitive mutations bind the initiating Auth user in addition to workspace, and a changed/missing browser session fails before HTTP. Account switches remove unsaved key/consent, chat input/source selections, document details and chunk-search drafts. Stale completions cannot update current-account keys, quotas, messages, inventory, membership, settings or navigation. Cached workspace membership is revalidated; a confirmed denied binding is discarded and discovery is actor-bound, whereas transient discovery errors are not interpreted as permission to create duplicate workspaces.
+
+Document upload no longer reports success by finding an existing same-named file after an ambiguous failure. Durable polling stops before its next request on identity change; 30 polling attempts mean pending processing, not completed ingestion. Chat clearing waits for a successful durable receipt (or explicit absent session) instead of silently hiding stored messages on failure. Incomplete document deletion retains an error rather than removing the UI record as though verified cleanup completed.
+
+The actual image job on PR #8 head `457bff40d169e33791ba025cad1ba7e9c9449cb4` built both non-root images and passed the real pinned offline neural embedding, then failed its native fixture's overly specific `FFMPEG: NO` text assertion. Inspection of the SHA-verified official OpenCV 5 source proves CMake omits that label entirely when both WITH_FFMPEG and HAVE_FFMPEG are false. This failure is not an image-security clearance: the full scans did not run. The corrected proof requires actual OpenCV backend-registry absence **and** no FFmpeg runtime libraries, denies unknown/enabled/missing capability evidence, and separately retains the real PDF/image fixture. Seven proof regressions were added; all 31 script tests pass. Both OS/application scans and the protected summary remain mandatory and unsuppressed on the next exact head.
+
+The last actual scans on `8d196e5185976a38c9277fba108da146ad2693a5` failed: backend 74 High / 55 Medium / 10 Low / 46 Negligible; frontend three Medium BusyBox advisories. These are not waived. The subsequent official-source OpenCV build excludes unused video decoding, the standalone frontend removes BusyBox/shell/wget and unused package managers, and private 0700 TMPDIR provides defense in depth, not a Python-CVE exemption. Their full runtime and advisory results still require the corrected exact-head job. Remaining Debian/Python advisories and commercial PyMuPDF distribution rights have no fabricated clearance. No image was published or deployed to Cloudflare.
+
+A full current tracked/new-source secret scan flagged 40 candidates across 25 files, with zero new candidate identities versus the previously context-reviewed receipt: synthetic fixtures/placeholders, runtime variable/type/enum names and baseline hashes. This is reviewed scanner evidence, not a zero-findings or comprehensive secret-history guarantee. Browser verification remains public/synthetic and local; real OAuth product isolation, all-entrypoint live redaction, hosted migration 037 and full-product acceptance remain unverified. Contributor cleanup remains deferred under the owner's latest priority.
+
+### OAuth callback and actual runtime follow-through
+
+The callback captures its PKCE code and sanitized internal destination, then removes OAuth query/fragment material from browser history before asynchronous work. Identity-bound component lifetime checks deny late global state/navigation; workspace discovery carries the expected Auth actor. Only an explicit WORKSPACE_NOT_FOUND enters onboarding; discovery outages remain recoverable failures rather than permission to create duplicate workspaces. Three new regressions cover unmounted exchange/discovery and discovery outages. Local unit count is now 173; this is not real OAuth-isolation evidence.
+
+Exact-head CI on `d151a1e3f217f01f00690e3e50a77ca219dd5902` passed the actual pinned 384-dimensional neural embedding, actual OpenCV backend-registry/library absence and native PDF/image fixtures. It then correctly failed because APK retained BusyBox through alpine-baselayout's shell dependency despite the attempted deletion. Full image scans did not run; neither image is cleared. The source correction explicitly retains alpine-baselayout-data (identity/network files), removes the shell-dependent init layout together with BusyBox, recreates /tmp with mode 1777 using Node, and preserves APK metadata. Actual non-root identity, temporary writes, CA bundle, package inventory and absence of shell dependencies are mandatory next-head runtime proofs, not assumed successes. No scanner ignores or broken-package-world flags were added.
+
+The same d151 exact-head Ubuntu frontend CI passed 170 unit tests, 44 Chromium desktop/mobile-emulated smoke/visual checks and 60 Firefox/WebKit/mobile-WebKit public checks. Local cold-install Chromium repeated 44 checks. These are public-route, emulated-device receipts, not private OAuth workflow, physical-device or full accessibility certification. Live deployment and the complete-product gates remain unverified.
+
+### Exact-head follow-up and owner-approved rehearsal scope
+
+The owner explicitly approved updating all three rehearsal gateways while preserving secrets, bindings, queues and rollback versions, and selected the existing GitHub sign-in method for the Supabase dashboard. Dashboard sign-in succeeded without reading credentials. The rehearsal project identity is ukgjygzfhyvnrsecdcuu; its organization is on Free, the candidate frontend is the Site URL, and its exact /auth/callback is already allowed. PR3 has both an exact callback and a broad /** redirect entry; this was observed, not changed. GitHub and Google providers are enabled; Email is also enabled at the project level despite the application's OAuth-only UI. No provider/account/security settings were changed. Dashboard reported no hosted backup; local restore rehearsal is not a hosted backup guarantee.
+
+The earlier three-gateway settings read confirmed the same rehearsal authority and disabled query-string redaction. A metadata-only redaction PATCH was rejected on the first gateway because its latest uploaded version was not the currently deployed version. That rejected attempt did not mutate settings. A subsequent fresh read now observes redaction enabled on candidate and PR3 (deployment timestamps 2026-10-08T10:49Z), but disabled on shared Preview. This metadata observation does not establish current reviewed application code: none of the three settings includes SOURCE_COMMIT. Preserve the currently observed versions, bindings, queues and rollback history before a controlled upload; do not reuse the older rollback snapshot as though no intervening deployment occurred.
+
+At PR #8 head 1aa74dfdb716b03e93e62df7b2da2ebf90a13e6e, real neural embedding, FFmpeg backend/library absence, native PDF/image fixtures, frontend non-root identity/private writes/CA/package inventory, 305 full-runtime backend tests plus 10 subtests, installed Python audit and backend liveness passed. BusyBox removal was genuinely verified. Default frontend startup then failed because the inherited Node image docker-entrypoint.sh required the removed shell. The correction removes that unused shell script and explicitly uses ENTRYPOINT ["node"] / CMD ["server.js"]. Default startup remains mandatory. Full image scan receipts were unavailable, so the foundation summary failed; old image vulnerabilities are not cleared.
+
+The same exact-head frontend CI passed source checks but found two browser failures (42/44 passed): the provider-neutral callback error disappeared when AuthProvider hydration remounted the identity-keyed callback after its URL was scrubbed. The correction retains only the sanitized failure in the callback parent, never raw provider details or PKCE code, and adds a hydration-remount regression. Original desktop/mobile browser assertions and visual baselines remain unchanged. Local browser attempts before Chromium installation finished encountered an executable-install race; a no-Supabase demo build also does not match the synthetic authenticated-configuration test protocol. Neither failed attempt is reported as a pass. After the browser installation finished and the application was rebuilt/restarted with the declared non-secret synthetic Supabase configuration, the unchanged public desktop/mobile smoke and visual suite passed all 44 checks. All 174 frontend unit tests in 38 files, lint, stable post-build TypeScript, OpenNext (25 prerendered assets) and 31 script tests passed. The changed-source secret scan reported zero candidates. New exact-head CI/default-image startup and complete unsuppressed scans remain mandatory.
+
+### Rehearsal authority verified; remaining release gates
+
+Owner-approved rehearsal-only migration 037 was applied from SHA-256 c2d79e9e5a3524bd83885a71e7fbf59246b560cd830bf6aab36306e681161d49 and registered as version 20261008113028. Before applying it, the existing v6_reserve_many function body was compared with immutable migration 030 and its definition/owner/grants saved outside the repository for recovery. Both new hosted function bodies match the approved source exactly. Metadata confirms fixed search paths and service-role execution only; anon/authenticated execution is denied. Transaction-rolled-back probes for sensitive classification and absent workspace/actor return RIGHTS_BLOCKED for both BYOK and platform admission. No actual provider processing approval, provider call, customer-data export or production mutation was performed. This is narrowly hosted-authority evidence, not real OAuth workflow isolation or a hosted backup/restore guarantee.
+
+Exact-head fb769da160cb87c874154f90afdc5227b28ce9a6 passed all actual self-managed runtime probes, including default frontend startup, compiled browser configuration, 305 full-runtime backend tests plus 10 subtests, installed Python audit and the CONTAINER_RUNTIME_VERIFIED marker. The actual unsuppressed frontend image scan has no findings. The backend scan still reports 57 High, 50 Medium, 10 Low and 46 Negligible findings, so its required job and foundation summary fail. Most distribution findings are marked not-fixed/wont-fix; those labels are not waivers. The interpreter advisory metadata names 3.15 fixes, but the [official Python release page](https://www.python.org/downloads/latest/python3.15/) identifies 3.15.0rc3 as a preview not recommended for production, with final release postponed to 2026-10-09. No alpha/RC substitution, metadata hiding, VEX suppression or severity reduction was introduced. Commercial PyMuPDF distribution rights remain unresolved.
+
+The same exact-head Ubuntu frontend CI independently passed 174 unit tests/38 files, 44 public Chromium desktop/mobile-emulated smoke/visual checks and 60 Firefox/WebKit/mobile-WebKit public checks. PostgreSQL migration/concurrency, complete and isolated backend, dependency review, SBOM, gateway and bounded Qdrant checks passed. Two deployment jobs were skipped, not deployment evidence. The bounded Gemini probe failed on HTTP 503; this is actual provider unavailability, not proof of an invalid credential or exhausted quota. No automatic metered retry was attempted.
+
+Provider-verification follow-through now records bounded, credential-free PROVIDER_UNAVAILABLE reasons for authorization/model/HTTP/transport failures, preserves unknown usage after ambiguous responses, sanitizes Retry-After metadata and never automatically replays a metered POST. Successful response reads are capped at 2 MiB and require a JSON object. Importantly, QUOTA_EXHAUSTED and any non-READY report now fail the release-context exit code while retaining the actionable JSON receipt; they cannot produce a misleading green check. Offline provider/socket/response-shape and release-exit regressions, plus strict disposable Qdrant isolation/cleanup coverage, bring script coverage to 41 tests. The changed provider-test source scan flagged five explicit synthetic fixture/runtime-variable candidates, reviewed as non-secrets; no suppression was added. Fresh exact-head CI must verify this follow-through again.
+
+The pre-upload observation found no reviewed source identity on gateway settings; candidate health still returned legacy READY without source_commit or NOT_PROBED. Direct computer health reads returned HTTP 403 while the shared browser read worked. These observations are historical, not the final deployment state below. Cloudflare billing API scope remained unavailable; console MFA returned HTTP 500 and email fallback failed. The owner subsequently checked the account dashboard and explicitly confirmed Workers Free. No plan, credential or MFA configuration was changed. Official Workers/Queues pricing was revalidated before the isolated updates; production and full-product gates remain incomplete.
+
+### Current private-control and disposable-provider proof follow-through
+
+Document details now discover the current actor/workspace role in parallel with authorized reads. Editor/admin/owner mutation controls stay disabled until matching authoritative metadata arrives. Viewer, mismatched identity/workspace and unavailable permission states preserve useful read-only chunk inspection and explain why re-index/retry/delete are disabled. Refresh invalidates the previous permission result; identity/unmount/sequence fences drop late owner authority after an account switch. Consequential handler guards mirror the disabled controls, while server-side authorization remains the security boundary. Four new regressions cover viewer controls, outages, foreign authority and late owner→viewer responses. All 178 frontend unit tests in 38 files, lint, stable post-build TypeScript, the synthetic-config OpenNext build (25 assets) and the unchanged 44-check public desktop/mobile smoke/visual suite pass; these tests do not certify all UI capability controls or real OAuth role isolation.
+
+The disposable Qdrant probe now uses four literal-vector fixtures that independently differ by workspace, version and index generation, includes all three filter clauses and checks the exact resulting payload. Cleanup requires a strict true deletion acknowledgement followed by a fresh 404 absence read (or an initial deletion 404); malformed acknowledgements, retained collections, wrong versions/generations and cleanup errors cannot return READY. Long prefixes retain the complete bounded unique run/attempt suffix; invalid fixture identity blocks before requests, and manual invocations receive a random run identity rather than a reused local target. All requests remain scoped to its temporary collection; no customer collection is queried. The subsequent protected af7434 exact-head probe passed this disposable-collection contract; it is not a verified document/remote-write erasure receipt. No automatic metered Gemini retry or paid fallback was added.
+
+### Fresh exact-head evidence and document-library follow-through
+
+At af7434ded7fbf9cc316fc306ca75a893504c0349, protected bounded Qdrant and Gemini checks both passed, including the updated strict cleanup/availability contracts. Frontend, complete and isolated backend, gateway compatibility, PostgreSQL migration/concurrency, baseline, dependency and inventory checks passed. Actual runtime probes again emitted CONTAINER_RUNTIME_VERIFIED for this exact SHA. The frontend image has no scanner findings; the backend still has 57 High, 50 Medium, 10 Low and 46 Negligible findings. The required image check and foundation summary correctly failed. Neither production-deployment job ran. These receipts do not clear distribution vulnerabilities, commercial rights, authenticated acceptance or complete-product gates.
+
+The document library now discovers matching actor/workspace role metadata while preserving read access if discovery fails. Upload/delete/re-index controls fail closed for viewers, unknown roles and permission outages. Every hook mutation performs a fresh authority read before sending a file or consequential request; identity and authority-sequence fences reject switched-account responses and older owner results arriving after newer viewer results. Server authorization remains the actual security boundary. Read-only preview, full details and refresh remain available. Document-list motion honors reduced-motion settings and caps staggering instead of delaying later rows indefinitely.
+
+The document evidence panel is now a body-level, accessibly named dialog: focus starts on Close, Tab/Shift+Tab wrap among available controls, Escape/backdrop dismiss, outside focus is contained, background content is inert and page scroll locked while open. Dismissal restores previous focus, inert states and scrolling. Updating the close callback does not unexpectedly reset reading focus. Five panel regressions, two role-control regressions and five additional document-authority regressions bring the fresh full frontend suite to 190 tests in 40 files. These are local synthetic/DOM tests, not proof of real-user role isolation or WCAG certification. The final local lint, post-build TypeScript and OpenNext build passed (25 static HTML assets); unchanged public Chromium desktop/mobile-emulated smoke/visual checks passed 44/44. A separate real Chromium desktop/mobile-emulated harness exercised the actual panel with a synthetic chunk child and verified accessible naming, initial focus, forward/reverse tab wrapping, inert background, Escape and focus/scroll restoration; it is not private data or OAuth acceptance. GitHub's targeted secret-scanning endpoint was unavailable because Advanced Security is not enabled; the existing local detect-secrets scanner checked all eight changed source/audit files with zero candidates. No security plan was purchased or changed.
+
+### Verified isolated gateway update and active-version isolation correction
+
+The owner confirmed current Workers Free after console sign-in failed; this is owner-attested plan evidence, not a successful billing API read. Current official Workers and Queues documentation confirms 100,000 Worker requests/day, 10 ms CPU/invocation, free static asset requests, 10,000 queue operations/day and 24-hour Free retention. No paid plan or fallback was enabled.
+
+The first guarded upload was rejected because this API accepts only the literal latest for inherited bindings. No deployment occurred on that rejection. The corrected path additionally requires latest uploaded version = active 100% version before inheritance. Candidate and PR3 passed explicit active-version rehearsal-project checks and were updated from source 443290ef4c627748b46f4d01ea69d26fb0ff3932. Bundle SHA256: 2c37f9b0d13a26b62fbdfe606f9653a150dd88c6308ad941e4e62de81a0d4c00. Each preserved ten inherited bindings, all secret bindings without reading/rotating values, schedules, queue identities, consumer concurrency/retries and DLQs. Live settings and active-version resources were reread; shared-browser health now shows exact source_commit, CONFIGURED/NOT_PROBED and production_verified=false.
+
+Candidate active version: f61ffe6c-dfc5-46af-bddc-67dd07f5a330 (rollback f74e7d20-36b1-4506-8160-cdf53d41d2d2). PR3 active version: 25228659-dbda-44e5-b63c-6c742daaba54 (rollback f9e07029-10d8-4e98-b61e-0c13270ccb5c). Both have live query-string redaction enabled. This is narrowly verified deployment/configuration/health identity, not full authenticated acceptance or an observed persisted-log redaction probe. Shared Preview remains unchanged because its active version uses production authority; the rehearsal-only authorization does not authorize that production-backed deployment.
+
+Frontend release inspection found that the document page promised UUID-to-static-shell mapping but the configured OpenNext entrypoint implemented none. A thin source-controlled Worker wrapper now maps validated UUID GET/HEAD routes to the existing public shell, strips client query/cookie/authorization/workspace headers from asset lookup, denies unsupported methods and malformed routes, and preserves OpenNext and its Durable Object exports for other routes. Candidate/PR3/production source configs consistently use this wrapper; no production deployment is implied. Six regressions and real local Wrangler desktop/mobile tests verify the contract. Fresh frontend lint/TypeScript and 196 unit tests/41 files pass, an offline Wrangler bundle succeeds, and the actual local Worker passes 44 unchanged public smoke/visual checks plus four document-route browser checks. No baseline tolerance was lowered. Wrangler generated local runtime files were identified and excluded with the standard .wrangler/ ignore rule rather than committed as repository content. The final changed-source scan covered ten source/config/audit files with zero candidates; the earlier nine generated-bundle entropy/keyword candidates are not treated as a whole-history secret clearance.
+
+Existing candidate public configuration was verified from its public bundles and rehearsal Auth settings without printing its publishable key. The exact frontend public-configuration build generated 25 HTML route assets. Frontend deployment remains unperformed until the complete exact-source bundle and assets are uploaded and reread; a build is not deployment proof. No new application dependency or public staging service was added. The transport-only pinned decoder is outside the repository and its local bundle round trip was verified; no provider credential is exposed through transport.
+
+### Latest exact-source frontend deployment and evidence presentation — 2026-10-08
+
+Published PR #8 head 116773eb43c00bd89e10ea6abcdd33d8bd7a42a1 passed all twelve core checks, including migration integrity, bounded Qdrant/Gemini validation, PostgreSQL/concurrency, complete/isolated backend and frontend checks. The preceding 4b63 failures in migration/provider jobs came from a stale target-validator assertion requiring the generated OpenNext entrypoint; they were not provider-outage evidence. The corrected validator requires the maintained wrapper, document Worker-first asset binding and preservation of OpenNext exports, with negative regressions. CI now runs the four actual Wrangler routing checks in addition to the original public/visual/cross-browser suites. The separate actual image job completed: real runtime checks, 305 backend tests plus 10 subtests and the installed Python audit passed, but the unsuppressed backend image still has 57 High, 50 Medium, 10 Low and 46 Negligible findings. The frontend image has zero findings. The required image check and foundation summary failed; neither is waived. Main remains 85b14f131f5eacb07082a32c7173f20be472772f, and PR #8 is not merged.
+
+The exact 116773 frontend was built with verified existing rehearsal public configuration (publishable key not printed), 79 static assets and a source-preserving minified Worker. Both session-JWT direct fetch and the MCP asset-upload capability returned HTTP 401; no Worker version changed on those failures. The owner explicitly approved browser-assisted isolated deployment. The existing authenticated Cloudflare console session was reused, and browser-owned JWT handling uploaded 67 missing assets; a fresh manifest session confirmed zero remaining. No API key, session cookie or JWT value was extracted into chat, files or logs. The first module transport was rejected because dynamic code generation is disabled; the decoder was changed to statically compiled code, losslessly verified with dynamic generation disabled, rather than bypassing that policy. The guarded connected API upload then succeeded, preserving the self-service binding and prior compatibility/logging settings while enabling query-string redaction.
+
+Candidate frontend active version bb75b5ac-4e91-4c2b-a1c5-08b700a7a1ba, deployment ccacaa6a-d673-4768-928c-bdb45720bc79; rollback b804a541-9a68-4de7-a44e-93ef88358ef7. Bundle SHA256 df51725eaddc893e2b349320f38fe3607d8f9b52f99becf7abb49580e529482f. The live public /_nexus-build.json returns source 116773eb43c00bd89e10ea6abcdd33d8bd7a42a1. The actual candidate URL passed 48 Chromium desktop/mobile-emulated public/visual/document-route checks and 22 real Firefox public/document-route checks. Original visual baselines were unchanged. This is public candidate acceptance only, not authenticated isolation, physical-device coverage, full accessibility certification or production release. Candidate/PR3 gateways remain the separately verified 443290 source; no claim is made that every component serves one SHA. Shared production-backed Preview remains untouched.
+
+Real GitHub OAuth sign-in then completed on the deployed candidate using the existing selected account. Browser reload verified actual owner workspace discovery (HTTP 200, one bound workspace) and an empty private document inventory (HTTP 200, total zero). Authenticated Workspaces, Members, Privacy, Analytics and Findings pages all returned HTTP 200; their actual gateway reads confirmed one owner member, management available, invitations unavailable, retention mutation/workspace deletion unavailable and averages explicitly NOT_MEASURED. No private document was opened, fixture created, permission changed or provider called. This is one real owner read-path receipt, not two-identity isolation or mutation/full-product acceptance.
+
+A bounded persisted-log probe made twenty non-sensitive public candidate-gateway health requests. Key discovery and exact request-ID/time-scoped telemetry queries succeeded but returned zero matching events at 0.1 sampling. Absence of the marker with no matching events is not redaction proof; persisted-log behavior remains unverified despite enabled deployment configuration. No logging rate was raised, broad account logs retrieved, metered provider called or synthetic keepalive loop created.
+
+The next local frontend changes preserve original citation markers and Markdown/code whitespace instead of deleting/collapsing them. Uncalibrated numeric answer confidence is no longer displayed as a percentage. REVIEW_REQUIRED explicitly says citation references were checked but claim support remains unverified. Source disclosure has named regions, keyboard-operable expanded state and visible source IDs; mobile/keyboard copy controls remain visible, and reduced motion is respected. JSON chat exports preserve allow-listed document/version/chunk/hash/locator/authority and answer-review metadata without exporting arbitrary private metadata; relevance is explicitly ranking-only. These are portable chat receipts, not completed durable source-backed Evidence exports. Two real browser engines at desktop/mobile-sized viewports passed four focused synthetic component scenarios. All 200 frontend unit tests/42 files, lint and TypeScript pass locally. These newer changes are not included in the deployed 116773 artifact.
+
+Running lint after Wrangler verification exposed heap exhaustion while parsing generated .wrangler bundles. The maintained lint configuration now excludes that generated runtime directory, with an actual ESLint regression proving worker.js and UI source remain in scope. No maintained code, failing test, advisory or visual tolerance is excluded. Cross-browser configuration additionally permits document-route checks, and the pending CI update explicitly runs them against Wrangler rather than the unrelated Next server.
+
+### Additional local/research correctness fixes
+
+Decimal operations now use a bounded, explicit context independent of ambient precision/rounding/traps, reject extreme/non-finite inputs and malformed evidence references, preserve weighted-average weights in their expression, and validate conversion precision. Undefined arithmetic returns 422 rather than a server error. Client-supplied reviewer IDs no longer determine obligation review identity: the authenticated server context does. Research plans, claim assessment, obligation review, calculation and passport helper responses explicitly distinguish caller-asserted inputs and unpersisted helper output from authorized durable product workflows. Local MCP operation declarations are explicitly non-executable. These labels do not finish the missing persistence, source authorization, orchestration or ten-product acceptance gates.
 
 ### Required work still incomplete — not optional future phases
 
@@ -146,3 +1591,29 @@ Trusted release-branch push probes remain enabled alongside main and manual disp
 ## Publication boundary
 
 The user authorized integration of reviewed code and redundant branch cleanup. Merge only after exact-head required checks pass; do not trigger production dispatch or weaken protections to complete repository cleanup. Remaining application and operational blockers above still prevent a production-readiness claim. Secrets, browser session files, runtime artifacts, and audit snapshots containing account/session data must not be committed.
+
+
+### Continued execution: private analytics and actual image findings
+
+Status: PARTIAL_NOT_COMPLETE. PR #8 head `cea2f5317a74a50ea905cb2beb9c26ae0c735d7d` failed the newly required actual-image gate; its required foundation summary failed closed. Grype 0.118.0 reported backend Critical 26 / High 128 / Medium 89 / Unknown 2 (plus Low 45 and Negligible 167), and frontend High 17 / Medium 25 (plus Low 9). These are scanner findings, not confirmed exploitation; neither a clean npm/PyPI audit nor the previous runtime success establishes image security clearance. No ignores, VEX waivers, severity reductions, or merge bypasses were added.
+
+Remediation removes unused Poppler/desktop GL/GLib/curl packages from the Python runtime and bundled npm/Corepack/Yarn tooling from the standalone Node runtime, applies available official distribution updates, replaces curl health probes with bounded Python HTTP probes, and adds actual offline native PDF extraction/rendering/headless-image fixtures. Required OpenCV/neural/PDF features are preserved. Real rebuilt-image scans are still required; remaining vendor/library findings must be resolved or explicitly block release, never be hidden. Compact complete image/fix/path receipts are now emitted in job logs, with a bounded critical-first summary.
+
+Private analytics is identity-keyed by auth mode/user/workspace and request-sequenced, with explicit workspace authority for analytics/status/audit requests. Explicit null/blank workspace headers no longer reuse stale local storage. Workspace/user changes remove prior results immediately and pending old responses cannot overwrite the new scope. Unmeasured latency/confidence/LLM usage/audit fields and unavailable audit reads remain explicit, anonymous health counts are never used as workspace totals, configured providers are not advertised as operational, and disabled cache is not promised to populate after a query. Removed the unreferenced duplicate dashboard after repository-wide reference inspection. Targeted analytics/context regressions: 11 passed; full suite before the final added identity test: 117 passed. Fresh exact-head CI/build/browser validation remains required. No deployment, live OAuth acceptance, provider processing approval, or complete-product claim follows from these changes.
+
+
+Private settings follow-up: Usage resets on auth/user/workspace changes, and Account Security resets verified/provider state on account changes. Removed fabricated fallback limits (250,000 tokens / 1,000 queries / 100 documents / 1 GB), inferred healthy posture, and unavailable-key-as-server-key labeling. Daily budget percentages require measured daily usage and configured limits; cumulative usage is not relabeled daily. Missing health observations do not imply provider availability. Added three settings regressions (10 settings tests passed), and gateway analytics rejects missing/malformed/unsafe exact counts (121 gateway tests passed). Authenticated status now separates reachable Supabase metadata from unprobed Qdrant/Gemini. These local checks do not substitute for two-real-user live OAuth isolation.
+
+
+### Authoritative retrieval and image remediation follow-up
+
+At published head `8d196e5185976a38c9277fba108da146ad2693a5`, the actual rebuilt-image scan still fails: backend High 74 / Medium 55 / Low 10 / Negligible 46; frontend Medium 3. Critical and Unknown findings are absent in this receipt. Removing unused tooling is a real reduction, not a release waiver; remaining image/vendor packages still block the required foundation gate. Real neural/runtime and native PDF/image acceptance must remain distinct from vulnerability clearance. No production or isolated preview deployment was performed.
+
+Chat now rehydrates dense and lexical candidates from current Supabase tenant/document/version authority and checks immutable original hashes. Vector content, names and locators are never sent to generation as evidence authority. Missing hashes, foreign rows, unpublished/sensitive versions, tombstones, superseded active versions and stale generations fail closed. Current role and document/version authority are revalidated before answer persistence/return. Sources carry hash/provenance/location receipts; citation syntax still does not prove entailment. Explicit bounded coverage replaces silent lexical sampling, and scope above 100 current documents returns CAPACITY_REACHED rather than presenting a sample as exhaustive research. Synthetic poisoned upload→ingestion→chat and concurrent deletion/role-revocation regressions are included. Local gateway suite: 136 passed, no skips. These tests are not two-real-user live isolation, a labeled entailment evaluation, or complete advanced-filter/streaming/product acceptance.
+
+Full frontend after account-state fixes: 121 unit tests across 27 files passed, with lint and TypeScript checks passing. Earlier analytics tree Next.js and OpenNext builds passed, including 25 static routes; the newest combined source requires fresh exact-head builds/CI/browser verification. Entire application status remains PARTIAL_NOT_COMPLETE.
+
+
+Further unsuppressed image hardening is source-implemented but not yet rebuilt/verified: official PyPI OpenCV-headless 5.0.0.93 source archive SHA-256 `b82f9831daab90b725c7c1ee1b36cb5732c367096ac76d119e64e14eb70d5f3c` was downloaded and independently verified; its documented CMAKE_ARGS/WITH_FFMPEG controls support an image-only build without unused video libraries. The runtime now requires actual native PDF/image fixtures and FFMPEG=NO, rather than deleting opaque libraries from a wheel. The frontend removes unused BusyBox shell/wget packages through APK, not by hiding scanner metadata; Node-only probes replace shell checks. A user-private 0700 Python TMPDIR adds defense in depth for temporary-directory race exposure. This does not resolve/suppress the interpreter advisory or establish image clearance. Full image CI remains mandatory and may still fail vendor/library findings.
+
+The evaluation page now requires an explicit hydrated-workspace fixture run, resets by identity, ignores old pending results, and reports missing measurements instead of zero leaks. Fixture passes are not labeled production acceptance. UI/default fixture thresholds preserve recall 0.90 and citation precision 0.95 with Top K 20; this does not create the required 400 labeled/125 held-out cases or human label provenance. Four evaluation UI regressions and the full offline backend (305 tests plus 10 subtests) passed locally. Full combined-source CI/live acceptance remains pending.

@@ -36,6 +36,7 @@ from src.api.auth import (
 )
 from src.api.dependencies import get_rag_chain
 from src.api.models import QueryRequest
+from src.api.private_turn import prepare_private_turn, persist_private_turn, revalidate_private_turn
 from src.api.routes import query_chat_with_durable_fallback
 from src.infrastructure.supabase_client import get_supabase_client
 from src.repositories.messages import MessageRepository
@@ -48,21 +49,6 @@ from src.utils.tenant import normalize_workspace_id
 logger = get_logger("websocket")
 
 router = APIRouter()
-
-
-def _valid_chat_session_id(session_id: str | None) -> str | None:
-    if not session_id:
-        return str(uuid.uuid4())
-    try:
-        uuid.UUID(str(session_id))
-    except ValueError:
-        return None
-    return str(session_id)
-
-
-def _chat_title(question: str) -> str:
-    title = " ".join(question.split())
-    return (title[:77] + "...") if len(title) > 80 else title
 
 
 def _stream_retrieval_filters(body: QueryRequest) -> dict:
@@ -118,71 +104,6 @@ def _stream_retrieval_filters(body: QueryRequest) -> dict:
     ):
         raise ValueError("Selected-document chat requires at least one document.")
     return filters
-
-
-async def _persist_stream_history(
-    *,
-    workspace: WorkspaceContext | None,
-    workspace_id: str,
-    persist: bool,
-    session_id: str | None,
-    question: str,
-    answer: str,
-    sources: list[dict],
-    metadata: dict,
-) -> str | None:
-    if not persist:
-        return session_id
-
-    durable_session_id = _valid_chat_session_id(session_id)
-    if durable_session_id is None:
-        logger.warning(
-            "stream_chat_history_invalid_session_id",
-            workspace_id=workspace_id,
-            session_id=session_id,
-        )
-        return session_id
-
-    try:
-        repo = MessageRepository()
-        await repo.ensure_session(
-            workspace_id=workspace_id,
-            session_id=durable_session_id,
-            user_id=workspace.user.id if workspace else None,
-            title=_chat_title(question),
-        )
-        await repo.add_message(
-            workspace_id=workspace_id,
-            session_id=durable_session_id,
-            role="user",
-            content=question,
-            metadata={"source": "chat_ws"},
-        )
-        await repo.add_message(
-            workspace_id=workspace_id,
-            session_id=durable_session_id,
-            role="assistant",
-            content=answer,
-            sources=sources,
-            metadata={
-                "source": "chat_ws",
-                "query_type": metadata.get("query_type"),
-                "confidence": metadata.get("confidence"),
-                "response_time_seconds": metadata.get("response_time_seconds"),
-                "model": metadata.get("model"),
-                "from_cache": metadata.get("from_cache"),
-                "generation_fallback": metadata.get("generation_fallback"),
-            },
-        )
-    except Exception as exc:
-        logger.warning(
-            "stream_chat_history_persist_failed",
-            workspace_id=workspace_id,
-            session_id=durable_session_id,
-            error=str(exc)[:300],
-        )
-        return session_id
-    return durable_session_id
 
 
 async def _safe_send(ws: WebSocket, data: dict) -> bool:
@@ -310,10 +231,10 @@ async def chat_stream(ws: WebSocket) -> None:
             try:
                 body = QueryRequest.model_validate(data)
                 retrieval_filters = _stream_retrieval_filters(body)
-            except (ValidationError, ValueError) as exc:
+            except (ValidationError, ValueError):
                 await _safe_send(
                     ws,
-                    {"type": "error", "content": f"Invalid chat request: {exc}"},
+                    {"type": "error", "content": "Invalid chat request. Check the entered fields."},
                 )
                 continue
 
@@ -328,8 +249,18 @@ async def chat_stream(ws: WebSocket) -> None:
             sources_count = 0
             sources_payload: list[dict] = []
             done_metadata: dict = {}
+            generation_usage_recorded = False
 
             try:
+                repository = MessageRepository()
+                turn_context = await prepare_private_turn(workspace=workspace, settings=settings,
+                    session_id=body.session_id, repository=repository)
+                if turn_context:
+                    session_id = turn_context.session_id
+                    if not history_dicts:
+                        history_dicts = [dict(message) for message in turn_context.history]
+                        history_token_parts = [message["content"] for message in history_dicts]
+                        estimated_input_tokens = estimate_tokens(question, *history_token_parts)
                 quota_usage = await TenantQuotaEnforcer(settings).usage(
                     workspace_id=workspace_id,
                     persist=persist_event,
@@ -338,6 +269,9 @@ async def chat_stream(ws: WebSocket) -> None:
                     quota_usage,
                     estimated_tokens=estimated_input_tokens,
                 )
+                await revalidate_private_turn(context=turn_context, repository=repository)
+                if ws.client_state != WebSocketState.CONNECTED:
+                    return
                 result = await query_chat_with_durable_fallback(
                     chain=chain,
                     question=question,
@@ -349,6 +283,7 @@ async def chat_stream(ws: WebSocket) -> None:
                     retrieval_filters=retrieval_filters,
                     persist_event=persist_event,
                     settings=settings,
+                    isolated_context=turn_context.cache_authority if turn_context else None,
                 )
                 answer = str(result.get("answer") or "")
                 answer_parts.append(answer)
@@ -360,15 +295,6 @@ async def chat_stream(ws: WebSocket) -> None:
                     "confidence": result.get("confidence", 0.0),
                     "response_time_seconds": result.get("response_time_seconds", 0.0),
                 }
-                for frame in (
-                    {"type": "token", "content": answer},
-                    {"type": "sources", "sources": sources_payload},
-                    {"type": "done", "metadata": done_metadata},
-                ):
-                    if not await _safe_send(ws, frame):
-                        # Client disconnected mid-stream — stop generating
-                        logger.info("client_disconnected_mid_stream")
-                        return
                 cache_hit = bool(done_metadata.get("from_cache"))
                 generation_fallback = bool(done_metadata.get("generation_fallback"))
                 latency_ms = int(
@@ -392,11 +318,25 @@ async def chat_stream(ws: WebSocket) -> None:
                     ),
                     persist=persist_event,
                 )
+                generation_usage_recorded = True
                 await persist_provider_health_snapshot(
                     chain,
                     workspace_id=workspace_id,
                     persist=persist_event,
                 )
+                if ws.client_state != WebSocketState.CONNECTED:
+                    return
+                done_metadata["session_id"] = session_id
+                await persist_private_turn(context=turn_context, repository=repository,
+                    question=question, answer=answer, sources=sources_payload, metadata=done_metadata)
+                for frame in (
+                    {"type": "token", "content": answer},
+                    {"type": "sources", "sources": sources_payload},
+                    {"type": "done", "metadata": done_metadata},
+                ):
+                    if not await _safe_send(ws, frame):
+                        logger.info("client_disconnected_after_turn_commit")
+                        return
                 await telemetry.record_audit_event(
                     workspace_id=workspace_id,
                     user_id=workspace.user.id if workspace else None,
@@ -418,17 +358,6 @@ async def chat_stream(ws: WebSocket) -> None:
                     },
                     persist=persist_event,
                 )
-                persisted_session_id = await _persist_stream_history(
-                    workspace=workspace,
-                    workspace_id=workspace_id,
-                    persist=persist_event,
-                    session_id=str(session_id),
-                    question=question,
-                    answer="".join(answer_parts),
-                    sources=sources_payload,
-                    metadata=done_metadata,
-                )
-                done_metadata["session_id"] = persisted_session_id or session_id
             except WebSocketDisconnect:
                 logger.info("websocket_disconnected_during_stream")
                 return
@@ -450,6 +379,19 @@ async def chat_stream(ws: WebSocket) -> None:
                         "error_code": "QUOTA_EXCEEDED",
                     },
                 )
+            except HTTPException as exc:
+                code, message = {
+                    401: ("AUTH_REQUIRED", "Sign in before continuing this conversation."),
+                    403: ("CONVERSATION_UNAVAILABLE", "Conversation is not available to this account."),
+                    409: ("CONVERSATION_CONFLICT", "Conversation changed. Reload before continuing."),
+                    422: ("INVALID_SESSION_ID", "A valid conversation ID is required."),
+                }.get(exc.status_code, ("CONVERSATION_UNCONFIRMED", "Conversation persistence could not be confirmed. Reload before retrying."))
+                await telemetry.record_audit_event(workspace_id=workspace_id,
+                    user_id=workspace.user.id if workspace else None, action="chat.turn_unconfirmed",
+                    resource_type="chat_session", resource_id=session_id,
+                    metadata={"status": exc.status_code, "generation_usage_recorded": generation_usage_recorded},
+                    persist=persist_event)
+                await _safe_send(ws, {"type": "error", "error_code": code, "content": message, "status": exc.status_code})
             except Exception as exc:
                 err_msg = str(exc)
                 if not err_msg:
@@ -464,19 +406,20 @@ async def chat_stream(ws: WebSocket) -> None:
                         "resource exhausted",
                     )
                 )
-                logger.error("stream_error", error=err_msg, is_quota=is_quota)
-                await telemetry.record_llm_usage(
-                    workspace_id=workspace_id,
-                    user_id=workspace.user.id if workspace else None,
-                    model=settings.llm_model_name,
-                    operation="chat.stream",
-                    input_tokens=estimate_tokens(question, *history_token_parts),
-                    output_tokens=0,
-                    latency_ms=0,
-                    success=False,
-                    error_code="quota" if is_quota else type(exc).__name__,
-                    persist=persist_event,
-                )
+                logger.error("stream_error", error_type=type(exc).__name__, is_quota=is_quota)
+                if not generation_usage_recorded:
+                    await telemetry.record_llm_usage(
+                        workspace_id=workspace_id,
+                        user_id=workspace.user.id if workspace else None,
+                        model=settings.llm_model_name,
+                        operation="chat.stream",
+                        input_tokens=estimate_tokens(question, *history_token_parts),
+                        output_tokens=0,
+                        latency_ms=0,
+                        success=False,
+                        error_code="quota" if is_quota else type(exc).__name__,
+                        persist=persist_event,
+                    )
                 await persist_provider_health_snapshot(
                     chain,
                     workspace_id=workspace_id,
@@ -493,7 +436,7 @@ async def chat_stream(ws: WebSocket) -> None:
                         "history_messages": len(body.conversation_history),
                         "top_k": body.top_k,
                         "use_reranking": body.use_reranking,
-                        "error": err_msg[:200],
+                        "error_type": type(exc).__name__,
                     },
                     persist=persist_event,
                 )
@@ -503,16 +446,20 @@ async def chat_stream(ws: WebSocket) -> None:
                         {
                             "type": "error",
                             "content": (
-                                "API quota exceeded. Please provide your own "
-                                "Google API key to continue."
+                                "Provider quota reached. Retry after reset or "
+                                "review the authorized provider settings."
                             ),
                             "error_code": "QUOTA_EXCEEDED",
                         },
                     )
                 else:
-                    await _safe_send(ws, {"type": "error", "content": err_msg})
+                    await _safe_send(ws, {
+                        "type": "error",
+                        "content": "Research request failed. Retry or inspect service status.",
+                        "error_code": "RESEARCH_REQUEST_FAILED",
+                    })
 
     except WebSocketDisconnect:
         logger.info("websocket_disconnected")
     except Exception as exc:
-        logger.error("websocket_fatal", error=str(exc))
+        logger.error("websocket_fatal", error_type=type(exc).__name__)

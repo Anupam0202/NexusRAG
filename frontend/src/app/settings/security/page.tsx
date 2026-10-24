@@ -14,6 +14,11 @@ type SignOutScope = "local" | "global";
 const SUPPORTED_PROVIDERS: OAuthProvider[] = ["google", "github"];
 
 export default function SecuritySettingsPage() {
+  const identity = useStore((state) => JSON.stringify([state.authMode, state.authUser?.id]));
+  return <AccountSecurity key={identity} />;
+}
+
+function AccountSecurity() {
   const authMode = useStore((state) => state.authMode);
   const authUser = useStore((state) => state.authUser);
   const setWorkspaceId = useStore((state) => state.setWorkspaceId);

@@ -78,6 +78,33 @@ test("malformed, oversized, and missing-idempotency inputs fail before mutation"
   }
   assert.equal(calls.some(call => call.url.pathname.includes("/rpc/nexus_finding")), false);
 });
+test("chunked finding overflow stops without waiting for the body end or mutating", async t => {
+  const calls = mock(t);
+  let cancelled = false;
+  const stream = new ReadableStream({
+    start(controller) {
+      controller.enqueue(new TextEncoder().encode('{"title":"test","authored_markdown":"'));
+      controller.enqueue(new TextEncoder().encode("x".repeat(100_001)));
+    },
+    cancel() { cancelled = true; return new Promise(() => {}); },
+  });
+  const result = await handle(request("/api/v2/findings", {
+    method: "POST", body: stream, duplex: "half",
+    headers: { "Idempotency-Key": "stream-overflow" },
+  }), env);
+  assert.equal(result.status, 413);
+  assert.equal(cancelled, true);
+  assert.equal(calls.some(call => call.url.pathname.includes("/rpc/nexus_finding")), false);
+});
+test("general chat JSON overflow fails before account reservation or persistence", async t => {
+  const calls = mock(t);
+  const result = await handle(request("/api/v1/chat", {
+    method: "POST",
+    body: JSON.stringify({ question: "x".repeat(100_001), non_sensitive_attested: true }),
+  }), env);
+  assert.equal(result.status, 413);
+  assert.equal(calls.some(call => /account|chat_messages|chat_sessions|gemini/.test(call.url.pathname)), false);
+});
 test("edit requires a revision and propagates database conflict without leaking detail", async t => {
   mock(t, "editor", () => new Response(JSON.stringify({ message: "NR:VERSION_CONFLICT sensitive-server-detail" }), { status: 400 }));
   const path = `/api/v2/findings/${finding}`;

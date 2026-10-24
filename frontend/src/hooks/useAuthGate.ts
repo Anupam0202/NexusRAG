@@ -9,12 +9,14 @@ export function canUseWorkspaceApi(authMode: AuthMode) {
 export function useWorkspaceApiAccess() {
   const authMode = useStore((state) => state.authMode);
   const workspaceId = useStore((state) => state.workspaceId);
-  const isWorkspaceLoading = authMode === "authenticated" && !workspaceId;
+  const workspaceDiscovery = useStore((state) => state.workspaceDiscovery);
+  const isWorkspaceLoading = authMode === "authenticated" && !workspaceId && workspaceDiscovery === "loading";
   return {
     authMode,
     workspaceId,
-    canAccessWorkspaceApi: canUseWorkspaceApi(authMode),
+    canAccessWorkspaceApi: canUseWorkspaceApi(authMode) && (authMode !== "authenticated" || !!workspaceId),
     isWorkspaceLoading,
+    workspaceDiscovery,
     isAuthLoading: authMode === "loading",
     isSignedOut: authMode === "signed_out",
   };

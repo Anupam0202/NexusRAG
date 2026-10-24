@@ -21,6 +21,9 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
       - name: Verify immutable candidate identity
         run: |
           set -euo pipefail
@@ -44,10 +47,22 @@ jobs:
           port="$(pg_lsclusters --no-header | awk '$1 == "17" && $2 == "main" { print $3; exit }')"
           test -n "$port"
           db=nexusrag_candidate_rehearsal
+          node_bin="$(command -v node)"
           log="$RUNNER_TEMP/postgres-rehearsal.log"
           source_dir="$(mktemp -d /tmp/nexusrag-pg-rehearsal.XXXXXX)"
           mkdir -p "$source_dir/tests" "$source_dir/supabase/baseline" "$source_dir/supabase/migrations"
           cp -R "$GITHUB_WORKSPACE/tests/postgres" "$source_dir/tests/"
+          cp -R "$GITHUB_WORKSPACE/tests/fixtures" "$source_dir/tests/"
+          mkdir -p "$source_dir/apps/gateway"
+          cp -R "$GITHUB_WORKSPACE/apps/gateway/src" "$source_dir/apps/gateway/"
+          mkdir -p "$source_dir/frontend/src/lib"
+          cp "$GITHUB_WORKSPACE/frontend/src/lib/document-original-policy.json" "$source_dir/frontend/src/lib/"
+          cp "$GITHUB_WORKSPACE/frontend/src/lib/research-modes.json" "$source_dir/frontend/src/lib/"
+          cp "$GITHUB_WORKSPACE/package.json" "$source_dir/"
+          mkdir -p "$source_dir/backend/src/domain"
+          cp "$GITHUB_WORKSPACE/backend/src/domain/deterministic_calculations.py" "$source_dir/backend/src/domain/"
+          mkdir -p "$source_dir/backend/evals/datasets"
+          cp "$GITHUB_WORKSPACE/backend/evals/datasets/sample_corpus.json" "$source_dir/backend/evals/datasets/"
           cp "$GITHUB_WORKSPACE/supabase/baseline/001_v6_zero_cost_baseline.sql" "$source_dir/supabase/baseline/"
           cp "$GITHUB_WORKSPACE/supabase/migrations/026_allow_reindex_original_reuse.sql" "$source_dir/supabase/migrations/"
           cp "$GITHUB_WORKSPACE/supabase/migrations/027_metered_operation_admission.sql" "$source_dir/supabase/migrations/"
@@ -60,6 +75,35 @@ jobs:
           cp "$GITHUB_WORKSPACE/supabase/migrations/034_explicit_byok_cost_consent_and_unknown_costs.sql" "$source_dir/supabase/migrations/"
           cp "$GITHUB_WORKSPACE/supabase/migrations/035_atomic_workspace_management_and_finding_exports.sql" "$source_dir/supabase/migrations/"
           cp "$GITHUB_WORKSPACE/supabase/migrations/036_confirmed_auth_member_identity.sql" "$source_dir/supabase/migrations/"
+          cp "$GITHUB_WORKSPACE/supabase/migrations/037_byok_workspace_processing_authority.sql" "$source_dir/supabase/migrations/"
+          cp "$GITHUB_WORKSPACE/supabase/migrations/038_terms_bound_workspace_processing_policy.sql" "$source_dir/supabase/migrations/"
+          cp "$GITHUB_WORKSPACE/supabase/migrations/039_canonical_service_role_processing_authority.sql" "$source_dir/supabase/migrations/"
+          cp "$GITHUB_WORKSPACE/supabase/migrations/040_recipient_bound_workspace_invitations.sql" "$source_dir/supabase/migrations/"
+          cp "$GITHUB_WORKSPACE/supabase/migrations/041_fenced_retention_schedule_completion.sql" "$source_dir/supabase/migrations/"
+          cp "$GITHUB_WORKSPACE/supabase/migrations/042_scoped_manual_retention_claim.sql" "$source_dir/supabase/migrations/"
+          cp "$GITHUB_WORKSPACE/supabase/migrations/20261011124337_private_history_read.sql" "$source_dir/supabase/migrations/"
+          cp "$GITHUB_WORKSPACE/supabase/migrations/20261011140756_private_history_clear.sql" "$source_dir/supabase/migrations/"
+          cp "$GITHUB_WORKSPACE/supabase/migrations/20261011185509_gateway_private_history_read.sql" "$source_dir/supabase/migrations/"
+          cp "$GITHUB_WORKSPACE/supabase/migrations/20261013084820_gateway_private_turn_authority.sql" "$source_dir/supabase/migrations/"
+          cp "$GITHUB_WORKSPACE/supabase/migrations/20261013195435_backend_private_turn_authority.sql" "$source_dir/supabase/migrations/"
+          cp "$GITHUB_WORKSPACE/supabase/migrations/20261014194036_research_plan_persistence.sql" "$source_dir/supabase/migrations/"
+          cp "$GITHUB_WORKSPACE/supabase/migrations/20261015053618_research_calculation_execution.sql" "$source_dir/supabase/migrations/"
+          cp "$GITHUB_WORKSPACE/supabase/migrations/20261015063813_research_aggregate_execution.sql" "$source_dir/supabase/migrations/"
+          cp "$GITHUB_WORKSPACE/supabase/migrations/20261015102115_research_conversion_execution.sql" "$source_dir/supabase/migrations/"
+          cp "$GITHUB_WORKSPACE/supabase/migrations/20261015115026_research_source_quantities.sql" "$source_dir/supabase/migrations/"
+          cp "$GITHUB_WORKSPACE/supabase/migrations/20261015173322_research_answer_execution.sql" "$source_dir/supabase/migrations/"
+          cp "$GITHUB_WORKSPACE/supabase/migrations/20261015230009_research_finding_lineage.sql" "$source_dir/supabase/migrations/"
+          cp "$GITHUB_WORKSPACE/supabase/migrations/20261015235533_research_comparison_execution.sql" "$source_dir/supabase/migrations/"
+          cp "$GITHUB_WORKSPACE/supabase/migrations/20261016072408_research_timeline_execution.sql" "$source_dir/supabase/migrations/"
+          cp "$GITHUB_WORKSPACE/supabase/migrations/20261017074502_research_contradiction_execution.sql" "$source_dir/supabase/migrations/"
+          cp "$GITHUB_WORKSPACE/supabase/migrations/20261017133234_research_query_retrieval.sql" "$source_dir/supabase/migrations/"
+          cp "$GITHUB_WORKSPACE/supabase/migrations/20261018094339_research_deep_execution.sql" "$source_dir/supabase/migrations/"
+          cp "$GITHUB_WORKSPACE/supabase/migrations/20261019015325_research_obligation_execution.sql" "$source_dir/supabase/migrations/"
+          cp "$GITHUB_WORKSPACE/supabase/migrations/20261020123354_finding_creation_audit_replay.sql" "$source_dir/supabase/migrations/"
+          cp "$GITHUB_WORKSPACE/supabase/migrations/20261021100301_research_entity_execution.sql" "$source_dir/supabase/migrations/"
+          cp "$GITHUB_WORKSPACE/supabase/migrations/20261022120413_research_diligence_execution.sql" "$source_dir/supabase/migrations/"
+          cp "$GITHUB_WORKSPACE/supabase/migrations/20261023123558_research_passport_subject.sql" "$source_dir/supabase/migrations/"
+          cp "$GITHUB_WORKSPACE/supabase/migrations/20261024113940_research_passport_execution.sql" "$source_dir/supabase/migrations/"
           chmod -R a+rX "$source_dir"
           cleanup() {
             sudo -u postgres dropdb --if-exists -h /var/run/postgresql -p "$port" "$db" >/dev/null 2>&1 || true
@@ -67,8 +111,10 @@ jobs:
             rm -rf "$source_dir"
           }
           trap cleanup EXIT
+          node --input-type=module -e 'await import(process.argv[1]); console.log("COPIED_GATEWAY_ENTRY_IMPORT_PASS");' "$source_dir/apps/gateway/src/preview-worker.js"
           sudo -u postgres createdb -h /var/run/postgresql -p "$port" "$db"
           if sudo -u postgres env \
+            PATH="$(dirname "$node_bin"):$PATH" \
             PGHOST=/var/run/postgresql \
             PGPORT="$port" \
             PGUSER=postgres \
@@ -80,7 +126,50 @@ jobs:
               PGUSER=postgres \
               PGDATABASE="$db" \
               bash "$source_dir/tests/postgres/backup-restore.sh" >>"$log" 2>&1
-            grep -E 'postgres_durable_extraction_stage_pass|concurrent_reservation_settlement_pass|concurrent_account_trial_limit_pass|account_trial_byok_assertions_pass|account_trial_rollback_pass|storage_rls_two_identity_pass|reindex_original_storage_reuse_pass|LOCAL_POSTGRES_REHEARSAL_PASS|POSTGRES_BACKUP_RESTORE_PASS' "$log"
+            grep -F 'GATEWAY_PRIVATE_TURN_AUTHORITY_PASS' "$log"
+            grep -F 'GATEWAY_PRIVATE_TURN_CONCURRENT_AUTHORITY_PASS' "$log"
+            grep -F 'BACKEND_PRIVATE_TURN_AUTHORITY_PASS' "$log"
+            grep -F 'BACKEND_PRIVATE_TURN_CONCURRENT_AUTHORITY_PASS' "$log"
+            grep -F 'RESEARCH_PLAN_SQL_PASS' "$log"
+            grep -F 'RESEARCH_PASSPORT_SUBJECT_SQL_PASS' "$log"
+            grep -F 'POSTGRES_PASSPORT_SUBJECT_CONCURRENT_RETRY_PASS' "$log"
+            grep -F 'RESEARCH_TIMELINE_SQL_PASS' "$log"
+            grep -F 'TIMELINE_NATIVE_DATE_PARITY_PASS cases=146' "$log"
+            grep -F 'REAL_SQL_PRODUCTION_TIMELINE_EXECUTOR_PASS' "$log"
+            grep -F 'REAL_SQL_PRODUCTION_COMPARISON_EXECUTOR_PASS' "$log"
+            grep -F 'RESEARCH_CONTRADICTION_SQL_PASS' "$log"
+            grep -F 'REAL_SQL_PRODUCTION_CONTRADICTION_EXECUTOR_PASS' "$log"
+            grep -F 'RESEARCH_QUERY_RETRIEVAL_SQL_PASS' "$log"
+            grep -F 'RESEARCH_DEEP_SQL_PASS:60sources12subquestions+main13steps780receipts' "$log"
+            grep -F 'REAL_SQL_PRODUCTION_DEEP_EXECUTOR_PASS' "$log"
+            grep -F '"max_context_boundary":true,"unique_prior_originals":144,"final_original_contexts":156' "$log"
+            grep -F '"original_null_zero_positive_page_receipts":true' "$log"
+            grep -F 'RESEARCH_FAIR_CANDIDATE_SQL_PASS sources=50' "$log"
+            grep -F 'REAL_SQL_ORIGINAL_TRANSFER_QUOTA_PASS' "$log"
+            grep -F 'RESEARCH_CALCULATION_SQL_PASS' "$log"
+            grep -F 'RESEARCH_CALCULATION_PYTHON_ENGINE_PARITY_PASS cases=196' "$log"
+            grep -F 'RESEARCH_AGGREGATION_PYTHON_ENGINE_PARITY_PASS cases=756' "$log"
+            grep -F 'RESEARCH_AGGREGATION_SQL_PASS' "$log"
+            grep -F 'POSTGRES_RESEARCH_AGGREGATION_CONCURRENT_RETRY_PASS' "$log"
+            grep -F 'RESEARCH_CONVERSION_PYTHON_ENGINE_PARITY_PASS cases=140' "$log"
+            grep -F 'RESEARCH_CONVERSION_SQL_PASS' "$log"
+            grep -F 'RESEARCH_QUANTITY_SQL_PASS' "$log"
+            grep -F 'POSTGRES_RESEARCH_QUANTITY_CONCURRENT_RETRY_PASS' "$log"
+            grep -F 'RESEARCH_LARGE_SOURCE_SQL_PASS:400stored chunks' "$log"
+            grep -F 'POSTGRES_RESEARCH_CONVERSION_CONCURRENT_RETRY_PASS' "$log"
+            grep -F 'POSTGRES_RESEARCH_CALCULATION_CONCURRENT_RETRY_PASS' "$log"
+            grep -F 'POSTGRES_RESEARCH_PLAN_CONCURRENT_RETRY_PASS' "$log"
+            grep -F 'REAL_SQL_PRODUCTION_OBLIGATION_EXECUTOR_PASS' "$log"
+            grep -F 'REAL_SQL_OBLIGATION_ORDINARY_RECOVERY_REVIEW_PASS' "$log"
+            grep -F 'REAL_SQL_OBLIGATION_COMBINED_CAPACITY_PASS' "$log"
+            grep -F 'ORDINARY_FINDING_AUDIT_REPLAY_PASS eight_paths_one_creation_event' "$log"
+            grep -F 'REAL_SQL_ENTITY_EXECUTOR_RECOVERY_REVIEW_PASS' "$log"
+            grep -F 'REAL_SQL_ENTITY_COMBINED_CAPACITY_PASS' "$log"
+            grep -F 'RESEARCH_DILIGENCE_ORDINARY_SQL_PASS selected60_questions13_subject_scope' "$log"
+            grep -F 'REAL_SQL_DILIGENCE_EXECUTOR_RECOVERY_REVIEW_PASS' "$log"
+            grep -F 'REAL_SQL_DILIGENCE_COMBINED_CAPACITY_PASS' "$log"
+            grep -F 'REAL_SQL_PASSPORT_EXECUTOR_RECOVERY_REVIEW_PASS' "$log"
+            grep -E 'GATEWAY_PRIVATE_HISTORY_AUTHORITY_PASS|PRIVATE_HISTORY_CLEAR_CONCURRENT_AUTHORITY_PASS|PRIVATE_HISTORY_CLEAR_AUTHORITY_PASS|PRIVATE_HISTORY_RPC_TWO_IDENTITY_PASS|POSTGRES_RETENTION_SCHEDULE_FENCE_PASS|POSTGRES_RETENTION_CONCURRENT_FENCE_PASS|POSTGRES_RECIPIENT_INVITATION_AUTHORITY_PASS|POSTGRES_INVITATION_CONCURRENT_ACCEPT_CAPACITY_PASS|postgres_durable_extraction_stage_pass|concurrent_reservation_settlement_pass|concurrent_account_trial_limit_pass|account_trial_byok_assertions_pass|account_trial_rollback_pass|storage_rls_two_identity_pass|reindex_original_storage_reuse_pass|LOCAL_POSTGRES_REHEARSAL_PASS|POSTGRES_BACKUP_RESTORE_PASS' "$log"
           else
             tail -n 80 "$log"
             exit 1

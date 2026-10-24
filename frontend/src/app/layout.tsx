@@ -8,6 +8,7 @@ import { PageTransition } from "@/components/layout/PageTransition";
 import { Toaster } from "sonner";
 import { ApiKeyModal } from "@/components/chat/ApiKeyModal";
 import { AuthProvider } from "@/components/auth/AuthProvider";
+import { WorkspaceDiscoveryBoundary } from "@/components/auth/WorkspaceDiscoveryBoundary";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -40,7 +41,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <Sidebar />
           <div className="flex flex-1 flex-col overflow-hidden min-w-0">
             <Header />
-            <PageTransition>{children}</PageTransition>
+            <PageTransition><WorkspaceDiscoveryBoundary>{children}</WorkspaceDiscoveryBoundary></PageTransition>
           </div>
           <ApiKeyModal />
           <Toaster

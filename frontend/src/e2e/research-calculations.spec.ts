@@ -1,0 +1,32 @@
+import { expect,test } from "@playwright/test";
+import {randomUUID} from "node:crypto";
+test.skip(!process.env.E2E_RESEARCH_COMPONENT_FIXTURE,"Requires isolated synthetic UI/API/Gateway transport, not a hosted origin.");
+for(const theme of ["light","dark"])test(`${theme}: calculate, inspect and reload an exact-decimal stored worksheet`,async({page},testInfo)=>{
+  const errors:string[]=[];page.on("pageerror",error=>errors.push(error.message));
+  await page.goto(`/?theme=${theme}&actor=${randomUUID()}`);
+  let unexpectedNavigations=0;page.on("framenavigated",frame=>{if(frame===page.mainFrame())unexpectedNavigations++;});
+  const save=page.getByRole("button",{name:"Save plan",exact:true});await expect(save).toBeEnabled();
+  const question=`Synthetic calculation ${theme} ${testInfo.project.name}`;
+  await page.getByLabel("Mode").selectOption("CALCULATION");
+  await page.getByLabel("Question",{exact:true}).fill(question);await page.getByLabel("Completion criteria").fill("Review exact arithmetic and input evidence");await save.click();
+  await expect(page.getByRole("status")).toHaveText("Saved plan. Calculations are tracked separately.");
+  const execute=page.getByRole("button",{name:"Calculate and save",exact:true});await expect(execute).toBeEnabled();
+  for(const [name,value] of [["Left value","9007199254740993.1"],["Right value","0.2"],["Left unit","USD"],["Right unit","USD"],
+    ["Left evidence references","synthetic-interrupted-calculation"],["Right evidence references","source-b"],["Decimal places","2"]])await page.getByLabel(name,{exact:true}).fill(value);
+  const keys:string[]=[];page.on("request",request=>{if(request.method()==="POST" && new URL(request.url()).pathname.endsWith("/calculations"))keys.push(request.headers()["idempotency-key"]);});
+  await execute.click();await expect(page.getByRole("alert")).toBeVisible();
+  await expect(page.getByLabel("Left value",{exact:true})).toHaveValue("9007199254740993.1");
+  await expect(page.getByLabel("Calculation result")).toHaveCount(0);
+  await execute.click();await expect(page.getByLabel("Calculation result")).toHaveText("9007199254740993.30 USD");
+  expect(keys).toHaveLength(2);expect(keys[0]).toBeTruthy();expect(keys[0]).toBe(keys[1]);
+  await expect(page.getByText("9007199254740993.1+0.2",{exact:true})).toBeVisible();
+  await expect(page.getByText(/Input evidence is caller-supplied, not verified/)).toBeVisible();
+  expect(unexpectedNavigations).toBe(0);
+  await page.reload();await page.getByRole("button",{name:`Open research plan: ${question}`,exact:true}).click();
+  await expect(page.getByLabel("Calculation result")).toHaveText("9007199254740993.30 USD");
+  await expect(page.getByLabel("Calculation result")).toHaveCount(1);
+  await page.getByLabel("Calculation result").scrollIntoViewIfNeeded();
+  await expect(page.getByLabel("Calculation result")).toBeVisible();
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);expect(errors).toEqual([]);
+  await page.screenshot({path:testInfo.outputPath("calculation-stored.png")});
+});

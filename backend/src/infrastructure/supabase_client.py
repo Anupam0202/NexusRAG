@@ -8,6 +8,7 @@ continues.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from functools import lru_cache
 from typing import Any
@@ -134,6 +135,67 @@ class SupabaseClient:
             response.raise_for_status()
             data = response.json()
             return data if isinstance(data, list) else [data]
+
+    async def rpc_as_user(
+        self,
+        function: str,
+        payload: dict[str, Any],
+        *,
+        access_token: str,
+    ) -> list[dict[str, Any]]:
+        """Call a caller-authorized RPC, never retry with privileged credentials."""
+        if not isinstance(access_token, str) or not access_token or re.search(
+            r"[\x00-\x20\x7f]", access_token
+        ):
+            raise ValueError("User credential is required")
+        self.require_configured()
+        if self.config.anon_key.startswith("sb_secret_"):
+            raise SupabaseNotConfiguredError("A public API key is required for user reads")
+        url = f"{self.config.url}/rest/v1/rpc/{function}"
+        async with httpx.AsyncClient(timeout=30) as client:
+            response = await client.request(
+                "POST",
+                url,
+                headers={
+                    "apikey": self.config.anon_key,
+                    "Authorization": f"Bearer {access_token}",
+                    "Content-Type": "application/json",
+                },
+                json=payload,
+            )
+            response.raise_for_status()
+            data = response.json()
+            if not isinstance(data, list):
+                raise ValueError("Unconfirmed user read response")
+            return data
+
+    async def table_count(
+        self,
+        table: str,
+        *,
+        query: str,
+        service_role: bool = True,
+    ) -> int:
+        """Obtain an exact scoped count without downloading table records."""
+        self.require_configured()
+        url = f"{self.config.url}/rest/v1/{table}?{query}"
+        async with httpx.AsyncClient(timeout=30) as client:
+            response = await self._request_with_auth(
+                client,
+                "head",
+                url,
+                service_role=service_role,
+                headers={"Prefer": "count=exact"},
+            )
+            response.raise_for_status()
+            count_range = response.headers.get("Content-Range", "")
+            match = re.fullmatch(r"(?:\*|[0-9]+-[0-9]+)/([0-9]+)", count_range)
+            if not match or len(match.group(1)) > 16:
+                raise ValueError("Exact table count is unavailable.")
+            count = int(match.group(1))
+            if count > 2**53 - 1:
+                raise ValueError("Exact table count exceeds the supported range.")
+            return count
 
     async def table_insert(
         self,

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { FileCheck2, RefreshCw } from "lucide-react";
+import Link from "@/components/layout/StaticLink";
 import {
   createFinding, editFinding, exportFinding, listFindings, readFinding,
   removeFinding, reviewFinding, shareFinding, unshareFinding, getCurrentWorkspace, listCurrentWorkspaceMembers,
@@ -10,12 +11,21 @@ import {
 import { useStore } from "@/hooks/useStore";
 import { AuthRequiredState } from "@/components/auth/AuthRequiredState";
 import type { WorkspaceRole, WorkspaceMember } from "@/types";
+import { ComparisonMatrix } from "@/components/research/ComparisonMatrix";
+import { TimelineEvents } from "@/components/research/TimelineEvents";
+import { ContradictionPairs } from "@/components/research/ContradictionPairs";
+import { ResearchQueryCoverage } from "@/components/research/ResearchQueryCoverage";
+import { DeepResearchReport } from "@/components/research/DeepResearchReport";
+import { ObligationCandidates } from "@/components/research/ObligationCandidates";
+import { EntityCandidates } from "@/components/research/EntityCandidates";
+import { DiligenceObservations } from "@/components/research/DiligenceObservations";
+import { PassportClaims } from "@/components/research/PassportClaims";
 
 const control = "w-full rounded-lg border border-[var(--border)] bg-[var(--bg-primary)] px-3 py-2 text-sm";
 const button = "rounded-lg border border-[var(--border)] px-3 py-2 text-sm font-medium disabled:opacity-50";
 
 export default function FindingsPage() {
-  const identity = useStore(state => `${state.authUser?.id}:${state.workspaceId}`);
+  const identity = useStore(state => JSON.stringify([state.authMode, state.authUser?.id, state.workspaceId]));
   return <FindingsWorkbench key={identity} />;
 }
 
@@ -34,6 +44,7 @@ function FindingsWorkbench() {
   const [shareUserId, setShareUserId] = useState("");
   const [sharePermission, setSharePermission] = useState<"read" | "contribute">("contribute");
   const [members, setMembers] = useState<WorkspaceMember[]>([]);
+  const [memberAfter, setMemberAfter] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [nextAfter, setNextAfter] = useState<string | null>(null);
@@ -41,24 +52,31 @@ function FindingsWorkbench() {
   const createKey = useRef<string | null>(null);
   const canWrite = ["owner", "admin", "editor"].includes(role);
   const canEdit = canWrite && (!selected || selected.permission !== "read");
-  const context = { workspaceId };
+  const expectedUserId = authMode === "authenticated" ? userId ?? null : undefined;
+  const context = { workspaceId, expectedUserId };
 
   useEffect(() => {
     let active = true;
     activeIdentity.current = identity;
     setItems([]); setSelected(null); setTitle(""); setMarkdown(""); setError(null);
-    setRole("viewer"); setMembers([]); setNextAfter(null); createKey.current = null;
+    setRole("viewer"); setMembers([]); setMemberAfter(null); setNextAfter(null); createKey.current = null;
     if (authMode !== "authenticated" || !workspaceId) return;
     setBusy(true);
-    Promise.all([listFindings({ workspaceId }), getCurrentWorkspace({ workspaceId }), listCurrentWorkspaceMembers({ workspaceId })])
-      .then(([response, workspace, membership]) => {
+    Promise.all([listFindings({ workspaceId, expectedUserId }), getCurrentWorkspace({ workspaceId, expectedUserId }), listCurrentWorkspaceMembers({ workspaceId, expectedUserId })])
+      .then(async ([response, workspace, membership]) => {
         if (!active) return;
-        setItems(response.items); setNextAfter(response.next_after); setRole(workspace.role); setMembers(membership.members);
+        setItems(response.items); setNextAfter(response.next_after); setRole(workspace.role); setMembers(membership.members); setMemberAfter(membership.next_after ?? null);
+        const requested = new URLSearchParams(window.location.search).get("finding");
+        if (requested && !/^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(requested))
+          throw new Error("The finding link is invalid. Choose a saved finding.");
+        const detail = requested ? await readFinding(requested, { workspaceId, expectedUserId }) : null;
+        if (!active) return;
+        if (detail) { setSelected(detail); setTitle(detail.title); setMarkdown(detail.authored_markdown); }
       })
       .catch(error => { if (active) setError(error instanceof Error ? error.message : "Unable to load findings."); })
       .finally(() => { if (active) setBusy(false); });
     return () => { active = false; activeIdentity.current = ""; };
-  }, [authMode, userId, workspaceId, identity, reload]);
+  }, [authMode, userId, workspaceId, identity, reload, expectedUserId]);
 
   async function operate(action: () => Promise<void>) {
     if (busy || !workspaceId) return;
@@ -111,12 +129,13 @@ function FindingsWorkbench() {
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div><h1 className="flex items-center gap-2 text-2xl font-bold"><FileCheck2 /> Findings & Reviews</h1>
           <p className="mt-2 text-sm text-[var(--text-muted)]">Private, versioned findings. Share explicitly with workspace members for independent review.</p></div>
-        <button className={button} disabled={busy} onClick={() => setReload(value => value + 1)}><RefreshCw size={14} className="mr-2 inline" />Reload</button>
+        <div className="flex flex-wrap gap-2"><Link className={button} href="/research">Research plans</Link>
+          <button className={button} disabled={busy} onClick={() => setReload(value => value + 1)}><RefreshCw size={14} className="mr-2 inline" />Reload</button></div>
       </div>
       {error && <p role="alert" className="mb-4 rounded-lg border border-red-400/40 p-3 text-sm text-red-600">{error}</p>}
       {busy && <p role="status" className="mb-3 text-sm">Working…</p>}
       <div className="grid items-start gap-5 md:grid-cols-[minmax(200px,1fr)_minmax(0,2fr)]">
-        <section className="rounded-xl border border-[var(--border)] p-4" aria-label="Saved findings">
+        <section className="min-w-0 rounded-xl border border-[var(--border)] p-4" aria-label="Saved findings">
           <h2 className="mb-3 font-semibold">Your accessible findings</h2>
           <button className={`${button} mb-4 w-full`} disabled={busy || !canWrite} onClick={() => {
             setSelected(null); setTitle(""); setMarkdown(""); createKey.current = null;
@@ -132,7 +151,7 @@ function FindingsWorkbench() {
             if (current()) { setItems(previous => [...previous, ...response.items]); setNextAfter(response.next_after); }
           })}>Load more</button>}
         </section>
-        <section className="space-y-4 rounded-xl border border-[var(--border)] p-4" aria-label="Finding editor">
+        <section className="min-w-0 space-y-4 rounded-xl border border-[var(--border)] p-4" aria-label="Finding editor">
           <h2 className="font-semibold">{selected ? `Revision ${selected.revision} · ${selected.permission}` : "New private finding"}</h2>
           <label className="block text-sm">Title<input className={`${control} mt-1`} value={title} maxLength={160} disabled={busy || !canEdit}
             onChange={event => { setTitle(event.target.value); createKey.current = null; }} /></label>
@@ -142,7 +161,7 @@ function FindingsWorkbench() {
           <div className="flex flex-wrap gap-2">
             <button className={`${button} bg-brand-600 text-white`} disabled={busy || !canEdit || !title.trim()}
               onClick={() => void operate(save)}>Save finding</button>
-            {selected && <button className={button} disabled={busy || !canWrite || !!selected.source_run_id}
+            {selected && <button className={button} disabled={busy || !canWrite || !!selected.source_run_id || selected.source_research_position != null}
               onClick={() => void operate(download)}>Export JSON-LD & receipt</button>}
             {selected?.permission === "owner" && <button className={button} disabled={busy} onClick={() => {
               if (!window.confirm("Delete and redact this finding and its version text?")) return;
@@ -151,18 +170,38 @@ function FindingsWorkbench() {
           </div>
           {selected && <><section aria-label="Evidence and reviews" className="space-y-2 border-t border-[var(--border)] pt-4">
             <h3 className="font-semibold">Evidence & review history</h3>
+            {selected.research_origin && <div className="space-y-2 text-sm">
+              <p>{selected.research_origin.comparison?`Saved comparison · criterion ${selected.research_origin.comparison.criterion_index+1} · batch ${selected.research_origin.comparison.batch_index+1}`:selected.research_origin.timeline?`Saved timeline · criterion ${selected.research_origin.timeline.criterion_index+1} · batch ${selected.research_origin.timeline.batch_index+1}`:selected.research_origin.contradiction?`Saved contradiction analysis · criterion ${selected.research_origin.contradiction.criterion_index+1}`:`Saved research answer · question ${selected.research_origin.result_index + 1}`} · not automatically verified</p>
+              {selected.research_origin.question && <p className="whitespace-pre-wrap break-words">{selected.research_origin.question}</p>}
+              {selected.research_origin.query_retrieval&&<ResearchQueryCoverage retrieval={selected.research_origin.query_retrieval}/>}
+              {selected.research_origin.deep&&<DeepResearchReport report={selected.research_origin.deep}/>}
+              {selected.research_origin.obligations&&<ObligationCandidates analysis={selected.research_origin.obligations} sourcePrefix={`finding-${selected.id}`}/>}
+              {selected.research_origin.entities&&<EntityCandidates analysis={selected.research_origin.entities} sourcePrefix={`finding-${selected.id}`}/>}
+              {selected.research_origin.diligence&&<DiligenceObservations analysis={selected.research_origin.diligence} sourcePrefix={`finding-${selected.id}`}/>}
+              {selected.research_origin.passport&&<PassportClaims analysis={selected.research_origin.passport} sourcePrefix={`finding-${selected.id}`}/>}
+              <p className="text-xs text-[var(--text-muted)]">Source-backed export requires an approved export-rights decision. Review does not grant source rights or certify the claim.</p>
+            </div>}
             {selected.source_unavailable && <p role="alert">Source evidence is unavailable. Generated content is withheld.</p>}
-            <p className="text-sm">{selected.evidence.length} source excerpts · {selected.reviews.length} reviews of this revision</p>
-            {selected.generated_markdown && <p className="whitespace-pre-wrap text-sm">{selected.generated_markdown}</p>}
-            {selected.evidence.map(item => <blockquote key={item.id} className="border-l-2 border-brand-400 pl-3 text-sm">
-              {item.available ? item.original_text : "Source unavailable"}<p className="text-xs">{item.freshness} · {item.version_id}</p></blockquote>)}
-            {selected.reviews.map(item => <p key={item.reviewer_id} className="break-words text-sm">{item.decision}: {item.comment}</p>)}
+            <p className="text-sm">{selected.evidence.length} source {selected.evidence.length===1?"excerpt":"excerpts"} · {selected.reviews.length} {selected.reviews.length===1?"review":"reviews"} of this revision</p>
+            {selected.research_origin?.comparison?<ComparisonMatrix matrix={selected.research_origin.comparison} sourcePrefix={`finding-${selected.id}`}/>:selected.research_origin?.timeline?<TimelineEvents timeline={selected.research_origin.timeline} sourcePrefix={`finding-${selected.id}`}/>:selected.research_origin?.contradiction?<ContradictionPairs analysis={selected.research_origin.contradiction} sourcePrefix={`finding-${selected.id}`}/>:selected.generated_markdown && <p className="whitespace-pre-wrap text-sm">{selected.generated_markdown}</p>}
+            {selected.evidence.map(item => <blockquote key={item.id} id={`finding-${selected.id}-${item.citation_id}`} tabIndex={-1} className="space-y-2 border-l-2 border-brand-400 pl-3 text-sm">
+              <p className="whitespace-pre-wrap break-words">{item.available ? item.original_text : "Source unavailable"}</p>
+              <p className="break-words text-xs">{item.citation_id ? `[${item.citation_id}] ` : ""}{item.filename} · {item.freshness} · {item.version_id}</p>
+              {item.original_content_hash && <p className="break-all font-mono text-xs">SHA256 {item.original_content_hash}</p>}
+              {item.location != null && <p className="break-words text-xs">{JSON.stringify(item.location)}</p>}
+              {item.available && <Link className={button} href={`/documents/${encodeURIComponent(item.document_id)}`}>Inspect source document</Link>}
+            </blockquote>)}
+            {selected.reviews.map(item => <div key={item.reviewer_id} className="space-y-1 break-words text-sm">
+              <p>{item.decision}: {item.comment}</p>
+              <p className="text-xs text-[var(--text-muted)]">{members.find(member => member.user_id === item.reviewer_id)?.display_name || item.reviewer_id} · Revision {item.revision}
+                {item.created_at && <> · <time dateTime={item.created_at}>{new Date(item.created_at).toLocaleString()}</time></>}</p>
+            </div>)}
           </section>
           {canEdit && <section className="space-y-2" aria-label="Independent review">
             <label className="block text-sm">Review comment<textarea className={control} value={reviewComment} maxLength={4000}
               onChange={event => setReviewComment(event.target.value)} disabled={busy} /></label>
             <div className="flex gap-2">{(["approved", "changes_requested"] as const).map(decision =>
-              <button key={decision} className={button} disabled={busy || !selected.author_id || selected.author_id === userId} onClick={() => void operate(async () => {
+              <button key={decision} className={button} disabled={busy || !selected.author_id || selected.author_id === userId || (selected.source_research_position != null && selected.source_unavailable)} onClick={() => void operate(async () => {
                 const reviewed = await reviewFinding(selected.id, { revision: selected.revision, decision, comment: reviewComment }, context);
                 if (current()) setSelected(reviewed);
               })}>{decision === "approved" ? "Approve revision" : "Request changes"}</button>)}</div>
@@ -180,6 +219,14 @@ function FindingsWorkbench() {
               onChange={event => setSharePermission(event.target.value as "read" | "contribute")} disabled={busy}>
               <option value="read">Read only</option><option value="contribute">Edit & independently review</option>
             </select></label>
+            {memberAfter && <button className={button} disabled={busy} onClick={() => void operate(async () => {
+              const after = memberAfter;
+              const response = await listCurrentWorkspaceMembers(context, { after });
+              if (!current()) return;
+              if (response.next_after === after) throw new Error("Member pagination did not advance. Reload and retry.");
+              setMembers(previous => [...new Map([...previous, ...response.members].map(member => [member.user_id, member])).values()]);
+              setMemberAfter(response.next_after ?? null);
+            })}>Load more workspace members</button>}
             <button className={button} disabled={busy || !shareUserId.trim()} onClick={() => void operate(async () => {
               const shared = await shareFinding(selected.id, { user_id: shareUserId.trim(), permission: sharePermission }, context);
               if (current()) { setSelected(shared); setShareUserId(""); }

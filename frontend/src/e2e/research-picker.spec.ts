@@ -1,0 +1,36 @@
+import {expect,test} from "@playwright/test";
+import {randomUUID} from "node:crypto";
+
+test.skip(!process.env.E2E_RESEARCH_COMPONENT_FIXTURE,"Requires controlled local production components, not hosted identities.");
+for(const width of [320,1280])test(`${width}px: a large private source library stays bounded and searchable without losing selections`,async({page},testInfo)=>{
+  await page.setViewportSize({width,height:900});
+  await page.goto(`/?actor=${randomUUID()}`);
+  await expect(page.getByRole("button",{name:"Save plan",exact:true})).toBeEnabled();
+  const group=page.getByRole("group",{name:"Private documents",exact:true});
+  await expect(group.getByRole("checkbox",{name:"Synthetic capacity diligence 60.txt",exact:true})).toBeAttached();
+  const total=await group.getByRole("checkbox").count();expect(total).toBeGreaterThan(200);
+  const height=await group.evaluate(element=>element.getBoundingClientRect().height);
+  expect(height).toBeLessThanOrEqual(420);
+  const search=page.getByRole("searchbox",{name:"Find private documents",exact:true});
+  await search.fill("Timeline policy");
+  await group.getByRole("checkbox",{name:"Timeline policy.txt",exact:true}).check();
+  await search.fill("Timeline amendment");
+  await expect(group.getByRole("checkbox",{name:"Timeline policy.txt",exact:true})).toBeChecked();
+  await group.getByRole("checkbox",{name:"Timeline amendment.txt",exact:true}).check();
+  await search.fill("No synthetic file has this name");
+  await expect(group.getByRole("checkbox")).toHaveCount(2);
+  await expect(group.getByRole("checkbox",{name:"Timeline amendment.txt",exact:true})).toBeChecked();
+  await search.fill("");await expect(group.getByRole("checkbox")).toHaveCount(total);
+  await page.getByRole("combobox",{name:"Mode",exact:true}).selectOption("TIMELINE");
+  await page.getByRole("textbox",{name:"Question",exact:true}).fill(`Synthetic picker ${randomUUID()}`);
+  await page.getByRole("textbox",{name:"Completion criteria",exact:true}).fill("Inspect the exact selected originals.");
+  await page.getByRole("button",{name:"Save plan",exact:true}).click();
+  await page.getByRole("checkbox",{name:/I confirm that all questions/}).check();
+  await expect(page.getByRole("button",{name:"Start research",exact:true})).toBeEnabled();
+  await page.getByRole("button",{name:"Copy to a new plan",exact:true}).click();
+  await expect(search).toHaveValue("");
+  await expect(group.getByRole("checkbox",{name:"Timeline policy.txt",exact:true})).toBeChecked();
+  await expect(group.getByRole("checkbox",{name:"Timeline amendment.txt",exact:true})).toBeChecked();
+  expect(await group.evaluate(element=>element.getBoundingClientRect().height)).toBeLessThanOrEqual(420);
+  await page.screenshot({path:testInfo.outputPath("research-source-picker.png")});
+});

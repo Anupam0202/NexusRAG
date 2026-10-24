@@ -284,6 +284,8 @@ test("authenticated system status reports real data-API reachability without lea
     const body = await response.json();
     assert.equal(response.status, 200);
     assert.equal(body.status, "READY");
+    assert.equal(body.readiness, "NOT_PROBED");
+    assert.deepEqual(body.dependency_status, { supabase_data_api: "REACHABLE", qdrant: "CONFIGURED_NOT_PROBED", gemini: "CONFIGURED_NOT_PROBED" });
     assert.equal(body.settings.supabase_configured, true);
     assert.equal(body.settings.supabase_auth_configured, true);
     assert.equal(body.settings.supabase_data_api_reachable, true);
@@ -456,4 +458,25 @@ test("billing usage denies non-admin workspace members before reading ledger row
   } finally {
     globalThis.fetch = originalFetch;
   }
+});
+
+
+test("workspace analytics rejects missing, malformed and unsafe exact counts", async () => {
+  const originalFetch = globalThis.fetch;
+  const workspace = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+  const user = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
+  try {
+    for (const contentRange of [null, "0-0/*", "0-0/NaN", "0-0/-1", "0-0/1.5", "0-0/9007199254740992"]) {
+      globalThis.fetch = async (url, init = {}) => {
+        const target = String(url);
+        if (target.endsWith("/auth/v1/user")) return new Response(JSON.stringify({ id: user }));
+        if (target.includes("/rest/v1/workspace_members?")) return new Response(JSON.stringify([{ workspace_id: workspace, user_id: user, role: "owner" }]));
+        if (init.method === "HEAD") return new Response(null, { headers: contentRange === null ? {} : { "content-range": contentRange } });
+        throw new Error("Unexpected synthetic count fixture request");
+      };
+      const response = await handle(request("/api/v1/analytics/summary", { headers: { authorization: "Bearer synthetic-user-token", "x-nexus-workspace-id": workspace } }), configured);
+      assert.equal(response.status, 503, String(contentRange));
+      assert.equal((await response.json()).error.code, "PERSISTENCE_UNAVAILABLE");
+    }
+  } finally { globalThis.fetch = originalFetch; }
 });

@@ -1,0 +1,119 @@
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { beforeEach, expect, it, vi } from "vitest";
+import { emptyResearchPlan, modeLimits } from "@/lib/research-plan";
+const api = vi.hoisted(() => ({ createResearchPlan: vi.fn(), listResearchPlans: vi.fn(), readResearchPlan: vi.fn(), getCurrentWorkspace: vi.fn(),listResearchRuns:vi.fn(),researchRunCommand:vi.fn() }));
+vi.mock("@/lib/api", () => api);
+vi.mock("@/hooks/useDocuments", () => ({ useDocuments: () => ({ documents: [{document_id: "document-one", filename: "Synthetic policy.txt", status: "ready"}], loading: false, error: null }) }));
+import { useStore } from "@/hooks/useStore";
+import ResearchPage from "./page";
+const workspace = "11111111-1111-4111-8111-111111111111";
+const record = { id: "33333333-3333-4333-8333-333333333333", workspace_id: workspace, owner_id: "user-a",
+  plan: { ...emptyResearchPlan(), question: "Synthetic question", completion_criteria: ["Inspect the source."] }, limits: modeLimits.QUICK_LOOKUP,
+  state: "planned", persistence_state: "PERSISTED", schema_version: "research-plan/1", execution_supported: false };
+beforeEach(() => {
+  vi.clearAllMocks();
+  useStore.setState({authMode: "authenticated", authUser: {id: "user-a", email: null}, workspaceId: workspace});
+  api.getCurrentWorkspace.mockResolvedValue({role: "owner"});
+  api.listResearchPlans.mockResolvedValue({items: [], next_after: null});
+  api.listResearchRuns.mockResolvedValue({items:[],next_after:null});
+  api.createResearchPlan.mockResolvedValue(record); api.readResearchPlan.mockResolvedValue(record);
+});
+it("does not truncate an accepted Unicode question at half of the SQL character limit",async()=>{
+  render(<ResearchPage />);
+  await waitFor(()=>expect(screen.getByRole("button",{name:"Save plan"})).toBeEnabled());
+  const question=screen.getByLabelText("Question") as HTMLTextAreaElement,value="\u{1F4CA}".repeat(10000);
+  expect(question.maxLength).toBeGreaterThanOrEqual(value.length);
+  fireEvent.change(question,{target:{value}});
+  fireEvent.change(screen.getByLabelText("Completion criteria"),{target:{value:"Inspect the source."}});
+  fireEvent.click(screen.getByRole("button",{name:"Save plan"}));
+  await waitFor(()=>expect(api.createResearchPlan).toHaveBeenCalled());
+  expect(api.createResearchPlan.mock.calls[0][0].question).toBe(value);
+});
+it("retains the10000character boundary and the draft when an ordinary question is too long",async()=>{
+  render(<ResearchPage />);
+  await waitFor(()=>expect(screen.getByRole("button",{name:"Save plan"})).toBeEnabled());
+  fireEvent.change(screen.getByLabelText("Question"),{target:{value:"x".repeat(10001)}});
+  fireEvent.change(screen.getByLabelText("Completion criteria"),{target:{value:"Inspect the source."}});
+  fireEvent.click(screen.getByRole("button",{name:"Save plan"}));
+  expect(await screen.findByRole("alert")).toHaveTextContent("Question must contain at most 10000 characters.");
+  expect(api.createResearchPlan).not.toHaveBeenCalled();
+  expect(screen.getByLabelText("Question")).toHaveValue("x".repeat(10001));
+});
+it("shows all twelve modes, saves selected sources, and reports only draft persistence", async () => {
+  render(<ResearchPage />);
+  await waitFor(() => expect(screen.getByRole("button", {name: "Save plan"})).toBeEnabled());
+  expect(screen.getAllByRole("option")).toHaveLength(12);
+  fireEvent.change(screen.getByLabelText("Question"), {target: {value: "Synthetic question"}});
+  fireEvent.change(screen.getByLabelText("Completion criteria"), {target: {value: "Inspect the source."}});
+  fireEvent.click(screen.getByRole("checkbox", {name: "Synthetic policy.txt"}));
+  fireEvent.click(screen.getByRole("button", {name: "Save plan"}));
+  expect(await screen.findByRole("status")).toHaveTextContent("Saved plan. Executions are tracked separately.");
+  expect(api.createResearchPlan.mock.calls[0][0].private_source_ids).toEqual(["document-one"]);
+  expect(api.createResearchPlan.mock.calls[0][2]).toEqual({workspaceId: workspace, expectedUserId: "user-a"});
+});
+it("retains draft fields and retry identity after an unconfirmed save", async () => {
+  api.createResearchPlan.mockRejectedValueOnce(new Error("Save was not confirmed")).mockResolvedValueOnce(record);
+  render(<ResearchPage />);
+  await waitFor(() => expect(screen.getByRole("button", {name: "Save plan"})).toBeEnabled());
+  fireEvent.change(screen.getByLabelText("Question"), {target: {value: "Synthetic question"}});
+  fireEvent.change(screen.getByLabelText("Completion criteria"), {target: {value: "Inspect the source."}});
+  fireEvent.click(screen.getByRole("button", {name: "Save plan"}));
+  expect(await screen.findByRole("alert")).toHaveTextContent("not confirmed");
+  expect(screen.getByLabelText("Question")).toHaveValue("Synthetic question");
+  expect(screen.queryByRole("status")).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", {name: "Save plan"}));
+  await screen.findByRole("status");
+  expect(api.createResearchPlan.mock.calls[0][1]).toBe(api.createResearchPlan.mock.calls[1][1]);
+});
+it("viewer mode allows inspecting stored plans but disables creation and copying", async () => {
+  api.getCurrentWorkspace.mockResolvedValue({role: "viewer"});
+  api.listResearchPlans.mockResolvedValue({items: [record], next_after: null});
+  render(<ResearchPage />);
+  fireEvent.click(await screen.findByRole("button", {name: "Open research plan: Synthetic question"}));
+  await screen.findByRole("status");
+  expect(screen.getByRole("button", {name: "New plan"})).toBeDisabled();
+  expect(screen.getByRole("button", {name: "Copy to a new plan"})).toBeDisabled();
+});
+it("does not display a late plan response after an ordinary workspace switch", async () => {
+  let finish!: (value: unknown) => void;
+  api.listResearchPlans.mockResolvedValueOnce({items: [record], next_after: null}).mockResolvedValue({items: [], next_after: null});
+  api.readResearchPlan.mockImplementation(() => new Promise(resolve => { finish=resolve; }));
+  render(<ResearchPage />);
+  fireEvent.click(await screen.findByRole("button", {name: "Open research plan: Synthetic question"}));
+  act(() => useStore.setState({workspaceId: "workspace-b"}));
+  await act(async () => finish(record));
+  await waitFor(() => expect(screen.queryByText("Synthetic question")).not.toBeInTheDocument());
+});
+it("keeps unavailable copied document references visible and removable", async () => {
+  const stored = { ...record, plan: { ...record.plan, private_source_ids: ["unavailable-document"] } };
+  api.listResearchPlans.mockResolvedValue({items: [stored], next_after: null});
+  api.readResearchPlan.mockResolvedValue(stored);
+  render(<ResearchPage />);
+  fireEvent.click(await screen.findByRole("button", {name: "Open research plan: Synthetic question"}));
+  await screen.findByRole("status");
+  fireEvent.click(screen.getByRole("button", {name: "Copy to a new plan"}));
+  const document = screen.getByRole("checkbox", {name: "unavailable-document (not currently available)"});
+  fireEvent.change(screen.getByRole("searchbox",{name:"Find private documents"}),{target:{value:"No matching filename"}});
+  expect(document).toBeVisible();
+  expect(document).toBeChecked();
+  fireEvent.click(document);
+  fireEvent.click(screen.getByRole("button", {name: "Save plan"}));
+  await waitFor(() => expect(api.createResearchPlan).toHaveBeenCalled());
+  expect(api.createResearchPlan.mock.calls[0][0].private_source_ids).toEqual([]);
+  expect(api.createResearchPlan.mock.calls[0][0].plan_id).not.toBe(stored.plan.plan_id);
+});
+it("keeps selected and unavailable references inspectable when the document search changes",async()=>{
+  render(<ResearchPage />);
+  await waitFor(()=>expect(screen.getByRole("button",{name:"Save plan"})).toBeEnabled());
+  const search=screen.getByRole("searchbox",{name:"Find private documents"});
+  fireEvent.change(search,{target:{value:"does not match"}});
+  expect(screen.queryByRole("checkbox",{name:"Synthetic policy.txt"})).not.toBeInTheDocument();
+  expect(screen.getByText("No matching documents")).toBeVisible();
+  fireEvent.change(search,{target:{value:"SYNTHETIC POLICY"}});
+  fireEvent.click(screen.getByRole("checkbox",{name:"Synthetic policy.txt"}));
+  fireEvent.change(search,{target:{value:"does not match"}});
+  expect(screen.getByRole("checkbox",{name:"Synthetic policy.txt"})).toBeChecked();
+  fireEvent.click(screen.getByRole("button",{name:"New plan"}));
+  expect(search).toHaveValue("");
+  expect(screen.getByRole("checkbox",{name:"Synthetic policy.txt"})).not.toBeChecked();
+});
