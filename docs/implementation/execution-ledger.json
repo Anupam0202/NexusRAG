@@ -92,8 +92,8 @@
       "requirement":"Keep large document selection bounded, searchable and usable without losing selected or unavailable references",
       "normative_source":"Adopted ordinary Research workspace UI/reliability/accessibility and exact source scope;full224definitions unchanged",
       "status":"IN_PROGRESS",
-      "environment":"Uncommitted059revision2 on published9d08e4f/tree16df6916;actual ResearchPage with controlled synthetic peers,not hosted/private/provider acceptance",
-      "next_action":"Complete059revision2 full owning/review/save/current CI/NEW801source fresh recovery. Exact ready filename-match bulk scope honors mode caps,never truncates arbitrary first60,preserves nonmatching/unavailable references and supports explicit clearing after lower-limit mode changes. New actual desktop/mobile before failures prove Enter-search wrongly saves a draft;search-only prevention retains normal keyboard Save exactly once.24focused units/28browsers plus2final Save assertions pass;individual60selection/save/reload/copy and original30second/5second/max-field guards retained. Old failures and strict recovery rejection remain unwaived. No security/paused022/hosted/private/provider/deployment operations;all224definitions/products/modes/quality/rights/budgets/lifecycle/release scope stays open.",
+      "environment":"Uncommitted059revision3 on publishedf1ba3cf/treee8f979cc;actual ResearchPage controlled peers,not hosted/private/provider acceptance;revision2fresh browser verificationFAILED",
+      "next_action":"Save/publish reviewed revision3 through existingPR12,verify exact-head CI and NEW802source fresh dependency/SQL/browser recovery. Final source all20ordinary categories PASS635backend+19/722Gateway/619frontend95files/59stdlib/118scripts/build26routes/native/ledger/paused551;29owning units and unchanged28browser journeys PASS23:51:05ZOct24. Manual review only. Frozen801source6a463f03/422FAILED-evidenceb506b9f3 recover exactly;prior25browserPASS/3FAIL remains rejected/unwaived. Actual page regressions prove900/897/299unnecessary filename reads;cached matching/selected sets and memo rows remove proven work while retaining all labels,current metadata/roles and exact/pinned IDs. No timeout/assertion/limit/SQL/lock/scheduling/gate change or proven explanation of every historical timeout. Owner-paused022,required failures,public1101,059hosted approval and full224/product/mode/quality/private/lifecycle/rights/budget/release scope remain open.",
       "acceptance_evidence":[{
         "environment":"actual production ResearchPage under controlled local browser fixture;not real private OAuth/model or deployed acceptance",
         "observed_at":"2026-10-23T07:12:17Z",
@@ -106,6 +106,12 @@
         "source_identity":"published9d08e4f plus uncommitted059revision2",
         "command_or_url":"batch059/revision2/bulk-before-02.log;bulk-after-keyboard.log;picker-keyboard-before-tests.log;passport-ui-bulk-keyboard-02-tests.log;picker-keyboard-after-save-03-tests.log",
         "result":"Nine before units reproduce absent bulk control;two browser failures reproduce search Enter unexpectedly persisting a draft. Exact ready filename-match union,tri-state/clear/nonmatch/unavailable retention,mode caps/no arbitrary prefix pass24focused units and28browser journeys. Final2keyboard cases prove search retains draft and ordinary Save persists once. All60individual selections/reload/copy and13position maximum output assertions retained;owning/current CI/NEW recovery pending. Original30second/5second guards and prior failures unwaived."
+      },{
+        "environment":"actual ResearchPage regressions with immutable synthetic300document library and ordinary Chromium/mobile peers,not hosted/private/performance-SLA acceptance",
+        "observed_at":"2026-10-24T23:39:18Z",
+        "source_identity":"publishedf1ba3cf plus uncommitted059revision3 document-row caches and memo component",
+        "command_or_url":"batch059/revision3/source-row-work-before.log;filtered-row-work-before.log;source-row-final-owning.log;source-row-ui-after-01-tests.log;BATCH059_REVISION2_FAILED_HANDOFF.md",
+        "result":"Before3FAIL/12PASS proves900/897unnecessary filename reads;filtered before1FAIL/15PASS proves299remaining reads. Final29owning cases PASS with unchanged labels/IDs/role/data-refresh semantics. Initial memo28browserPASS retains30second/5second bounds;final query-cache UI/full checks/save/CI/NEW recovery pending. Frozen25browserPASS/3FAIL and strict failed recovery remain unwaived;no production or normative acceptance."
       }]
     },
     {

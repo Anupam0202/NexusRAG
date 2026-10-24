@@ -2,6 +2,43 @@
 
 ## Active Functional Batch: product-passport-execution-059
 
+Revision3 pre-save review23:51:05ZOct24:all20ordinary source categories PASS,
+including635backend+19subtests,722Gateway,619frontend/95files,59genuine stdlib,
+118scripts,lint/type/foundation/migrations,Next/OpenNext26routes,actual Worker
+fixtures/lifecycle,six native probes,ledger and551paused entries. Final query-cache
+source passes29owning units and unchanged28desktop/mobile browser journeys;
+maximum output12.3/12.2seconds,individual60source save/reload/copy5.7/5.3seconds.
+These controlled observations are not production performance acceptance or proof
+of every prior timeout cause. Manual functional review confirms immutable library
+updates from useDocuments/useStore,stable checked intent,current names/status/roles
+and unchanged DOM/limits/SQL/locks/gates. No independent reviewer was run. Save/
+publication/exact-head CI/NEW802source fresh dependency/SQL/browser recovery remain
+pending;revision2 failed checkpoint stays frozen/unwaived. No hosted or release work.
+
+Revision3 WIP on publishedf1ba3cf/treee8f979cc,PARTIAL_NOT_COMPLETE. Revision2's
+complete801source6a463f03... and422FAILED-evidenceb506b9f3... recover exactly;
+fresh full20categories/dependencies/ordered SQL65table182function restore pass,
+but browser25PASS/3FAIL remains FAILED at original30second/5second guards. Separate
+post-failure source recheck passes;no fabricated final recovery stage or COMPLETE.
+Actual built recovered Worker Research/missing-assets4PASS after correcting a
+no-tests-matched harness selector. Currentf1baCI9ordinaryPASS,required dependency/
+runtime/summaryFAIL,two deploySKIP. Full failed handoff and prior receipts retained.
+
+Trace actionability does not implicate smooth scrolling. The60selection DOM is
+checked at timeout;mobilelight reaches final screenshot,maximum inspection remains
+incomplete. New actual-page regressions reproduce900unchanged filename reads per
+Question/criteria edit,897other-row reads per selection and299while filtered even
+after initial memoization. Ready/matching/selected caches,stable checked-intent
+updates and memoized document rows remove that proven unnecessary work while
+keeping every label in DOM. Updated filename/availability and all pinned IDs stay
+current. Original before3FAIL/12PASS and filtered before1FAIL/15PASS retained;
+final29owning units PASS. Initial memo version28browser PASS,but final query-cache
+change still needs owning/full checks and unchanged UI/fresh recovery. No old
+timeout/root-cause waiver,performance-SLA claim,SQL/locks/limits/gates change or
+independent reviewer. New source remains uncommitted/unpublished/undeployed.
+059SQL stays local-only/unapproved;the owner's two058approvals remain fulfilled.
+All224definitions/tenproducts/twelvemodes/quality/private/lifecycle/release remain.
+
 Revision2 reviewed19:02:15ZOct24:all20ordinary source categories PASS,including
 635backend+19subtests,722Gateway,614frontend/95files,59genuine stdlib isolated,
 118scripts,lint/type/foundation/migrations,Next/OpenNext26routes,actualWorker

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Copy, FileSearch, Plus, RefreshCw, Save, X } from "lucide-react";
 import Link from "@/components/layout/StaticLink";
 import { AuthRequiredState } from "@/components/auth/AuthRequiredState";
@@ -10,6 +10,7 @@ import { useStore } from "@/hooks/useStore";
 import { useDocuments } from "@/hooks/useDocuments";
 import { CalculationTools } from "@/components/research/CalculationTools";
 import { ResearchRuns } from "@/components/research/ResearchRuns";
+import { ResearchDocumentOption } from "@/components/research/ResearchDocumentOption";
 import { normalizePassportSubject, passportSubjectFields } from "@/lib/product-passport-subject";
 
 const control = "w-full min-w-0 rounded-lg border border-[var(--border)] bg-[var(--bg-primary)] px-3 py-2 text-sm";
@@ -39,13 +40,20 @@ function ResearchWorkbench() {
   const canWrite = ["owner", "admin", "editor"].includes(role);
   const limits = modeLimits[draft.mode];
   const sourceQuery=sourceSearch.trim().toLocaleLowerCase();
-  const matchingSourceIds=[...new Set(documents.filter(doc=>doc.status==="ready"&&doc.filename.toLocaleLowerCase().includes(sourceQuery)).map(doc=>doc.document_id))];
-  const selectedMatches=matchingSourceIds.filter(id=>draft.private_source_ids.includes(id)).length;
+  const readyDocuments=useMemo(()=>documents.filter(doc=>doc.status==="ready"),[documents]);
+  const selectedSources=useMemo(()=>new Set(draft.private_source_ids),[draft.private_source_ids]);
+  const matchingSourceIds=useMemo(()=>[...new Set(readyDocuments.filter(doc=>!sourceQuery||doc.filename.toLocaleLowerCase().includes(sourceQuery)).map(doc=>doc.document_id))],[readyDocuments,sourceQuery]);
+  const matchingSources=useMemo(()=>new Set(matchingSourceIds),[matchingSourceIds]);
+  const selectedMatches=matchingSourceIds.filter(id=>selectedSources.has(id)).length;
   const allMatchesSelected=matchingSourceIds.length>0&&selectedMatches===matchingSourceIds.length;
   const matchingSelectionTooLarge=new Set([...draft.private_source_ids,...matchingSourceIds]).size>limits.max_sources;
   const bulkUnavailable=busy||!canWrite||documentsLoading||Boolean(documentError)||!matchingSourceIds.length;
-  const visibleDocuments=documents.filter(doc=>doc.status==="ready"&&(draft.private_source_ids.includes(doc.document_id)
-    ||doc.filename.toLocaleLowerCase().includes(sourceQuery)));
+  const visibleDocuments=useMemo(()=>sourceQuery?readyDocuments.filter(doc=>selectedSources.has(doc.document_id)
+    ||matchingSources.has(doc.document_id)):readyDocuments,[readyDocuments,selectedSources,matchingSources,sourceQuery]);
+  const changeSourceSelection=useCallback((id:string,checked:boolean)=>setDraft(current=>{
+    if(current.private_source_ids.includes(id)===checked)return current;
+    return {...current,private_source_ids:checked?[...current.private_source_ids,id]:current.private_source_ids.filter(source=>source!==id)};
+  }),[]);
   function changeMatchingSources(checked:boolean) {
     if(bulkUnavailable)return;
     setDraft(current=>{
@@ -161,9 +169,8 @@ function ResearchWorkbench() {
             {documents.length>0&&!visibleDocuments.length&&!draft.private_source_ids.length&&<p className="text-sm text-[var(--text-muted)]">No matching documents</p>}
             <div id="available-private-documents" aria-label="Available private documents" role="region" tabIndex={0} className="max-h-64 overflow-y-auto overscroll-contain">
             {draft.private_source_ids.filter(id => !documents.some(doc => doc.document_id === id && doc.status === "ready")).map(id => <label key={id} className="flex items-start gap-2 py-1 text-sm"><input type="checkbox" className="mt-1" checked disabled={busy || !canWrite}
-              onChange={() => setDraft({ ...draft, private_source_ids: draft.private_source_ids.filter(source => source !== id) })} /><span className="break-all">{id} (not currently available)</span></label>)}
-            {visibleDocuments.map(doc => <label key={doc.document_id} className="flex items-start gap-2 py-1 text-sm"><input type="checkbox" className="mt-1" checked={draft.private_source_ids.includes(doc.document_id)} disabled={busy || !canWrite}
-              onChange={event => setDraft({ ...draft, private_source_ids: event.target.checked ? [...draft.private_source_ids, doc.document_id] : draft.private_source_ids.filter(id => id !== doc.document_id) })} /><span className="break-all">{doc.filename}</span></label>)}
+              onChange={() => changeSourceSelection(id,false)} /><span className="break-all">{id} (not currently available)</span></label>)}
+            {visibleDocuments.map(doc => <ResearchDocumentOption key={doc.document_id} document={doc} checked={selectedSources.has(doc.document_id)} disabled={busy || !canWrite} onSelectionChange={changeSourceSelection}/>)}
             </div></fieldset>
           <div className="grid min-w-0 gap-4 sm:grid-cols-2">{(["date_from", "date_to"] as const).map(key => <label key={key} className="text-sm">{key === "date_from" ? "Start date" : "End date"}<input aria-label={key === "date_from" ? "Start date" : "End date"} type="date" className={`${control} mt-1`} value={draft[key] || ""} disabled={busy || !canWrite} onChange={event => setDraft({ ...draft, [key]: event.target.value || null })} /></label>)}</div>
           <div className="grid min-w-0 gap-4 sm:grid-cols-2">{fields.map(([key, label]) => <label key={key} className="text-sm">{label}<textarea aria-label={label} rows={3} required={key === "completion_criteria"} className={`${control} mt-1`} value={lines[key]} disabled={busy || !canWrite} onChange={event => setLines({ ...lines, [key]: event.target.value })} /></label>)}</div>

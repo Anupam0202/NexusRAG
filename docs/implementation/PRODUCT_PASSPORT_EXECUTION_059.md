@@ -1,5 +1,45 @@
 # Product Passport Execution059
 
+## Revision3: Proven Unchanged Document-Row Work
+
+Pre-save review23:51:05ZOct24:final source passes all20ordinary categories,
+635backend+19subtests/722Gateway/619frontend95files/59stdlib/118scripts,
+lint/type/build26routes/native probes/ledger/551paused entries. Unchanged final
+28browser journeys pass,including maximum12.3/12.2second output and60individual
+source save/reload/copy5.7/5.3seconds;29owning units pass. No runtime SLA or prior
+failure waiver. Manual review follows immutable useDocuments/useStore updates,
+current metadata/role props and stable checked-intent callback;no independent
+reviewer. Save/publication/current CI/NEW802source fresh recovery still pending.
+
+Publishedf1ba3cf/treee8f979cc has a complete801file source recovery and422file
+sanitized FAILED-evidence recovery. Fresh dependency/full20ordinary/ordered SQL
+proof passes,but browser25PASS/3FAIL remains rejected by the strict success guard.
+The desktop maximum inspection,desktop60individual selections and mobilelight
+journey time out. Trace shows all60checked DOM labels and mobile's final screenshot
+outstanding,not a demonstrated missing-record defect;maximum inspection is not
+fully verified. Sampled checkbox stability is fast,so smooth scrolling is not
+established as the cause. All failed/incomplete attempts remain frozen/unwaived.
+Actual built recovered Worker Research/missing-assets4PASS;initial anchored grep
+matched0tests,corrected matching keeps the same existing assertions. This is not
+deployed acceptance. Current9ordinary CI passes;required dependency/runtime/summary
+gates fail. No excluded finding logs,manual scan,merge or deployment.
+
+Three actual-page regressions demonstrate900unchanged filename reads for each
+Question/criteria edit and897unrelated-row reads on one selection in a300document
+library. Initial caches/memo rows pass those cases,but an additional filtered
+selection regression reproduces299unnecessary reads. Reusing matching IDs also
+removes that work. All29owning page cases now pass,including changed filenames,
+changed availability,role/loading/errors,nonmatching/unavailable reference retention,
+full bulk limits and normal keyboard Save. First memo version passes unchanged
+28browser journeys;the final query-cache correction still needs full owning/build/
+UI/save/current CI/NEW complete802source recovery. These counts prove removed
+work,not all earlier timeout causes,INP/LCP/CLS,real users or provider quality.
+No test/expect timeout,capacity,output/assertion,SQL,lock or scheduling change.
+An initial patch context was rejected without changing source;actual checked-event
+intent is preserved through a stable functional update. The first after command
+matched only2test files/23cases due a nonexistent extra pattern;the corrected actual
+directory run verifies3files/29cases after the filtered case was added.
+
 ## Revision2: Exact Bulk Scope And Search Keyboard Behavior
 
 Reviewed19:02:15ZOct24:all20ordinary categories pass with635backend+19subtests,

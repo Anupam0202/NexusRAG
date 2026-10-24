@@ -82,3 +82,31 @@ it("prevents implicit submission only for Enter in document search",async()=>{
   const escape=new KeyboardEvent("keydown",{key:"Escape",bubbles:true,cancelable:true});fireEvent(search,escape);expect(escape.defaultPrevented).toBe(false);
   expect(search).toHaveValue("Match");expect(api.createResearchPlan).not.toHaveBeenCalled();
 });
+it.each(["Question","Completion criteria"])("does not re-read unchanged document labels while editing %s",async field=>{
+  const reads=Array.from({length:300},(_,i)=>vi.fn(()=>`Library source ${i+1}.txt`));
+  library.documents=reads.map((read,i)=>({...doc(i+1,`Library source ${i+1}.txt`),get filename(){return read();}}));
+  await ready();reads.forEach(read=>read.mockClear());
+  fireEvent.change(screen.getByLabelText(field),{target:{value:"A revised research question or criterion"}});
+  expect(reads.reduce((total,read)=>total+read.mock.calls.length,0)).toBe(0);
+});
+it.each(["","Library source"])("does not re-read other document labels when one selected checkbox changes in %s search",async query=>{
+  const reads=Array.from({length:300},(_,i)=>vi.fn(()=>`Library source ${i+1}.txt`));
+  library.documents=reads.map((read,i)=>({...doc(i+1,`Library source ${i+1}.txt`),get filename(){return read();}}));
+  await ready();if(query)fireEvent.change(screen.getByRole("searchbox",{name:"Find private documents"}),{target:{value:query}});reads.forEach(read=>read.mockClear());
+  fireEvent.click(screen.getByRole("checkbox",{name:"Library source 150.txt"}));
+  expect(screen.getByRole("checkbox",{name:"Library source 150.txt"})).toBeChecked();
+  expect(reads[149]).toHaveBeenCalled();
+  expect(reads.filter((_,i)=>i!==149).reduce((total,read)=>total+read.mock.calls.length,0)).toBe(0);
+});
+it("accepts updated library names and availability without losing the selected reference",async()=>{
+  await ready();fireEvent.click(screen.getByRole("checkbox",{name:"Keep selected.txt"}));
+  library.documents=[{...library.documents[0],filename:"Updated original.txt"},...library.documents.slice(1)];
+  fireEvent.change(screen.getByLabelText("Question"),{target:{value:"Inspect updated library"}});
+  expect(screen.getByRole("checkbox",{name:"Updated original.txt"})).toBeChecked();
+  expect(screen.queryByRole("checkbox",{name:"Keep selected.txt"})).not.toBeInTheDocument();
+  const id=library.documents[0].document_id;
+  library.documents=[{...library.documents[0],status:"processing"},...library.documents.slice(1)];
+  fireEvent.change(screen.getByLabelText("Question"),{target:{value:"Inspect changed availability"}});
+  expect(screen.getByRole("checkbox",{name:`${id} (not currently available)`})).toBeChecked();
+  expect(screen.queryByRole("checkbox",{name:"Updated original.txt"})).not.toBeInTheDocument();
+});
