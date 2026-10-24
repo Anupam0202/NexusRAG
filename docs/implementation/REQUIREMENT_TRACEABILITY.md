@@ -1,5 +1,13 @@
 # Requirement traceability
 
+058 is IN_PROGRESS, not normative closure. Product Passport gains a real
+mode-specific source executor with declared-version context, bounded exact-source
+claims/qualifications/gaps and60source/13criterion native coverage. SQL persistence,
+start/readback, UI execution, Findings review, packages and representative provider
+quality are still unfinished; the UI does not falsely enable this incomplete mode.
+Read PRODUCT_PASSPORT_EXECUTOR_058.md and the final external058handoff when saved.
+All224definitions below are unchanged; no product/release requirement closes here.
+
 056 is IN_PROGRESS,not normative closure. Four actual-component failures reproduce
 avoidable saved-report rerenders;reviewed18:30:14Z595frontend/91files,lint/type/
 NextOpenNext26routes and176Research/4intentionalSKIP PASS,including original six

@@ -13,6 +13,15 @@
   "interpretation": "OPEN_ENGINEERING includes implemented but not fully accepted requirements; it does not assert that no code or scoped evidence exists. External approvals do not close unfinished internal work.",
   "entries": [
     {
+      "id":"ENGINEERING-PRODUCT-PASSPORT-EXECUTOR",
+      "requirement":"Complete declared-product source-anchored Passport execution, durable readback, independent review and reproducible packages without certification claims",
+      "normative_source":"Adopted Product Evidence Passport and PRODUCT_PASSPORT mode; exact224normative definitions retained",
+      "status":"IN_PROGRESS",
+      "environment":"Uncommitted058 on published13b225b/treebf07ac93; production executor under local synthetic SQL/provider peers and actual Workerd, not hosted persistence or model quality",
+      "next_action":"Complete reviewed SQL create/read/commit/Findings contracts, typed client/UI execution and deterministic evidence packages with actual disposable PostgreSQL/concurrency/recovery and end-user tests. Source engine focused61 and final Gateway719 pass; native13step/60source maximum, outage and listener release pass. Initial maximum answer overflow repaired by retaining all qualifications in structured records; summary bound unchanged. All20ordinary source checks pass635backend+19subtests/595frontend/59genuinely isolated/117scripts/lint/type/NextOpenNext26routes/actual fixtures and six native probes. Reviewed save/exact-head CI/NEW recovery pending. Current UI remains non-executable, no hosted/source completion implied. Native4096output-token fit for maximum22KBwire is not proven. Original055Due timeout root cause remains unestablished despite one24.3second stage diagnostic. Required gates remain failed and liveResearch1101 reproduced00:20:05ZOct24. Preserve paused022, exact approvals, all224requirements/tenproducts/twelvemodes/quality and release scope.",
+      "acceptance_evidence":[]
+    },
+    {
       "id":"ENGINEERING-REPOSITORY-CLEANUP",
       "requirement":"Consolidate redundant repository refs and correct setup/status metadata without losing unique work,data,accepted scope or release protections",
       "normative_source":"Adopted owner-requested dependency-aware GitHub/platform cleanup;exact224normative definitions unchanged",

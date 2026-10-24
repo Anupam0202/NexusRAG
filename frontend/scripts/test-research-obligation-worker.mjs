@@ -10,12 +10,14 @@ import {fileURLToPath} from "node:url";
 import {obligationCapacity,obligationWire} from "../../tests/fixtures/research-obligation-capacity.mjs";
 import {entityCapacity,entityWire} from "../../tests/fixtures/research-entity-data.mjs";
 import {diligenceCapacity,diligenceWire} from "../../tests/fixtures/research-diligence-data.mjs";
+import {passportCapacity,passportWire} from "../../tests/fixtures/research-passport-data.mjs";
 
 const investigating=process.env.NEXUS_NATIVE_RESEARCH_MODE==="ENTITY_INVESTIGATION";
 const diligence=process.env.NEXUS_NATIVE_RESEARCH_MODE==="DUE_DILIGENCE";
-const label=investigating?"ENTITY":diligence?"DILIGENCE":"OBLIGATION",sourceCount=diligence?60:50,questionCount=diligence?13:11;
-const root=resolve(dirname(fileURLToPath(import.meta.url)),"../.."),fixture=investigating?entityCapacity():diligence?diligenceCapacity():obligationCapacity();
-const wire=diligence?diligenceWire(fixture.sources,{capacity:true}):(investigating?entityWire:obligationWire)(fixture.candidates,fixture.sources),wireText=JSON.stringify(wire);
+const passport=process.env.NEXUS_NATIVE_RESEARCH_MODE==="PRODUCT_PASSPORT";
+const label=investigating?"ENTITY":diligence?"DILIGENCE":passport?"PASSPORT":"OBLIGATION",sourceCount=diligence||passport?60:50,questionCount=diligence||passport?13:11;
+const root=resolve(dirname(fileURLToPath(import.meta.url)),"../.."),fixture=investigating?entityCapacity():diligence?diligenceCapacity():passport?passportCapacity():obligationCapacity();
+const wire=passport?passportWire(fixture.sources):diligence?diligenceWire(fixture.sources,{capacity:true}):(investigating?entityWire:obligationWire)(fixture.candidates,fixture.sources),wireText=JSON.stringify(wire);
 const ws="11111111-1111-4111-8111-111111111111",actor="22222222-2222-4222-8222-222222222222";
 const runId="33333333-3333-4333-8333-333333333333",policy="88888888-8888-4888-8888-888888888888",token="77777777-7777-4777-8777-777777777777";
 const documents=fixture.documents.map((doc,i)=>({...doc,workspace_id:ws,active_version_id:fixture.originals[i].version_id,lifecycle_state:"active"}));
@@ -28,7 +30,7 @@ const chunks=[...originals,...Array.from({length:200-sourceCount},(_,i)=>{
     content:text,original_text:text,original_content_hash:createHash("sha256").update(text).digest("hex"),location:{char_start:0,char_end:text.length}};
 })];
 let run={...fixture.run,id:runId,plan_id:"44444444-4444-4444-8444-444444444444",workspace_id:ws,owner_id:actor,generation:1,state:"queued",source_state:"CURRENT",
-  results:[],deadline:new Date(Date.now()+(diligence?600000:420000)).toISOString(),admission:{credential_mode:"platform_trial"}};
+  results:[],deadline:new Date(Date.now()+(diligence||passport?600000:420000)).toISOString(),admission:{credential_mode:"platform_trial"}};
 let stepCalls=[],requests=[],prompts=[],peerErrors=[],maxResultBytes=0,maxPromptBytes=0,failProvider=false,interrupted=null;
 const peer=createServer(async(request,response)=>{
   const json=(value,status=200)=>{response.writeHead(status,{"content-type":"application/json"});response.end(JSON.stringify(value));};
@@ -45,8 +47,9 @@ const peer=createServer(async(request,response)=>{
       const output=prompt.startsWith("RESEARCH_QUERY_VARIANTS")?{queries:["duration","interval","policy","schedule","rule","period","context"].map(word=>`${prompt.split("QUESTION:\n")[1].split(" ")[0]} Synthetic obligation ${word}`)}:wire;
       if(!prompt.startsWith("RESEARCH_QUERY_VARIANTS")){
         assert.equal(JSON.parse(prompt.split("\nEVIDENCE:\n")[1]).length,sourceCount);assert.equal(body.generationConfig.maxOutputTokens,4096);
-        assert.ok(prompt.includes(investigating?"research-entity-wire/1":diligence?"research-diligence-wire/1":"research-obligation-wire/1"));
+        assert.ok(prompt.includes(investigating?"research-entity-wire/1":diligence?"research-diligence-wire/1":passport?"research-passport-wire/1":"research-obligation-wire/1"));
         if(investigating||diligence)assert.ok(prompt.includes(JSON.stringify(fixture.targets)));
+        if(passport)assert.ok(prompt.includes(JSON.stringify(fixture.subject)));
       }
       return json({candidates:[{finishReason:"STOP",content:{parts:[{text:JSON.stringify(output)}]}}]});
     }
@@ -98,8 +101,8 @@ try {
     const before=requests.length,response=await fetch(`http://127.0.0.1:${port}/execute`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({position}),signal:AbortSignal.timeout(90000)});
     const receipt=await response.json();assert.equal(response.status,200);assert.deepEqual(peerErrors,[]);assert.equal(interrupted,null,JSON.stringify({stepCalls,output}));
     assert.equal(run.position,position+1);assert.equal(receipt.ack,1);assert.equal(receipt.retry,0);assert.equal(receipt.sent.length,position===questionCount-1?0:1);
-    const result=run.results[position],analysis=investigating?result.entities:diligence?result.diligence:result.obligations;
-    assert.equal((diligence?analysis.observations:analysis.candidates).length,12);assert.equal(result.sources.length,investigating?12:diligence?48:50);assert.equal(result.query_retrieval.completed_queries,8);
+    const result=run.results[position],analysis=investigating?result.entities:diligence?result.diligence:passport?result.passport:result.obligations;
+    assert.equal((diligence?analysis.observations:passport?analysis.claims:analysis.candidates).length,12);assert.equal(result.sources.length,investigating?12:diligence||passport?48:50);assert.equal(result.query_retrieval.completed_queries,8);
     assert.equal(analysis.documents.length,sourceCount);assert.equal(analysis.documents.flatMap(doc=>doc.consulted_sources).length,sourceCount);
     if(investigating) {
       assert.deepEqual(analysis.requested_targets,fixture.targets);
@@ -119,6 +122,15 @@ try {
         assert.equal(Array.from(observation.summary).length,240);assert.ok(observation.evidence.every(anchor=>Array.from(anchor.quote).length===300));
         assert.ok(observation.limitations.every(text=>Array.from(text).length===240));
       }
+    }else if(passport) {
+      assert.deepEqual(analysis.subject,fixture.subject);assert.equal(analysis.gaps.length,12);
+      for(const claim of analysis.claims){
+        assert.equal(claim.evidence.length,4);assert.equal(claim.qualifications.length,4);
+        assert.equal(claim.claim_state,"REVIEW_REQUIRED");assert.equal(claim.status_state,"PROPOSED_NOT_VERIFIED");
+        assert.equal(claim.subject_match,"NOT_VERIFIED");assert.equal(Array.from(claim.property).length,128);
+        assert.equal(Array.from(claim.value).length,240);assert.ok(claim.evidence.every(anchor=>Array.from(anchor.quote).length===300));
+        assert.ok(claim.qualifications.every(value=>Array.from(value).length===240));
+      }
     }else assert.ok(result.answer.length>16000);
     assert.ok(Array.from(result.answer).length<=16000);
     for(const source of result.sources){const original=originals.find(row=>row.id===source.chunk_id);
@@ -127,11 +139,12 @@ try {
     maxRequests=Math.max(maxRequests,requests.length-before);maxWall=Math.max(maxWall,receipt.wall_ms);assert.ok(requests.length-before<50);
   }
   assert.equal(run.state,"completed");assert.equal(prompts.filter(prompt=>!prompt.startsWith("RESEARCH_QUERY_VARIANTS")).length,questionCount);
-  console.log(JSON.stringify({marker:`ACTUAL_WORKER_${label}_COMBINED_CAPACITY_PASS`,documents:sourceCount,questions:questionCount,...(diligence?{observations_each:12}:{candidates_each:12}),query_variants_each:8,
+  console.log(JSON.stringify({marker:`ACTUAL_WORKER_${label}_COMBINED_CAPACITY_PASS`,documents:sourceCount,questions:questionCount,...(diligence?{observations_each:12}:passport?{claims_each:12}:{candidates_each:12}),query_variants_each:8,
     ...(investigating?{targets:100,anchors_each:40,relationships_each:4,limitations_each:4,identity_resolved:false}:{}),
     ...(diligence?{targets:100,evidence_anchors_each:4,limitations_each:4,gaps_each:12,identity_resolved:false,summary_codepoints:240}:{}),
+    ...(passport?{declared_product:fixture.subject,evidence_anchors_each:4,qualifications_each:4,gaps_each:12,property_codepoints:128,value_codepoints:240,product_match_verified:false}:{}),
     candidate_rows:200,original_bytes_each:32768,quote_codepoints:300,
-    ...(investigating||diligence?{limitation_codepoints:240}:{control_codepoints:240,qualifying_anchors_each:25}),
+    ...(investigating||diligence?{limitation_codepoints:240}:passport?{qualification_codepoints:240}:{control_codepoints:240,qualifying_anchors_each:25}),
     result_json_bytes:maxResultBytes,run_results_json_bytes:Buffer.byteLength(JSON.stringify(run.results)),max_prompt_utf8_bytes:maxPromptBytes,
     max_controlled_http_requests_per_step:maxRequests,max_wall_ms:maxWall,production_queue_and_http_storage_adapter:true,
     provider_wire_bytes:Buffer.byteLength(wireText),provider_wire_sha256:createHash("sha256").update(wireText).digest("hex"),configured_output_tokens:4096,

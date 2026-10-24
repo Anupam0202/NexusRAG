@@ -10,6 +10,17 @@ import yaml
 ROOT = Path(__file__).resolve().parents[2]
 
 class ResearchWorkflowTests(unittest.TestCase):
+    def test_passport_executor_native_capacity_runs_with_the_actual_worker_in_required_ci(self):
+        workflow=yaml.safe_load((ROOT/".github/workflows/v6-foundation-ci.yml").read_text())
+        matching=[step for step in workflow["jobs"]["frontend"]["steps"]
+                  if step.get("run")=="node scripts/test-research-passport-worker.mjs"]
+        self.assertEqual(len(matching),1)
+        self.assertEqual(matching[0].get("working-directory"),"frontend")
+        wrapper=(ROOT/"frontend/scripts/test-research-passport-worker.mjs").read_text()
+        self.assertIn('process.env.NEXUS_NATIVE_RESEARCH_MODE="PRODUCT_PASSPORT"',wrapper)
+        self.assertIn('await import("./test-research-obligation-worker.mjs")',wrapper)
+        self.assertTrue((ROOT/"tests/fixtures/research-passport-data.mjs").is_file())
+
     def test_declared_passport_identity_persistence_and_browser_journey_run_in_required_ci(self):
         migration="20261023123558_research_passport_subject.sql"
         workflow=(ROOT/".github/workflows/v6-database-rehearsal.yml").read_text()

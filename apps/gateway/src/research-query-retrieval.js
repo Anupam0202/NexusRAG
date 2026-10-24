@@ -1,14 +1,18 @@
 import modes from "../../../frontend/src/lib/research-modes.json" with { type: "json" };
 import { hybridFuse } from "./worker-lifecycle.js";
+import { confirmedPassportSubject } from "./research-passport.js";
 
-export function queryVariantPrompt(question,mode,entityTargets=[]) {
+export function queryVariantPrompt(question,mode,entityTargets=[],passportSubject) {
   const maximum=modes[mode]?.max_query_variants;
   if(!maximum)throw Object.assign(new Error("Unknown research mode."),{code:"MODE_NOT_EXECUTABLE"});
   const scopedTargets=["ENTITY_INVESTIGATION","DUE_DILIGENCE"].includes(mode);
   if(scopedTargets&&(!Array.isArray(entityTargets)||entityTargets.length>100
     ||entityTargets.some(value=>typeof value!=="string"||!value.trim()||Array.from(value).length>128)))
     throw Object.assign(new Error("The saved entity target scope is invalid."),{code:"INVALID_SCOPE"});
-  const targets=scopedTargets?`\nREQUESTED_ENTITY_TARGETS_NOT_VERIFIED_IDENTITIES:\n${JSON.stringify(entityTargets)}\nUse these saved targets to guide relevant query variants; never infer that similarly named records are the same legal person.`:"";
+  if(mode==="PRODUCT_PASSPORT"&&!confirmedPassportSubject(passportSubject))
+    throw Object.assign(new Error("The saved declared product scope is invalid."),{code:"INVALID_SCOPE"});
+  const targets=scopedTargets?`\nREQUESTED_ENTITY_TARGETS_NOT_VERIFIED_IDENTITIES:\n${JSON.stringify(entityTargets)}\nUse these saved targets to guide relevant query variants; never infer that similarly named records are the same legal person.`:mode==="PRODUCT_PASSPORT"?
+    `\nDECLARED_PRODUCT_NOT_VERIFIED:\n${JSON.stringify(passportSubject)}\nPreserve the declared product identifier, version and supplier as retrieval context, not verified applicability. Do not substitute a similarly named product or another version.`:"";
   return `RESEARCH_QUERY_VARIANTS\nProduce at most ${maximum-1} alternative search queries for the question below. Return only JSON {"queries":["..."]}. These are retrieval queries, never answers or evidence. Preserve the question's meaning, entities, exact quoted phrases, identifiers, dates, numbers, units, negation, exceptions and scope. Do not add facts, examples or new entities. Keep each alternative within 500 Unicode characters. Return an empty list if no faithful alternatives exist.${targets}\nQUESTION:\n${question}`;
 }
 

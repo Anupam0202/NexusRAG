@@ -1,5 +1,46 @@
 # NexusRAG execution checkpoint
 
+## Active Functional Batch: product-passport-executor-058
+
+PARTIAL_NOT_COMPLETE. On published13b225b/treebf07ac93; owner-paused022 preserved.
+The newly activated full goal retains all224definitions/tenproducts/twelvemodes.
+Implementing the Product Passport executor, not declaring this product complete.
+Three before regressions reproduce the generic20document cutoff preventing a
+60source Passport result and masking expected provider/commit failures. The
+mode-specific executor preserves declared identifier/version/supplier,13criteria,
+exact Unicode anchors,12claims/four qualifications each,12gaps and source receipts.
+An initial combined maximum test caught answer overflow; all qualifications now
+remain in structured claim records, while the separate summary stays below16000.
+61focused executor/Passport and719Gateway tests pass. Actual Workerd13step maximum,
+ordinary provider outage and listener release pass with controlled local peers;
+the first capacity receipt had inherited Obligation-only metadata, now corrected.
+All20ordinary source checks PASS00:31:15ZOct24:635backend+19subtests,595frontend,
+59genuinely isolated,117scripts,lint/type/NextOpenNext26routes,actual fixtures,
+owned lifecycle and all six native probes. Later719Gateway includes three extra
+minimum/empty/identity cases added after the runner's716Gateway phase. Reviewed
+source save/publication, exact-head CI and NEW recovery are pending.
+Read PRODUCT_PASSPORT_EXECUTOR_058.md. No hosted migration/deploy/provider processing.
+
+IMPORTANT: SQL persistence/start/readback, typed client/UI execution, Findings
+review and reproducible passport packages are NOT implemented by this source
+engine increment. The UI still truthfully leaves Passport non-executable. No
+source-only engine or in-memory test receipt is durable/hosted/product acceptance.
+The60source/13criterion/8query/600second accepted scope is retained, not reduced.
+The4096output-token provider budget is not proven to fit maximum generated fields;
+native controlled22KBwire output is not representative Gemini quality/token proof.
+
+One stage-traced unchanged native Due diagnostic passes in24.3seconds, including
+capacity/outage/cleanup; original055timeout root cause remains UNESTABLISHED and
+failed evidence/strict guard are unwaived. First diagnostic command used an invalid
+Windows ESM import path; no test ran. Correct file-URL invocation is retained.
+Fresh ChromeResearch00:20:05ZOct24 still1101,Ray a4f4d04bf88be179. No IP revealed.
+GitHub owner/repository/PR12heads revalidated; current13b225b remains draft/blocked
+with required dependency/runtime/summary failed. No merge, security investigation,
+hosted/private/customer/destructive/paid operation, new users or branch cleanup.
+Authenticated CF shows candidate frontend short version5db33e20 at100%traffic;
+last-hour events returned none and issue detection was not enabled. No settings
+changed; no exact Ray/root-cause or deployed Git-SHA attestation is inferred.
+
 ## Active Administrative Batch: repository-cleanup-057
 
 PARTIAL_NOT_COMPLETE. On published6f388ae/treee48914cf;paused022unchanged.

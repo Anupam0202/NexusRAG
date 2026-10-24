@@ -139,6 +139,9 @@ jobs:
       - name: Actual Worker combined Due Diligence execution and ordinary outage
         run: node scripts/test-research-diligence-worker.mjs
         working-directory: frontend
+      - name: Actual Worker Product Passport executor capacity and ordinary outage
+        run: node scripts/test-research-passport-worker.mjs
+        working-directory: frontend
       - run: npm run build
         working-directory: frontend
         env:
