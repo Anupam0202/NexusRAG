@@ -43,6 +43,7 @@ import { canonicalAggregationInput, confirmedAggregation, type AggregationInput,
 import {canonicalConversionInput,confirmedConversion,type ConversionInput,type ConversionRecord} from "@/lib/research-conversion";
 import {canonicalQuantityCapture,confirmedQuantityCapture,type QuantityCaptureInput,type QuantityCaptureRecord} from "@/lib/research-quantity";
 import { readOriginalDownload, originalTransferPolicy, type OriginalDownloadOptions } from "@/lib/document-original";
+import {confirmedExportRights,confirmedFindingPackage,confirmedPackageReceipt,confirmedPackageSummary,type FindingPackageReceipt,type FindingExportRights,type FindingExportPolicy,type FindingPackage} from "@/lib/finding-package";
 
 export interface ApiRequestContext {
   expectedUserId?: string | null;
@@ -630,6 +631,42 @@ export function removeFinding(id: string, context: ApiRequestContext) {
 export function exportFinding(id: string, context: ApiRequestContext) {
   return request<{ receipt: { id: string }; manifest: unknown; manifest_hash: string }>(
     `/api/v2/findings/${encodeURIComponent(id)}/export`, { method: "POST" }, context);
+}
+
+export async function readFindingExportRights(id:string,context:ApiRequestContext) {
+  const result=await request<FindingExportRights>(`/api/v2/findings/${encodeURIComponent(id)}/export-rights`,undefined,context);
+  if(!confirmedExportRights(result,id))throw new ApiRequestError("The current export review was not confirmed. Refresh before retrying.","PERSISTENCE_UNCONFIRMED");
+  return result;
+}
+export async function recordFindingExportRights(id:string,body:{revision:number;selections:Array<{version_id:string;expected_review_id:string|null}>;policy:FindingExportPolicy},key:string,context:ApiRequestContext) {
+  const result=await request<FindingExportRights>(`/api/v2/findings/${encodeURIComponent(id)}/export-rights`,
+    {method:"POST",headers:{"Idempotency-Key":key},body:JSON.stringify(body)},context);
+  if(!confirmedExportRights(result,id)||result.revision!==body.revision)throw new ApiRequestError("The saved export review was not confirmed. Refresh before retrying.","PERSISTENCE_UNCONFIRMED");
+  return result;
+}
+export async function createFindingPackage(id:string,revision:number,key:string,context:ApiRequestContext) {
+  const receipt=await request<FindingPackageReceipt>(`/api/v2/findings/${encodeURIComponent(id)}/packages`,
+    {method:"POST",headers:{"Idempotency-Key":key},body:JSON.stringify({revision})},context);
+  if(!confirmedPackageReceipt(receipt,id,context.workspaceId,revision))throw new ApiRequestError("The saved package receipt was not confirmed. Refresh before retrying.","PERSISTENCE_UNCONFIRMED");
+  const result=await readFindingPackage(id,receipt.id,context);
+  if(result.finding_revision!==revision||result.manifest_hash!==receipt.manifest_hash||result.manifest_bytes!==receipt.manifest_bytes)
+    throw new ApiRequestError("The exact saved package was not confirmed. Refresh before retrying.","PERSISTENCE_UNCONFIRMED");
+  return result;
+}
+export async function readFindingPackage(id:string,packageId:string,context:ApiRequestContext) {
+  const result=await request<FindingPackage>(`/api/v2/findings/${encodeURIComponent(id)}/packages/${encodeURIComponent(packageId)}`,undefined,context);
+  if(result?.id!==packageId||!await confirmedFindingPackage(result,id,context.workspaceId))throw new ApiRequestError("The saved package readback was not confirmed.","PERSISTENCE_UNCONFIRMED");
+  return result;
+}
+export async function listFindingPackages(id:string,context:ApiRequestContext,after?:string) {
+  const result=await request<{schema_version:"finding-package-list/1";items:Array<Omit<FindingPackage,"manifest_text">>;next_after:string|null}>(
+    `/api/v2/findings/${encodeURIComponent(id)}/packages?limit=20${after?`&after=${encodeURIComponent(after)}`:""}`,undefined,context);
+  if(!result||result.schema_version!=="finding-package-list/1"||!Array.isArray(result.items)||result.items.length>20
+    ||result.items.some(row=>!confirmedPackageSummary(row,id,context.workspaceId)||Object.hasOwn(row,"manifest_text"))
+    ||new Set(result.items.map(row=>row.id)).size!==result.items.length
+    ||result.next_after!==null&&result.items.at(-1)?.id!==result.next_after)
+    throw new ApiRequestError("The saved package list was not confirmed. Refresh before retrying.","PERSISTENCE_UNCONFIRMED");
+  return result;
 }
 
 export async function listWorkspaces(

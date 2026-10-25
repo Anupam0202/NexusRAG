@@ -37,6 +37,9 @@ jobs:
           sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
           sudo apt-get update
           sudo apt-get install -y postgresql-17 postgresql-17-pgvector
+      - name: Install locked functional package processors and local Worker harness
+        working-directory: frontend
+        run: npm ci --ignore-scripts --no-audit --no-fund
       - name: Replay clean baseline and candidate migrations
         run: |
           set -euo pipefail
@@ -50,6 +53,8 @@ jobs:
           node_bin="$(command -v node)"
           log="$RUNNER_TEMP/postgres-rehearsal.log"
           source_dir="$(mktemp -d /tmp/nexusrag-pg-rehearsal.XXXXXX)"
+          package_dir="$(mktemp -d /tmp/nexusrag-package-rehearsal.XXXXXX)"
+          sudo chown postgres "$package_dir"
           mkdir -p "$source_dir/tests" "$source_dir/supabase/baseline" "$source_dir/supabase/migrations"
           cp -R "$GITHUB_WORKSPACE/tests/postgres" "$source_dir/tests/"
           cp -R "$GITHUB_WORKSPACE/tests/fixtures" "$source_dir/tests/"
@@ -58,6 +63,7 @@ jobs:
           mkdir -p "$source_dir/frontend/src/lib"
           cp "$GITHUB_WORKSPACE/frontend/src/lib/document-original-policy.json" "$source_dir/frontend/src/lib/"
           cp "$GITHUB_WORKSPACE/frontend/src/lib/research-modes.json" "$source_dir/frontend/src/lib/"
+          cp "$GITHUB_WORKSPACE/frontend/src/lib/finding-package-limits.json" "$source_dir/frontend/src/lib/"
           cp "$GITHUB_WORKSPACE/package.json" "$source_dir/"
           mkdir -p "$source_dir/backend/src/domain"
           cp "$GITHUB_WORKSPACE/backend/src/domain/deterministic_calculations.py" "$source_dir/backend/src/domain/"
@@ -105,11 +111,13 @@ jobs:
           cp "$GITHUB_WORKSPACE/supabase/migrations/20261023123558_research_passport_subject.sql" "$source_dir/supabase/migrations/"
           cp "$GITHUB_WORKSPACE/supabase/migrations/20261024113940_research_passport_execution.sql" "$source_dir/supabase/migrations/"
           cp "$GITHUB_WORKSPACE/supabase/migrations/20261025003900_research_procurement_execution.sql" "$source_dir/supabase/migrations/"
+          cp "$GITHUB_WORKSPACE/supabase/migrations/20261025093226_finding_evidence_packages.sql" "$source_dir/supabase/migrations/"
           chmod -R a+rX "$source_dir"
           cleanup() {
             sudo -u postgres dropdb --if-exists -h /var/run/postgresql -p "$port" "$db" >/dev/null 2>&1 || true
             sudo pg_ctlcluster 17 main stop >/dev/null 2>&1 || true
             rm -rf "$source_dir"
+            sudo rm -rf "$package_dir"
           }
           trap cleanup EXIT
           node --input-type=module -e 'await import(process.argv[1]); console.log("COPIED_GATEWAY_ENTRY_IMPORT_PASS");' "$source_dir/apps/gateway/src/preview-worker.js"
@@ -120,7 +128,13 @@ jobs:
             PGPORT="$port" \
             PGUSER=postgres \
             PGDATABASE="$db" \
+            NEXUS_PACKAGE_CAPACITY_OUTPUT="$package_dir/capacity.json" \
             bash "$source_dir/tests/postgres/local-rehearsal.sh" >"$log" 2>&1; then
+            (
+              cd "$GITHUB_WORKSPACE/frontend"
+              node scripts/test-finding-package-jsonld.mjs "$package_dir/capacity.json"
+              node scripts/test-finding-package-worker.mjs "$package_dir/capacity.json" "$package_dir/capacity.receipt.json" --slow-body
+            ) >>"$log" 2>&1
             sudo -u postgres env \
               PGHOST=/var/run/postgresql \
               PGPORT="$port" \
@@ -132,6 +146,11 @@ jobs:
             grep -F 'BACKEND_PRIVATE_TURN_AUTHORITY_PASS' "$log"
             grep -F 'BACKEND_PRIVATE_TURN_CONCURRENT_AUTHORITY_PASS' "$log"
             grep -F 'RESEARCH_PLAN_SQL_PASS' "$log"
+            grep -F 'FINDING_PACKAGE_SQL_PASS' "$log"
+            grep -F 'FINDING_PACKAGE_CAPACITY_SQL_PASS' "$log"
+            grep -F 'REAL_SQL_FINDING_PACKAGE_CONCURRENCY_PASS' "$log"
+            grep -F 'ACTUAL_WORKER_FINDING_PACKAGE_CAPACITY_PASS' "$log"
+            grep -F 'FINDING_PACKAGE_JSONLD_PASS' "$log"
             grep -F 'RESEARCH_PASSPORT_SUBJECT_SQL_PASS' "$log"
             grep -F 'POSTGRES_PASSPORT_SUBJECT_CONCURRENT_RETRY_PASS' "$log"
             grep -F 'RESEARCH_TIMELINE_SQL_PASS' "$log"

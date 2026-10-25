@@ -13,6 +13,21 @@
   "interpretation": "OPEN_ENGINEERING includes implemented but not fully accepted requirements; it does not assert that no code or scoped evidence exists. External approvals do not close unfinished internal work.",
   "entries": [
     {
+      "id":"ENGINEERING-FINDING-EVIDENCE-PACKAGES",
+      "requirement":"Complete source-version rights review,independent Finding-revision approval and deterministic source-linked packages with durable receipts/readback/download,expiry/revocation and complete source qualifications",
+      "normative_source":"Adopted shared evidence-package journey,S06/S20/G01/G21/P18/P19/P20/Z24;all224exact definitions retained",
+      "status":"IN_PROGRESS",
+      "environment":"Uncommitted061 on published0d358a6/tree17436029;owned local PostgreSQL and controlled synthetic browser/Gateway peers,not hosted/private/production acceptance",
+      "next_action":"Prove156-source/JSON-escaping manifest capacity,real concurrent retry/review/quota/expiry cases and lifecycle compatibility;finish ordinary full suites/build/CI wiring/source review,then NEW complete source/real locks/fresh dependency/SQL/UI/evidence recovery before source publication.061hosted approval absent. Unknown/denied/expired/revoked rights withheld;workspace review not legal certification. Public provider/full-original/bulk formats and full224/product/private/quality/lifecycle/rights/budget/paused022/required-gates/rollout/rollback remain open.",
+      "acceptance_evidence":[{
+        "environment":"real disposable PostgreSQL plus actual Gateway/Findings UI under synthetic peers;no hosted mutation or provider processing",
+        "observed_at":"2026-10-25T10:01:00Z",
+        "source_identity":"published0d358a6a31a5ca31dfa7b1ab40bb5255a69875e4 plus uncommitted061",
+        "command_or_url":"batch061/sql-packages-02.log;jsonld-actual-sql-01.log;gateway-owning-02.log;frontend-owning-03.log;ui-03-tests.log",
+        "result":"SQL persisted result/rights/review/hash/retry/reload/old revision/revocation/source-removal and67table194function backuprestore PASS;actual SQL JSON-LD1.1 literals/PROV expansion with no remote contexts PASS;33Gateway/16frontend owning and4controlled desktop/mobile/lightdark UI PASS. Initial0PASS/4locator failures and second2PASS/2shared-actor-rate-limit failures preserved;guard unchanged.5MB package capacity is provisional/not fully accepted. Source not saved/published/deployed and whole scope PARTIAL_NOT_COMPLETE."
+      }]
+    },
+    {
       "id":"ENGINEERING-RESEARCH-PROCUREMENT-EXECUTION",
       "requirement":"Complete50source/11criterion Procurement Research with exact source-linked notice fields,durable run and Findings readback,independent review and complete UI without automatic eligibility/award/ranking",
       "normative_source":"Adopted PROCUREMENT_RESEARCH and Procurement Intelligence Graph,P14/P15/P32;all224definitions retained",

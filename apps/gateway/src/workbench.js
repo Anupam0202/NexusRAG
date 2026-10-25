@@ -1,6 +1,7 @@
 // Record-authorized durable findings. All identity and policy fields are derived
 // from authenticated server state, never from the caller's JSON.
 import { readBoundedJsonObject } from "./request-body.js";
+import {handleFindingPackages} from "./finding-packages.js";
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const problem = (code, message, status = 422) => Object.assign(new Error(message), { code, status });
 function boundedText(value, name, maximum, minimum = 0) {
@@ -48,6 +49,9 @@ async function projectFinding(args, finding) {
 async function handleWorkbench(args) {
   const { request, env, user, workspace, member, json } = args;
   const url = new URL(request.url);
+  const packageRoute=url.pathname.match(/^\/api\/v2\/findings\/([0-9a-f-]{36})\/(export-rights|packages)(?:\/([0-9a-f-]{36}))?$/i);
+  if(packageRoute)return handleFindingPackages(args,{findingId:uuid(packageRoute[1]),resource:packageRoute[2],
+    packageId:packageRoute[3]?uuid(packageRoute[3]):null},await workbenchContext(args));
   const matched = url.pathname.match(/^\/api\/v2\/findings\/([0-9a-f-]{36})(?:\/(review|share|unshare|export))?$/i);
   if (!matched && !["/api/v2/findings", "/api/v2/claims"].includes(url.pathname)) return null;
   if (!matched && ["GET", "HEAD"].includes(request.method)) {

@@ -10,6 +10,24 @@ import yaml
 ROOT = Path(__file__).resolve().parents[2]
 
 class ResearchWorkflowTests(unittest.TestCase):
+    def test_finding_package_capacity_concurrency_and_real_worker_are_required(self):
+        database=(ROOT/".github/workflows/v6-database-rehearsal.yml").read_text()
+        foundation=(ROOT/".github/workflows/v6-foundation-ci.yml").read_text()
+        rehearsal=(ROOT/"tests/postgres/local-rehearsal.sh").read_text()
+        self.assertIn("20261025093226_finding_evidence_packages.sql",database)
+        self.assertIn("finding-package-limits.json",database)
+        for name in ("finding-package-assertions.sql","finding-package-capacity.sql","finding-package-integration.mjs"):
+            self.assertIn(name,rehearsal)
+        for marker in ("FINDING_PACKAGE_SQL_PASS","FINDING_PACKAGE_CAPACITY_SQL_PASS","REAL_SQL_FINDING_PACKAGE_CONCURRENCY_PASS",
+                       "ACTUAL_WORKER_FINDING_PACKAGE_CAPACITY_PASS","FINDING_PACKAGE_JSONLD_PASS"):
+            self.assertIn(f"grep -F '{marker}'",database)
+        self.assertIn("node scripts/test-finding-package-worker.mjs",database)
+        self.assertIn("finding-packages.spec.ts --workers=1",foundation)
+        fixture=json.loads((ROOT/"tests/fixtures/finding-package-sql.json").read_text())
+        self.assertEqual(fixture["schema_version"],"finding-package/1")
+        limits=json.loads((ROOT/"frontend/src/lib/finding-package-limits.json").read_text())
+        self.assertEqual(limits["max_manifest_bytes"],33554432)
+
     def test_procurement_database_and_browser_paths_are_required_not_mock_only(self):
         migration="20261025003900_research_procurement_execution.sql"
         workflow=(ROOT/".github/workflows/v6-database-rehearsal.yml").read_text()
@@ -173,7 +191,7 @@ class ResearchWorkflowTests(unittest.TestCase):
             copied=Path(directory)
             shutil.copytree(ROOT / "apps/gateway/src",copied / "apps/gateway/src")
             shutil.copyfile(ROOT / "package.json",copied / "package.json")
-            for name in ("frontend/src/lib/document-original-policy.json","frontend/src/lib/research-modes.json","backend/evals/datasets/sample_corpus.json"):
+            for name in ("frontend/src/lib/document-original-policy.json","frontend/src/lib/research-modes.json","frontend/src/lib/finding-package-limits.json","backend/evals/datasets/sample_corpus.json"):
                 target=copied / name
                 target.parent.mkdir(parents=True,exist_ok=True)
                 shutil.copyfile(ROOT / name,target)

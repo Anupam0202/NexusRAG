@@ -210,6 +210,22 @@ jobs:
           done
           test "$ready" = true || { cat /tmp/nexusrag-research-fixture.log; exit 1; }
           E2E_RESEARCH_COMPONENT_FIXTURE=1 E2E_BASE_URL=http://127.0.0.1:3024 npm exec playwright -- test research-plans.spec.ts research-passport-subject.spec.ts research-passport.spec.ts research-procurement.spec.ts research-picker.spec.ts research-calculations.spec.ts research-aggregations.spec.ts research-conversions.spec.ts research-quantities.spec.ts research-runs.spec.ts research-findings.spec.ts research-comparisons.spec.ts research-timelines.spec.ts research-contradictions.spec.ts research-deep.spec.ts research-obligations.spec.ts research-entities.spec.ts research-diligence.spec.ts research-original-pages.spec.ts research-source-inspection.spec.ts research-copy.spec.ts document-original.spec.ts --workers=2
+      - name: Synthetic Finding rights and package download journeys
+        working-directory: frontend
+        run: |
+          set -euo pipefail
+          export E2E_PACKAGE_SQL_FIXTURE="$GITHUB_WORKSPACE/tests/fixtures/finding-package-sql.json"
+          node scripts/test-finding-package-jsonld.mjs "$E2E_PACKAGE_SQL_FIXTURE"
+          node scripts/research-browser-fixture.mjs 3025 > /tmp/nexusrag-package-fixture.log 2>&1 &
+          fixture_pid=$!
+          trap 'kill "$fixture_pid" 2>/dev/null || true' EXIT
+          ready=false
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:3025/ >/dev/null; then ready=true; break; fi
+            sleep 1
+          done
+          test "$ready" = true || { cat /tmp/nexusrag-package-fixture.log; exit 1; }
+          E2E_RESEARCH_COMPONENT_FIXTURE=1 E2E_BASE_URL=http://127.0.0.1:3025 npm exec playwright -- test finding-packages.spec.ts --workers=1
       - name: Actual Cloudflare Worker document routing regressions
         working-directory: frontend
         env:

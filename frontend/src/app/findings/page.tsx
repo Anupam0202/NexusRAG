@@ -21,6 +21,7 @@ import { EntityCandidates } from "@/components/research/EntityCandidates";
 import { DiligenceObservations } from "@/components/research/DiligenceObservations";
 import { PassportClaims } from "@/components/research/PassportClaims";
 import { ProcurementRecords } from "@/components/research/ProcurementRecords";
+import { FindingPackages } from "@/components/findings/FindingPackages";
 
 const control = "w-full rounded-lg border border-[var(--border)] bg-[var(--bg-primary)] px-3 py-2 text-sm";
 const button = "rounded-lg border border-[var(--border)] px-3 py-2 text-sm font-medium disabled:opacity-50";
@@ -162,14 +163,15 @@ function FindingsWorkbench() {
           <div className="flex flex-wrap gap-2">
             <button className={`${button} bg-brand-600 text-white`} disabled={busy || !canEdit || !title.trim()}
               onClick={() => void operate(save)}>Save finding</button>
-            {selected && <button className={button} disabled={busy || !canWrite || !!selected.source_run_id || selected.source_research_position != null}
+            {selected && !selected.source_run_id && selected.source_research_position == null && <button className={button} disabled={busy || !canWrite}
               onClick={() => void operate(download)}>Export JSON-LD & receipt</button>}
             {selected?.permission === "owner" && <button className={button} disabled={busy} onClick={() => {
               if (!window.confirm("Delete and redact this finding and its version text?")) return;
               void operate(async () => { await removeFinding(selected.id, context); if (current()) setReload(value => value + 1); });
             }}>Delete finding</button>}
           </div>
-          {selected && <><section aria-label="Evidence and reviews" className="space-y-2 border-t border-[var(--border)] pt-4">
+          {selected && <>{(selected.source_run_id || selected.source_research_position != null) && <FindingPackages key={`${selected.id}:${selected.revision}`} finding={selected} context={context} canExport={canWrite} parentBusy={busy}/>}
+          <section aria-label="Evidence and reviews" className="space-y-2 border-t border-[var(--border)] pt-4">
             <h3 className="font-semibold">Evidence & review history</h3>
             {selected.research_origin && <div className="space-y-2 text-sm">
               <p>{selected.research_origin.comparison?`Saved comparison · criterion ${selected.research_origin.comparison.criterion_index+1} · batch ${selected.research_origin.comparison.batch_index+1}`:selected.research_origin.timeline?`Saved timeline · criterion ${selected.research_origin.timeline.criterion_index+1} · batch ${selected.research_origin.timeline.batch_index+1}`:selected.research_origin.contradiction?`Saved contradiction analysis · criterion ${selected.research_origin.contradiction.criterion_index+1}`:`Saved research answer · question ${selected.research_origin.result_index + 1}`} · not automatically verified</p>

@@ -135,7 +135,7 @@ async function authenticate(request, env) {
   if (!user?.id) throw Object.assign(new Error("The authenticated user is unavailable."), { status: 401, code: "AUTH_REQUIRED" });
   return user;
 }
-async function serviceRequest(env, tablePath, init = {}) {
+async function serviceResponse(env, tablePath, init = {}) {
   const response = await apiFetch(`${env.SUPABASE_URL}/rest/v1/${tablePath}`, {
     ...init,
     headers: {
@@ -160,8 +160,11 @@ async function serviceRequest(env, tablePath, init = {}) {
     if (storageError.code === "P0002") throw Object.assign(new Error("Record not found."), { status: 404, code: "NOT_FOUND" });
     throw Object.assign(new Error("Authoritative storage rejected the request."), { status: 503, code: "PERSISTENCE_UNAVAILABLE", storageCode: storageError.code, detail });
   }
-  const text = await response.text();
-  return text ? JSON.parse(text) : null;
+  return response;
+}
+async function serviceRequest(env, tablePath, init = {}) {
+  const response=await serviceResponse(env,tablePath,init);
+  const text=await response.text();return text?JSON.parse(text):null;
 }
 // Retain database record-level authority: membership is not permission to read
 // another member's private findings, conversations, or exports.
@@ -761,7 +764,7 @@ async function handle(request, env = {}) {
     }
     if (url.pathname === "/api/v2/findings" || url.pathname.startsWith("/api/v2/findings/")) {
       const id = workspaceId(request); const member = await membership(env, user.id, id);
-      return await handleWorkbench({ request, env, user, workspace: id, member, serviceRequest, json })
+      return await handleWorkbench({ request, env, user, workspace: id, member, serviceRequest, serviceResponse, json })
         || fail(request, env, "NOT_FOUND", "Finding route not found.", 404);
     }
 

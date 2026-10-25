@@ -1,5 +1,36 @@
 # NexusRAG execution checkpoint
 
+## Active Functional Batch: finding-evidence-packages-061
+
+WIP10:01ZOct25,NOT committed/published/deployed/hosted-applied. Real local SQL
+rights/review/package/hash/retry/readback/historical revision/revocation/lifecycle
+and67table194function backuprestore PASS. Actual SQL JSON-LD1.1/PROV processor
+PASS with remote context fetching disabled. Gateway33owning/frontend16owning,
+typecheck/focusedlint PASS before final fixture edits. Controlled Chromium
+desktop/mobile,light/dark4PASS after preserving first4locator failures and second
+2PASS/2FAIL shared synthetic actor120-request-limit failures. Distinct local test
+identities fix fixture collision,not a changed limit. Owned3122and local SQL stopped.
+New dev-only jsonld9.0.0 plus eight real transitive lock records;952existing graph
+entries preserved exactly. Full final suites/build/CI/concurrency/near-capacity/
+156source-size proof,source review and NEW fresh dependency/source/evidence recovery
+remain. Provisional5MB package bound not accepted for all retained capacities.
+Do not publish this WIP or apply061 under fulfilled059/060 approvals. See061doc.
+
+061starts on published0d358a6/tree17436029;060complete815source/249evidence and
+additive hosted appendix recover exactly,all14fresh stages/21ordinary categories/
+40controlled+4builtWorker browser and9ordinary CI PASS. Required dependency/runtime/
+summaryFAIL;main unchanged/sole draftPR12/two necessary branches. Both exact059/
+060rehearsal approvals fulfilled once,registry42. Do not replay them or apply061.
+See externalBATCH060_HANDOFF.md;older060source-time pending notes are historical.
+
+Current source-backed Finding export is always blocked;provider-level rights rows
+do not supply document-version export review. Implement accepted rights-review ->
+source-linked deterministic package -> persisted readback/download UI/API/SQL
+journey,not another manual-note-only workaround. First actual Gateway regressions
+precede implementation. Unknown/denied/expired/revoked rights remain blocked;
+human decision is not legal certification. No new provider activation,production,
+hosted/customer/destructive operations,security work or paused022resumption.
+
 ## Active Functional Batch: procurement-research-execution-060
 
 Pre-save review06:00ZOct25:all21ordinary categories PASS:635backend+19subtests,

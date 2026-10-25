@@ -1,5 +1,17 @@
 # Requirement traceability
 
+061WIP on0d358a6:private-upload source-version rights review and deterministic
+Finding evidence-package UI/Gateway/SQL implementation. S06/S20/G01/G21/P18/P19/
+P20/Z24 and all224exact definitions remain open for full accepted/deployed evidence.
+Real local SQL/retry/revision/revocation/lifecycle+67table194function backuprestore,
+actual SQL JSON-LD1.1/PROV expansion,33Gateway/16frontend owning and controlled
+desktop/mobile/lightdark4browser PASS. Preserve0/4selector and2/2fixture-identity
+failures. No new security work/provider/hosted/customer operations. Upper-bound
+package capacity/concurrency/current full suites/CI/fresh source/dependency/evidence
+recovery and hosted/private/released journeys remain. SeeFINDING_EVIDENCE_PACKAGES_061.
+Frozen060handoff and additive hosted appendix supersede old060pending notes below;
+both059/060exact rehearsal approvals are fulfilled once. No061approval exists.
+
 060pre-save:all21ordinary categories PASS including635backend+19subtests,
 741Gateway/634frontend/59isolated/120scripts,Next/OpenNext26routes,seven native
 Worker probes;40controlled Research+4actualbuiltWorker UI PASS. No old timeout

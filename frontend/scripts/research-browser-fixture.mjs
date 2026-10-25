@@ -3,6 +3,7 @@ import react from "@vitejs/plugin-react";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createHash, randomUUID } from "node:crypto";
+import {readFile} from "node:fs/promises";
 import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import { handle, queue } from "../../apps/gateway/src/preview-worker.js";
@@ -27,6 +28,18 @@ const runs=new Map(),runKeys=new Map(),interruptedQuestions=new Set();
 const findings=new Map(),findingKeys=new Map(),actors=new Set([user,"33333333-3333-4333-8333-333333333333"]);
 const reviewer="33333333-3333-4333-8333-333333333333";
 const reviewers=new Set([reviewer]);
+// Optional real disposable-SQL output supplies package transport fixtures.
+// SQL decisions/concurrency are tested by PostgreSQL, not reimplemented here.
+const sqlPackage=process.env.E2E_PACKAGE_SQL_FIXTURE?JSON.parse(await readFile(process.env.E2E_PACKAGE_SQL_FIXTURE,"utf8")):null;
+let packageRights=null,packageSaved=false,packageInterrupted=false;
+if(sqlPackage){
+  const m=JSON.parse(sqlPackage.manifest_text);
+  findings.set(m.finding_id,{id:m.finding_id,workspace_id:workspace,owner_id:user,author_id:user,title:m.title,revision:m.revision,
+    authored_markdown:m.authored_markdown,generated_markdown:m.generated_markdown,source_run_id:null,source_research_position:0,
+    source_research_run_id:m.analysis.sources[0].document_id,source_unavailable:false,evidence:m.evidence,reviews:m.reviews,participants:[],permission:"owner"});
+  packageRights={schema_version:"finding-export-rights/1",finding_id:m.finding_id,revision:m.revision,can_review:true,eligible:false,reason:"RIGHTS_REVIEW_REQUIRED",
+    items:m["@included"].filter(row=>row.version_id).map(row=>({...row,version_id:row.version_id,review_id:null,policy:null,allowed:false}))};
+}
 // Ordinary pagination stays exercised even in a fresh isolated fixture process.
 for(let i=1;i<=101;i++)actors.add(`00000034-0000-4000-8000-${String(i).padStart(12,"0")}`);
 env.GOOGLE_API_KEY="synthetic-local-not-a-key";env.QDRANT_URL="https://research-qdrant.invalid";env.QDRANT_API_KEY="synthetic-local";
@@ -269,6 +282,26 @@ globalThis.fetch = async (input, init = {}) => {
   }
   if(url.pathname==="/rest/v1/research_runs")return json([runs.get(url.searchParams.get("id")?.slice(3))].filter(Boolean));
   const data = JSON.parse(init.body);
+  if(sqlPackage&&url.pathname==="/rest/v1/rpc/nexus_finding_export_rights"){
+    if(data.p_finding!==sqlPackage.finding_id)throw Error("Unexpected package fixture Finding");
+    if(data.p_operation==="record"){
+      packageRights={...packageRights,eligible:data.p_command.policy.decision==="ALLOW",items:packageRights.items.map(row=>({...row,
+        policy:data.p_command.policy,review_id:"61616161-6161-4161-8161-616161616161",actor_id:data.p_context.user_id,created_at:new Date().toISOString(),
+        allowed:data.p_command.policy.decision==="ALLOW"}))};
+    }
+    return json(packageRights);
+  }
+  if(sqlPackage&&url.pathname==="/rest/v1/rpc/nexus_finding_package"){
+    if(data.p_finding!==sqlPackage.finding_id)throw Error("Unexpected package fixture Finding");
+    const current=packageRights.eligible?sqlPackage:{...sqlPackage,state:"expired",reason:"RIGHTS_BLOCKED",manifest_text:null};
+    if(data.p_operation==="list")return json({schema_version:"finding-package-list/1",items:packageSaved?[{...current,manifest_text:undefined}]:[],next_after:null});
+    if(data.p_operation==="create_receipt"){
+      packageSaved=true;
+      if(!packageInterrupted){packageInterrupted=true;return json({code:"08006",message:"Synthetic response interrupted after durable package save"},503);}
+      return json({...current,schema_version:"finding-package-receipt/1",manifest_text:undefined});
+    }
+    return json(current);
+  }
   if(url.pathname==="/rest/v1/rpc/nexus_research_finding_contract")return json({schema_version:"research-finding/1",max_result_index:44});
   if(url.pathname==="/rest/v1/rpc/nexus_research_comparison_contract")return json({schema_version:"research-comparison/1",batch_size:8,max_steps:45});
   if(url.pathname==="/rest/v1/rpc/nexus_research_timeline_contract")return json({schema_version:"research-timeline/1",batch_size:8,max_steps:45});

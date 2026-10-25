@@ -1,0 +1,236 @@
+{
+  "schema": "nexusrag-migration-wip-source/1",
+  "base_commit": "0d358a6a31a5ca31dfa7b1ab40bb5255a69875e4",
+  "base_tree": "174360291432ac44f356f436632f11b8b1b16fc7",
+  "base_files": 815,
+  "modified_files": 14,
+  "new_files": 18,
+  "resulting_application_files": 833,
+  "files": [
+    {
+      "path": ".github/workflows/v6-database-rehearsal.yml",
+      "mode": "100644",
+      "git_blob_sha": "5d99073def76af79e3e5c2466a25c169b557030d",
+      "size": 16248,
+      "sha256": "d40b8e0e421d324ba0c6e7022a733a2a5e3a18534e942935008d7bc1bae48d04"
+    },
+    {
+      "path": ".github/workflows/v6-foundation-ci.yml",
+      "mode": "100644",
+      "git_blob_sha": "89517ed8b0c974fc8232f2d0c9b3b67e2f774a71",
+      "size": 14977,
+      "sha256": "d5babee5285b0a0e9c0078b5db415c00267631b7375d86fb5991b3739df16fb4"
+    },
+    {
+      "path": "RUN-STATE.md",
+      "mode": "100644",
+      "git_blob_sha": "03a9fe7051fe9e610044c0559c08d9399fbc5da4",
+      "size": 242037,
+      "sha256": "7c700edcb4f9c2e1c97745a2f8f10be6242f68a9bd04cf3ebb4d63c0953f6183"
+    },
+    {
+      "path": "apps/gateway/src/preview-worker.js",
+      "mode": "100644",
+      "git_blob_sha": "6586b29c04b0201ac68734f6d752c2b01faa87f3",
+      "size": 96230,
+      "sha256": "4ab0e7800202cec0f97eee9a96ae0ceb1f8ebdc622f5c0913a3ef8c3dd6fa87b"
+    },
+    {
+      "path": "apps/gateway/src/workbench.js",
+      "mode": "100644",
+      "git_blob_sha": "e18b2494753b0202a11c2b7104a5f39760a85795",
+      "size": 9715,
+      "sha256": "60cb28e0cdf4c3d4654056104c46e8c500f04ae2aff22095f4ceb91d5fe4afeb"
+    },
+    {
+      "path": "docs/implementation/REQUIREMENT_TRACEABILITY.md",
+      "mode": "100644",
+      "git_blob_sha": "73c4d5e38e74ca065aea79d2aa7f34398cec67d6",
+      "size": 81314,
+      "sha256": "71a3b8a4032706c0457ec7692ef5fffd9980013784c24ffe878894c5adf0e40c"
+    },
+    {
+      "path": "docs/implementation/execution-ledger.json",
+      "mode": "100644",
+      "git_blob_sha": "f7d44d0c19310563c3846592b2826097bbb8ac29",
+      "size": 339644,
+      "sha256": "438679a4c90d521a035a02a0042ca7270a45a4d5fce44e49abdf91d599b8044f"
+    },
+    {
+      "path": "frontend/package-lock.json",
+      "mode": "100644",
+      "git_blob_sha": "579200f307a8b5dcc93eaa98a0633fe073da4236",
+      "size": 513766,
+      "sha256": "cdd2355374f591b9d8c5264076e1a7e85decd5e6f45e0543ce0e8cd5e3d041a8"
+    },
+    {
+      "path": "frontend/package.json",
+      "mode": "100644",
+      "git_blob_sha": "7dfc25a4c81a5518e9592eebeaa3f1be6a9a8441",
+      "size": 2234,
+      "sha256": "582c4ee9e59dfa4ee3b17e7dad59bf99af68820fd4202caef8faa78dfd312f70"
+    },
+    {
+      "path": "frontend/scripts/research-browser-fixture.mjs",
+      "mode": "100644",
+      "git_blob_sha": "109061c634e62ad91e3b94f5d52436a8b018adc6",
+      "size": 49889,
+      "sha256": "ed9ec49c21ff07e4f402124565530e6e8da630fc7b6eeef2e8c13e49ca596cc2"
+    },
+    {
+      "path": "frontend/src/app/findings/page.tsx",
+      "mode": "100644",
+      "git_blob_sha": "e826877171a3a603817db8e44e438af6bfca3662",
+      "size": 20364,
+      "sha256": "bab85b1d14a5d64aed25b8a20fc65e578ce8510643c765e928b4e03f994ea5b3"
+    },
+    {
+      "path": "frontend/src/lib/api.ts",
+      "mode": "100644",
+      "git_blob_sha": "911e7b337f2a14ff252a32b2d2671c57c93aa8c2",
+      "size": 39765,
+      "sha256": "0b4d96d5f3ac8bc63d8db11459ae4865893d50bf2a00e85c096eee915f3046d7"
+    },
+    {
+      "path": "tests/postgres/local-rehearsal.sh",
+      "mode": "100644",
+      "git_blob_sha": "7bd0c44b3f76bb7cd0f63c6f8a5b5a6d48a0952e",
+      "size": 9230,
+      "sha256": "233e6f5228e916aa7ede688dbc3e2fd343d4d1a2825118d16b7598cfded64367"
+    },
+    {
+      "path": "tests/scripts/test_research_workflow.py",
+      "mode": "100644",
+      "git_blob_sha": "713617c545c26395e042b44e9f155591f5a6fafa",
+      "size": 21540,
+      "sha256": "d2ab88db2d8244526b170c28dddbdb4793ee8cea02f54480015e802a5ac917d9"
+    },
+    {
+      "path": "apps/gateway/src/finding-packages.js",
+      "mode": "100644",
+      "git_blob_sha": "32ee05ebebf1be570b7cc28c22ba5bd144a8e4e3",
+      "size": 9916,
+      "sha256": "443b4ba671e12c5fab27357fb42ba59cb3f15762dc1e91a9308e0fb34c3b01c2"
+    },
+    {
+      "path": "docs/implementation/FINDING_EVIDENCE_PACKAGES_061.md",
+      "mode": "100644",
+      "git_blob_sha": "f05bdc5650124ce6d16d35a6395bae64444bb705",
+      "size": 5099,
+      "sha256": "ed57c6e041a496565af09d7bc1cf34c988c6a6fa6c891aed5185f87b5785ae03"
+    },
+    {
+      "path": "frontend/scripts/finding-package-client.mjs",
+      "mode": "100644",
+      "git_blob_sha": "1b8b661633409ddccb9c181f12f7ff2031fbcf7a",
+      "size": 575,
+      "sha256": "47dbd11eb94da7400143f9b90bab4c2a0bcb6a060462b4e7e6c0c107b919b62f"
+    },
+    {
+      "path": "frontend/scripts/test-finding-package-jsonld.mjs",
+      "mode": "100644",
+      "git_blob_sha": "754c345979ff534db382bea84434514e773f7f48",
+      "size": 2122,
+      "sha256": "59c656da732b5e41e8bc7e8788b41c83b9363b8d947f142d5df79a1a4df7cc33"
+    },
+    {
+      "path": "frontend/scripts/test-finding-package-worker.mjs",
+      "mode": "100644",
+      "git_blob_sha": "9e14ccc9023d78aaa8f898435e8a0c9daf365b3f",
+      "size": 5379,
+      "sha256": "23c9fa9e1e89506b22c3a253c2f156c638607ec38e6f8c2a2949ea65c1bdc163"
+    },
+    {
+      "path": "frontend/src/components/findings/FindingPackages.test.tsx",
+      "mode": "100644",
+      "git_blob_sha": "dae92a88d79164e7629ba50db531ab8ca734c221",
+      "size": 3804,
+      "sha256": "99bc5c37c0cbd2056a6a04ebeac126e8ecdf8429f8fe09ab06339f6faae6342c"
+    },
+    {
+      "path": "frontend/src/components/findings/FindingPackages.tsx",
+      "mode": "100644",
+      "git_blob_sha": "990fd912788550b9f5e57918370b298c363fd982",
+      "size": 10710,
+      "sha256": "8e6859c4aba8bfe2e4da74221cb1df0487345dc8c79363443c1b67ce4a33e98d"
+    },
+    {
+      "path": "frontend/src/e2e/finding-packages.spec.ts",
+      "mode": "100644",
+      "git_blob_sha": "c01c7f8b16f4367d620b7ec5b7b5c5e258d59cec",
+      "size": 4415,
+      "sha256": "f1f2be63c75efd87d7528cac458eeadf6d98efb8533bde58c37dda743ce54511"
+    },
+    {
+      "path": "frontend/src/lib/api-finding-packages.test.ts",
+      "mode": "100644",
+      "git_blob_sha": "0ca8cd4912d4a25f845ba6890570a12993e5e289",
+      "size": 3150,
+      "sha256": "b20620e56781c739d4b4fd178a17fd9576f54300b26b6afde3d65ecb6ef3a2a0"
+    },
+    {
+      "path": "frontend/src/lib/finding-package-limits.json",
+      "mode": "100644",
+      "git_blob_sha": "545d72a02900fb6326b36b9e4f21031c0b2b9668",
+      "size": 86,
+      "sha256": "6873269dc38b9678aa4ce62449e2e9d894b5550fd3e0e9802578ea1ff668b6ac"
+    },
+    {
+      "path": "frontend/src/lib/finding-package.test.ts",
+      "mode": "100644",
+      "git_blob_sha": "40c975ef58050b4d6819e7f93d157c81eeeac3ab",
+      "size": 2863,
+      "sha256": "85aaee35f80df69861fbfa9b7b20f889780acc42379ea9aefc5d1a95ff31aee0"
+    },
+    {
+      "path": "frontend/src/lib/finding-package.ts",
+      "mode": "100644",
+      "git_blob_sha": "cb653c2502ae5ebb3669bc496f0cb930d733fbbb",
+      "size": 6026,
+      "sha256": "6291dd6a2e420263c19f975f105c321d65dda6c334b69852217b98bed7e1070e"
+    },
+    {
+      "path": "supabase/migrations/20261025093226_finding_evidence_packages.sql",
+      "mode": "100644",
+      "git_blob_sha": "7dcd2e247667176e30a71f48fe674f8da4407d32",
+      "size": 21979,
+      "sha256": "a49d3f1edbc830f9457412692b2f2d0a9f67495525f6523bd6e8545b152819ca"
+    },
+    {
+      "path": "tests/cloudflare/finding-packages.test.mjs",
+      "mode": "100644",
+      "git_blob_sha": "3496488d0685556d36ec0b3449924ce697fc32e8",
+      "size": 7285,
+      "sha256": "4d8d10b8904421a64efb6c7702a70216fd10ac9b9901d1749baa017c1f517dd6"
+    },
+    {
+      "path": "tests/fixtures/finding-package-sql.json",
+      "mode": "100644",
+      "git_blob_sha": "fdc86aac55b4e6f6744344adc100a4f76539cc5e",
+      "size": 4551,
+      "sha256": "760c2e1d069fc232e50445fa40d7387731bfa8777e1a021f7e8addb36c04f88a"
+    },
+    {
+      "path": "tests/postgres/finding-package-assertions.sql",
+      "mode": "100644",
+      "git_blob_sha": "b59df58a6509795f1100e83edf32858737d33a78",
+      "size": 8601,
+      "sha256": "d3ad3ec8c18bd684bdff5c138a46fedd9f24597a2da4ff8bd7a356502b54d431"
+    },
+    {
+      "path": "tests/postgres/finding-package-capacity.sql",
+      "mode": "100644",
+      "git_blob_sha": "ee4f79cdf38106adddf162bd681f38ec14b5bdcb",
+      "size": 9448,
+      "sha256": "ab06179be28227783e5edba2afaa878309e8b5befc45483a89cfee7f2794bb77"
+    },
+    {
+      "path": "tests/postgres/finding-package-integration.mjs",
+      "mode": "100644",
+      "git_blob_sha": "03b7ba3ae0911c919ddb2b7677852b80537efbcd",
+      "size": 10730,
+      "sha256": "95616d3e2dbacc8c61753ebb1e2615e67a696b9e3cadb49088675a3b5de2bc6c"
+    }
+  ],
+  "acceptance": "WIP_NOT_RELEASE_ACCEPTED"
+}
