@@ -19,6 +19,7 @@ import { ObligationCandidates } from "./ObligationCandidates";
 import { EntityCandidates } from "./EntityCandidates";
 import { DiligenceObservations } from "./DiligenceObservations";
 import { PassportClaims } from "./PassportClaims";
+import { ProcurementRecords } from "./ProcurementRecords";
 
 const button="inline-flex items-center justify-center gap-2 rounded-lg border border-[var(--border)] px-3 py-2 text-sm disabled:opacity-50";
 function ResearchSourceDetails({source,id}:{source:ResearchRun["results"][number]["sources"][number];id:string}) {
@@ -45,6 +46,7 @@ const ResearchResultArticle=memo(function ResearchResultArticle({runId,index,res
     {result.entities&&<EntityCandidates analysis={result.entities} sourcePrefix={prefix}/>}
     {result.diligence&&<DiligenceObservations analysis={result.diligence} sourcePrefix={prefix}/>}
     {result.passport&&<PassportClaims analysis={result.passport} sourcePrefix={prefix}/>}
+    {result.procurement&&<ProcurementRecords analysis={result.procurement} sourcePrefix={prefix}/>}
     <ResearchFindingAction runId={runId} index={index} result={result} workspaceId={workspaceId} userId={userId} canWrite={canWrite}/>
     {result.sources.map(source=><ResearchSourceDetails key={source.citation_id} source={source} id={`${prefix}-${source.citation_id}`}/>)}
     <p className="text-xs text-[var(--text-muted)]">{result.coverage.chunks_considered} candidate chunks considered / bounded retrieval, not exhaustive / provider cost {result.provider_cost_status.toLowerCase()}</p>
@@ -58,7 +60,7 @@ export function ResearchRuns({plan,workspaceId,userId,canWrite}:{plan:ResearchPl
   const alive=useRef(true),pending=useRef(false),sequence=useRef(0),startKey=useRef<string|null>(null),heading=useRef<HTMLHeadingElement>(null);
   const copyPending=useRef(false),copySequence=useRef(0);
   const context={workspaceId,expectedUserId:userId};
-  const supported=["QUICK_LOOKUP","EVIDENCE_ANSWER","COMPARE","TIMELINE","CONTRADICTION_ANALYSIS","DEEP_RESEARCH","OBLIGATION_ANALYSIS","ENTITY_INVESTIGATION","DUE_DILIGENCE","PRODUCT_PASSPORT"].includes(plan.plan.mode),comparing=plan.plan.mode==="COMPARE",investigating=["ENTITY_INVESTIGATION","DUE_DILIGENCE"].includes(plan.plan.mode),batched=comparing||plan.plan.mode==="TIMELINE";
+  const supported=["QUICK_LOOKUP","EVIDENCE_ANSWER","COMPARE","TIMELINE","CONTRADICTION_ANALYSIS","DEEP_RESEARCH","OBLIGATION_ANALYSIS","ENTITY_INVESTIGATION","DUE_DILIGENCE","PRODUCT_PASSPORT","PROCUREMENT_RESEARCH"].includes(plan.plan.mode),comparing=plan.plan.mode==="COMPARE",investigating=["ENTITY_INVESTIGATION","DUE_DILIGENCE"].includes(plan.plan.mode),batched=comparing||plan.plan.mode==="TIMELINE";
   const subjectMissing=plan.plan.mode==="PRODUCT_PASSPORT"&&!confirmedPassportSubject(plan.plan.passport_subject);
   const scopeMissing=comparing?new Set(plan.plan.private_source_ids).size<2:!plan.plan.private_source_ids.length;
   const steps=selected?.total_steps||selected?.questions.length||1,units=batched?"batches":"questions";

@@ -51,6 +51,7 @@ PSQL=(psql -X -v ON_ERROR_STOP=1 -d "$PGDATABASE")
 "${PSQL[@]}" -f "$ROOT/supabase/migrations/20261022120413_research_diligence_execution.sql"
 "${PSQL[@]}" -f "$ROOT/supabase/migrations/20261023123558_research_passport_subject.sql"
 "${PSQL[@]}" -f "$ROOT/supabase/migrations/20261024113940_research_passport_execution.sql"
+"${PSQL[@]}" -f "$ROOT/supabase/migrations/20261025003900_research_procurement_execution.sql"
 "${PSQL[@]}" -f "$TESTS/fixtures.sql"
 "${PSQL[@]}" -f "$TESTS/research-plan-assertions.sql"
 "${PSQL[@]}" -f "$TESTS/research-passport-subject-assertions.sql"
@@ -121,4 +122,5 @@ NEXUS_DISPOSABLE_SQL=1 NEXUS_ENTITY_CAPACITY=1 node "$TESTS/research-entity-inte
 NEXUS_DISPOSABLE_SQL=1 node "$TESTS/research-diligence-integration.mjs"
 NEXUS_DISPOSABLE_SQL=1 NEXUS_DILIGENCE_CAPACITY=1 node "$TESTS/research-diligence-integration.mjs"
 NEXUS_DISPOSABLE_SQL=1 node "$TESTS/research-passport-integration.mjs"
+NEXUS_DISPOSABLE_SQL=1 node "$TESTS/research-procurement-integration.mjs"
 echo 'LOCAL_POSTGRES_REHEARSAL_PASS (not a hosted Supabase verification)'

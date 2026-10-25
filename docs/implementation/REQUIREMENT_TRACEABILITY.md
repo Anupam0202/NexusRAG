@@ -1,5 +1,32 @@
 # Requirement traceability
 
+060pre-save:all21ordinary categories PASS including635backend+19subtests,
+741Gateway/634frontend/59isolated/120scripts,Next/OpenNext26routes,seven native
+Worker probes;40controlled Research+4actualbuiltWorker UI PASS. No old timeout
+waiver:initial33PASS/7FAIL retained,failed module ERR_NO_BUFFER_SPACE observed,
+underlying cause unverified. Exact-source save/currentCI/new full source/fresh
+dependency/SQL/UI recovery and full224acceptance remain pending.059rehearsal-only
+approval fulfilled;060migration not approved/installed. No scope denominator cut.
+
+060stage02 implements local durable Procurement contracts and Research/Findings
+UI with proposed source-worded fields;no product or normative closure. Real SQL
+50sources/11criteria/5500CP/concurrency/recovery/review/65table188function restore
+PASS;client before5FAIL/12PASS then38focused/typecheckPASS. Full browser/broad/save/
+exact-head CI/fresh checkpoint remain pending.059exact approval fulfilled once as
+rehearsal20261025053721,41migrations/bodies/grants/data invariants verified.060not
+approved/hosted. Frozen059source/evidence unchanged;all224definitions remain open
+where adopted acceptance is missing. Prior stage01 descriptions below historical.
+
+060WIP on021cca2/tree93888fc3 preserves all224definitions and P14/P15/P32. Actual
+executor before3FAIL/51PASS proves20document cutoff;new50source exact/provisional
+notice fields pass65owning/736Gateway and actual11question/8query combined native
+capacity/outage/listener release. Raw values/deadlines are not normalized facts,
+current eligibility or automatic decisions. SQL/Findings/readback/UI remain missing,
+so no product or mode closure. See PROCUREMENT_RESEARCH_EXECUTION_060.md.
+Final059external BATCH059_HANDOFF binds802source/583evidence/fresh14stage recovery,
+20ordinary categories/28Research+4builtWorker UI and9ordinary CI PASS;required
+dependency/runtime/summary FAIL,two deploymentsSKIP. All failed older runs retained.
+
 059revision3 pre-save23:51:05ZOct24:all20ordinary categories PASS with619frontend
 cases/95files and unchanged28desktop/mobile Research journeys;29owning units pass.
 Manual functional review only. Exact saved source/current CI/NEW802source fresh

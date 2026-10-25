@@ -10,6 +10,27 @@ import yaml
 ROOT = Path(__file__).resolve().parents[2]
 
 class ResearchWorkflowTests(unittest.TestCase):
+    def test_procurement_database_and_browser_paths_are_required_not_mock_only(self):
+        migration="20261025003900_research_procurement_execution.sql"
+        workflow=(ROOT/".github/workflows/v6-database-rehearsal.yml").read_text()
+        rehearsal=(ROOT/"tests/postgres/local-rehearsal.sh").read_text()
+        self.assertIn(migration,workflow)
+        self.assertIn(migration,rehearsal)
+        self.assertIn('NEXUS_DISPOSABLE_SQL=1 node "$TESTS/research-procurement-integration.mjs"',rehearsal)
+        self.assertIn("grep -F 'REAL_SQL_PROCUREMENT_EXECUTOR_RECOVERY_REVIEW_PASS'",workflow)
+        self.assertIn("research-procurement.spec.ts",(ROOT/".github/workflows/v6-foundation-ci.yml").read_text())
+
+    def test_procurement_native_capacity_uses_actual_worker_in_required_ci(self):
+        workflow=yaml.safe_load((ROOT/".github/workflows/v6-foundation-ci.yml").read_text())
+        matching=[step for step in workflow["jobs"]["frontend"]["steps"]
+                  if step.get("run")=="node scripts/test-research-procurement-worker.mjs"]
+        self.assertEqual(len(matching),1)
+        self.assertEqual(matching[0].get("working-directory"),"frontend")
+        wrapper=(ROOT/"frontend/scripts/test-research-procurement-worker.mjs").read_text()
+        self.assertIn('process.env.NEXUS_NATIVE_RESEARCH_MODE="PROCUREMENT_RESEARCH"',wrapper)
+        self.assertIn('await import("./test-research-obligation-worker.mjs")',wrapper)
+        self.assertTrue((ROOT/"tests/fixtures/research-procurement-data.mjs").is_file())
+
     def test_passport_executor_native_capacity_runs_with_the_actual_worker_in_required_ci(self):
         workflow=yaml.safe_load((ROOT/".github/workflows/v6-foundation-ci.yml").read_text())
         matching=[step for step in workflow["jobs"]["frontend"]["steps"]

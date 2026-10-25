@@ -30,6 +30,27 @@ function fixture(t, options={}) {
 }
 const request=(method="GET",suffix="",body)=>new Request(`https://gateway.invalid/api/v2/research/plans/${plan}/runs${suffix}`,{method,headers,body:body?JSON.stringify(body):undefined});
 
+for(const mismatch of [null,"absent","sources","fields"])test(`Procurement confirms its full durable contract before admission: ${mismatch}`,async t=>{
+  const {env,receipt,calls,sent}=fixture(t);
+  Object.assign(receipt,{mode:"PROCUREMENT_RESEARCH",source_snapshot:Array.from({length:50},(_,i)=>({document_id:`00000060-0000-4000-8000-${String(i).padStart(12,"0")}`})),
+    questions:Array.from({length:11},(_,i)=>`Procurement criterion ${i+1}`),total_steps:11});
+  const original=globalThis.fetch;
+  t.mock.method(globalThis,"fetch",async(input,init)=>new URL(input).pathname==="/rest/v1/rpc/nexus_research_procurement_contract"
+    ?new Response(JSON.stringify(mismatch==="absent"?{code:"PGRST202",message:"Function is absent"}:{schema_version:"research-procurement/1",
+      max_sources:mismatch==="sources"?20:50,max_subquestions:10,max_steps:11,max_query_variants:8,runtime_seconds:420,max_records:12,
+      max_fields:mismatch==="fields"?12:13,max_anchors:156,max_result_bytes:1000000,max_run_bytes:11000000}),{status:mismatch==="absent"?404:200}):original(input,init));
+  const response=await handle(request("POST","",{non_sensitive_attested:true,execution_mode:"PROCUREMENT_RESEARCH"}),env);
+  assert.equal(response.status,mismatch?503:201);assert.equal(calls.length,mismatch?0:1);assert.equal(sent.length,mismatch?0:1);
+  if(mismatch)assert.match((await response.json()).error.message,/research_procurement_execution/);
+  else {const result=await response.json();assert.equal(result.source_snapshot.length,50);assert.equal(result.questions.length,11);}
+});
+test("Procurement list keeps11completed positions while omitted results are not a read receipt",async t=>{
+  const {env,receipt}=fixture(t);Object.assign(receipt,{mode:"PROCUREMENT_RESEARCH",source_snapshot:Array.from({length:50},()=>({document_id:plan})),
+    questions:Array.from({length:11},(_,i)=>`Criterion ${i+1}`),total_steps:11,position:11,state:"completed",results_included:false});
+  const response=await handle(request(),env);assert.equal(response.status,200);assert.equal((await response.json()).items[0].position,11);
+  assert.equal((await handle(request("GET",`/${run}`),env)).status,503);
+});
+
 for(const mismatch of [null,"absent","limits"])test(`Product Passport confirms durable scope and declared product before admission: ${mismatch}`,async t=>{
   const {env,receipt,calls,sent}=fixture(t);
   const subject={product_id:"P-42",product_name:"Synthetic sensor",product_version:"2.1",supplier:"Example Components"};

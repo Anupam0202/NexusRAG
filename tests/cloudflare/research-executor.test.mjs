@@ -6,7 +6,7 @@ const ws="11111111-1111-4111-8111-111111111111",user="22222222-2222-4222-8222-22
 const doc="44444444-4444-4444-8444-444444444444",version="55555555-5555-4555-8555-555555555555",chunk="66666666-6666-4666-8666-666666666666";
 const token="77777777-7777-4777-8777-777777777777",message={kind:"research",workspace_id:ws,run_id:id,generation:1,position:0};
 async function fixture(t,options={}) {
-  const text=options.passport?"Synthetic sensor P-42 version 2.1 has supplier-asserted certificate C-17; applicability requires review.":options.obligation?"Synthetic operators must retain reports for 30 days, except public summaries.":options.timeline?"The synthetic policy took effect on 2024-02-29. It was published in 2024-02.":"The synthetic retention period is 30 days.",hash=await sha256(text),calls=[],sent=[],provider=[],reservations=[],reads=[];
+  const text=options.procurement?"Synthetic notice N-1 names Buyer1 and value USD 9007199254740993.25; closing 2026-12-01T12:00:00Z requires review.":options.passport?"Synthetic sensor P-42 version 2.1 has supplier-asserted certificate C-17; applicability requires review.":options.obligation?"Synthetic operators must retain reports for 30 days, except public summaries.":options.timeline?"The synthetic policy took effect on 2024-02-29. It was published in 2024-02.":"The synthetic retention period is 30 days.",hash=await sha256(text),calls=[],sent=[],provider=[],reservations=[],reads=[];
   const run={id,workspace_id:ws,owner_id:user,generation:1,position:0,state:"running",source_state:"CURRENT",questions:["What is the synthetic retention period?"],
     source_snapshot:[{document_id:doc,version_id:version,index_generation:"generation-one",lifecycle_epoch:1}],deadline:new Date(Date.now()+30000).toISOString(),
     admission:{credential_mode:"platform_trial"}};
@@ -36,12 +36,16 @@ async function fixture(t,options={}) {
     run.questions=Array.from({length:13},(_,i)=>`Which supplied product claims require review for criterion ${i+1}?`);
     run.deadline=new Date(Date.now()+600000).toISOString();
   }
+  if(options.procurement) {
+    run.mode="PROCUREMENT_RESEARCH";run.questions=Array.from({length:11},(_,i)=>`Which synthetic tender facts and qualifications need review for criterion ${i+1}?`);
+    run.deadline=new Date(Date.now()+420000).toISOString();
+  }
   if(options.documentCount) {
     while(run.source_snapshot.length<options.documentCount) {
       const n=run.source_snapshot.length+1,document_id=`10000000-0000-4000-8000-${String(n).padStart(12,"0")}`;
       const version_id=`20000000-0000-4000-8000-${String(n).padStart(12,"0")}`;
       run.source_snapshot.push({document_id,version_id,index_generation:`generation-${n}`,lifecycle_epoch:1});
-      const content=options.passport?`Synthetic sensor P-42 version 2.1 test report ${n} is supplier asserted, not independent certification.`:options.obligation?`Synthetic operator ${n} must retain reports for 30 days.`:options.timeline?`Policy ${n} took effect on 2024-02-${String(n).padStart(2,"0")}.`:`Policy ${n} retention period is 30 days.`;
+      const content=options.procurement?`Synthetic notice N-${n} names Buyer${n} and value USD 9007199254740993.25; closing 2026-12-01T12:00:00Z requires review.`:options.passport?`Synthetic sensor P-42 version 2.1 test report ${n} is supplier asserted, not independent certification.`:options.obligation?`Synthetic operator ${n} must retain reports for 30 days.`:options.timeline?`Policy ${n} took effect on 2024-02-${String(n).padStart(2,"0")}.`:`Policy ${n} retention period is 30 days.`;
       rows.push({...rows[0],id:`30000000-0000-4000-8000-${String(n).padStart(12,"0")}`,document_id,version_id,content,original_text:content,original_content_hash:await sha256(content)});
     }
     rows[0].id="00000000-0000-4000-8000-000000000000";
@@ -118,8 +122,12 @@ async function fixture(t,options={}) {
       if(options.providerError)return new Response("synthetic provider interruption",{status:503});
       const prompt=JSON.parse(init.body).contents[0].parts[0].text;
       if(prompt.startsWith("RESEARCH_QUERY_VARIANTS"))return json({candidates:[{finishReason:"STOP",content:{parts:[{text:JSON.stringify({queries:options.variantQueries||[]})}]}}]});
-      const sources=options.passport||options.documentCount||options.contradiction||options.obligation?JSON.parse(prompt.split("\nEVIDENCE:\n")[1]):null;
-      const answer=options.passport?JSON.stringify({schema_version:"research-passport-wire/1",anchors:[sources[0],sources.at(-1)].filter((source,i,rows)=>i===0||source.citation_id!==rows[0].citation_id).map(source=>({citation_id:source.citation_id,quote:source.content})),
+      const sources=options.procurement||options.passport||options.documentCount||options.contradiction||options.obligation?JSON.parse(prompt.split("\nEVIDENCE:\n")[1]):null;
+      const procurementSources=options.procurement?[sources[0],sources.at(-1)].filter((source,i,items)=>i===0||source.citation_id!==items[0].citation_id):[];
+      const answer=options.procurement?JSON.stringify({schema_version:"research-procurement-wire/1",
+        anchors:procurementSources.flatMap(source=>[source.content.match(/N-\d+/)[0],source.content.match(/Buyer\d+/)[0],"9007199254740993.25"].map(quote=>({citation_id:source.citation_id,quote}))),
+        texts:["Notice version,deadline and eligibility require independent review."],
+        records:procurementSources.map((_,i)=>({kind:"TENDER",fields:{notice_id:i*3,buyer:i*3+1,value:i*3+2},limitations:[0]})),gaps:[]}):options.passport?JSON.stringify({schema_version:"research-passport-wire/1",anchors:[sources[0],sources.at(-1)].filter((source,i,rows)=>i===0||source.citation_id!==rows[0].citation_id).map(source=>({citation_id:source.citation_id,quote:source.content})),
         texts:["Supplied evidence","First and last selected source assertions require review.","Product applicability and certification are not established.","Current independent tests remain unresolved."],
         claims:[{kind:"TEST",property:0,value:1,status:"ASSERTED_BY_SUPPLIER",evidence:sources.length>1?[0,1]:[0],qualifications:[2]}],gaps:[{document_id:null,description:3}]}):options.diligence?JSON.stringify({schema_version:"research-diligence-wire/1",anchors:[sources[0],sources.at(-1)].map(source=>({citation_id:source.citation_id,quote:source.content})),
         texts:["First and last selected source assertions require independent review.","The source does not establish verified issuer identity or complete current coverage.","Later amendments have not been established."],
@@ -147,6 +155,32 @@ async function fixture(t,options={}) {
   return {env,db,run,calls,sent,provider,hash,reservations,reads};
 }
 
+test("actual Procurement executor consults all50sources and preserves unrounded first/last notice facts before queue progress",async t=>{
+  const {env,db,calls,sent,reads}=await fixture(t,{procurement:true,documentCount:50,noDense:true,more:true,pageNumber:null});
+  const result=await processResearchMessage(env,message,db),saved=calls.find(call=>call.p_operation==="commit")?.p_result;
+  assert.equal(result?.state,"queued");assert.equal(result.questions.length,11);assert.equal(result.position,1);
+  assert.equal(saved?.procurement?.schema_version,"research-procurement/1");assert.equal(saved.procurement.documents.length,50);
+  assert.equal(saved.procurement.records.at(-1).source_document_id,"10000000-0000-4000-8000-000000000050");
+  assert.equal(saved.procurement.records.at(-1).fields.notice_id.quote,"N-50");
+  assert.equal(saved.procurement.records[0].fields.value.quote,"9007199254740993.25");
+  assert.equal(saved.procurement.records[0].record_state,"PROPOSED_NOT_VERIFIED");
+  assert.ok(saved.procurement.documents.every(document=>document.consulted_sources.length===1));
+  assert.equal(saved.procurement.documents[49].consulted_sources[0].page_number,null);
+  assert.equal(saved.selection.reason,"PROCUREMENT_ALL_DOCUMENTS");assert.ok(reads.some(path=>path.startsWith("documents?")&&path.endsWith("limit=50")));
+  assert.equal(sent.length,1);assert.equal(sent[0].position,1);
+});
+test("ordinary Procurement provider outage interrupts without saving or dispatching a partial notice",async t=>{
+  const {env,db,calls,sent}=await fixture(t,{procurement:true,documentCount:50,providerError:true});
+  assert.equal(await processResearchMessage(env,message,db),null);assert.equal(calls.at(-1).p_error,"PROVIDER_UNAVAILABLE");
+  assert.equal(calls.filter(call=>call.p_operation==="commit").length,0);assert.equal(sent.length,0);
+});
+test("Procurement empty indexed evidence retains50consultations and abstains without provider calls",async t=>{
+  const {env,db,calls,provider}=await fixture(t,{procurement:true,documentCount:50,empty:true});
+  await processResearchMessage(env,message,db);const saved=calls.find(call=>call.p_operation==="commit")?.p_result;
+  assert.equal(saved?.procurement?.documents.length,50);assert.equal(saved.procurement.records.length,0);
+  assert.equal(saved.abstained,true);assert.equal(saved.provider_cost_status,"NOT_CALLED");assert.equal(provider.length,0);
+  assert.ok(saved.procurement.documents.every(document=>document.evidence_state==="NO_INDEXED_EVIDENCE"));
+});
 test("actual Passport executor retains the exact product version and60source coverage before advancing its saved cursor",async t=>{
   const {env,db,calls,sent,provider,run}=await fixture(t,{passport:true,documentCount:60,noDense:true,more:true,pageNumber:null});
   const result=await processResearchMessage(env,message,db),saved=calls.find(call=>call.p_operation==="commit")?.p_result;

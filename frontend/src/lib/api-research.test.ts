@@ -77,3 +77,17 @@ it("accepts lightweight comparison list progress but requires complete detail an
   await expect(researchRunCommand(id,context,"create",undefined,"stable-comparison", "COMPARE")).resolves.toMatchObject({mode:"COMPARE"});
   expect(JSON.parse(fetch.mock.calls[0][1]!.body as string)).toEqual({non_sensitive_attested:true,execution_mode:"COMPARE"});
 });
+
+it.each(["PRODUCT_PASSPORT","PROCUREMENT_RESEARCH"])("sends %s execution-mode preflight on create and resume and confirms the same mode",async mode=>{
+  const id=record.id,run={id,plan_id:id,workspace_id:id,owner_id:id,schema_version:"research-run/1",persistence_state:"PERSISTED",state:"queued",generation:1,
+    mode,source_snapshot:[{document_id:id,version_id:id,index_generation:"synthetic-generation",lifecycle_epoch:1}],
+    ...(mode==="PRODUCT_PASSPORT"?{passport_subject:{product_id:"synthetic-product",product_name:"Synthetic sensor",product_version:"2.1",supplier:"Synthetic supplier"}}:{}),
+    total_steps:1,position:0,questions:["Synthetic criterion?"],results:[],source_state:"CURRENT",error_code:null,created_at:"2026-10-25T00:00:00Z"};
+  for(const operation of ["create","resume"] as const){
+    const fetch=respond(run);
+    await expect(researchRunCommand(id,context,operation,operation==="resume"?id:undefined,"stable-mode",mode)).resolves.toMatchObject({mode});
+    expect(JSON.parse(fetch.mock.calls[0][1]!.body as string)).toEqual({non_sensitive_attested:true,execution_mode:mode});
+  }
+  respond({...run,mode:"QUICK_LOOKUP"});
+  await expect(researchRunCommand(id,context,"create",undefined,"stable-mode",mode)).rejects.toMatchObject({code:"PERSISTENCE_UNCONFIRMED"});
+});

@@ -1,5 +1,77 @@
 # NexusRAG execution checkpoint
 
+## Active Functional Batch: procurement-research-execution-060
+
+Pre-save review06:00ZOct25:all21ordinary categories PASS:635backend+19subtests,
+741Gateway,634frontend/98files,59genuine stdlib,120scripts,lint/type/foundation/
+migrations,Next/OpenNext26routes,actualWorker fixtures/lifecycle,seven native
+probes,ledger/551paused entries. Actual built Worker publicResearch/missing-route
+desktop/mobile4PASS,owned port3121stopped;controlled Research40PASS,port3120stopped.
+Latest strengthened native result301363/run3314932bytes,235450byte prompt and30
+controlled HTTPrequests/step;4096output-token/model-quality acceptance NOT proven.
+Manual functional review only,no independent reviewer. Frozen WIPstage02 recovers
+all815paths/hash/size/modes/manifest under external SHA782a6e99...;not release
+acceptance. Exact source save/publication/currentCI/NEW source+fresh dependencies/
+SQL/UI recovery remain pending. No locks/specs,gates,budgets or limits changed.
+
+First mobile pre-mount trace records Research module fetch ERR_NO_BUFFER_SPACE;
+underlying OS/browser transport cause remains unverified and failure unwaived.
+Source full/mode/product/private/quality/lifecycle/release scope NOT_COMPLETE.
+
+Stage02 actual browser rerun40PASS across desktop/mobile,light/dark,11question
+Procurement execute/inspect/copy/reload/Finding revision2independent review,
+interruption/cancel-resume/empty evidence and maximum50source/12records/13fields
+at320px,plus unchanged28Passport/subject/picker journeys. First33PASS/7FAIL retained:
+four exact-quote locators omitted rendered citation text,two cancel tests omitted
+the first durable-result milestone,one pre-mount mobile Passport30second timeout
+remains unexplained/unwaived. No timeouts/limits weakened;owned fixture stopped.
+Lint/typecheck/38focused/25packagingPASS. Full21ordinary categories and new fresh
+source/dependency/SQL/browser recovery remain pending;no source save/publication.
+
+060stage02:real owned PostgreSQL confirms all50sources/11criteria with5500CP
+questions,12records/13fields/limitations/gaps,concurrent starts/Findings,revision2
+independent review,cancel/resume,outage/ambiguous response and65table188function
+backup/restore;owned server stopped. First SQL run exposed generic5question
+Gateway receipt rejection;5before contract failures then40owningPASS. Frontend
+before5FAIL/12PASS reproduced missing execution_mode for Passport/Procurement,
+full-scope readback rejection and omitted structured copy. Typed reader/exact copy,
+source-worded collapsible records and Research/Findings wiring pass38focused
+units/typecheck;actual desktop/mobile browser and broad checks remain pending.
+Local060SQL is NOT approved/installed.060 remains UNCOMMITTED/UNVERIFIED batch.
+
+Owner's exact059Passport rehearsal approval was fulfilled once onOct25 as
+20261025053721_research_passport_execution inukgjygzfhyvnrsecdcuu. Registry40->41,
+seven literal source bodies/six renamed predecessors/grants match;69existing
+columns/browser table grants and business/Storage counts unchanged. Receipt:
+external batch060/HOSTED059_APPROVAL_FULFILLED.json. No production,deployment,
+new user,customer/destructive/provider operation or private acceptance. Frozen059
+archives remain unchanged. Prior pending059notes below are historical/superseded.
+
+060review00:27ZOct25:before3FAIL/51PASS confirms the generic20document cutoff.
+New executor/anchored provisional-record contract passes65owning cases and736
+Gateway tests. Actual local Workerd passes combined50sources/11questions/8queries,
+12records each13fields/156anchors/four240CP qualifications/12gaps,unknown pages,
+ordinary provider outage and listener release. Result290637bytes/run3196928bytes,
+30controlled HTTPrequests/step. Synthetic wire59464bytes under configured4096
+tokens is NOT real token/quality proof. Native owning compatibility/CI packaging
+next;durable SQL/Findings/typed client/UI still NOT_IMPLEMENTED. No commit/publish/
+hosted/deploy/production acceptance. Frozen059 remains unchanged and verified.
+
+WIP on published021cca2/tree93888fc3;PARTIAL_NOT_COMPLETE. Final external
+BATCH059_HANDOFF.md binds802source/583sanitized evidence/full Git-history recovery,
+all14fresh recovery stages/all20ordinary categories/28Research+4builtWorker UI PASS.
+All9ordinary CI PASS;dependency/runtime/summary FAIL,two deploySKIP. Protectedmain
+and paused022 unchanged.059SQLfacf4d9f... exact rehearsal-only approval requested
+once and pending;058two approvals already fulfilled. Do not apply/replay implicitly.
+
+Procurement plans save but execution/readback/UI is unsupported. Adding actual
+executor before regressions for50source/11criterion coverage,precise quoted values,
+ordinary provider outage and honest empty evidence. Next implement source-anchored
+notice fields without automatic merging,eligibility/award/ranking or numeric/date
+inference,then durable/Findings/client/UI/native/recovery contracts. No new hosted,
+provider,customer,destructive,deployment,security or gate change. All224definitions,
+tenproducts,twelvemodes/quality/private/lifecycle/rights/budgets/release stay open.
+
 ## Active Functional Batch: product-passport-execution-059
 
 Revision3 pre-save review23:51:05ZOct24:all20ordinary source categories PASS,

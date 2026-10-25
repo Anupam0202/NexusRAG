@@ -13,12 +13,27 @@
   "interpretation": "OPEN_ENGINEERING includes implemented but not fully accepted requirements; it does not assert that no code or scoped evidence exists. External approvals do not close unfinished internal work.",
   "entries": [
     {
+      "id":"ENGINEERING-RESEARCH-PROCUREMENT-EXECUTION",
+      "requirement":"Complete50source/11criterion Procurement Research with exact source-linked notice fields,durable run and Findings readback,independent review and complete UI without automatic eligibility/award/ranking",
+      "normative_source":"Adopted PROCUREMENT_RESEARCH and Procurement Intelligence Graph,P14/P15/P32;all224definitions retained",
+      "status":"IN_PROGRESS",
+      "environment":"Uncommitted060 on published021cca2/tree93888fc3;actual executor with controlled synthetic peers,not hosted/private/provider acceptance",
+      "next_action":"Finish actual browser and full owning verification,review/save/exact-head CI and NEW complete source/dependency/SQL/UI recovery. Real local SQL50sources/11criteria5500CP,executor/concurrent starts/Findings/revision2independent review/cancel-resume/outage/ambiguous-response and65table188function backuprestore PASS. First SQL and5Gateway before failures exposed generic5question reader;40Gateway owningPASS after fix. Client before5FAIL/12PASS reproduces missing Passport/Procurement mode handshake,full-scope rejection and copy omission;38focused/typecheck/lint/25CI-packagingPASS. First actual browser33PASS/7FAIL:four new quote locator errors,two cancellation timing assumptions and one unexplained pre-mount Passport mobile timeout;all failures preserved,strict30second/5second guards unchanged,corrected rerun pending.060SQLlocal-only/unapproved,source uncommitted/unpublished/undeployed. Exact059rehearsal approval fulfilled once as20261025053721,41registry entries,seven source bodies/six predecessor aliases/grants/69columns/count invariants PASS;no business data/production/provider operations. Frozen059unchanged. Engine/native transport is NOT real4096token/quality proof. Full224/products/modes/quality/private/lifecycle/rights/budgets/paused022/required-gates/rollout/rollback remain open.",
+      "acceptance_evidence":[{
+        "environment":"actual production queue executor under explicit synthetic provider/storage peers;not real persistence or deployed acceptance",
+        "observed_at":"2026-10-25T00:25:01Z",
+        "source_identity":"published021cca2cdd21246df26394051501a5d5222ba168 plus uncommitted060",
+        "command_or_url":"batch060-executor-before.log;batch060-executor-after-01.log;batch060-owning-after-02.log",
+        "result":"Three actual before failures;65owning tests PASS after source coverage/anchored provisional record implementation. Durable creation/readback/Findings/client/UI/native/source save/current CI/recovery remain pending. No acceptance denominator reduction."
+      }]
+    },
+    {
       "id":"ENGINEERING-PRODUCT-PASSPORT-EXECUTOR",
       "requirement":"Complete declared-product source-anchored Passport execution, durable readback, independent review and reproducible packages without certification claims",
       "normative_source":"Adopted Product Evidence Passport and PRODUCT_PASSPORT mode; exact224normative definitions retained",
       "status":"IN_PROGRESS",
-      "environment":"Uncommitted059revision2 on published9d08e4f/tree16df6916; actual executor/owned PostgreSQL17/controlled peers and Chromium/mobile,not hosted/private/model-quality acceptance;required gates failed",
-      "next_action":"Finish revision2 scoped owning/review/save/current CI/NEW801source dependency+SQL+browser recovery,then remaining Procurement execution,representative quality and rights-bound packages. Published9d08ordinary CI and resumed800source/dependencies/all20checks/ordered SQL pass,but resumed maximum browser times out at30seconds;strict freeze/failure retained. Real exact bulk-match selection and separate individual60source save/reload/copy plus search-only Enter prevention pass24focused/28browser and2normal-keyboard-Save cases;full owning verification pending.058two exact rehearsal approvals fulfilled once;059SQL remains unapproved/local-only. Public1101,required failed gates,owner-paused022,prior unexplained timing/mobile mount,4096token quality,all224definitions/tenproducts/twelvemodes/private/lifecycle/rights/budgets/rollout/rollback remain open. No new excluded security or hosted/deploy/provider/customer operations.",
+      "environment":"Saved059revision3 commit021cca2/tree93888fc3,802files;frozen source/evidence/recovery PASS. Exact059rehearsal migration installed once20261025053721;not private-user,deployed or model-quality acceptance;required gates failed",
+      "next_action":"Retain revision1/2 failed recoveries and latest060unexplained pre-mount mobile timeout;no failure waiver. Final05914stage fresh recovery with20owning categories/28Research/4builtWorker and9ordinary exact-head CI PASS;required dependency/runtime/summary FAIL. Owner-approved059rehearsal install verifies seven literal source bodies,six predecessors/grants and unchanged69columns/browser grants/business/Storage counts;registry40to41. Existing source drift,real approved private journeys,rights-bound packages,4096token/representative quality,all224definitions/tenproducts/twelvemodes/lifecycle/rights/budgets/paused022/required gates/approved rollout/rollback remain.060client fixes missing Passport execution_mode and expected-mode check with before regressions;uncommitted/no deploy. Frozen059artifacts unchanged.",
       "acceptance_evidence":[{
         "environment":"exact-head CI and fresh locked recovery with controlled peers,not hosted/private/model or full-product acceptance",
         "observed_at":"2026-10-24T18:51:52Z",
