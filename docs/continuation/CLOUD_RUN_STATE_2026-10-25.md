@@ -1,3 +1,105 @@
+# Latest cloud continuation — 2026-10-26
+
+This supersedes the source-time status below. The full Goal remains **224
+normative requirements, ten products and twelve modes**, with verified workflows,
+acceptance evidence, approved release and dependency-aware cleanup. No new
+security work or paused022 resumption.059/060 exact rehearsal approvals remain
+consumed;061 remains unapproved/uninstalled. No merge, deploy, hosted SQL, provider
+processing, new hosted user or destructive platform action is authorized here.
+
+## Distinct historical revision capacity correction
+
+9570ab4 corrected account-fixture pollution, source-loss receipt history and
+repeated reconstruction for receipts sharing a revision. Its ordinary database
+CI nevertheless failed, with root cause still NOT_ESTABLISHED. A further real
+capacity reproduction showed20distinct maximum-size revisions taking10.561536s.
+The unchanged8s deadline belongs to Gateway `apiFetch` SQL RPC, not the browser
+helper. The separate SQL context deadline is30s. Older client/browser deadline
+wording is superseded, preserving the raw failed evidence.
+
+The new nullable/versioned component digest stores no manifest/quotation copy.
+Creation derives it from the actual full manifest: only evidence original_text
+is replaced by its actual UTF8 SHA256 and byte count in the reference; all other
+fields and ordering remain. The digest also binds the expected full-artifact hash,
+bytes, serialization and revision. Shared builders construct full manifests and
+compact list references from the same fields. Lists validate common actual
+sources/rights once per page and each historical revision/review separately,
+with per-receipt expiry, current context and rights deadlines. Legacy NULL or
+unknown fingerprints use authoritative full verification. Full reads/downloads
+still reconstruct, bound and SHA256 the exact original artifact.
+
+Current unapproved/uninstalled061SQL SHA256:
+`8400f1121220a2435c5d25e64bbaf2b00e543e05eec1cf6fec5abc6469d4cffb`.
+Fulfilled059/060 sources, accepted32MiB/60source/156original/20default/50maximum
+page/1000package limits and request deadlines are unchanged.
+
+## Observed verification before source save
+
+- Full local Node22.23.4/PostgreSQL17.11/vector0.8.7 ordered SQL/native/concurrency
+  plus backup/restore exited0:67tables/198functions. Inputs and raw logs are in
+  private `components061/input-sha256.json` and `sql-first/`. Existing assertions
+  remain, with new actual summary/full-read parity for changed notes, generated
+  text, reviews, selected analysis, filenames, locators, raw originals, rights,
+  source state and receipt fields; legacy query origins and unknown fingerprints
+  are covered. Later revisions/unrelated appended research results remain valid.
+- Actual50edit/review/export workflows each retain a30–32MiB artifact.20/50distinct
+  revision pages take0.371069/0.730365s, zero full materializations and one common
+  source build per page; same-revision pages take0.144093/0.138259s. A second
+  independent disposable database run gives0.387119/0.727438s. These are local
+  measurements, not hosted latency/CPU/memory/budget acceptance.
+- The previous9570materializer and new shared builders produce identical exact
+ 32,789,685manifest bytes in the same maximum-capacity fixture after50revisions.
+  The parity check uses the original function body from immutable Git, not a
+  rewritten expected implementation. Its own database was removed; forensic
+  databases were preserved. Evidence: `components061/parity/`.
+- Migration integrity and all122ordinary script tests pass. No frontend/Gateway
+  runtime source changed in this increment. New actual SQL output passes JSON-LD,
+  actual Worker delayed-body streaming/client verification of32,789,689manifest
+  bytes/38,160,353wire bytes, and all4desktop/mobile/light/dark package journeys
+  with zero skips/retries. Source loss retains exact receipt history and disables
+  export/download. Independent post-change review, exact-head CI and fresh
+  recovery remain pending at this source save; do not infer their outcomes.
+
+## Fresh recovery and ordinary CI differential for9570
+
+Private Git checkpoint source readback verified the trusted ZIP SHA256 and all837
+source files/POSIX modes. A NEW directory installed dependencies from frozen
+requirements/npm lock.635backend+19subtests,59genuinely isolated,756Gateway,
+651frontend/101files,122scripts,lint/types,migrations/baseline/foundation/ledger,
+Next/OpenNext26routes and10builtWorker browser routing passed. The original
+archive remains immutable. Source recovery is verified; this is still partial
+product acceptance. Actual hosted OAuth/providers/platforms were not tested.
+
+The full frozen9570SQL/native/concurrency/backup suite also passes with verified
+Node22.23.4, followed by its actual SQL JSON-LD and slow-body Worker/client checks.
+Thus the Node24vs22difference has not reproduced or explained GitHub's failure.
+This differential did not emulate the GitHub runner's2CPU/7GB resource envelope.
+
+Exact9570CI is terminal:7success/5failure/2skip; PR12 stays draft and blocked.
+Ordinary database job121373147465 failed in Replay clean baseline and candidate
+migrations. Its log and artifact redirect to observed
+`productionresultssa14.blob.core.windows.net`, denied by the runtime proxy.
+Artifact12623604177 advertises SHA256
+`a113f3d6ef47843fca02a0a4697a78e7a5e84a634a115dfcecbe794a065d4b84`;
+bytes were NOT retrieved or verified. Excluded dependency/image finding logs
+were never read. No required gate is waived. The environment draft includes the
+exact storage host and uploads.github.com; saving the draft did not apply runtime
+access. Review/save settings, then publish the environment after validation.
+
+## Continue the full objective
+
+Finish this increment's source/client/browser/fresh recovery and independent
+ordinary review, diagnose the actual ordinary CI failure when evidence is
+accessible, and preserve exact source/check/evidence identities. Do not close061
+from local passes. Then continue the remaining accepted workflows below; source
+implementation, local verification, exact-head CI, fresh recovery, hosted/private
+acceptance and production completion are separate states. Save durable private
+checkpoints at real execution limits without creating alternate goals/timers.
+
+---
+
+# Historical9570source-time continuation (retained record)
+
 # Current cloud continuation: batch061 verification
 
 The owner adopted the full cloud-only completion goal. This task now has an

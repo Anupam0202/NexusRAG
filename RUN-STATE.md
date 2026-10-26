@@ -1,6 +1,6 @@
 # NexusRAG execution checkpoint
 
-## Current cloud continuation — 2026-10-25
+## Current cloud continuation — 2026-10-26
 
 The full accepted Goal is active in cloud execution. Read
 `docs/continuation/CLOUD_RUN_STATE_2026-10-25.md` and the final private Recovery
@@ -8,8 +8,10 @@ receipts for current source, fixture-isolation and package-history/list fixes,
 verification results and exact remaining work. The old stage01/5MB/pause notes
 below are historical. All224/ten-products/twelve-modes remain in scope; no new
 security work or paused022 resumption, hosted061 approval, merge or deployment.
-The current061SQL hash is `a11d40f6f0125f1986441e65a033d6071f2dc3750051f0b2dc07a55d113a3b0c`,
+The current061SQL hash is `8400f1121220a2435c5d25e64bbaf2b00e543e05eec1cf6fec5abc6469d4cffb`,
 UNAPPROVED/UNINSTALLED. Original failures and fulfilled059/060 approvals retained.
+Compact source receipts now cover20/50distinct maximum-size revisions under the
+unchanged Gateway8second RPC deadline; exact manifest bytes remain compatible.
 Overall PARTIAL_NOT_COMPLETE; final exact-head/fresh-recovery receipts supersede
 source-time pending notes without rewriting their historical evidence.
 

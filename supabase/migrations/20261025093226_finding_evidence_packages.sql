@@ -16,7 +16,12 @@ create table public.finding_packages (
   finding_id uuid not null references public.findings(id) on delete cascade,
   finding_revision bigint not null check(finding_revision>=1),
   serialization text not null default 'POSTGRES_JSONB_TEXT_UTF8/1' check(serialization='POSTGRES_JSONB_TEXT_UTF8/1'),
-  manifest_bytes integer not null check(manifest_bytes between 1 and 33554432)
+  manifest_bytes integer not null check(manifest_bytes between 1 and 33554432),
+  component_version text,
+  component_digest text,
+  check((component_version is null and component_digest is null) or
+    (component_version is not null and length(component_version) between 1 and 64
+      and component_digest is not null and component_digest ~ '^[a-f0-9]{64}$'))
 );
 create index finding_packages_page on public.finding_packages(workspace_id,finding_id,id);
 alter table public.finding_export_rights enable row level security;
@@ -112,22 +117,14 @@ begin
     'reason',case when exists(select 1 from jsonb_array_elements(items) i where i->>'allowed'<>'true') then 'RIGHTS_REVIEW_REQUIRED' else 'ALLOW' end);
 end;$$;
 
-create function public.nexus_finding_package_manifest(p_context jsonb,p_finding uuid,p_revision bigint)
+create function public.nexus_finding_package_common(p_context jsonb,p_finding uuid)
 returns jsonb language plpgsql security invoker set search_path=public,pg_temp set timezone='UTC' as $$
-declare f jsonb; v public.finding_versions%rowtype; rights jsonb; reviews jsonb; sources jsonb; source_graph jsonb;
+declare f jsonb; rights jsonb; sources jsonb; source_graph jsonb;
   answer jsonb; manifest jsonb; ws uuid=(p_context->>'workspace_id')::uuid; run_activity jsonb;
 begin
   f=public.nexus_research_finding_view(p_context,p_finding);
   rights=public.nexus_finding_export_rights(p_context,'read',p_finding);
   if rights->>'eligible'<>'true' then raise exception 'NR:RIGHTS_BLOCKED';end if;
-  select * into v from public.finding_versions where workspace_id=ws and finding_id=p_finding and revision=p_revision and redacted_at is null;
-  if not found then raise exception 'NR:SOURCE_UNAVAILABLE';end if;
-  if not exists(select 1 from public.finding_reviews r where r.workspace_id=ws and r.finding_id=p_finding and r.revision=p_revision
-    and r.reviewer_id<>v.author_id and r.decision='approved')
-    or exists(select 1 from public.finding_reviews r where r.workspace_id=ws and r.finding_id=p_finding and r.revision=p_revision and r.decision='changes_requested')
-    then raise exception 'NR:REVIEW_REQUIRED';end if;
-  select coalesce(jsonb_agg(to_jsonb(r) order by r.reviewer_id),'[]') into reviews from public.finding_reviews r
-    where r.workspace_id=ws and r.finding_id=p_finding and r.revision=p_revision;
   select coalesce(jsonb_agg(jsonb_build_object('@id','urn:nexusrag:version:'||(i->>'version_id'),'@type','prov:Entity',
     'version_id',i->'version_id','document_id',i->'document_id','original_hash',i->'original_hash','filename',i->'filename',
     'rights',i->'policy','rights_review_id',i->'review_id','rights_reviewer_id',i->'actor_id','rights_reviewed_at',i->'created_at') order by i->>'version_id'),'[]')
@@ -145,12 +142,57 @@ begin
       'evidence',jsonb_build_object('@id','https://nexusrag.app/ns/evidence','@type','@json'),
       'reviews',jsonb_build_object('@id','https://nexusrag.app/ns/reviews','@type','@json'),
       'rights',jsonb_build_object('@id','https://nexusrag.app/ns/rights','@type','@json')),
-    '@id','urn:nexusrag:finding:'||p_finding::text||':'||p_revision::text,'@type','prov:Entity',
-    'format','nexusrag-finding-package/1','workspace_id',ws,'finding_id',p_finding,'revision',p_revision,
-    'title',v.title,'authored_markdown',v.authored_markdown,'generated_markdown',v.generated_markdown,
-    'author_id',v.author_id,'created_at',v.created_at,'analysis',coalesce(answer,'null'::jsonb),'evidence',f->'evidence',
-    'reviews',reviews,'claim_state','HUMAN_REVIEWED_NOT_CERTIFICATION','prov:wasDerivedFrom',sources,'@included',source_graph);
+    '@type','prov:Entity','format','nexusrag-finding-package/1','workspace_id',ws,'finding_id',p_finding,
+    'analysis',coalesce(answer,'null'::jsonb),'evidence',f->'evidence',
+    'claim_state','HUMAN_REVIEWED_NOT_CERTIFICATION','prov:wasDerivedFrom',sources,'@included',source_graph);
   if run_activity is not null then manifest=manifest||jsonb_build_object('prov:wasGeneratedBy',jsonb_build_object('@id',run_activity->>'@id'));end if;
+  return manifest;
+end;$$;
+
+create function public.nexus_finding_package_revision(p_context jsonb,p_finding uuid,p_revision bigint)
+returns jsonb language plpgsql security invoker set search_path=public,pg_temp set timezone='UTC' as $$
+declare v public.finding_versions%rowtype; reviews jsonb; ws uuid=(p_context->>'workspace_id')::uuid;
+begin
+  -- Retain the existing record read authority, including current context/deadline.
+  perform public.workbench_finding(p_context,'read',p_finding,'{}',null,null,null);
+  select * into v from public.finding_versions where workspace_id=ws and finding_id=p_finding and revision=p_revision and redacted_at is null;
+  if not found then raise exception 'NR:SOURCE_UNAVAILABLE';end if;
+  if not exists(select 1 from public.finding_reviews r where r.workspace_id=ws and r.finding_id=p_finding and r.revision=p_revision
+    and r.reviewer_id<>v.author_id and r.decision='approved')
+    or exists(select 1 from public.finding_reviews r where r.workspace_id=ws and r.finding_id=p_finding and r.revision=p_revision and r.decision='changes_requested')
+    then raise exception 'NR:REVIEW_REQUIRED';end if;
+  select coalesce(jsonb_agg(to_jsonb(r) order by r.reviewer_id),'[]') into reviews from public.finding_reviews r
+    where r.workspace_id=ws and r.finding_id=p_finding and r.revision=p_revision;
+  return jsonb_build_object('@id','urn:nexusrag:finding:'||p_finding::text||':'||p_revision::text,
+    'revision',p_revision,'title',v.title,'authored_markdown',v.authored_markdown,'generated_markdown',v.generated_markdown,
+    'author_id',v.author_id,'created_at',v.created_at,'reviews',reviews);
+end;$$;
+
+-- Reference compaction retains every actual field/order except the large raw
+-- quotation. It binds that exact UTF8 content through its digest and byte count;
+-- no reference manifest or duplicate quote is stored in a package row.
+create function public.nexus_finding_package_reference(p_manifest jsonb)
+returns jsonb language sql immutable strict security invoker set search_path=public,pg_temp as $$
+  select jsonb_set(p_manifest,'{evidence}',coalesce((select jsonb_agg(
+    case when jsonb_typeof(item->'original_text')='string' then (item-'original_text')||jsonb_build_object(
+      'original_text_sha256',encode(sha256(convert_to(item->>'original_text','UTF8')),'hex'),
+      'original_text_bytes',octet_length(item->>'original_text')) else item end order by ordinal)
+    from jsonb_array_elements(p_manifest->'evidence') with ordinality quoted(item,ordinal)),'[]'::jsonb));
+$$;
+
+create function public.nexus_finding_package_component_digest(
+  p_reference_hash text,p_manifest_hash text,p_manifest_bytes integer,p_serialization text,p_revision bigint
+) returns text language sql immutable strict security invoker set search_path=public,pg_temp as $$
+  select encode(sha256(convert_to(jsonb_build_object('format','FINDING_COMPONENTS_UTF8/1',
+    'reference',p_reference_hash,'manifest_hash',p_manifest_hash,
+    'manifest_bytes',p_manifest_bytes,'serialization',p_serialization,'finding_revision',p_revision)::text,'UTF8')),'hex');
+$$;
+
+create function public.nexus_finding_package_manifest(p_context jsonb,p_finding uuid,p_revision bigint)
+returns jsonb language plpgsql security invoker set search_path=public,pg_temp set timezone='UTC' as $$
+declare manifest jsonb;
+begin
+  manifest=public.nexus_finding_package_common(p_context,p_finding)||public.nexus_finding_package_revision(p_context,p_finding,p_revision);
   if octet_length(manifest::text)>33554432 then raise exception 'NR:RESOURCE_LIMIT_EXCEEDED';end if;
   return manifest;
 end;$$;
@@ -187,7 +229,8 @@ declare ws uuid=(p_context->>'workspace_id')::uuid; actor uuid=(p_context->>'use
   f jsonb; manifest_text text; digest text; intent text; mutation public.workbench_mutations%rowtype; saved public.evidence_exports%rowtype;
   ids uuid[]; items jsonb='[]'; pid uuid; receipt_only boolean=p_operation='create_receipt'; result jsonb;
   package_row public.finding_packages%rowtype; components jsonb='{}'; component jsonb; component_key text;
-  source_manifest jsonb; rights_expire_at timestamptz; reason text;
+  source_manifest jsonb; rights_expire_at timestamptz; reason text; reference_hash text;
+  common_loaded boolean=false; common_reference jsonb; common_reason text; revision_reference jsonb;
 begin
   perform 1 from public.workspaces where id=ws for update;
   perform public.workbench_authorize(p_context,'read');
@@ -205,8 +248,10 @@ begin
       if receipt_only then return (result-'manifest_text')||jsonb_build_object('schema_version','finding-package-receipt/1');end if;
       return result;
     end if;
-    manifest_text=public.nexus_finding_package_manifest(p_context,p_finding,p_revision)::text;
+    source_manifest=public.nexus_finding_package_manifest(p_context,p_finding,p_revision);
+    manifest_text=source_manifest::text;
     digest=encode(sha256(convert_to(manifest_text,'UTF8')),'hex');
+    reference_hash=encode(sha256(convert_to(public.nexus_finding_package_reference(source_manifest)::text,'UTF8')),'hex');
     select e.* into saved from public.finding_packages p join public.evidence_exports e on e.workspace_id=p.workspace_id and e.id=p.id
       where p.workspace_id=ws and p.finding_id=p_finding and p.finding_revision=p_revision and e.requested_by=actor
         and e.manifest_hash=digest and e.state='ready' and (e.expires_at is null or e.expires_at>clock_timestamp()) order by e.id limit 1;
@@ -215,8 +260,9 @@ begin
       if (select count(*) from public.finding_packages where workspace_id=ws)>=1000 then raise exception 'NR:RESOURCE_LIMIT_EXCEEDED';end if;
       insert into public.evidence_exports(workspace_id,requested_by,format,state,manifest_hash)
         values(ws,actor,'JSON_LD','ready',digest) returning * into saved;
-      insert into public.finding_packages(id,workspace_id,finding_id,finding_revision,manifest_bytes)
-        values(saved.id,ws,p_finding,p_revision,octet_length(manifest_text));
+      insert into public.finding_packages(id,workspace_id,finding_id,finding_revision,manifest_bytes,component_version,component_digest)
+        values(saved.id,ws,p_finding,p_revision,octet_length(manifest_text),'FINDING_COMPONENTS_UTF8/1',
+          public.nexus_finding_package_component_digest(reference_hash,digest,octet_length(manifest_text),'POSTGRES_JSONB_TEXT_UTF8/1',p_revision));
       insert into public.audit_events(workspace_id,user_id,action,resource_type,resource_id,metadata)
         values(ws,actor,'finding.package','finding',p_finding::text,jsonb_build_object('revision',p_revision,'manifest_hash',digest,'export_id',saved.id));
     end if;
@@ -239,18 +285,43 @@ begin
       reason=null;
       if saved.state<>'ready' or saved.expires_at<=clock_timestamp() then reason='EXPIRED';
       else
-        -- A page needs only receipt metadata. Rehydrate each Finding revision
-        -- once, retaining its digest/size/rights deadline, never its full text.
-        -- The workspace lock keeps ordinary review/source mutations serialized.
-        component_key=package_row.finding_revision::text;
+        -- New receipts bind the actual full manifest through a compact reference:
+        -- every field/order is retained, with raw originals bound by SHA256 and
+        -- UTF8 byte count. Build and hash common originals once for the page;
+        -- never serialize a full 32MiB artifact for each historical revision.
+        -- Unknown/legacy receipts retain authoritative full verification.
+        component_key=(case when package_row.component_version='FINDING_COMPONENTS_UTF8/1'
+          then 'reference:' else 'full:' end)||package_row.finding_revision::text;
         if not (components ? component_key) then
           begin
-            source_manifest=public.nexus_finding_package_manifest(p_context,p_finding,package_row.finding_revision);
-            manifest_text=source_manifest::text;
-            select min((entry->'rights'->>'review_by')::timestamptz) into rights_expire_at
-              from jsonb_array_elements(source_manifest->'@included') entry where entry ? 'rights';
-            component=jsonb_build_object('hash',encode(sha256(convert_to(manifest_text,'UTF8')),'hex'),
-              'bytes',octet_length(manifest_text),'rights_expire_at',rights_expire_at);
+            if package_row.component_version='FINDING_COMPONENTS_UTF8/1' then
+              if not common_loaded then
+                begin
+                  source_manifest=public.nexus_finding_package_common(p_context,p_finding);
+                  select min((entry->'rights'->>'review_by')::timestamptz) into rights_expire_at
+                    from jsonb_array_elements(source_manifest->'@included') entry where entry ? 'rights';
+                  common_reference=public.nexus_finding_package_reference(source_manifest);
+                exception when others then
+                  if sqlerrm in('NR:RIGHTS_BLOCKED','NR:SOURCE_UNAVAILABLE','NR:REVIEW_REQUIRED')
+                    then common_reason=substring(sqlerrm,4);else raise;end if;
+                end;
+                common_loaded=true;
+                source_manifest=null;
+              end if;
+              if common_reason is not null then component=jsonb_build_object('reason',common_reason);
+              else
+                revision_reference=public.nexus_finding_package_revision(p_context,p_finding,package_row.finding_revision);
+                reference_hash=encode(sha256(convert_to((common_reference||revision_reference)::text,'UTF8')),'hex');
+                component=jsonb_build_object('reference_hash',reference_hash,'rights_expire_at',rights_expire_at);
+              end if;
+            else
+              source_manifest=public.nexus_finding_package_manifest(p_context,p_finding,package_row.finding_revision);
+              manifest_text=source_manifest::text;
+              select min((entry->'rights'->>'review_by')::timestamptz) into rights_expire_at
+                from jsonb_array_elements(source_manifest->'@included') entry where entry ? 'rights';
+              component=jsonb_build_object('hash',encode(sha256(convert_to(manifest_text,'UTF8')),'hex'),
+                'bytes',octet_length(manifest_text),'rights_expire_at',rights_expire_at);
+            end if;
           exception when others then
             if sqlerrm in('NR:RIGHTS_BLOCKED','NR:SOURCE_UNAVAILABLE','NR:REVIEW_REQUIRED')
               then component=jsonb_build_object('reason',substring(sqlerrm,4));else raise;end if;
@@ -262,6 +333,10 @@ begin
         reason=component->>'reason';
         if reason is null then
           if (component->>'rights_expire_at')::timestamptz<=clock_timestamp() then reason='RIGHTS_BLOCKED';
+          elsif package_row.component_version='FINDING_COMPONENTS_UTF8/1' then
+            if public.nexus_finding_package_component_digest(component->>'reference_hash',saved.manifest_hash,
+              package_row.manifest_bytes,package_row.serialization,package_row.finding_revision) is distinct from package_row.component_digest
+              then reason='COMPONENT_CHANGED';end if;
           elsif component->>'hash'<>saved.manifest_hash or (component->>'bytes')::integer<>package_row.manifest_bytes
             then reason='COMPONENT_CHANGED';end if;
         end if;
@@ -288,8 +363,12 @@ create trigger removed_document_export_reviews before delete or update of lifecy
   for each row execute function public.nexus_removed_document_export_reviews();
 
 revoke all on function public.nexus_finding_export_sources(jsonb,uuid),public.nexus_finding_export_rights(jsonb,text,uuid,jsonb,bigint,text),
+  public.nexus_finding_package_common(jsonb,uuid),public.nexus_finding_package_revision(jsonb,uuid,bigint),
+  public.nexus_finding_package_reference(jsonb),public.nexus_finding_package_component_digest(text,text,integer,text,bigint),
   public.nexus_finding_package_manifest(jsonb,uuid,bigint),public.nexus_finding_package_view(jsonb,uuid),
   public.nexus_finding_package(jsonb,text,uuid,uuid,bigint,text,integer,uuid),public.nexus_removed_document_export_reviews() from public,anon,authenticated;
 grant execute on function public.nexus_finding_export_sources(jsonb,uuid),public.nexus_finding_export_rights(jsonb,text,uuid,jsonb,bigint,text),
+  public.nexus_finding_package_common(jsonb,uuid),public.nexus_finding_package_revision(jsonb,uuid,bigint),
+  public.nexus_finding_package_reference(jsonb),public.nexus_finding_package_component_digest(text,text,integer,text,bigint),
   public.nexus_finding_package_manifest(jsonb,uuid,bigint),public.nexus_finding_package_view(jsonb,uuid),
   public.nexus_finding_package(jsonb,text,uuid,uuid,bigint,text,integer,uuid),public.nexus_removed_document_export_reviews() to service_role;

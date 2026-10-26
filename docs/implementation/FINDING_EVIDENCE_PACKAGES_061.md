@@ -1,14 +1,19 @@
 # Finding Evidence Packages061
 
-## Cloud continuation correction — 2026-10-25
+## Cloud continuation correction — 2026-10-26
 
 Read `../continuation/CLOUD_RUN_STATE_2026-10-25.md` for the current verified
 causes, source corrections and evidence boundaries. This supersedes the stage01
 pending/provisional5MB starting facts below, preserving their original record.
 The32MiB/60version/156original contract is retained. Cloud work fixes actual
-rights409/list200 receipt-history loss and20fold maximum-manifest reconstruction;
+rights409/list200 receipt-history loss and repeated maximum-manifest reconstruction;
 it also corrects the committed integration fixture's earlier-test interference.
-Final061SQL SHA256 is `a11d40f6f0125f1986441e65a033d6071f2dc3750051f0b2dc07a55d113a3b0c`,
+New versioned component receipts bind all actual manifest fields and raw-original
+hashes/byte counts. Lists validate common content once and requested revisions
+separately;20/50distinct maximum-size revisions pass local capacity, with original
+32MiB/8second limits and exact full download verification. Unknown receipt
+versions retain full verification. Previous materializer byte parity passed.
+Current061SQL SHA256 is `8400f1121220a2435c5d25e64bbaf2b00e543e05eec1cf6fec5abc6469d4cffb`,
 not approved or installed. Required exact-headCI/fresh recovery and actual hosted
 acceptance remain separate evidence layers. All224/full-product scope and failed
 excluded prerequisites remain open. No new security work or paused022 resumption.
