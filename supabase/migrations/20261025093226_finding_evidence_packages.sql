@@ -182,10 +182,12 @@ end;$$;
 create function public.nexus_finding_package(
   p_context jsonb,p_operation text,p_finding uuid,p_id uuid default null,p_revision bigint default null,
   p_key text default null,p_limit integer default 20,p_after uuid default null
-) returns jsonb language plpgsql security invoker set search_path=public,pg_temp as $$
+) returns jsonb language plpgsql security invoker set search_path=public,pg_temp set timezone='UTC' as $$
 declare ws uuid=(p_context->>'workspace_id')::uuid; actor uuid=(p_context->>'user_id')::uuid; role_name text;
   f jsonb; manifest_text text; digest text; intent text; mutation public.workbench_mutations%rowtype; saved public.evidence_exports%rowtype;
   ids uuid[]; items jsonb='[]'; pid uuid; receipt_only boolean=p_operation='create_receipt'; result jsonb;
+  package_row public.finding_packages%rowtype; components jsonb='{}'; component jsonb; component_key text;
+  source_manifest jsonb; rights_expire_at timestamptz; reason text;
 begin
   perform 1 from public.workspaces where id=ws for update;
   perform public.workbench_authorize(p_context,'read');
@@ -231,7 +233,43 @@ begin
     select array_agg(id order by id) into ids from(select id from public.finding_packages where workspace_id=ws and finding_id=p_finding
       and (p_after is null or id>p_after) order by id limit p_limit+1) selected;
     foreach pid in array coalesce(ids[1:p_limit],'{}'::uuid[]) loop
-      items=items||jsonb_build_array(public.nexus_finding_package_view(p_context,pid)-'manifest_text');
+      perform public.workbench_authorize(p_context,'read');
+      select * into strict package_row from public.finding_packages where workspace_id=ws and id=pid;
+      select * into strict saved from public.evidence_exports where workspace_id=ws and id=pid;
+      reason=null;
+      if saved.state<>'ready' or saved.expires_at<=clock_timestamp() then reason='EXPIRED';
+      else
+        -- A page needs only receipt metadata. Rehydrate each Finding revision
+        -- once, retaining its digest/size/rights deadline, never its full text.
+        -- The workspace lock keeps ordinary review/source mutations serialized.
+        component_key=package_row.finding_revision::text;
+        if not (components ? component_key) then
+          begin
+            source_manifest=public.nexus_finding_package_manifest(p_context,p_finding,package_row.finding_revision);
+            manifest_text=source_manifest::text;
+            select min((entry->'rights'->>'review_by')::timestamptz) into rights_expire_at
+              from jsonb_array_elements(source_manifest->'@included') entry where entry ? 'rights';
+            component=jsonb_build_object('hash',encode(sha256(convert_to(manifest_text,'UTF8')),'hex'),
+              'bytes',octet_length(manifest_text),'rights_expire_at',rights_expire_at);
+          exception when others then
+            if sqlerrm in('NR:RIGHTS_BLOCKED','NR:SOURCE_UNAVAILABLE','NR:REVIEW_REQUIRED')
+              then component=jsonb_build_object('reason',substring(sqlerrm,4));else raise;end if;
+          end;
+          components=components||jsonb_build_object(component_key,component);
+          source_manifest=null;manifest_text=null;
+        end if;
+        component=components->component_key;
+        reason=component->>'reason';
+        if reason is null then
+          if (component->>'rights_expire_at')::timestamptz<=clock_timestamp() then reason='RIGHTS_BLOCKED';
+          elsif component->>'hash'<>saved.manifest_hash or (component->>'bytes')::integer<>package_row.manifest_bytes
+            then reason='COMPONENT_CHANGED';end if;
+        end if;
+      end if;
+      items=items||jsonb_build_array(jsonb_build_object('schema_version','finding-package/1','id',pid,'workspace_id',ws,
+        'finding_id',p_finding,'finding_revision',package_row.finding_revision,'serialization',package_row.serialization,
+        'manifest_hash',saved.manifest_hash,'manifest_bytes',package_row.manifest_bytes,'created_at',saved.created_at,
+        'requested_by',saved.requested_by,'state',case when reason is null then 'ready' else 'expired' end,'reason',reason));
     end loop;
     return jsonb_build_object('schema_version','finding-package-list/1','items',items,'next_after',case when cardinality(ids)>p_limit then ids[p_limit] end);
   else raise exception 'NR:INVALID_SCOPE';end if;

@@ -3,10 +3,11 @@ import {readFile} from "node:fs/promises";
 import {createHash,randomUUID} from "node:crypto";
 
 test.skip(!process.env.E2E_PACKAGE_SQL_FIXTURE,"Requires real disposable SQL output and controlled Gateway transport, not hosted data.");
-for(const theme of ["light","dark"])test(`${theme}: rights review, interrupted package retry, exact download and revocation`,async({page},testInfo)=>{
+for(const theme of ["light","dark"])test(`${theme}: rights review, interrupted package retry, exact download, revocation and source-removal history`,async({page},testInfo)=>{
   const packageFixture=JSON.parse(await readFile(process.env.E2E_PACKAGE_SQL_FIXTURE!,"utf8"));
   const errors:string[]=[];page.on("pageerror",error=>errors.push(error.message));
-  await page.goto(`/findings?finding=${packageFixture.finding_id}&actor=${randomUUID()}&theme=${theme}`);
+  const actor=randomUUID();
+  await page.goto(`/findings?finding=${packageFixture.finding_id}&actor=${actor}&theme=${theme}`);
   await expect(page.getByLabel("Title",{exact:true})).toHaveValue("Exported synthetic answer");
   const region=page.getByRole("region",{name:"Evidence packages",exact:true});
   await expect(region.getByRole("button",{name:"Export JSON-LD & receipt",exact:true})).toBeDisabled();
@@ -24,7 +25,7 @@ for(const theme of ["light","dark"])test(`${theme}: rights review, interrupted p
   await expect(region.getByText("Export rights review saved for the selected source versions.",{exact:true})).toBeVisible();
   const exporting=region.getByRole("button",{name:"Export JSON-LD & receipt",exact:true});
   await exporting.click();
-  // The fixture interrupts only its first committed package response across this owned server.
+  // Each independent scenario interrupts its first committed package response.
   const first=await Promise.race([region.getByRole("alert").waitFor().then(()=>({interrupted:true,download:null})),page.waitForEvent("download").then(download=>({interrupted:false,download}))]);
   let download=first.download;
   if(first.interrupted){
@@ -47,4 +48,25 @@ for(const theme of ["light","dark"])test(`${theme}: rights review, interrupted p
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);expect(errors).toEqual([]);
   await region.getByText(/Revision 1 · expired · RIGHTS_BLOCKED/).scrollIntoViewIfNeeded();
   await page.screenshot({path:testInfo.outputPath(`finding-packages-receipt-${theme}.png`)});
+  const removed=await page.request.post("/__fixture__/finding-package-source-removed",{data:{actor_id:actor,finding_id:packageFixture.finding_id}});
+  expect(removed.status()).toBe(200);
+  await page.reload();
+  await expect(page.getByText("Source evidence is unavailable. Generated content is withheld.",{exact:true})).toBeVisible();
+  const rightsResponse=page.waitForResponse(response=>new URL(response.url()).pathname.endsWith("/export-rights"));
+  const listResponse=page.waitForResponse(response=>new URL(response.url()).pathname.endsWith("/packages"));
+  await region.getByRole("button",{name:"Load export rights & packages",exact:true}).click();
+  const rightsReply=await rightsResponse,listReply=await listResponse;
+  expect(rightsReply.status()).toBe(409);expect((await rightsReply.json()).error.code).toBe("SOURCE_UNAVAILABLE");
+  expect(listReply.status()).toBe(200);
+  const listed=await listReply.json();expect(listed.items).toHaveLength(1);
+  expect(listed.items[0]).toMatchObject({id:packageFixture.id,manifest_hash:packageFixture.manifest_hash,state:"expired",reason:"SOURCE_UNAVAILABLE"});
+  expect(listed.items[0]).not.toHaveProperty("manifest_text");
+  await expect(region.getByRole("alert")).toHaveText(/Original evidence changed or is unavailable/);
+  await expect(region.getByText("Revision 1 · expired · SOURCE_UNAVAILABLE",{exact:true})).toBeVisible();
+  await expect(region.getByText(`SHA256 ${packageFixture.manifest_hash}`,{exact:true})).toBeVisible();
+  await expect(exporting).toBeDisabled();
+  await expect(region.getByRole("button",{name:"Download revision 1 package",exact:true})).toBeDisabled();
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);expect(errors).toEqual([]);
+  await region.getByText("Revision 1 · expired · SOURCE_UNAVAILABLE",{exact:true}).scrollIntoViewIfNeeded();
+  await page.screenshot({path:testInfo.outputPath(`finding-packages-source-unavailable-${theme}.png`)});
 });

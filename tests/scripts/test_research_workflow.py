@@ -10,6 +10,20 @@ import yaml
 ROOT = Path(__file__).resolve().parents[2]
 
 class ResearchWorkflowTests(unittest.TestCase):
+    def test_stateful_package_fixture_follows_shared_fixture_consumers(self):
+        commands=[line.strip() for line in (ROOT/"tests/postgres/local-rehearsal.sh").read_text().splitlines()
+                  if line.strip() and not line.lstrip().startswith("#")]
+        package='NEXUS_DISPOSABLE_SQL=1 node "$TESTS/finding-package-integration.mjs"'
+        self.assertEqual(commands.count(package),1)
+        package_position=commands.index(package)
+        for position,command in enumerate(commands):
+            if '"$TESTS/' in command and any(name in command for name in (
+                    "-assertions.sql", "finding-package-capacity.sql", "-concurrency.sh",
+                    "research-finding-audit-replay.mjs")):
+                self.assertLess(position,package_position,command)
+        self.assertLess(package_position,next(i for i,command in enumerate(commands)
+                                             if command.startswith("echo 'LOCAL_POSTGRES_REHEARSAL_PASS")))
+
     def test_finding_package_capacity_concurrency_and_real_worker_are_required(self):
         database=(ROOT/".github/workflows/v6-database-rehearsal.yml").read_text()
         foundation=(ROOT/".github/workflows/v6-foundation-ci.yml").read_text()

@@ -1,11 +1,14 @@
 \set ON_ERROR_STOP on
 begin;
 set request.jwt.claim.role='service_role';
+set local track_functions='pl';
 do $$
 declare ctx jsonb;draft jsonb;pid uuid;r jsonb;claim jsonb;answer jsonb;quotes jsonb;coverage jsonb;prior jsonb;finding jsonb;
   rights jsonb;package jsonb;ids jsonb='[]';selections jsonb='[]';doc uuid;ver uuid;chunk uuid;original text;
   actor uuid='22222222-2222-4222-8222-222222222222';reviewer uuid='33333333-3333-4333-8333-333333333333';
   ws uuid='11111111-1111-4111-8111-111111111111';i integer;k integer;first_chunk integer;last_chunk integer;fid uuid;
+  calls_before bigint;calls_after bigint;listed jsonb;started timestamptz;first_elapsed numeric;page_elapsed numeric;
+  expired_id uuid;changed_id uuid;
 begin
   insert into public.workspace_members(workspace_id,user_id,role) values(ws,reviewer,'editor') on conflict(workspace_id,user_id) do update set role='editor';
   select jsonb_build_object('workspace_id',ws,'user_id',actor,'membership_revision',w.capability_revision,'policy_id',s.active_policy_id,
@@ -81,6 +84,45 @@ begin
   package=public.nexus_finding_package(ctx,'create_receipt',fid,p_revision=>1,p_key=>'capacity-export');
   if package ? 'manifest_text' or package->>'schema_version'<>'finding-package-receipt/1' or octet_length(package::text)>4096 then raise exception 'Creation response copied the large manifest';end if;
   perform set_config('nexusrag.test_capacity_receipt',package::text,true);
+  -- Equivalent artifacts can belong to different requestors. Keep their real
+  -- receipt shape and exact common manifest without persisting 50 text copies.
+  with added as (
+    insert into public.evidence_exports(workspace_id,requested_by,format,state,manifest_hash)
+    select ws,('a0612000-0000-4000-8000-'||lpad(n::text,12,'0'))::uuid,'JSON_LD','ready',package->>'manifest_hash'
+      from generate_series(1,49) n returning id
+  ) insert into public.finding_packages(id,workspace_id,finding_id,finding_revision,manifest_bytes)
+    select id,ws,fid,1,(package->>'manifest_bytes')::integer from added;
+  foreach i in array array[20,50] loop
+    select coalesce(calls,0) into calls_before from pg_stat_xact_user_functions
+      where funcid='public.nexus_finding_package_manifest(jsonb,uuid,bigint)'::regprocedure;
+    started=clock_timestamp();
+    listed=public.nexus_finding_package(ctx,'list',fid,p_limit=>i);
+    page_elapsed=extract(epoch from clock_timestamp()-started);
+    select coalesce(calls,0) into calls_after from pg_stat_xact_user_functions
+      where funcid='public.nexus_finding_package_manifest(jsonb,uuid,bigint)'::regprocedure;
+    if coalesce(calls_after,0)-coalesce(calls_before,0)<>1 then
+      raise exception 'Package page rehydrated the same maximum-capacity revision more than once: limit %, calls %',i,coalesce(calls_after,0)-coalesce(calls_before,0);end if;
+    if jsonb_array_length(listed->'items') is distinct from i
+      or (i=20 and listed->>'next_after' is distinct from listed->'items'->19->>'id')
+      or (i=50 and listed->'next_after' is distinct from 'null'::jsonb)
+      or exists(select 1 from jsonb_array_elements(listed->'items') item where item ? 'manifest_text'
+        or item->>'state' is distinct from 'ready' or item->'reason' is distinct from 'null'::jsonb
+        or item->>'manifest_hash' is distinct from package->>'manifest_hash'
+        or item->'manifest_bytes' is distinct from package->'manifest_bytes'
+        or item->>'requested_by' is distinct from (select requested_by::text from public.evidence_exports where id=(item->>'id')::uuid))
+      then raise exception 'Maximum-capacity package page lost exact receipt metadata, requestors or pagination';end if;
+    if i=20 then first_elapsed=page_elapsed;end if;
+  end loop;
+  select id into expired_id from public.finding_packages where finding_id=fid order by id limit 1;
+  select id into changed_id from public.finding_packages where finding_id=fid order by id offset 1 limit 1;
+  update public.evidence_exports set expires_at=clock_timestamp()-interval '1 second' where id=expired_id;
+  update public.evidence_exports set manifest_hash=repeat('d',64) where id=changed_id;
+  listed=public.nexus_finding_package(ctx,'list',fid,p_limit=>50);
+  if (select count(*) from jsonb_array_elements(listed->'items') item where item->>'state'='ready')<>48
+    or not exists(select 1 from jsonb_array_elements(listed->'items') item where item->>'id'=expired_id::text and item->>'reason'='EXPIRED')
+    or not exists(select 1 from jsonb_array_elements(listed->'items') item where item->>'id'=changed_id::text and item->>'reason'='COMPONENT_CHANGED')
+    then raise exception 'Shared revision validation hid per-receipt expiry or digest differences';end if;
+  raise notice 'FINDING_PACKAGE_LIST_CAPACITY_SQL_PASS pages=20,50 rehydrations=1,1 default_page_seconds=% maximum_page_seconds=%',first_elapsed,page_elapsed;
 end;$$;
 \if :{?package_capacity_output}
 \o :package_capacity_output

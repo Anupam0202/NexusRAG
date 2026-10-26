@@ -2,7 +2,7 @@
 begin;
 set request.jwt.claim.role='service_role';
 do $$
-declare ctx jsonb;draft jsonb;r jsonb;claim jsonb;answer jsonb;f jsonb;rights jsonb;command jsonb;package jsonb;replay jsonb;manifest jsonb;
+declare ctx jsonb;draft jsonb;r jsonb;claim jsonb;answer jsonb;f jsonb;rights jsonb;command jsonb;package jsonb;second_package jsonb;replay jsonb;manifest jsonb;
   ws uuid='11111111-1111-4111-8111-111111111111';actor uuid='22222222-2222-4222-8222-222222222222';
   reviewer uuid='33333333-3333-4333-8333-333333333333';doc uuid='d0610000-0000-4000-8000-000000000001';
   ver uuid='d0610000-0000-4000-8000-000000000002';chunk uuid='d0610000-0000-4000-8000-000000000003';
@@ -66,14 +66,39 @@ begin
   if public.nexus_finding_package(ctx,'list',fid)->'items'->0 ? 'manifest_text' then raise exception 'List duplicated private manifest';end if;
   perform public.nexus_finding(ctx,'edit',fid,'{"title":"Revision two","authored_markdown":"New revision without approval"}',1,null,null);
   if public.nexus_finding_package(ctx,'read',fid,pid)<>package then raise exception 'Immutable prior revision export was lost on edit';end if;
+  perform public.nexus_finding(ctx||jsonb_build_object('user_id',reviewer),'review',fid,'{"decision":"approved","comment":"Inspected revision two"}',2,null,null);
+  second_package=public.nexus_finding_package(ctx,'create',fid,p_revision=>2,p_key=>'package61-revision-two');
+  perform set_config('timezone','Asia/Kolkata',true);
+  replay=public.nexus_finding_package(ctx,'list',fid,p_limit=>50);
+  perform set_config('timezone','UTC',true);
+  if jsonb_array_length(replay->'items') is distinct from 2
+    or not exists(select 1 from jsonb_array_elements(replay->'items') item where item=package-'manifest_text')
+    or not exists(select 1 from jsonb_array_elements(replay->'items') item where item=second_package-'manifest_text')
+    then raise exception 'Package list mixed historical revisions or changed metadata across session timezones';end if;
   command=jsonb_set(command,'{selections,0,expected_review_id}',to_jsonb(rid));command=jsonb_set(command,'{policy,decision}','"REVOKED"');
   perform public.nexus_finding_export_rights(ctx,'record',fid,command,2,'revoke61');
   replay=public.nexus_finding_package(ctx,'read',fid,pid);
   if replay->>'state'<>'expired' or replay->'manifest_text'<>'null'::jsonb or replay->>'reason'<>'RIGHTS_BLOCKED' then raise exception 'Revoked package was still downloadable';end if;
+  replay=public.nexus_finding_package(ctx,'list',fid,p_limit=>50);
+  if jsonb_array_length(replay->'items') is distinct from 2
+    or exists(select 1 from jsonb_array_elements(replay->'items') item where item->>'state' is distinct from 'expired'
+      or item->>'reason' is distinct from 'RIGHTS_BLOCKED' or item ? 'manifest_text')
+    then raise exception 'Rights revocation was not reflected in every historical package summary';end if;
   update public.documents set lifecycle_state='deleting',lifecycle_epoch=lifecycle_epoch+1 where id=doc;
   if (select lifecycle_state from public.documents where id=doc)<>'deleting' or exists(select 1 from public.finding_export_rights where version_id=ver) then raise exception 'Source removal lost state change or retained private review text';end if;
   replay=public.nexus_finding_package(ctx,'read',fid,pid);
-  if replay->>'state'<>'expired' or replay->'manifest_text'<>'null'::jsonb then raise exception 'Removed source remained downloadable';end if;
+  if replay->>'state' is distinct from 'expired' or replay->'manifest_text' is distinct from 'null'::jsonb
+    or replay->>'reason' is distinct from 'SOURCE_UNAVAILABLE'
+    then raise exception 'Removed source remained downloadable or lost its withholding reason';end if;
+  begin perform public.nexus_finding_export_rights(ctx,'read',fid);raise exception 'Removed source still offered export rights';
+    exception when others then if sqlerrm<>'NR:SOURCE_UNAVAILABLE' then raise;end if;end;
+  replay=public.nexus_finding_package(ctx,'list',fid);
+  if jsonb_array_length(replay->'items') is distinct from 2
+    or not exists(select 1 from jsonb_array_elements(replay->'items') item where item->>'id'=pid::text and item->>'manifest_hash'=package->>'manifest_hash')
+    or not exists(select 1 from jsonb_array_elements(replay->'items') item where item->>'id'=second_package->>'id' and item->>'manifest_hash'=second_package->>'manifest_hash')
+    or exists(select 1 from jsonb_array_elements(replay->'items') item where item->>'state' is distinct from 'expired'
+      or item->>'reason' is distinct from 'SOURCE_UNAVAILABLE' or item ? 'manifest_text')
+    then raise exception 'Removed source hid or changed the retained package receipt';end if;
 end;$$;
 \if :{?package_output}
 \o :package_output
@@ -81,4 +106,4 @@ select current_setting('nexusrag.test_package');
 \o
 \endif
 rollback;
-select 'FINDING_PACKAGE_SQL_PASS: real result/rights/review/retry/hash/reload/historical revision/revocation/lifecycle; disposable rollback, not hosted acceptance';
+select 'FINDING_PACKAGE_SQL_PASS: real result/rights/review/retry/hash/reload/historical revision/revocation/lifecycle/retained receipt after source removal; disposable rollback, not hosted acceptance';

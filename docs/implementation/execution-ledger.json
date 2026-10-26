@@ -13,19 +13,28 @@
   "interpretation": "OPEN_ENGINEERING includes implemented but not fully accepted requirements; it does not assert that no code or scoped evidence exists. External approvals do not close unfinished internal work.",
   "entries": [
     {
-      "id":"ENGINEERING-FINDING-EVIDENCE-PACKAGES",
-      "requirement":"Complete source-version rights review,independent Finding-revision approval and deterministic source-linked packages with durable receipts/readback/download,expiry/revocation and complete source qualifications",
-      "normative_source":"Adopted shared evidence-package journey,S06/S20/G01/G21/P18/P19/P20/Z24;all224exact definitions retained",
-      "status":"IN_PROGRESS",
-      "environment":"Uncommitted061 on published0d358a6/tree17436029;owned local PostgreSQL and controlled synthetic browser/Gateway peers,not hosted/private/production acceptance",
-      "next_action":"Prove156-source/JSON-escaping manifest capacity,real concurrent retry/review/quota/expiry cases and lifecycle compatibility;finish ordinary full suites/build/CI wiring/source review,then NEW complete source/real locks/fresh dependency/SQL/UI/evidence recovery before source publication.061hosted approval absent. Unknown/denied/expired/revoked rights withheld;workspace review not legal certification. Public provider/full-original/bulk formats and full224/product/private/quality/lifecycle/rights/budget/paused022/required-gates/rollout/rollback remain open.",
-      "acceptance_evidence":[{
-        "environment":"real disposable PostgreSQL plus actual Gateway/Findings UI under synthetic peers;no hosted mutation or provider processing",
-        "observed_at":"2026-10-25T10:01:00Z",
-        "source_identity":"published0d358a6a31a5ca31dfa7b1ab40bb5255a69875e4 plus uncommitted061",
-        "command_or_url":"batch061/sql-packages-02.log;jsonld-actual-sql-01.log;gateway-owning-02.log;frontend-owning-03.log;ui-03-tests.log",
-        "result":"SQL persisted result/rights/review/hash/retry/reload/old revision/revocation/source-removal and67table194function backuprestore PASS;actual SQL JSON-LD1.1 literals/PROV expansion with no remote contexts PASS;33Gateway/16frontend owning and4controlled desktop/mobile/lightdark UI PASS. Initial0PASS/4locator failures and second2PASS/2shared-actor-rate-limit failures preserved;guard unchanged.5MB package capacity is provisional/not fully accepted. Source not saved/published/deployed and whole scope PARTIAL_NOT_COMPLETE."
-      }]
+      "id": "ENGINEERING-FINDING-EVIDENCE-PACKAGES",
+      "requirement": "Complete source-version rights review,independent Finding-revision approval and deterministic source-linked packages with durable receipts/readback/download,expiry/revocation and complete source qualifications",
+      "normative_source": "Adopted shared evidence-package journey,S06/S20/G01/G21/P18/P19/P20/Z24;all224exact definitions retained",
+      "status": "IN_PROGRESS",
+      "environment": "Cloud continuation from c01c520/tree7123b4a3; reviewed functional source corrections, owned disposable PostgreSQL17 and actual local Worker/controlled Chromium; no hosted or production acceptance",
+      "next_action": "Finish final061SQL a11d40f6 full ordered SQL/native/concurrency/backup and actual builtWorker verification; save candidate exact source/CI and NEW complete source plus fresh dependency/SQL/UI recovery with final private receipts.061SQL remains unapproved/uninstalled;059/060 approvals consumed. Preserve all224/product/private/quality/lifecycle/rights/budget/excluded-gate/rollout/rollback gaps.",
+      "acceptance_evidence": [
+        {
+          "environment": "real disposable PostgreSQL plus actual Gateway/Findings UI under synthetic peers;no hosted mutation or provider processing",
+          "observed_at": "2026-10-25T10:01:00Z",
+          "source_identity": "published0d358a6a31a5ca31dfa7b1ab40bb5255a69875e4 plus uncommitted061",
+          "command_or_url": "batch061/sql-packages-02.log;jsonld-actual-sql-01.log;gateway-owning-02.log;frontend-owning-03.log;ui-03-tests.log",
+          "result": "SQL persisted result/rights/review/hash/retry/reload/old revision/revocation/source-removal and67table194function backuprestore PASS;actual SQL JSON-LD1.1 literals/PROV expansion with no remote contexts PASS;33Gateway/16frontend owning and4controlled desktop/mobile/lightdark UI PASS. Initial0PASS/4locator failures and second2PASS/2shared-actor-rate-limit failures preserved;guard unchanged.5MB package capacity is provisional/not fully accepted. Source not saved/published/deployed and whole scope PARTIAL_NOT_COMPLETE."
+        },
+        {
+          "environment": "Cloud-only owned PostgreSQL17, production page/client/Gateway with controlled peers and systemChromium154; no hosted/provider/customer processing",
+          "observed_at": "2026-10-25T17:39:11.168832+00:00",
+          "source_identity": "c01c520a9076f2995c5a291946fefb2f8161830c plus current tracked061cloudcorrection; final source SHA bound by private Recovery checkpoint",
+          "command_or_url": "docs/continuation/CLOUD_RUN_STATE_2026-10-25.md; private cloud verification receipts",
+          "result": "651frontend/101files,lint/types,4desktop-mobile-lightdark exactreceipt source-removal browser,Next/OpenNext26routes,real maximumSQL JSONLD and actual Worker delayedbody/clienthash PASS. Original quotaCI failure traced to committed shared-fixture state; isolatedprincipals/replay/sharedstate and phaseordering regressions retain limits. List20maxmanifest original11.09s/calls20 FAIL; corrected20/50pages oneconstruction/revision,finalfocused1.87/1.81s PASS. Final source SQL47markers+67table194function backup exit0 and10builtWorker browser PASS;635backend+19/756Gateway/59isolated/122scripts PASS. Exact-headCI/fullsource/freshrecovery pending at source save; no normative/product/release closure."
+        }
+      ]
     },
     {
       "id":"ENGINEERING-RESEARCH-PROCUREMENT-EXECUTION",

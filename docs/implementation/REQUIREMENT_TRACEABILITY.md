@@ -1,5 +1,12 @@
 # Requirement traceability
 
+Current cloud correction: see `../continuation/CLOUD_RUN_STATE_2026-10-25.md`.
+S06/S20/G01/G21/P18/P19/P20/Z24 gain ordinary rights/list partial-failure,
+retained-receipt browser and maximum-capacity list regressions; the full224
+definitions below are unchanged and remain open for complete acceptance. Source,
+local SQL/native/browser, exact-headCI, fresh recovery and hosted/deployed proof
+remain distinct. Existing security exclusions and exact approvals remain binding.
+
 061WIP on0d358a6:private-upload source-version rights review and deterministic
 Finding evidence-package UI/Gateway/SQL implementation. S06/S20/G01/G21/P18/P19/
 P20/Z24 and all224exact definitions remain open for full accepted/deployed evidence.

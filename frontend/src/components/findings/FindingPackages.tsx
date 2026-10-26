@@ -24,9 +24,13 @@ export function FindingPackages({finding,context,canExport,parentBusy}:{finding:
     finally{inFlight.current=false;if(active.current)setBusy(false);}
   }
   async function load() {
-    const [review,list]=await Promise.all([readFindingExportRights(finding.id,context),listFindingPackages(finding.id,context)]);
+    const [review,list]=await Promise.allSettled([readFindingExportRights(finding.id,context),listFindingPackages(finding.id,context)]);
     if(!active.current)return;
-    setRights(review);setPackages(list.items);setAfter(list.next_after);setChosen([]);reviewIntent.current=null;exportIntent.current=null;
+    setRights(review.status==="fulfilled"?review.value:null);
+    setPackages(list.status==="fulfilled"?list.value.items:[]);setAfter(list.status==="fulfilled"?list.value.next_after:null);
+    setChosen([]);reviewIntent.current=null;exportIntent.current=null;
+    const failures=[review,list].flatMap(result=>result.status==="rejected"?[result.reason instanceof Error?result.reason.message:"Evidence package state could not be loaded."]:[]);
+    if(failures.length)throw new Error([...new Set(failures)].join(" "));
   }
   function changePolicy(value:Partial<FindingExportPolicy>){setPolicy(previous=>({...previous,...value}));reviewIntent.current=null;}
   function download(value:FindingPackage) {

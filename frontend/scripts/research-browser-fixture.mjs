@@ -31,7 +31,12 @@ const reviewers=new Set([reviewer]);
 // Optional real disposable-SQL output supplies package transport fixtures.
 // SQL decisions/concurrency are tested by PostgreSQL, not reimplemented here.
 const sqlPackage=process.env.E2E_PACKAGE_SQL_FIXTURE?JSON.parse(await readFile(process.env.E2E_PACKAGE_SQL_FIXTURE,"utf8")):null;
-let packageRights=null,packageSaved=false,packageInterrupted=false;
+let packageRights=null;
+const packageStates=new Map();
+function packageState(actor){
+  if(!packageStates.has(actor))packageStates.set(actor,{rights:structuredClone(packageRights),saved:false,interrupted:false,sourceUnavailable:false});
+  return packageStates.get(actor);
+}
 if(sqlPackage){
   const m=JSON.parse(sqlPackage.manifest_text);
   findings.set(m.finding_id,{id:m.finding_id,workspace_id:workspace,owner_id:user,author_id:user,title:m.title,revision:m.revision,
@@ -284,20 +289,24 @@ globalThis.fetch = async (input, init = {}) => {
   const data = JSON.parse(init.body);
   if(sqlPackage&&url.pathname==="/rest/v1/rpc/nexus_finding_export_rights"){
     if(data.p_finding!==sqlPackage.finding_id)throw Error("Unexpected package fixture Finding");
+    const state=packageState(data.p_context.user_id);
+    if(state.sourceUnavailable)return json({code:"P0001",message:"NR:SOURCE_UNAVAILABLE"},400);
     if(data.p_operation==="record"){
-      packageRights={...packageRights,eligible:data.p_command.policy.decision==="ALLOW",items:packageRights.items.map(row=>({...row,
+      state.rights={...state.rights,eligible:data.p_command.policy.decision==="ALLOW",items:state.rights.items.map(row=>({...row,
         policy:data.p_command.policy,review_id:"61616161-6161-4161-8161-616161616161",actor_id:data.p_context.user_id,created_at:new Date().toISOString(),
         allowed:data.p_command.policy.decision==="ALLOW"}))};
     }
-    return json(packageRights);
+    return json(state.rights);
   }
   if(sqlPackage&&url.pathname==="/rest/v1/rpc/nexus_finding_package"){
     if(data.p_finding!==sqlPackage.finding_id)throw Error("Unexpected package fixture Finding");
-    const current=packageRights.eligible?sqlPackage:{...sqlPackage,state:"expired",reason:"RIGHTS_BLOCKED",manifest_text:null};
-    if(data.p_operation==="list")return json({schema_version:"finding-package-list/1",items:packageSaved?[{...current,manifest_text:undefined}]:[],next_after:null});
+    const state=packageState(data.p_context.user_id);
+    const current=state.sourceUnavailable?{...sqlPackage,state:"expired",reason:"SOURCE_UNAVAILABLE",manifest_text:null}
+      :state.rights.eligible?sqlPackage:{...sqlPackage,state:"expired",reason:"RIGHTS_BLOCKED",manifest_text:null};
+    if(data.p_operation==="list")return json({schema_version:"finding-package-list/1",items:state.saved?[{...current,manifest_text:undefined}]:[],next_after:null});
     if(data.p_operation==="create_receipt"){
-      packageSaved=true;
-      if(!packageInterrupted){packageInterrupted=true;return json({code:"08006",message:"Synthetic response interrupted after durable package save"},503);}
+      state.saved=true;
+      if(!state.interrupted){state.interrupted=true;return json({code:"08006",message:"Synthetic response interrupted after durable package save"},503);}
       return json({...current,schema_version:"finding-package-receipt/1",manifest_text:undefined});
     }
     return json(current);
@@ -349,6 +358,8 @@ globalThis.fetch = async (input, init = {}) => {
       return json({code:"08006",message:"Synthetic interrupted finding response after commit"},503);
     }
     const f=findings.get(data.p_id);if(!f)throw Error("Unknown synthetic finding");
+    if(sqlPackage&&f.id===sqlPackage.finding_id&&packageState(actor).sourceUnavailable)
+      return json({...f,source_unavailable:true,generated_markdown:null,evidence:[],permission:f.owner_id===actor?"owner":"contribute"});
     if(data.p_operation==="edit"){f.title=data.p_command.title;f.authored_markdown=data.p_command.authored_markdown;f.revision++;f.author_id=actor;f.reviews=[];}
     if(data.p_operation==="share")f.participants=[{user_id:data.p_command.user_id,permission:data.p_command.permission}];
     if(data.p_operation==="review")f.reviews=[{reviewer_id:actor,revision:f.revision,decision:data.p_command.decision,comment:data.p_command.comment,created_at:new Date().toISOString()}];
@@ -480,6 +491,17 @@ const server = await createServer({ root, configFile: false, envFile: false,
 });
 async function serve(request, response, next, instance) {
   const url = new URL(request.url, `http://127.0.0.1:${port}`);
+  // Local transport control only: mirror the source-removal outcomes already
+  // asserted against disposable PostgreSQL without touching any hosted source.
+  if(sqlPackage&&url.pathname==="/__fixture__/finding-package-source-removed"&&request.method==="POST"){
+    let body="";for await(const fragment of request)body+=fragment;
+    const command=JSON.parse(body);
+    if(command.finding_id!==sqlPackage.finding_id||!actors.has(command.actor_id)){
+      response.statusCode=422;response.end("Unknown synthetic package scenario");return;
+    }
+    packageState(command.actor_id).sourceUnavailable=true;
+    response.setHeader("content-type","application/json");response.end(JSON.stringify({state:"SOURCE_UNAVAILABLE"}));return;
+  }
   if (["/","/findings","/documents"].includes(url.pathname)||/^\/documents\/[0-9a-f-]+$/i.test(url.pathname)) {
     const pairedReviewer=url.searchParams.get("reviewer");
     if(pairedReviewer&&/^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(pairedReviewer)){

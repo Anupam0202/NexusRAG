@@ -65,7 +65,6 @@ if [[ -n "${NEXUS_PACKAGE_CAPACITY_OUTPUT:-}" ]]; then
 else
   "${PSQL[@]}" -f "$TESTS/finding-package-capacity.sql"
 fi
-NEXUS_DISPOSABLE_SQL=1 node "$TESTS/finding-package-integration.mjs"
 "${PSQL[@]}" -f "$TESTS/research-comparison-assertions.sql"
 "${PSQL[@]}" -f "$TESTS/research-timeline-assertions.sql"
 "${PSQL[@]}" -f "$TESTS/research-contradiction-assertions.sql"
@@ -132,4 +131,8 @@ NEXUS_DISPOSABLE_SQL=1 node "$TESTS/research-diligence-integration.mjs"
 NEXUS_DISPOSABLE_SQL=1 NEXUS_DILIGENCE_CAPACITY=1 node "$TESTS/research-diligence-integration.mjs"
 NEXUS_DISPOSABLE_SQL=1 node "$TESTS/research-passport-integration.mjs"
 NEXUS_DISPOSABLE_SQL=1 node "$TESTS/research-procurement-integration.mjs"
+# This concurrent package fixture commits shared-actor admissions, membership,
+# findings and quota rows. Keep rollback-only assertions and native mode-inventory
+# consumers ahead of it so their documented fixture preconditions remain intact.
+NEXUS_DISPOSABLE_SQL=1 node "$TESTS/finding-package-integration.mjs"
 echo 'LOCAL_POSTGRES_REHEARSAL_PASS (not a hosted Supabase verification)'
