@@ -1,3 +1,44 @@
+# Current cloud continuation — 2026-10-27, PostgreSQL CI diagnostics
+
+Continue the ONE full 224-requirement / ten-product / twelve-mode cloud Goal.
+The immutable Recovery9888fea2 master remains accepted. Required gates remain
+binding; new security work and paused022 remain excluded. Exact059/060 rehearsal
+approvals are consumed;061/062 are unapproved and uninstalled. No merge, deploy,
+hosted SQL, provider processing, new hosted users or destructive platform action
+is authorized by these source changes.
+
+The reviewed Radar candidate70865ac completed all16 scoped fresh cloud recovery
+stages, with all860 source files and modes unchanged. Its source and both evidence
+archives were independently read back from private GitHub and hash/file verified.
+Exact708 CI ended with7 successes,5 failures and2 skipped deployments. Frontend
+passed every step, including Radar. Ordinary PostgreSQL failed, but its actual
+cause remains unconfirmed: log and artifact downloads are denied at
+`productionresultssa16.blob.core.windows.net`. Local success is not a CI waiver.
+
+This narrow follow-up surfaces the rehearsal's exact phase, original exit code
+and bounded ordinary error in an annotation, including startup/copy/import,
+post-SQL checkers, backup and missing pass-marker failures. A bounded static
+sidecar preserves child phases after long redirected output or reporter failure.
+Owned cleanup attempts every operation and preserves the first nonzero result;
+cleanup failure cannot turn successful checks green or replace an earlier error.
+The full log is retained. All53 fixed pass markers, the regex requirement, source
+copy inventory, private0700/0600 artifact handoff,20-minute job deadline and
+Node22 profile remain. No product runtime, quotas, assertions, schema or locks
+change in this follow-up.
+
+Actual YAML shell transport is tested with controlled failing command peers;
+these checks do not execute PostgreSQL or establish the inaccessible CI cause.
+Read the latest private Recovery handoff for exact final review, source identities,
+fresh recovery and CI observations. Earlier results stay bound to their own source.
+Continue typed Obligation Evidence REST/MCP/UI with action-specific serving rights,
+then the remaining accepted workflows. All224 normative and ten product ledger
+rows remain open; full private/quality/hosted/runtime/release/cleanup acceptance
+is still PARTIAL_NOT_COMPLETE.
+
+---
+
+# Earlier source-time status
+
 # Current cloud continuation — 2026-10-27, batch062
 
 Continue the ONE full224-requirement/ten-product/twelve-mode cloud Goal. The
