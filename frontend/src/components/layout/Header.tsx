@@ -11,6 +11,7 @@ import { AuthMenu } from "@/components/auth/AuthMenu";
 const PAGE_TITLES: Record<string, string> = {
   "/evidence-os": "Evidence OS",
   "/findings": "Findings & Reviews",
+  "/radar": "Terms & Quota Radar",
   "/research": "Research Plans",
   "/chat": "Chat",
   "/documents": "Documents",

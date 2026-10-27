@@ -17,6 +17,7 @@ const requiredAssets = [
   "documents.html",
   "evidence-os.html",
   "findings.html",
+  "radar.html",
   "settings/billing-or-usage.html",
   "documents/__static_document__.html",
 ];

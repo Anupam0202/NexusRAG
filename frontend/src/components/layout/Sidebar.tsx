@@ -5,7 +5,7 @@ import Link from "@/components/layout/StaticLink";
 import {
   MessageSquare, FileText, BarChart3, Settings, ChevronLeft,
   ChevronRight, Sparkles, Menu, X, ClipboardCheck, Building2,
-  Network,
+  Network, Activity,
 } from "lucide-react";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { cn } from "@/lib/utils";
@@ -14,6 +14,7 @@ import { useState, useEffect, useRef } from "react";
 
 const NAV = [
   { href: "/evidence-os", label: "Evidence OS", icon: Network },
+  { href: "/radar", label: "Terms & Quota Radar", icon: Activity },
   { href: "/chat", label: "Chat", icon: MessageSquare },
   { href: "/documents", label: "Documents", icon: FileText },
   { href: "/workspaces", label: "Workspaces", icon: Building2 },

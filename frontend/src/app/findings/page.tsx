@@ -22,6 +22,7 @@ import { DiligenceObservations } from "@/components/research/DiligenceObservatio
 import { PassportClaims } from "@/components/research/PassportClaims";
 import { ProcurementRecords } from "@/components/research/ProcurementRecords";
 import { FindingPackages } from "@/components/findings/FindingPackages";
+import { RadarOriginPanel } from "@/components/findings/RadarOriginPanel";
 
 const control = "w-full rounded-lg border border-[var(--border)] bg-[var(--bg-primary)] px-3 py-2 text-sm";
 const button = "rounded-lg border border-[var(--border)] px-3 py-2 text-sm font-medium disabled:opacity-50";
@@ -97,6 +98,10 @@ function FindingsWorkbench() {
     setReviewComment(""); setShareUserId("");
   }
   async function save() {
+    if (!title.trim() || Array.from(title).length > 160)
+      throw new Error("Finding title must contain 1 to 160 characters.");
+    if (Array.from(markdown).length > 50000)
+      throw new Error("Finding text must contain at most 50,000 characters.");
     if (selected) {
       await editFinding(selected.id, { title, authored_markdown: markdown, revision: selected.revision }, context);
       if (current()) await select(selected.id);
@@ -155,24 +160,25 @@ function FindingsWorkbench() {
         </section>
         <section className="min-w-0 space-y-4 rounded-xl border border-[var(--border)] p-4" aria-label="Finding editor">
           <h2 className="font-semibold">{selected ? `Revision ${selected.revision} · ${selected.permission}` : "New private finding"}</h2>
-          <label className="block text-sm">Title<input className={`${control} mt-1`} value={title} maxLength={160} disabled={busy || !canEdit}
+          <label className="block text-sm">Title<input className={`${control} mt-1`} value={title} maxLength={320} disabled={busy || !canEdit}
             onChange={event => { setTitle(event.target.value); createKey.current = null; }} /></label>
-          <label className="block text-sm">Authored finding<textarea className={`${control} mt-1 min-h-48`} value={markdown} maxLength={50000}
+          <label className="block text-sm">Authored finding<textarea className={`${control} mt-1 min-h-48`} value={markdown} maxLength={100000}
             disabled={busy || !canEdit} onChange={event => { setMarkdown(event.target.value); createKey.current = null; }} /></label>
           <p className="text-xs text-[var(--text-muted)]">Authored notes are not automatically verified claims. Approval requires a different author and an explicit reviewer.</p>
           <div className="flex flex-wrap gap-2">
             <button className={`${button} bg-brand-600 text-white`} disabled={busy || !canEdit || !title.trim()}
               onClick={() => void operate(save)}>Save finding</button>
-            {selected && !selected.source_run_id && selected.source_research_position == null && <button className={button} disabled={busy || !canWrite}
+            {selected && !selected.source_run_id && selected.source_research_position == null && !selected.source_radar_change_id && !selected.radar_origin && <button className={button} disabled={busy || !canWrite}
               onClick={() => void operate(download)}>Export JSON-LD & receipt</button>}
             {selected?.permission === "owner" && <button className={button} disabled={busy} onClick={() => {
               if (!window.confirm("Delete and redact this finding and its version text?")) return;
               void operate(async () => { await removeFinding(selected.id, context); if (current()) setReload(value => value + 1); });
             }}>Delete finding</button>}
           </div>
-          {selected && <>{(selected.source_run_id || selected.source_research_position != null) && <FindingPackages key={`${selected.id}:${selected.revision}`} finding={selected} context={context} canExport={canWrite} parentBusy={busy}/>}
+          {selected && <>{(selected.source_run_id || selected.source_research_position != null || selected.source_radar_change_id || selected.radar_origin) && <FindingPackages key={`${selected.id}:${selected.revision}`} finding={selected} context={context} canExport={canWrite} parentBusy={busy}/>}
           <section aria-label="Evidence and reviews" className="space-y-2 border-t border-[var(--border)] pt-4">
             <h3 className="font-semibold">Evidence & review history</h3>
+            {selected.radar_origin&&<RadarOriginPanel origin={selected.radar_origin}/>}
             {selected.research_origin && <div className="space-y-2 text-sm">
               <p>{selected.research_origin.comparison?`Saved comparison · criterion ${selected.research_origin.comparison.criterion_index+1} · batch ${selected.research_origin.comparison.batch_index+1}`:selected.research_origin.timeline?`Saved timeline · criterion ${selected.research_origin.timeline.criterion_index+1} · batch ${selected.research_origin.timeline.batch_index+1}`:selected.research_origin.contradiction?`Saved contradiction analysis · criterion ${selected.research_origin.contradiction.criterion_index+1}`:`Saved research answer · question ${selected.research_origin.result_index + 1}`} · not automatically verified</p>
               {selected.research_origin.question && <p className="whitespace-pre-wrap break-words">{selected.research_origin.question}</p>}
@@ -202,10 +208,11 @@ function FindingsWorkbench() {
             </div>)}
           </section>
           {canEdit && <section className="space-y-2" aria-label="Independent review">
-            <label className="block text-sm">Review comment<textarea className={control} value={reviewComment} maxLength={4000}
+            <label className="block text-sm">Review comment<textarea className={control} value={reviewComment} maxLength={8000}
               onChange={event => setReviewComment(event.target.value)} disabled={busy} /></label>
             <div className="flex gap-2">{(["approved", "changes_requested"] as const).map(decision =>
-              <button key={decision} className={button} disabled={busy || !selected.author_id || selected.author_id === userId || (selected.source_research_position != null && selected.source_unavailable)} onClick={() => void operate(async () => {
+              <button key={decision} className={button} disabled={busy || !selected.author_id || selected.author_id === userId || ((selected.source_research_position != null || Boolean(selected.source_radar_change_id || selected.radar_origin)) && selected.source_unavailable)} onClick={() => void operate(async () => {
+                if (Array.from(reviewComment).length > 4000) throw new Error("Review comment must contain at most 4,000 characters.");
                 const reviewed = await reviewFinding(selected.id, { revision: selected.revision, decision, comment: reviewComment }, context);
                 if (current()) setSelected(reviewed);
               })}>{decision === "approved" ? "Approve revision" : "Request changes"}</button>)}</div>

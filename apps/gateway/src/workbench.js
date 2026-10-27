@@ -5,7 +5,7 @@ import {handleFindingPackages} from "./finding-packages.js";
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const problem = (code, message, status = 422) => Object.assign(new Error(message), { code, status });
 function boundedText(value, name, maximum, minimum = 0) {
-  if (typeof value !== "string" || value.length > maximum || value.trim().length < minimum || value.includes("\0"))
+  if (typeof value !== "string" || Array.from(value).length > maximum || value.trim().length < minimum || value.includes("\0"))
     throw problem("INVALID_SCOPE", `${name} is invalid.`);
   return value;
 }
@@ -70,7 +70,7 @@ async function handleWorkbench(args) {
     if (!["editor", "admin", "owner"].includes(member.role)) throw problem("FORBIDDEN", "Export capability is required.", 403);
     const finding = await read();
     if (finding.source_unavailable) throw problem("SOURCE_UNAVAILABLE", "Unavailable evidence cannot be exported.", 409);
-    if (finding.source_run_id || finding.source_research_position != null)
+    if (finding.source_run_id || finding.source_research_position != null || finding.source_radar_change_id || finding.radar_origin)
       throw problem("RIGHTS_BLOCKED", "Source-backed exports require verified export rights.", 403);
     // This is a user-authored finding export, not a provider-rights or standards certification.
     const manifest = { "@context": { "@vocab": "https://schema.org/", "nexus": "urn:nexusrag:ns:" },

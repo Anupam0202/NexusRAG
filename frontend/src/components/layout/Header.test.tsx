@@ -26,11 +26,11 @@ describe("Header", () => {
     getSystemStatus.mockReset();
     route.value = "/documents";
   });
-  it("uses the actual Evidence OS route title instead of Chat", async () => {
-    route.value = "/evidence-os";
+  it.each([["/evidence-os", "Evidence OS"], ["/radar", "Terms & Quota Radar"]])("uses the actual %s route title", async (path, title) => {
+    route.value = path;
     getSystemStatus.mockRejectedValue(new Error("Offline fixture"));
     render(<Header />);
-    expect(screen.getByRole("heading", { name: "Evidence OS" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: title })).toBeInTheDocument();
     await waitFor(() => expect(useStore.getState().connectionStatus).toBe("offline"));
   });
 

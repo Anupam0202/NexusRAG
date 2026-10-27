@@ -114,6 +114,26 @@ test("edit requires a revision and propagates database conflict without leaking 
   assert.equal(conflict.status, 409);
   assert.doesNotMatch(await conflict.text(), /sensitive-server-detail/);
 });
+test("Finding create and edit preserve PostgreSQL code-point bounds for supplementary Unicode", async t => {
+  const title = "📊".repeat(160), authored = "📜".repeat(10_000);
+  const operations = [];
+  mock(t, "editor", (_url, data, response) => {
+    operations.push(data.p_operation);
+    assert.equal(data.p_command.title, title);
+    assert.equal(data.p_command.authored_markdown, authored);
+    return response({ id: finding, revision: data.p_operation === "create" ? 1 : 2 });
+  });
+  const created = await handle(request("/api/v2/findings", { method: "POST",
+    headers: { "Idempotency-Key": "unicode-finding" }, body: JSON.stringify({ title, authored_markdown: authored }) }), env);
+  assert.equal(created.status, 201);
+  const edited = await handle(request(`/api/v2/findings/${finding}`, { method: "PATCH",
+    body: JSON.stringify({ title, authored_markdown: authored, revision: 1 }) }), env);
+  assert.equal(edited.status, 200);
+  const tooLong = await handle(request(`/api/v2/findings/${finding}`, { method: "PATCH",
+    body: JSON.stringify({ title: title + "📊", authored_markdown: authored, revision: 2 }) }), env);
+  assert.equal(tooLong.status, 422);
+  assert.deepEqual(operations, ["create", "edit"]);
+});
 test("MCP capability discovery advertises only record-authorized runtime operations", async t => {
   mock(t);
   const response = await handle(request("/api/v2/mcp/operations"), env);

@@ -13,6 +13,23 @@
   "interpretation": "OPEN_ENGINEERING includes implemented but not fully accepted requirements; it does not assert that no code or scoped evidence exists. External approvals do not close unfinished internal work.",
   "entries": [
     {
+      "id": "ENGINEERING-TERMS-QUOTA-RADAR",
+      "requirement": "Complete supplied retained snapshot capture, exact selected-evidence change review, real Radar Finding and rights-bound package workflows with durable retry, reload and inspectable manual run history",
+      "normative_source": "Accepted Terms & Quota Radar/PRODUCT-02/P26/P27/P32 plus source,review,rights,package and bounded workflow requirements; all224exact definitions retained",
+      "status": "IN_PROGRESS",
+      "environment": "Cloud-only062 on814953da3b8d3db35069908460c2a9f852e69ca6; actual disposable PostgreSQL17.11/vector0.8.7, Node22 compatibility and controlled production frontend/Gateway peers; no hosted/private/production acceptance",
+      "next_action": "Finish source freeze/exact-headCI and NEW complete source/dependency/SQL/UI recovery; independent ordinary source review completed with no actionable introduced functional defect identified. Keep061/062unapproved/uninstalled,059/060consumed and allfailedrequiredgates. Then continue lawful fullacquisition/recurrence, complete EvidenceAPI/MCP/domain workflows and all224/tenproducts/twelvemodes with actualprivate/quality/lifecycle/budget/release/cleanup evidence; no product/normativeclosurefromthisselectedsuppliedsnapshot slice.",
+      "acceptance_evidence": [
+        {
+          "environment": "Owned cloud PostgreSQL17.11/vector0.8.7 under2CPU/7GiB and actualGateway/React/client/Worker with controlled synthetic peers; not hosted/private/provider processing",
+          "observed_at": "2026-10-27T05:18:07.937518+00:00",
+          "source_identity": "814953d parent plus062SQL0fdfb9143ce6196ebb910a7cf1f5c84831479ec9b6cbea6e13b587c909c58546; exact saved source/tree bound by private cloud checkpoint",
+          "command_or_url": "docs/implementation/TERMS_QUOTA_RADAR_062.md; private next-monitor062 source-specific raw logs/receipts",
+          "result": "PASS scoped640backend+74subtests/64stdlibisolated/818Gateway/688frontend103files/122scripts, lint/types, Next/OpenNext27assets, fullorderedSQL/native/concurrency+72table215functionrestore,2Radar+4package+12builtWorker browser withzero skip/retry/flake,actual legacy32MiB andRadar156quote JSONLD+Worker8.1sslowbody/client exacthash. Numeric/fraction/currency/operator/BOM defects,baselineemptyselection,citations,exactreview/creationreplay,metadatareceiptandUnicodeedit regressions verified. CI0700handoffEACCES reproduced and ownershiptransferfix verified withoutmodewidening; actualhistorical814CIcause stillunknown. Independentordinaryreview complete with no actionable introducedfunctionaldefect; exactsourceCI/freshrecovery pending; all224/product/releaseacceptance remainsopen."
+        }
+      ]
+    },
+    {
       "id": "ENGINEERING-FINDING-EVIDENCE-PACKAGES",
       "requirement": "Complete source-version rights review,independent Finding-revision approval and deterministic source-linked packages with durable receipts/readback/download,expiry/revocation and complete source qualifications",
       "normative_source": "Adopted shared evidence-package journey,S06/S20/G01/G21/P18/P19/P20/Z24;all224exact definitions retained",

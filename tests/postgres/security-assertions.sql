@@ -2,11 +2,16 @@
 DO $$ DECLARE n int; BEGIN
  SELECT count(*) INTO n FROM pg_class c JOIN pg_namespace s ON s.oid=c.relnamespace
  WHERE s.nspname='public' AND c.relkind='r' AND c.relrowsecurity;
- IF n<>63 THEN RAISE EXCEPTION 'expected 63 RLS tables including immutable research drafts, calculations, source quantities, research executions and finding evidence packages, found %',n; END IF;
+ IF n<>68 THEN RAISE EXCEPTION 'expected 68 RLS tables including immutable research drafts, calculations, source quantities, research executions, finding evidence packages and supplied Radar snapshots, found %',n; END IF;
  IF (SELECT count(*) FROM pg_class c JOIN pg_namespace s ON s.oid=c.relnamespace
      WHERE s.nspname='public' AND c.relkind='r' AND c.relrowsecurity
        AND c.relname IN ('finding_export_rights','finding_packages'))<>2 THEN
   RAISE EXCEPTION 'the two finding evidence package RLS tables are missing';
+ END IF;
+ IF (SELECT count(*) FROM pg_class c JOIN pg_namespace s ON s.oid=c.relnamespace
+     WHERE s.nspname='public' AND c.relkind='r' AND c.relrowsecurity
+       AND c.relname IN ('radar_sources','radar_snapshots','radar_changes','radar_reviews','radar_findings'))<>5 THEN
+  RAISE EXCEPTION 'the five supplied Radar snapshot RLS tables are missing';
  END IF;
  IF has_table_privilege('authenticated','public.provider_registry','select') OR has_table_privilege('anon','public.provider_registry','select') THEN
   RAISE EXCEPTION 'client role unexpectedly reads protected provider table';

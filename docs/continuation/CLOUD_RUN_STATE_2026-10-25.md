@@ -1,3 +1,49 @@
+# Current cloud continuation — 2026-10-27, batch062
+
+Continue the ONE full224-requirement/ten-product/twelve-mode cloud Goal. The
+immutable Recovery9888fea2 master remains accepted. No new security or paused022.
+059/060 approvals consumed;061/062 unapproved and uninstalled. No hosted SQL,
+provider processing, new hosted users, merge, deploy or destructive action.
+
+814953d completed061 independent ordinary review and21-stage NEW cloud recovery;
+its required CI remains7success/5failure/2skip. Original c01 trial failure was
+fixture pollution, corrected without quotas/assertion weakening. Later814 CI
+cause remains unestablished while job-log egress is denied.
+
+Batch062 now connects supplied retained snapshot evidence to durable source/version
+records, exact selected before/after comparison, independent pair review, real
+Radar Finding and existing independent Finding review/rights/package workflows.
+The numeric100→10 quota defect is reproduced and corrected. No fetch/AI/recurrence
+is enabled; selected coverage is explicit and all accepted limits remain. Read
+[the implementation record](../implementation/TERMS_QUOTA_RADAR_062.md).
+
+Observed before source save:640backend+74subtests,64isolated,818Gateway,688frontend
+(103files),122scripts,lint/types,Next/OpenNext27staticassets,actualNode22PG17
+under2CPU/7GiB plus72table215functionbackuprestore. Two fullRadar, four retained
+package and12builtWorker browser cases pass with zero skip/retry/flake. Actual
+legacy32MiB andRadar156quote packages passJSONLD/PROV and actualWorker/client
+streaming across8.1sbodyhold. Local/synthetic evidence doesnotestablish hosted
+OAuth/private users/provider quality/budget/native hosting or fullproduct closure.
+
+Review reproduced another CI-harness defect: PostgreSQL owns the mktemp0700
+exportdirectory and the runner cannot read its files. Exact Node22/POSIX proof
+usesproducerumask077: EACCES before andJSON.parse success afterrecursiveownership
+transfer, preserving700/600modes. The workflow now transfers ownership afterSQL
+success andbeforeNodechecks. This is not a claim about the inaccessible814log.
+
+Final ordinary source review found no actionable introduced functional defect.
+Finish sourcefreeze, exactheadCI and NEW complete recovered source/dependencies/SQL/UI
+verification. Preserve all failures and the unchanged
+061migration. Read latest privateRecovery handoff for resultingcommit/tree/hash
+and checks; source-time pending notes do not infer later completion. Then continue
+all remaining accepted workflows, including typed EvidenceAPI/MCP serving with
+action-specific rights. All224andtenproduct ledger rows remain open; onlyone new
+engineeringrow was added, all301existing rows/definitions unchanged.
+
+---
+
+# Earlier source-time continuation (historical)
+
 # Latest cloud continuation — 2026-10-26
 
 This supersedes the source-time status below. The full Goal remains **224

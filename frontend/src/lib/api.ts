@@ -38,6 +38,8 @@ import { buildBackendUrl } from "@/lib/backend-url";
 import { modeLimits, researchModes, type ResearchPlanInput, type ResearchPlanRecord } from "@/lib/research-plan";
 import { passportSubjectIdentity } from "@/lib/product-passport-subject";
 import { confirmedResearchRun, type ResearchRun } from "@/lib/research-run";
+import {confirmedRadarSource,confirmedRadarSnapshot,confirmedRadarChange,confirmedRadarChangeDetail,confirmedRadarPage,confirmedRadarChunks,confirmedRadarRights,confirmedRadarReview,confirmedRadarRuns,confirmedRadarFindingCreation,radarUuid,
+  type RadarSource,type RadarSourceDetail,type RadarCapture,type RadarChangeDetail,type RadarKind,type RadarProvider,type RadarChunks,type RadarReview,type RadarOrigin} from "@/lib/radar";
 import { confirmedCalculation, type CalculationInput, type CalculationRecord } from "@/lib/research-calculation";
 import { canonicalAggregationInput, confirmedAggregation, type AggregationInput, type AggregationRecord } from "@/lib/research-aggregation";
 import {canonicalConversionInput,confirmedConversion,type ConversionInput,type ConversionRecord} from "@/lib/research-conversion";
@@ -561,6 +563,7 @@ export interface FindingSummary {
   source_run_id: string | null;
   source_research_run_id?: string | null;
   source_research_position?: number | null;
+  source_radar_change_id?:string|null;
   created_at: string;
   updated_at: string;
 }
@@ -571,6 +574,8 @@ export interface FindingDetail extends FindingSummary {
   authored_markdown: string;
   generated_markdown: string | null;
   source_unavailable: boolean;
+  radar_origin?:RadarOrigin|null;
+  confirmed_creation?:import("./radar").RadarFindingCreation;
   research_origin?: {run_id:string|null;result_index:number;plan_id:string|null;question:string|null;claim_state:string;source_state:string;comparison?:import("./research-run").ResearchComparison|null;timeline?:import("./research-run").ResearchTimeline|null;contradiction?:import("./research-run").ResearchContradiction|null;deep?:import("./research-run").ResearchDeep|null;obligations?:import("./research-obligations").ResearchObligations|null;entities?:import("./research-entities").ResearchEntities|null;diligence?:import("./research-diligence").ResearchDiligence|null;passport?:import("./research-passport").ResearchPassport|null;procurement?:import("./research-procurement").ResearchProcurement|null;query_retrieval?:import("./research-run").ResearchQueryRetrieval|null};
   export_state?: "RIGHTS_REVIEW_REQUIRED";
   evidence: Array<{ id: string; document_id: string; version_id: string; original_text?: string; available: boolean; freshness: string;
@@ -768,4 +773,92 @@ export function acceptWorkspaceInvitation(token: string,context: ApiRequestConte
 
 export function getInvitationCapabilities(context: ApiRequestContext): Promise<{invitation_supported:boolean;schema_version?:'040';state?:string}> {
   return request('/api/v1/workspaces/invitations/capabilities',undefined,{...context,workspaceId:null});
+}
+
+
+// Supplied-document Radar: current workspace and durable response identity are
+// confirmed separately from claims about source ownership or provider permission.
+function radarWorkspace(context:ApiRequestContext):string {
+  if(!radarUuid(context.workspaceId))throw new ApiRequestError("Choose a workspace before opening Radar.","INVALID_SCOPE");
+  return context.workspaceId;
+}
+function radarUnconfirmed():never {throw new ApiRequestError("Radar persistence was not confirmed. Refresh before retrying the same intent.","PERSISTENCE_UNCONFIRMED");}
+export async function listRadarProviders(context:ApiRequestContext,after?:string):Promise<{schema_version:"radar-providers/1";items:RadarProvider[];next_after:string|null}> {
+  radarWorkspace(context);
+  const result=await request<{schema_version:string;items:RadarProvider[];next_after:string|null}>(`/api/v2/radar/providers?limit=20${after?`&after=${encodeURIComponent(after)}`:""}`,undefined,context);
+  if(result?.schema_version!=="radar-providers/1"||!Array.isArray(result.items)||result.items.length>20||result.items.some(p=>typeof p.id!=="string"||!p.id||typeof p.display_name!=="string"||!Number.isSafeInteger(p.revision)||!confirmedRadarRights(p.rights))
+    ||result.next_after!==null&&(typeof result.next_after!=="string"||!result.next_after||result.next_after.length>128))radarUnconfirmed();
+  return result as {schema_version:"radar-providers/1";items:RadarProvider[];next_after:string|null};
+}
+export async function listRadarSources(context:ApiRequestContext,after?:string) {
+  const workspace=radarWorkspace(context),result=await request<unknown>(`/api/v2/radar/sources?limit=20${after?`&after=${encodeURIComponent(after)}`:""}`,undefined,context);
+  if(!result||typeof result!=="object"||!("schema_version" in result)||result.schema_version!=="radar-source-list/1"
+    ||!confirmedRadarPage<RadarSource>(result,(row):row is RadarSource=>confirmedRadarSource(row,workspace)))radarUnconfirmed();
+  return result;
+}
+export async function createRadarSource(body:{provider_id:string;source_url:string;title:string;kind:RadarKind},key:string,context:ApiRequestContext) {
+  const workspace=radarWorkspace(context),result=await request<unknown>("/api/v2/radar/sources",{method:"POST",headers:{"Content-Type":"application/json","Idempotency-Key":key},body:JSON.stringify(body)},context);
+  if(!confirmedRadarSource(result,workspace)||result.provider_id!==body.provider_id||result.source_url!==body.source_url||result.title!==body.title||result.kind!==body.kind)radarUnconfirmed();
+  return result;
+}
+export async function readRadarSource(id:string,context:ApiRequestContext,after?:string):Promise<RadarSourceDetail> {
+  const workspace=radarWorkspace(context),result=await request<RadarSourceDetail>(`/api/v2/radar/sources/${encodeURIComponent(id)}?limit=20${after?`&after=${encodeURIComponent(after)}`:""}`,undefined,context);
+  if(result?.schema_version!=="radar-source-detail/1"||!confirmedRadarSource(result.source,workspace,id)
+    ||!confirmedRadarPage(result.snapshots,(row):row is import("./radar").RadarSnapshot=>confirmedRadarSnapshot(row,workspace,id))
+    ||!confirmedRadarPage(result.changes,(row):row is import("./radar").RadarChange=>confirmedRadarChange(row,workspace,id))
+    ||!confirmedRadarRuns(result.runs,workspace,result.source.monitor.id)
+    ||(result.source.latest_snapshot_id===null?result.latest_snapshot!==null:!confirmedRadarSnapshot(result.latest_snapshot,workspace,id)||result.latest_snapshot.id!==result.source.latest_snapshot_id))radarUnconfirmed();
+  return result;
+}
+export async function listRadarRuns(sourceId:string,context:ApiRequestContext,after?:string) {
+  const workspace=radarWorkspace(context),result=await request<unknown>(`/api/v2/radar/sources/${encodeURIComponent(sourceId)}/runs?limit=20${after?`&after=${encodeURIComponent(after)}`:""}`,undefined,context);
+  if(!confirmedRadarRuns(result,workspace))radarUnconfirmed();return result;
+}
+export async function readRadarChunks(documentId:string,context:ApiRequestContext,after?:string,versionId?:string):Promise<RadarChunks> {
+  radarWorkspace(context);
+  const result=await request<unknown>(`/api/v2/radar/documents/${encodeURIComponent(documentId)}/chunks?limit=50${after?`&after=${encodeURIComponent(after)}`:""}${versionId?`&version_id=${encodeURIComponent(versionId)}`:""}`,undefined,context);
+  if(!confirmedRadarChunks(result,documentId,versionId))radarUnconfirmed();return result;
+}
+export async function captureRadarSnapshot(sourceId:string,body:{expected_revision:number;document_id:string;version_id:string;chunk_ids:string[];before_chunk_ids?:string[];captured_at:string;rights_rationale:string},key:string,context:ApiRequestContext):Promise<RadarCapture> {
+  const workspace=radarWorkspace(context),result=await request<RadarCapture>(`/api/v2/radar/sources/${encodeURIComponent(sourceId)}/snapshots`,{method:"POST",headers:{"Content-Type":"application/json","Idempotency-Key":key},body:JSON.stringify(body)},context);
+  if(result?.schema_version!=="radar-capture/1"||!confirmedRadarSource(result.source,workspace,sourceId)||!confirmedRadarSnapshot(result.snapshot,workspace,sourceId)
+    ||!confirmedRadarChangeDetail(result.change,workspace)||result.change.source_id!==sourceId||result.change.after_snapshot_id!==result.snapshot.id
+    ||result.snapshot.revision!==body.expected_revision+1||result.source.revision<result.snapshot.revision
+    ||result.source.revision===result.snapshot.revision&&result.source.latest_snapshot_id!==result.snapshot.id
+    ||result.snapshot.document_id!==body.document_id||result.snapshot.version_id!==body.version_id
+    ||result.snapshot.chunk_ids.length!==body.chunk_ids.length||result.snapshot.chunk_ids.some(id=>!body.chunk_ids.includes(id))
+    ||body.before_chunk_ids&&(result.change.before_chunk_ids.length!==body.before_chunk_ids.length||result.change.before_chunk_ids.some(id=>!body.before_chunk_ids!.includes(id))))radarUnconfirmed();
+  return result;
+}
+export async function readRadarChange(id:string,context:ApiRequestContext):Promise<RadarChangeDetail> {
+  const workspace=radarWorkspace(context),result=await request<unknown>(`/api/v2/radar/changes/${encodeURIComponent(id)}`,undefined,context);
+  if(!confirmedRadarChangeDetail(result,workspace,id))radarUnconfirmed();return result;
+}
+export async function reviewRadarChange(id:string,body:{expected_review_revision:number;decision:"approved"|"changes_requested";comment:string;affected_workflows:string[]},key:string,context:ApiRequestContext):Promise<RadarChangeDetail> {
+  const workspace=radarWorkspace(context),result=await request<unknown>(`/api/v2/radar/changes/${encodeURIComponent(id)}/review`,{method:"POST",headers:{"Content-Type":"application/json","Idempotency-Key":key},body:JSON.stringify(body)},context);
+  if(!confirmedRadarChangeDetail(result,workspace,id)||!confirmedRadarReview(result.confirmed_review)
+    ||result.confirmed_review.revision!==body.expected_review_revision+1||result.confirmed_review.decision!==body.decision||result.confirmed_review.comment!==body.comment
+    ||JSON.stringify(result.confirmed_review.affected_workflows)!==JSON.stringify(body.affected_workflows)
+    ||Boolean(context.expectedUserId)&&result.confirmed_review.reviewer_id!==context.expectedUserId)radarUnconfirmed();return result;
+}
+export async function listRadarReviews(id:string,context:ApiRequestContext,after:number) {
+  radarWorkspace(context);
+  const result=await request<{schema_version:string;items:RadarReview[];next_after:number|null;review_count:number}>(`/api/v2/radar/changes/${encodeURIComponent(id)}/reviews?limit=20&after=${after}`,undefined,context);
+  if(result?.schema_version!=="radar-review-list/1"||!Array.isArray(result.items)||result.items.length>20||result.items.some(r=>!confirmedRadarReview(r)||!r.revision||r.revision<=after)
+    ||!Number.isSafeInteger(result.review_count)||result.review_count<result.items.length||result.next_after!==null&&(!Number.isSafeInteger(result.next_after)||result.next_after<=after))radarUnconfirmed();
+  return result;
+}
+export async function createRadarFinding(id:string,body:{title:string;authored_markdown:string;expected_review_revision:number},key:string,context:ApiRequestContext):Promise<FindingDetail> {
+  const noteBytes=new TextEncoder().encode(body.authored_markdown);
+  let noteHash:string;
+  try{noteHash=[...new Uint8Array(await crypto.subtle.digest("SHA-256",noteBytes))].map(value=>value.toString(16).padStart(2,"0")).join("");}
+  catch{radarUnconfirmed();}
+  const workspace=radarWorkspace(context),result=await request<FindingDetail>(`/api/v2/radar/changes/${encodeURIComponent(id)}/finding`,{method:"POST",headers:{"Content-Type":"application/json","Idempotency-Key":key},body:JSON.stringify(body)},context);
+  const receipt=result?.confirmed_creation;
+  if(!radarUuid(result?.id)||result.workspace_id!==workspace||result.source_radar_change_id!==id||result.radar_origin?.id!==id
+    ||!confirmedRadarFindingCreation(receipt)||receipt.workspace_id!==workspace||receipt.finding_id!==result.id||receipt.change_id!==id
+    ||receipt.expected_review_revision!==body.expected_review_revision||receipt.title!==body.title
+    ||receipt.authored_markdown_hash!==noteHash||receipt.authored_markdown_bytes!==noteBytes.byteLength
+    ||Boolean(context.expectedUserId)&&receipt.created_by!==context.expectedUserId)radarUnconfirmed();
+  return result;
 }

@@ -1,5 +1,21 @@
 # Local PostgreSQL rehearsal
 
+## Supplied snapshot Radar (062)
+
+The ordered suite now includes `20261026123000_radar_supplied_snapshots.sql`
+after the finding-package migration. Its rollback-only assertions exercise actual
+retained document versions, baseline/change capture, exact-pair independent
+review, a source-backed Finding and the existing independent Finding review and
+rights-bound package path. The native Gateway integration runs before the final
+stateful package fixture. Both preserve ordinary quota/role assertions and use
+explicit selected-chunk coverage; they do not fetch a provider, invoke AI or
+enable recurring work. This candidate has no hosted-install approval.
+
+The existing schema inventory assertion accounts for the five new RLS tables.
+The logical backup/restore still compares every table and function count from
+the actual disposable database; its counts are not a substitute for hosted
+Supabase or private-user acceptance.
+
 ## Manual retention claim (042)
 
 The current rehearsal also applies forward migration 042 after the baseline and 026-041 described below. Its scoped, service-only manual claim rechecks confirmed owner/admin authority and shares the scheduler lease. Assertions cover manual/scheduler exclusion, foreign actors, expired leases, disabled policy, browser denial and completion replay. These are synthetic SQL tests, not authorization for hosted migrations or proof of external deletion fencing. The separate retention concurrency script tests database row locking and exact-claim completion.

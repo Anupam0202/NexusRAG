@@ -226,6 +226,21 @@ jobs:
           done
           test "$ready" = true || { cat /tmp/nexusrag-package-fixture.log; exit 1; }
           E2E_RESEARCH_COMPONENT_FIXTURE=1 E2E_BASE_URL=http://127.0.0.1:3025 npm exec playwright -- test finding-packages.spec.ts --workers=1
+      - name: Synthetic supplied snapshot Radar and Finding workflow
+        working-directory: frontend
+        run: |
+          set -euo pipefail
+          export E2E_RADAR_SQL_FIXTURE="$GITHUB_WORKSPACE/tests/fixtures/radar-snapshot-sql.json"
+          node scripts/radar-browser-fixture.mjs 3036 > /tmp/nexusrag-radar-fixture.log 2>&1 &
+          fixture_pid=$!
+          trap 'kill "$fixture_pid" 2>/dev/null || true' EXIT
+          ready=false
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:3036/ >/dev/null; then ready=true; break; fi
+            sleep 1
+          done
+          test "$ready" = true || { cat /tmp/nexusrag-radar-fixture.log; exit 1; }
+          E2E_BASE_URL=http://127.0.0.1:3036 npm exec playwright -- test --config=playwright.radar.config.ts
       - name: Actual Cloudflare Worker document routing regressions
         working-directory: frontend
         env:

@@ -71,6 +71,41 @@ describe("Findings workbench", () => {
     expect(api.editFinding).toHaveBeenCalledWith(finding.id,
       { title: "Updated note", authored_markdown: "Authored note", revision: 3 }, { workspaceId: workspace, expectedUserId: "user-a" });
   });
+  it("edits a stored160-codepoint supplementary title and an accepted mixed-Unicode note without truncation", async () => {
+    const storedTitle="😀".repeat(160),editedTitle="😀".repeat(159)+"🧪";
+    //50,000 codepoints/65,000UTF16units/95,000UTF8bytes: within the existing
+    //character and100,000-byte request bounds including this title/envelope.
+    const note="a".repeat(35000)+"😀".repeat(15000);
+    const stored={...finding,title:storedTitle};api.readFinding.mockResolvedValueOnce(stored).mockResolvedValue({...stored,title:editedTitle,authored_markdown:note,revision:4});
+    api.editFinding.mockResolvedValue({...stored,title:editedTitle,authored_markdown:note,revision:4});
+    render(<FindingsPage/>);fireEvent.click(await screen.findByRole("button",{name:/Saved evidence note/}));
+    const title=await screen.findByLabelText("Title");await waitFor(()=>expect(title).toHaveValue(storedTitle));
+    expect(title).toHaveAttribute("maxlength","320");expect(screen.getByLabelText("Authored finding")).toHaveAttribute("maxlength","100000");
+    fireEvent.change(title,{target:{value:editedTitle}});fireEvent.change(screen.getByLabelText("Authored finding"),{target:{value:note}});
+    fireEvent.click(screen.getByRole("button",{name:"Save finding"}));
+    await waitFor(()=>expect(api.editFinding).toHaveBeenCalledWith(finding.id,{title:editedTitle,authored_markdown:note,revision:3},{workspaceId:workspace,expectedUserId:"user-a"}));
+    await waitFor(()=>expect(screen.getByRole("heading",{name:"Revision 4 · owner"})).toBeVisible());
+    expect(screen.getByLabelText("Title")).toHaveValue(editedTitle);expect(screen.getByLabelText("Authored finding")).toHaveValue(note);
+  });
+  it("rejects character overflow before saving despite the widerUTF16 input envelope",async()=>{
+    render(<FindingsPage/>);fireEvent.click(await screen.findByRole("button",{name:/Saved evidence note/}));
+    await waitFor(()=>expect(screen.getByLabelText("Title")).toHaveValue(finding.title));
+    fireEvent.change(screen.getByLabelText("Title"),{target:{value:"a".repeat(161)}});fireEvent.click(screen.getByRole("button",{name:"Save finding"}));
+    expect(await screen.findByRole("alert")).toHaveTextContent("1 to 160 characters");expect(api.editFinding).not.toHaveBeenCalled();
+    fireEvent.change(screen.getByLabelText("Title"),{target:{value:finding.title}});
+    fireEvent.change(screen.getByLabelText("Authored finding"),{target:{value:"a".repeat(50001)}});fireEvent.click(screen.getByRole("button",{name:"Save finding"}));
+    expect(await screen.findByRole("alert")).toHaveTextContent("at most 50,000 characters");expect(api.editFinding).not.toHaveBeenCalled();
+  });
+  it("reviews with4,000 supplementary codepoints and rejects4,001 characters before sending",async()=>{
+    api.readFinding.mockResolvedValue({...finding,author_id:"independent-author",permission:"contribute"});
+    api.reviewFinding.mockResolvedValue({...finding,author_id:"independent-author",permission:"contribute"});
+    render(<FindingsPage/>);fireEvent.click(await screen.findByRole("button",{name:/Saved evidence note/}));
+    const comment=await screen.findByLabelText("Review comment");expect(comment).toHaveAttribute("maxlength","8000");
+    fireEvent.change(comment,{target:{value:"a".repeat(4001)}});fireEvent.click(screen.getByRole("button",{name:"Approve revision"}));
+    expect(await screen.findByRole("alert")).toHaveTextContent("at most 4,000 characters");expect(api.reviewFinding).not.toHaveBeenCalled();
+    fireEvent.change(comment,{target:{value:"😀".repeat(4000)}});fireEvent.click(screen.getByRole("button",{name:"Approve revision"}));
+    await waitFor(()=>expect(api.reviewFinding).toHaveBeenCalledWith(finding.id,{revision:3,decision:"approved",comment:"😀".repeat(4000)},{workspaceId:workspace,expectedUserId:"user-a"}));
+  });
   it("shares with a real member selection and supports explicit revocation", async () => {
     api.shareFinding.mockResolvedValue({ ...finding, participants: [{ user_id: "user-b", permission: "read" }] });
     api.unshareFinding.mockResolvedValue(finding);

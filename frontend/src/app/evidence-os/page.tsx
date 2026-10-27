@@ -76,6 +76,7 @@ export default function EvidenceOSPage() {
                       <span className={`rounded-full px-2 py-1 text-[10px] font-bold tracking-wide ${STATUS_STYLE[state]}`}>{state.replaceAll("_", " ")}</span>
                     </div>
                     <p className="mt-1 text-xs leading-5 text-[var(--text-secondary)]">{description}</p>
+                    {name==="API Terms & Quota Radar"&&<Link href="/radar" className="mt-2 inline-block text-xs underline">Open supplied snapshot review</Link>}
                   </div>
                 </div>
               </article>

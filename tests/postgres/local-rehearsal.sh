@@ -53,12 +53,14 @@ PSQL=(psql -X -v ON_ERROR_STOP=1 -d "$PGDATABASE")
 "${PSQL[@]}" -f "$ROOT/supabase/migrations/20261024113940_research_passport_execution.sql"
 "${PSQL[@]}" -f "$ROOT/supabase/migrations/20261025003900_research_procurement_execution.sql"
 "${PSQL[@]}" -f "$ROOT/supabase/migrations/20261025093226_finding_evidence_packages.sql"
+"${PSQL[@]}" -f "$ROOT/supabase/migrations/20261026123000_radar_supplied_snapshots.sql"
 "${PSQL[@]}" -f "$TESTS/fixtures.sql"
 "${PSQL[@]}" -f "$TESTS/research-plan-assertions.sql"
 "${PSQL[@]}" -f "$TESTS/research-passport-subject-assertions.sql"
 "${PSQL[@]}" -f "$TESTS/research-run-assertions.sql"
 "${PSQL[@]}" -f "$TESTS/research-finding-assertions.sql"
 "${PSQL[@]}" -f "$TESTS/finding-package-assertions.sql"
+"${PSQL[@]}" -f "$TESTS/radar-snapshot-assertions.sql"
 if [[ -n "${NEXUS_PACKAGE_CAPACITY_OUTPUT:-}" ]]; then
   "${PSQL[@]}" -qAt -v "package_capacity_output=$NEXUS_PACKAGE_CAPACITY_OUTPUT" \
     -v "package_capacity_receipt_output=${NEXUS_PACKAGE_CAPACITY_OUTPUT%.json}.receipt.json" -f "$TESTS/finding-package-capacity.sql"
@@ -131,6 +133,7 @@ NEXUS_DISPOSABLE_SQL=1 node "$TESTS/research-diligence-integration.mjs"
 NEXUS_DISPOSABLE_SQL=1 NEXUS_DILIGENCE_CAPACITY=1 node "$TESTS/research-diligence-integration.mjs"
 NEXUS_DISPOSABLE_SQL=1 node "$TESTS/research-passport-integration.mjs"
 NEXUS_DISPOSABLE_SQL=1 node "$TESTS/research-procurement-integration.mjs"
+NEXUS_DISPOSABLE_SQL=1 node "$TESTS/radar-snapshot-integration.mjs"
 # This concurrent package fixture commits shared-actor admissions, membership,
 # findings and quota rows. Keep rollback-only assertions and native mode-inventory
 # consumers ahead of it so their documented fixture preconditions remain intact.

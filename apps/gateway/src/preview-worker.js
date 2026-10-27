@@ -19,6 +19,7 @@ import { handleResearchAggregations } from "./research-aggregations.js";
 import { handleResearchConversions } from "./research-conversions.js";
 import { handleResearchQuantities } from "./research-quantities.js";
 import { handleResearchRuns } from "./research-runs.js";
+import { handleRadar } from "./radar.js";
 import { SETTINGS_DEFAULTS, persistedSetting } from "./runtime-options.js";
 import { handleWorkbench, listFindings } from "./workbench.js";
 import { handleInvitations } from "./workspace-invitations.js";
@@ -731,6 +732,11 @@ async function handle(request, env = {}) {
   try {
     const user = await authenticate(request, env);
     if (!allowRequest(user.id)) return fail(request, env, "TENANT_QUOTA_EXCEEDED", "Per-user request limit reached.", 429, true);
+
+    if(url.pathname.startsWith("/api/v2/radar/")){
+      const workspace=workspaceId(request),member=await membership(env,user.id,workspace);
+      return await handleRadar({request,env,user,workspace,member,serviceRequest,json});
+    }
 
     if (url.pathname === "/api/v2/capabilities" && (request.method === "GET" || request.method === "HEAD")) {
       const bound = request.headers.get("x-nexus-workspace-id") || request.headers.get("x-workspace-id");
