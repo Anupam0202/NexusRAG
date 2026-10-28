@@ -1,3 +1,43 @@
+# Current cloud continuation — 2026-10-28, local Worker cleanup and diagnostics
+
+Continue the ONE full224/ten-product/twelve-mode cloud Goal and the immutable
+accepted master. Required gates remain binding. New security work and paused022
+remain excluded.059/060 exact approvals are consumed;061/062 and pending063 are
+unapproved/uninstalled. No hosted SQL/provider/newuser/merge/deploy/destructive
+platform authorization is added by these checks.
+
+Exact269 ordinary PostgreSQL CI identified radar_package_worker exit1. Its
+underlying error remains unconfirmed while log/artifact downloads are denied.
+Fresh local frozen269+byteverified actual708 SQLartifact under Node22/twoCPUs,
+CI=true/TZ=UTC and the original8.1s bodyhold passes both Radar checks, then fails
+ENOTEMPTY during removal of its owned temporary directory. Pinned Wrangler4.148
+starts an optional asynchronous disk logger that can recreate that directory.
+The helper now sets supported WRANGLER_WRITE_LOGS=false inside its already
+isolated/restored fixture environment. Console diagnostics remain captured.
+The same run passes and removes owned resources without retry; the lifecycle
+regression fails against the old helper and passes with parentenv restoration,
+no disklogdirectory, callback/repeated-close behavior and port rebinding.
+
+The reporter also recognizes actual named JavaScript/bracketed filesystem errors
+and retains bounded current-phase diagnostics while streaming large logs, without
+reusing stale phase errors or reflecting arbitrary command arguments.23 focused
+reporter/real-shell tests and independent four-file ordinary functional review
+pass. Frozen-source full owning verification, fresh dependencies and current CI
+are separately recorded in the latest private Recovery handoff; old receipts
+never validate newer source. No quotas, assertions, capacities, deadlines or
+required gates were weakened. The local reproduction is not a hostedlog receipt.
+
+The Oct28 cloud replacement retained committedsource/recovery but lacked prior
+uncommitted063 files. Those were reconstructed and complete source+partial
+verification archives were privately saved and nativeGit-read back with all
+hashes verified. Preserve later live063 work before restoring. Typed Obligation
+Evidence REST/customMCP/UI and serving-rights lifecycle are still IN_PROGRESS;
+its independent-review erasure-head correction needs realSQL/native/browser/
+full-owning/fresh-source verification. It is not part of this narrow helper
+follow-up. All224 normative and ten product acceptance rows remain open.
+
+---
+
 # Current cloud continuation — 2026-10-27, PostgreSQL CI diagnostics
 
 Continue the ONE full 224-requirement / ten-product / twelve-mode cloud Goal.

@@ -12,7 +12,11 @@ export async function startLocalWorker({frontend,directory,configPath}) {
   const previousDirectory=process.cwd(),previousEnvironment={...process.env};
   const environment=Object.fromEntries(Object.entries(process.env).filter(([key])=>
     ["path","systemroot","windir","temp","tmp","comspec"].includes(key.toLowerCase())));
-  Object.assign(environment,{HOME:directory,USERPROFILE:directory,WRANGLER_SEND_METRICS:"false",CI:"true"});
+  // Wrangler's optional disk logger queues fire-and-forget writes beyond server
+  // close. Keep fixture diagnostics on the captured console so owned directory
+  // cleanup cannot race a writer recreating .config/.wrangler/logs.
+  Object.assign(environment,{HOME:directory,USERPROFILE:directory,WRANGLER_SEND_METRICS:"false",
+    WRANGLER_WRITE_LOGS:"false",CI:"true"});
   const marker=randomUUID(),probePath=`/__nexus_owned_fixture/${marker}`,entry=join(directory,"owned-runtime-entry.mjs");
   await writeFile(entry,`import worker from ${JSON.stringify(config.main.replaceAll("\\","/"))};
 export default {...worker,fetch(request,...args){

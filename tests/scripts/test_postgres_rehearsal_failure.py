@@ -91,6 +91,108 @@ class PostgresAnnotationTests(unittest.TestCase):
         self.assertIn("phase legacy_package_worker (exit 47)", result.stdout)
         self.assertIn("synthetic large checker failure", result.stdout)
 
+    def test_actual_node_named_exceptions_are_visible_through_the_cli(self):
+        programs = {
+            name: f'throw new {name}("Controlled ordinary diagnostic");'
+            for name in ("TypeError", "SyntaxError", "RangeError", "ReferenceError", "DOMException")
+        }
+        programs["JsonLdError"] = (
+            'class JsonLdError extends Error {constructor(){super("Controlled ordinary diagnostic");'
+            'this.name="JsonLdError";}}; throw new JsonLdError();'
+        )
+        for name in ("AbortError", "TimeoutError"):
+            programs[name] = f'throw new DOMException("Controlled ordinary diagnostic", "{name}");'
+        with tempfile.TemporaryDirectory() as directory:
+            log = Path(directory) / "log"
+            for name, program in programs.items():
+                with self.subTest(name=name):
+                    failure = subprocess.run(["node", "--input-type=module", "-e", program],
+                                             capture_output=True, text=True)
+                    self.assertNotEqual(failure.returncode, 0)
+                    contents = "NEXUS_REHEARSAL_PHASE=radar_package_worker\n" + failure.stderr
+                    log.write_text(contents)
+                    result = subprocess.run([sys.executable, str(REPORTER), str(log),
+                                             "--exit-code", str(failure.returncode)],
+                                            capture_output=True, text=True)
+                    self.assertEqual(result.returncode, 0, result.stderr)
+                    self.assertIn("Controlled ordinary diagnostic", result.stdout)
+                    self.assertNotIn("Inspect the preserved", result.stdout)
+                    self.assertIn("phase radar_package_worker", result.stdout)
+                    self.assertEqual(log.read_text(), contents)
+
+    def test_actual_node_bracketed_filesystem_error_is_visible(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            owned = root / "owned"
+            owned.mkdir()
+            (owned / "still-present").write_text("synthetic ordinary fixture")
+            program = ('import {rmdir} from "node:fs/promises"; '
+                       f'await rmdir({json.dumps(str(owned))});')
+            failure = subprocess.run(["node", "--input-type=module", "-e", program],
+                                     capture_output=True, text=True)
+            self.assertNotEqual(failure.returncode, 0)
+            self.assertIn("ENOTEMPTY", failure.stderr)
+            log = root / "log"
+            log.write_text("NEXUS_REHEARSAL_PHASE=radar_package_worker\n" + failure.stderr)
+            result = subprocess.run([sys.executable, str(REPORTER), str(log), "--exit-code",
+                                     str(failure.returncode)], capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("ENOTEMPTY", result.stdout)
+        self.assertIn("phase radar_package_worker", result.stdout)
+
+    def test_error_before_a_long_synthetic_diff_is_retained_without_changing_log(self):
+        # This is a synthetic stream falsifier, not a claim about the inaccessible
+        # CI log or the size of Node's default assertion diff.
+        with tempfile.TemporaryDirectory() as directory:
+            log = Path(directory) / "log"
+            contents = ("NEXUS_REHEARSAL_PHASE=radar_package_worker\n"
+                        "AssertionError [ERR_ASSERTION]: controlled first error\n" +
+                        "+ synthetic diff row\n" * 30_000 + "    at controlled stack\n")
+            log.write_text(contents)
+            result = subprocess.run([sys.executable, str(REPORTER), str(log), "--exit-code", "1"],
+                                    capture_output=True, text=True)
+            self.assertEqual(log.read_text(), contents)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("controlled first error", result.stdout)
+        self.assertIn("phase radar_package_worker", result.stdout)
+
+    def test_stream_reads_and_line_retention_are_bounded_across_chunk_boundaries(self):
+        class GuardedStream:
+            def __init__(self):
+                self.chunks = iter([
+                    "NEXUS_REHEARSAL_PHASE=radar_package_worker\nType",
+                    "Error: controlled split diagnostic\n" + "x" * 65_500,
+                    *["x" * 65_536] * 20, "\n    at controlled stack\n", "",
+                ])
+
+            def read(self, size):
+                if size != 65_536:
+                    raise AssertionError(f"Unbounded read requested: {size}")
+                return next(self.chunks)
+
+        summary = REPORT.summarize(GuardedStream())
+        self.assertEqual(summary.phase, "radar_package_worker")
+        self.assertEqual(summary.diagnostic, "TypeError: controlled split diagnostic")
+
+    def test_advanced_sidecar_does_not_relabel_a_preceding_phase_error(self):
+        value = REPORT.annotation(
+            "NEXUS_REHEARSAL_PHASE=sql_rehearsal\n"
+            "psql:/tmp/source/tests/postgres/old.sql:1: ERROR: prior phase",
+            phase="sql_rehearsal", exit_code=9, current_phase="radar_package_worker",
+        )
+        self.assertIn("phase radar_package_worker (exit 9)", value)
+        self.assertNotIn("old.sql", value)
+        self.assertNotIn("prior phase", value)
+
+    def test_latest_error_in_the_current_phase_takes_precedence(self):
+        value = REPORT.annotation(
+            "NEXUS_REHEARSAL_PHASE=sql_rehearsal\n"
+            "psql:/tmp/source/tests/postgres/old.sql:1: ERROR: handled earlier error\n"
+            "TypeError: current ordinary failure\n", exit_code=1,
+        )
+        self.assertIn("current ordinary failure", value)
+        self.assertNotIn("old.sql", value)
+
 
 class WorkflowFailureTransportTests(unittest.TestCase):
     def run_workflow(self, fail_phase="", *, missing_marker=False, helper_failure=False,
