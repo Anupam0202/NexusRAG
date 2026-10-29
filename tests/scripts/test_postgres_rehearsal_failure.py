@@ -197,7 +197,7 @@ class PostgresAnnotationTests(unittest.TestCase):
 class WorkflowFailureTransportTests(unittest.TestCase):
     def run_workflow(self, fail_phase="", *, missing_marker=False, helper_failure=False,
                      cleanup_failure=False, remove_log=False, long_error=False,
-                     distinct_cleanup_failures=False, cleanup_command=""):
+                     distinct_cleanup_failures=False, cleanup_command="", missing_copy_source=False):
         with tempfile.TemporaryDirectory(prefix="nexusrag-ci-transport-test-") as directory:
             base = Path(directory)
             workspace, bin_dir, runner = base / "workspace", base / "bin", base / "runner"
@@ -215,6 +215,8 @@ class WorkflowFailureTransportTests(unittest.TestCase):
                     path.mkdir(parents=True, exist_ok=True)
             # The copy-inventory regex also sees the reporter path; restore it.
             helper.write_text("raise SystemExit(47)\n" if helper_failure else REPORTER.read_text())
+            if missing_copy_source:
+                (workspace / "package.json").unlink()
             postgres = workspace / "tests/postgres"
             postgres.mkdir(parents=True, exist_ok=True)
             (workspace / "tests/fixtures").mkdir(parents=True, exist_ok=True)
@@ -233,6 +235,7 @@ class WorkflowFailureTransportTests(unittest.TestCase):
             peer = f"#!{sys.executable}\n" + r'''
 import json,os,pathlib,subprocess,sys
 name=pathlib.Path(sys.argv[0]).name;args=sys.argv[1:]
+if name=="cp-failure":name="cp"
 log=pathlib.Path(os.environ["RUNNER_TEMP"])/"postgres-rehearsal.log"
 phase_file=pathlib.Path(os.environ["RUNNER_TEMP"])/"postgres-rehearsal.phase"
 phase=phase_file.read_text().strip() if phase_file.exists() else ""
@@ -268,6 +271,16 @@ raise RuntimeError("Unexpected temporary command peer "+name)
                 path = bin_dir / name
                 path.write_text(peer)
                 path.chmod(0o755)
+            # Ordinary copying needs the actual cp status, not a Python startup
+            # for each copied file. Keep the richer existing Python peer only
+            # for source_copy injection (including long output and log loss).
+            copy_failure = bin_dir / "cp-failure"
+            copy_failure.write_text(peer)
+            (bin_dir / "cp").write_text(
+                '#!/bin/sh\nif [ "${TEST_FAIL_PHASE:-}" = source_copy ]; then\n'
+                f'  exec {shlex.quote(sys.executable)} {shlex.quote(str(copy_failure))} "$@"\n'
+                'fi\nexec /bin/cp "$@"\n'
+            )
             script = base / "workflow.sh"
             script.write_text(SHELL)
             created_paths = base / "created.jsonl"
@@ -325,6 +338,29 @@ raise RuntimeError("Unexpected temporary command peer "+name)
         self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
         self.assertIn("phase pass_marker_validation (exit 1)", result.stdout)
         self.assertIn("Required pass marker missing: FINDING_PACKAGE_SQL_PASS", result.stdout)
+
+    def test_native_copy_failure_still_fails_the_actual_shell_and_cleans_up(self):
+        result = self.run_workflow(missing_copy_source=True)
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertIn("phase source_copy (exit 1)", result.stdout)
+        self.assertIn("cp:", result.stdout)
+        self.assertIn("package.json", result.stdout)
+        self.assertEqual(result.stdout.count("::error"), 1)
+        self.assertEqual(result.created_paths_remaining, [])
+
+    def test_copy_failure_injection_keeps_long_output_and_missing_log_semantics(self):
+        for options in ({"long_error": True}, {"remove_log": True}):
+            with self.subTest(options=options):
+                result = self.run_workflow("source_copy", **options)
+                self.assertEqual(result.returncode, 37, result.stdout + result.stderr)
+                self.assertIn("phase source_copy (exit 37)", result.stdout)
+                self.assertEqual(result.stdout.count("::error"), 1)
+                if options.get("remove_log"):
+                    self.assertIn("preserved log could not be read", result.stdout)
+                else:
+                    self.assertIn("synthetic source_copy failure", result.stdout)
+                    self.assertGreater(len(result.rehearsal_log), 300_000)
+                self.assertEqual(result.created_paths_remaining, [])
 
     def test_helper_failure_does_not_mask_original_error_or_hide_console_fallback(self):
         result = self.run_workflow("legacy_package_worker", helper_failure=True)

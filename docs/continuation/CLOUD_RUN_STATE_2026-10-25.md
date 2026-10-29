@@ -1,3 +1,38 @@
+# Current cloud continuation — 2026-10-29, CI cause established
+
+Continue the ONE full224/ten-product/twelve-mode cloud Goal. The accepted master,
+all required gates, exclusion of new security and paused022, and exact hosted/
+production/destructive approvals remain binding.061/062/063 are unapproved and
+uninstalled;059/060 receipts are consumed. No merge or deployment is authorized.
+
+GitHub API/download access now works after the cloud network policy changed.
+Exact269 ordinary PostgreSQL artifact12746695813 was downloaded:11489bytes,
+SHA25620a6279182e064483094d5351b3d4f92a9a3b91bd5ca199d434a2201e70b5f9f,
+matching the original advertised digest. Its real rehearsal log contains both
+Radar PASS markers, followed by ENOTEMPTY removing .config/.wrangler under
+Node22.23.4. This establishes the exact later CI failure and matches the local
+before/after proof behind the unpublished optional-disk-logger helper repair.
+It does not replace the original c01 trial-admission fixture-pollution diagnosis.
+Failed gates remain binding until a new exact candidate actually passes them.
+
+This follow-up reduces controlled workflow-test copy-peer overhead: ordinary
+copies execute native cp directly, retaining the richer source_copy failure
+peer, actual YAML, all assertions and20-second shell deadline. Two regressions
+cover a real native copy failure and injected long-output/missing-log failures.
+All25 focused tests and independent spaced-path functional review pass. A bounded
+same-runtime comparison measured53 native copies in each variant; copy-peer
+startup total fell from2.470s to0.103s. Earlier145-suite and intrusive trace
+20-second failures remain retained, with no sole environment cause asserted.
+Full frozen-candidate owning/fresh recovery/current CI require their own receipts.
+
+Separate uncommitted063 Obligation Evidence SQL/Gateway/rights/reader UI source
+remains IN_PROGRESS and must be preserved. Its current review, actual SQL,
+browser, build and recovery evidence is recorded separately. It is outside this
+narrow test-fixture follow-up. All224 normative and tenproduct ledger rows remain
+open; full accepted workflows/private/quality/hosted/release/cleanup are incomplete.
+
+---
+
 # Current cloud continuation — 2026-10-28, local Worker cleanup and diagnostics
 
 Continue the ONE full224/ten-product/twelve-mode cloud Goal and the immutable
