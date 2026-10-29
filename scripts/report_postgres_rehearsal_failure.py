@@ -16,7 +16,7 @@ VALID_PHASE = re.compile(r"[a-z][a-z0-9_]{0,79}\Z")
 POSTGRES = re.compile(r"^psql:.*?/(tests/postgres|supabase/(?:migrations|baseline))/([^/:]+):(\d+):\s+ERROR:\s*(.*)")
 DIAGNOSTIC = re.compile(
     r"^\[?(?:(?:[A-Za-z_][A-Za-z0-9_]*(?:Error|Exception)|Error|Exception)(?:\s|\[|:)|FATAL ERROR:|"
-    r"(?:cp|sudo|pg_ctlcluster|pg_createcluster|createdb|pg_dump|pg_restore|psql):)"
+    r"(?:(?:/bin/|/usr/bin/)?cp|sudo|pg_ctlcluster|pg_createcluster|createdb|pg_dump|pg_restore|psql):)"
 )
 READ_CHARACTERS = 65_536
 LINE_PREFIX_CHARACTERS = 4096

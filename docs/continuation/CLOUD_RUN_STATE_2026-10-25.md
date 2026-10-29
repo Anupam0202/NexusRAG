@@ -1,3 +1,24 @@
+# Current cloud continuation — 2026-10-29, native copy diagnostic compatibility
+
+Exact b101 ordinary PostgreSQL CI now PASSES, including replay/checkers/backup.
+Its separate Migration Integrity job executed all147 script tests and failed the
+new native-copy diagnostic assertion: the source_copy exit was preserved but
+its annotation lacked the actual cp error. The original raw hosted cp stderr
+was not retained by that unittest. An actual official Ubuntu24.04 GNUcp9.4
+binary reproduces the compatibility defect: it emits /bin/cp: for the same
+invocation where cloud GNUcp9.7 emits cp:. The previous reporter recognized
+only the basename. The repair recognizes cp:, /bin/cp: and /usr/bin/cp:,
+while rejecting arbitrary paths. The original real-shell assertion and20-second
+deadline remain. All26 focused tests and independent functional review pass;
+full148 frozen owning and new exact-head CI need separate actual receipts.
+
+All earlier failed evidence is retained. This is another narrow diagnostics
+follow-up, outside uncommitted063. No quota/schema/lock/gate weakening or merge/
+deployment is authorized. The full224/tenproduct/twelvemode Goal stays active
+and incomplete, with exact approvals and exclusions unchanged.
+
+---
+
 # Current cloud continuation — 2026-10-29, CI cause established
 
 Continue the ONE full224/ten-product/twelve-mode cloud Goal. The accepted master,

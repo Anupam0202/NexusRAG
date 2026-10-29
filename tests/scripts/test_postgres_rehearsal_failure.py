@@ -53,6 +53,30 @@ class PostgresAnnotationTests(unittest.TestCase):
         self.assertNotIn("old.sql", value)
         self.assertNotIn("prior phase", value)
 
+    def test_native_copy_prefixes_are_visible_without_accepting_arbitrary_paths(self):
+        # Older GNU coreutils preserves an absolute argv[0] in its diagnostic;
+        # newer versions report only cp. The workflow invokes /bin/cp.
+        with tempfile.TemporaryDirectory() as directory:
+            log = Path(directory) / "log"
+            for prefix in ("cp", "/bin/cp", "/usr/bin/cp"):
+                with self.subTest(prefix=prefix):
+                    diagnostic = f"{prefix}: cannot stat 'package.json': No such file or directory"
+                    contents = "NEXUS_REHEARSAL_PHASE=source_copy\n" + diagnostic + "\n"
+                    log.write_text(contents)
+                    result = subprocess.run([sys.executable, str(REPORTER), str(log),
+                                             "--exit-code", "1"], capture_output=True, text=True)
+                    self.assertEqual(result.returncode, 0, result.stderr)
+                    self.assertIn("phase source_copy (exit 1)", result.stdout)
+                    self.assertIn(diagnostic, result.stdout)
+                    self.assertEqual(result.stdout.count("::error"), 1)
+                    self.assertEqual(log.read_text(), contents)
+        for prefix in ("/tmp/cp", "/bin/cp-helper", "/usr/local/bin/cp"):
+            with self.subTest(unrecognized_prefix=prefix):
+                value = REPORT.annotation(f"{prefix}: do not reflect an arbitrary command path",
+                                          phase="source_copy", exit_code=1)
+                self.assertIn("Inspect the preserved ordinary rehearsal log", value)
+                self.assertNotIn("do not reflect", value)
+
     def test_missing_marker_is_precise_without_reflecting_other_commands(self):
         value = REPORT.annotation("NEXUS_REHEARSAL_PHASE=pass_marker_validation\n",
                                   exit_code=1,
