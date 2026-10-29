@@ -13,6 +13,30 @@
   "interpretation": "OPEN_ENGINEERING includes implemented but not fully accepted requirements; it does not assert that no code or scoped evidence exists. External approvals do not close unfinished internal work.",
   "entries": [
     {
+      "id": "ENGINEERING-OBLIGATION-EVIDENCE-SERVING",
+      "requirement": "Complete genuine source-backed Obligation Finding reads through REST/custom HTTP MCP and an actual API consumer UI with independent revision review and separate exact-version/hash/action serving decisions",
+      "normative_source": "Accepted PRODUCT-03/PRODUCT-10/P09-P13/P28-P32/A10-A12/A18/A23 and shared evidence/review/rights/lifecycle workflow; all224exactdefinitions retained",
+      "status": "IN_PROGRESS",
+      "environment": "Cloud-only batch063: owned PostgreSQL17/vector under2CPU/7GiB, actual Gateway/localWorker and Chromium desktop/narrow-screen UI with controlled identity/storage; no hosted/private/provider/production acceptance",
+      "next_action": "Freeze reviewed source, complete NEW source/dependency/SQL/UI recovery including canonical frontend encoder layout, and verify exact-head CI.063 and061/062 remain unapproved/uninstalled. Continue remaining domain readers, full224/tenproducts/twelvemodes, quality/private/lifecycle/held-data/budgets/native hosting, approved release/rollback and safe platform cleanup; no new security or paused022.",
+      "acceptance_evidence": [
+        {
+          "environment": "Cloud controlled production Gateway/local Worker/system Chromium and immutable269Radarartifact diagnostic reproduction; not hosted/source063SQL acceptance",
+          "observed_at": "2026-10-28T17:51:10.086419+00:00",
+          "source_identity": "2692efe parent plus uncommitted063; individual receipts bind exact hashes, later lifecycle DTO changes require new checks",
+          "command_or_url": "docs/implementation/OBLIGATION_EVIDENCE_SERVING_063.md; private checkpoints/cloud063-wip-20261028T1745Z and source-specific evidence",
+          "result": "Scoped Gateway859checks/no skips, actualNode22Worker71HTTPrequests/max2.458MB/50sources/12candidates/fullquotes/rightsreplay/currentwithholding/60rpm, realChromiumcross-originRetry-After proof, typed frontend41focused tests. Independent CI fourfile review+23reporter tests+actualworkerd lifecycle pass; real2CPUfrozen269 cleanupENOTEMPTY reproduced and ONEsupported disklogger flag fixes it without retries/caps/deadline/assertion changes. Actualhosted269CIunderlyingerror unconfirmed while logs blocked; SQLlifecycle head-erasure bug remains an open reviewer finding, new063SQL/UI/fullsource acceptance NOT claimed."
+        },
+        {
+          "environment": "Owned PostgreSQL17.11/vector0.8.7/Node22.23.4/2CPU/7GiB/disconnectednetwork; actual Gateway/Worker/React and Chromium light1280/dark320 controlled peers",
+          "observed_at": "2026-10-29T12:57:00+00:00",
+          "source_identity": "063migration8be4047e8004d7578ff704de7b14b7901b6ef4de15d15205c1ea637ebe772c37; exact owner/browser/build input manifests; full SQL200filecapture precedes encoder relocation, whose canonical algorithm bytes are unchanged",
+          "command_or_url": "docs/implementation/OBLIGATION_EVIDENCE_SERVING_063.md; private cloud063 WIP/source-specific reviews and next-evidence-api063 receipts",
+          "result": "Actual lifecycle older-ALLOW resurrection, post-projection current-rights inconsistency, nullable capacity predicate, stale UI after confirmed withdrawal and uppercase UUID failures reproduced then corrected. Full ordered SQL/native626.265s and74table229function backup/restore PASS; actual50source/12candidate/11criteria native53RPC max382ms, list50x50 with8164byte policies170.084ms. Current-layout866Gateway/74actualWorker/Node22entry,731frontend plus51focused/15relocation cases, lint/types, Next/OpenNext28routes,14builtWorker and2fullbrowser cases PASS with zero skips/retries. Browser covers exact lost-reply retry, API/MCP independence, all50 erased-head DTOs with explicit controlled SQL rollback, immediate known-withdrawal hiding, real60rpm wait and source loss. Fresh complete recovered-source verification and exact-head CI remain pending; no hosted/quality/production/fullscope acceptance."
+        }
+      ]
+    },
+    {
       "id": "ENGINEERING-TERMS-QUOTA-RADAR",
       "requirement": "Complete supplied retained snapshot capture, exact selected-evidence change review, real Radar Finding and rights-bound package workflows with durable retry, reload and inspectable manual run history",
       "normative_source": "Accepted Terms & Quota Radar/PRODUCT-02/P26/P27/P32 plus source,review,rights,package and bounded workflow requirements; all224exact definitions retained",

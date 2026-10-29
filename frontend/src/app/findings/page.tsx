@@ -23,6 +23,7 @@ import { PassportClaims } from "@/components/research/PassportClaims";
 import { ProcurementRecords } from "@/components/research/ProcurementRecords";
 import { FindingPackages } from "@/components/findings/FindingPackages";
 import { RadarOriginPanel } from "@/components/findings/RadarOriginPanel";
+import { FindingServingRights } from "@/components/findings/FindingServingRights";
 
 const control = "w-full rounded-lg border border-[var(--border)] bg-[var(--bg-primary)] px-3 py-2 text-sm";
 const button = "rounded-lg border border-[var(--border)] px-3 py-2 text-sm font-medium disabled:opacity-50";
@@ -176,6 +177,7 @@ function FindingsWorkbench() {
             }}>Delete finding</button>}
           </div>
           {selected && <>{(selected.source_run_id || selected.source_research_position != null || selected.source_radar_change_id || selected.radar_origin) && <FindingPackages key={`${selected.id}:${selected.revision}`} finding={selected} context={context} canExport={canWrite} parentBusy={busy}/>}
+          {(selected.research_origin?.obligations||selected.source_research_mode==="OBLIGATION_ANALYSIS")&&<FindingServingRights key={`serving:${selected.id}:${selected.revision}`} finding={selected} context={context} parentBusy={busy}/>}
           <section aria-label="Evidence and reviews" className="space-y-2 border-t border-[var(--border)] pt-4">
             <h3 className="font-semibold">Evidence & review history</h3>
             {selected.radar_origin&&<RadarOriginPanel origin={selected.radar_origin}/>}

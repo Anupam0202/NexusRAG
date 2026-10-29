@@ -1,0 +1,101 @@
+{
+  "serialization": "OBLIGATION_SERVING_INTENT_UTF8/1",
+  "scope": "fixed known vectors; Python-generated hashes must be independently matched by SQL/JS",
+  "vectors": [
+    {
+      "intent": {
+        "finding_id": "a0630000-0000-4000-8000-000000000001",
+        "finding_revision": 2,
+        "action": "SERVE_API",
+        "actor_id": "22222222-2222-4222-8222-222222222222",
+        "command": {
+          "selections": [
+            {
+              "version_id": "b0630000-0000-4000-8000-000000000001",
+              "original_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "expected_review_id": null
+            }
+          ],
+          "policy": {
+            "decision": "ALLOW",
+            "basis": "OWNED_CONTENT",
+            "rationale": "Owned synthetic 📊 policy\nwith : delimiters and 3:abc",
+            "evidence_reference": "urn:synthetic:é:é",
+            "attribution": "研究者 📊",
+            "duties": [
+              "Retain all qualifications",
+              "Line one\nLine two: 📊"
+            ],
+            "review_by": "2030-01-01T00:00:00.000Z"
+          }
+        }
+      },
+      "utf8_bytes": 442,
+      "sha256": "ee30f128e05b6888334508ffda347714a8b34700e2a072682b8b7a1054784e80"
+    },
+    {
+      "intent": {
+        "finding_id": "a0630000-0000-4000-8000-000000000001",
+        "finding_revision": 2,
+        "action": "SERVE_MCP",
+        "actor_id": "22222222-2222-4222-8222-222222222222",
+        "command": {
+          "selections": [
+            {
+              "version_id": "b0630000-0000-4000-8000-000000000001",
+              "original_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "expected_review_id": null
+            }
+          ],
+          "policy": {
+            "decision": "REVOKED",
+            "basis": "OWNED_CONTENT",
+            "rationale": "Owned synthetic 📊 policy\nwith : delimiters and 3:abc",
+            "evidence_reference": "urn:synthetic:é:é",
+            "attribution": "研究者 📊",
+            "duties": [
+              "Retain all qualifications",
+              "Line one\nLine two: 📊"
+            ],
+            "review_by": null
+          }
+        }
+      },
+      "utf8_bytes": 420,
+      "sha256": "258933b9ff83037549ed476486f7be737b53b9c7a945043a31bdf8d9d6e015f0"
+    },
+    {
+      "intent": {
+        "finding_id": "a0630000-0000-4000-8000-000000000001",
+        "finding_revision": 2,
+        "action": "SERVE_API",
+        "actor_id": "22222222-2222-4222-8222-222222222222",
+        "command": {
+          "selections": [
+            {
+              "version_id": "b0630000-0000-4000-8000-000000000001",
+              "original_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "expected_review_id": null
+            },
+            {
+              "version_id": "b0630000-0000-4000-8000-000000000002",
+              "original_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+              "expected_review_id": "c0630000-0000-4000-8000-000000000001"
+            }
+          ],
+          "policy": {
+            "decision": "ALLOW",
+            "basis": "OWNED_CONTENT",
+            "rationale": "Owned synthetic 📊 policy\nwith : delimiters and 3:abc",
+            "evidence_reference": "",
+            "attribution": "",
+            "duties": [],
+            "review_by": "2030-01-01T00:00:00.000Z"
+          }
+        }
+      },
+      "utf8_bytes": 497,
+      "sha256": "7db9c88e65ebea145bbb975e8b366f2f3070a37fd2864bb9dbfc32b0354acbc4"
+    }
+  ]
+}

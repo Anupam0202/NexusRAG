@@ -20,6 +20,7 @@ import { handleResearchConversions } from "./research-conversions.js";
 import { handleResearchQuantities } from "./research-quantities.js";
 import { handleResearchRuns } from "./research-runs.js";
 import { handleRadar } from "./radar.js";
+import {handleObligationEvidence,obligationEvidenceAvailability} from "./obligation-evidence.js";
 import { SETTINGS_DEFAULTS, persistedSetting } from "./runtime-options.js";
 import { handleWorkbench, listFindings } from "./workbench.js";
 import { handleInvitations } from "./workspace-invitations.js";
@@ -104,6 +105,7 @@ function headers(request, env) {
   if (origin && origin === env.FRONTEND_ORIGIN) {
     output.set("access-control-allow-origin", origin);
     output.set("access-control-allow-credentials", "true");
+    output.set("access-control-expose-headers", "retry-after");
     output.set("vary", "Origin");
   }
   return output;
@@ -731,7 +733,10 @@ async function handle(request, env = {}) {
   if (!configured(env)) return fail(request, env, "CONFIGURATION_ERROR", "The authenticated gateway is not configured.", 503);
   try {
     const user = await authenticate(request, env);
-    if (!allowRequest(user.id)) return fail(request, env, "TENANT_QUOTA_EXCEEDED", "Per-user request limit reached.", 429, true);
+    if (!allowRequest(user.id)) {
+      const response=fail(request,env,"TENANT_QUOTA_EXCEEDED","Per-user request limit reached.",429,true);
+      response.headers.set("retry-after","60");return response;
+    }
 
     if(url.pathname.startsWith("/api/v2/radar/")){
       const workspace=workspaceId(request),member=await membership(env,user.id,workspace);
@@ -748,25 +753,33 @@ async function handle(request, env = {}) {
     if (url.pathname === "/api/v2/mcp/operations" && (request.method === "GET" || request.method === "HEAD")) {
       const id = workspaceId(request); const member = await membership(env, user.id, id);
       const granted = new Set(ROLE_CAPABILITIES[member.role] || []);
+      const obligation=granted.has("obligation:read")?await obligationEvidenceAvailability({env,serviceRequest}):{available:false,reason:"FORBIDDEN"};
+      const implemented=["finding_retrieval","claim_retrieval",...(obligation.available?["obligation_lookup"]:[])];
       return json(request, env, { protocol: "nexusrag-evidence-mcp/1", destructive_operations: false,
         operations: Object.entries(MCP_OPERATIONS).filter(([name, spec]) =>
-          ["finding_retrieval", "claim_retrieval"].includes(name) && granted.has(spec.capability))
+          implemented.includes(name) && granted.has(spec.capability))
           .map(([name, spec]) => ({ name, capability: spec.capability, result_limit: 50, deadline_ms: 8000, read_only: true })),
-        unavailable_operations: Object.keys(MCP_OPERATIONS).filter(name => !["finding_retrieval", "claim_retrieval"].includes(name)) });
+        unavailable_operations: Object.keys(MCP_OPERATIONS).filter(name => !implemented.includes(name)),obligation_evidence:obligation });
     }
     if (url.pathname === "/api/v2/mcp/execute" && request.method === "POST") {
       const id = workspaceId(request); const member = await membership(env, user.id, id);
       const body = await readJsonBody(request); const operation = String(body?.operation || ""); const spec = MCP_OPERATIONS[operation];
       if (!spec) throw Object.assign(new Error("The MCP operation is not available."), { status: 404, code: "INVALID_SCOPE" });
       if (!(ROLE_CAPABILITIES[member.role] || []).includes(spec.capability)) throw Object.assign(new Error("The required capability is not granted."), { status: 403, code: "FORBIDDEN" });
+      if(operation==="obligation_lookup")return await handleObligationEvidence({request,env,user,workspace:id,member,serviceRequest,json},body);
       const limit = Math.min(Math.max(Number.parseInt(String(body?.limit || 20), 10) || 20, 1), 50);
-      if (["obligation_lookup", "procurement_lookup", "passport_retrieval"].includes(operation))
+      if (["procurement_lookup", "passport_retrieval"].includes(operation))
         return fail(request, env, "CAPABILITY_UNAVAILABLE", "This product operation is not implemented.", 501);
       const rows = spec.table === "findings"
         ? (await listFindings({ request, env, user, workspace: id, member, serviceRequest, json }, limit)).items
         : await userRequest(request, env, `${spec.table}?workspace_id=eq.${id}&select=*&limit=${limit}`);
       await audit(env, request, user.id, id, `mcp.${operation}`, spec.table);
       return json(request, env, { protocol: "nexusrag-evidence-mcp/1", operation, items: rows, limit, workspace_id: id });
+    }
+    if(url.pathname==="/api/v2/obligations"||url.pathname.startsWith("/api/v2/obligations/")){
+      const id=workspaceId(request),member=await membership(env,user.id,id);
+      if(!(ROLE_CAPABILITIES[member.role]||[]).includes("obligation:read"))throw Object.assign(new Error("The required capability is not granted."),{status:403,code:"FORBIDDEN"});
+      return await handleObligationEvidence({request,env,user,workspace:id,member,serviceRequest,json});
     }
     if (url.pathname === "/api/v2/findings" || url.pathname.startsWith("/api/v2/findings/")) {
       const id = workspaceId(request); const member = await membership(env, user.id, id);
@@ -1161,7 +1174,7 @@ async function handle(request, env = {}) {
       if (["/api/v2/claims", "/api/v2/findings"].includes(url.pathname)) {
         return await handleWorkbench({ request, env, user, workspace: id, member, serviceRequest, json });
       }
-      if (["/api/v2/obligations", "/api/v2/procurement", "/api/v2/passports"].includes(url.pathname)) {
+      if (["/api/v2/procurement", "/api/v2/passports"].includes(url.pathname)) {
         return fail(request, env, "CAPABILITY_UNAVAILABLE", "This product lookup is not implemented in this runtime.", 501);
       }
       const rows = await userRequest(request, env, `${route.table}?workspace_id=eq.${id}&select=*&limit=${limit}`);

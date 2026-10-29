@@ -3,7 +3,7 @@ import { obligationFixture } from "@/test/obligation-fixture";
 import { confirmedResearchRun } from "./research-run";
 import {obligationCapacity} from "../../../tests/fixtures/research-obligation-capacity.mjs";
 import {obligationResult,obligationWork} from "../../../apps/gateway/src/research-obligations.js";
-import {confirmedObligations} from "./research-obligations";
+import {confirmedObligationResult,confirmedObligations} from "./research-obligations";
 it("converts each original excerpt to Unicode codepoints once per maximum result, not once per repeated anchor",()=>{
   const fixture=obligationCapacity(),run=obligationFixture();run.source_snapshot=fixture.run.source_snapshot;
   type Source=(typeof run.results)[number]["sources"][number];
@@ -55,5 +55,38 @@ it("reopens actual maximum-field Unicode obligations across50sources and all11sa
   expect(run.results[0].answer.length).toBeGreaterThan(16000);
   expect(Array.from(run.results[0].answer).length).toBeLessThanOrEqual(16000);
   expect(confirmedResearchRun(run,run.plan_id)).toBe(true);
+  const selected=run.results[10];
+  expect(confirmedObligationResult(selected,10,run.source_snapshot)).toBe(true);
+  expect(confirmedObligationResult(selected,10,run.source_snapshot)).toBe(confirmedObligations(selected,10,run));
+  expect(selected.obligations!.documents).toHaveLength(50);
+  expect(selected.obligations!.candidates).toHaveLength(12);
+  expect(selected.obligations!.candidates[11].supersedes).toHaveLength(4);
+  const altered=structuredClone(selected);
+  altered.obligations!.candidates[11].supersedes[3].quote="An unrelated final qualification";
+  expect(confirmedObligationResult(altered,10,run.source_snapshot)).toBe(false);
   run.results[0].answer="\u{1f4ca}".repeat(16001);expect(confirmedResearchRun(run,run.plan_id)).toBe(false);
+});
+it("validates one saved result against the exact snapshot without requiring unrelated run results",()=>{
+  const run=obligationFixture(),result=run.results[0];
+  expect(confirmedObligationResult(result,0,run.source_snapshot)).toBe(true);
+  expect(confirmedObligationResult(result,1,run.source_snapshot)).toBe(false);
+  expect(confirmedObligationResult(result,0,undefined)).toBe(false);
+  const reordered=[...run.source_snapshot!].reverse();
+  expect(confirmedObligationResult(result,0,reordered)).toBe(false);
+  const changed=structuredClone(run.source_snapshot!);
+  changed[1].version_id="10000000-0000-4000-8000-999999999999";
+  expect(confirmedObligationResult(result,0,changed)).toBe(false);
+});
+it("keeps the whole-run wrapper and selected-result helper consistent on ordinary incomplete evidence",()=>{
+  const alterations=[
+    (run:ReturnType<typeof obligationFixture>)=>{run.results[0].obligations!.candidates[0].applicability_state="APPLIES" as never;},
+    (run:ReturnType<typeof obligationFixture>)=>{run.results[0].obligations!.candidates[0].exceptions[0].quote_start+=1;},
+    (run:ReturnType<typeof obligationFixture>)=>{run.results[0].validated_citation_ids.pop();},
+    (run:ReturnType<typeof obligationFixture>)=>{run.results[0].obligations!.documents[1].consulted_sources=[];},
+  ];
+  for(const alter of alterations){
+    const run=obligationFixture();alter(run);
+    expect(confirmedObligationResult(run.results[0],0,run.source_snapshot)).toBe(false);
+    expect(confirmedObligationResult(run.results[0],0,run.source_snapshot)).toBe(confirmedObligations(run.results[0],0,run));
+  }
 });

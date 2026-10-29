@@ -47,6 +47,10 @@ import {canonicalQuantityCapture,confirmedQuantityCapture,type QuantityCaptureIn
 import { readOriginalDownload, originalTransferPolicy, type OriginalDownloadOptions } from "@/lib/document-original";
 import {confirmedExportRights,confirmedFindingPackage,confirmedPackageReceipt,confirmedPackageSummary,type FindingPackageReceipt,type FindingExportRights,type FindingExportPolicy,type FindingPackage} from "@/lib/finding-package";
 
+import {canonicalServingCommand,confirmedObligationDetail,confirmedObligationList,confirmedServingRights,type FindingServingCommand,type FindingServingRights,type ObligationEvidenceDetail,type ObligationEvidenceList,type ServingAction} from "@/lib/obligation-evidence";
+
+import {servingIntentHash} from "./serving-intent.js";
+
 export interface ApiRequestContext {
   expectedUserId?: string | null;
   workspaceId?: string | null;
@@ -98,10 +102,14 @@ async function readErrorMessage(res: Response, fallback: string) {
 
 export class ApiRequestError extends Error {
   readonly code?: string;
-  constructor(message: string, code?: string) {
+  readonly status?: number;
+  readonly retryAfterSeconds?: number;
+  constructor(message: string, code?: string, status?:number, retryAfterSeconds?:number) {
     super(message);
     this.name = "ApiRequestError";
     this.code = code;
+    this.status = status;
+    this.retryAfterSeconds = retryAfterSeconds;
   }
 }
 
@@ -141,7 +149,9 @@ async function request<T>(
   }
   if (!res.ok) {
     const error = await readErrorMessage(res, `HTTP ${res.status}`);
-    throw new ApiRequestError(error.message, error.code);
+    const retry=res.headers.get("Retry-After");
+    const seconds=retry&&/^\d+$/.test(retry)?Number(retry):retry?Math.ceil((Date.parse(retry)-Date.now())/1000):undefined;
+    throw new ApiRequestError(error.message,error.code,res.status,seconds!==undefined&&Number.isSafeInteger(seconds)&&seconds>=0?seconds:undefined);
   }
   return res.json();
 }
@@ -563,6 +573,7 @@ export interface FindingSummary {
   source_run_id: string | null;
   source_research_run_id?: string | null;
   source_research_position?: number | null;
+  source_research_mode?:string|null;
   source_radar_change_id?:string|null;
   created_at: string;
   updated_at: string;
@@ -860,5 +871,52 @@ export async function createRadarFinding(id:string,body:{title:string;authored_m
     ||receipt.expected_review_revision!==body.expected_review_revision||receipt.title!==body.title
     ||receipt.authored_markdown_hash!==noteHash||receipt.authored_markdown_bytes!==noteBytes.byteLength
     ||Boolean(context.expectedUserId)&&receipt.created_by!==context.expectedUserId)radarUnconfirmed();
+  return result;
+}
+
+function evidenceWorkspace(action:ServingAction,context:ApiRequestContext) {
+  if(!context.workspaceId||!["SERVE_API","SERVE_MCP"].includes(action))throw new ApiRequestError("Choose a workspace and serving action to inspect obligation evidence.","INVALID_SCOPE");
+  return context.workspaceId;
+}
+function evidenceIdentifier(value:string) {
+  if(!radarUuid(value))throw new ApiRequestError("Choose a valid Finding or page identifier.","INVALID_SCOPE");
+  return value.toLowerCase();
+}
+export async function listObligationEvidence(action:ServingAction,context:ApiRequestContext,after?:string,limit=20):Promise<ObligationEvidenceList> {
+  const workspace=evidenceWorkspace(action,context);
+  if(after!==undefined)after=evidenceIdentifier(after);
+  if(!Number.isSafeInteger(limit)||limit<1||limit>50)throw new ApiRequestError("Choose a page size from 1 to 50.","INVALID_SCOPE");
+  const result=action==="SERVE_API"?await request<ObligationEvidenceList>(`/api/v2/obligations?limit=${limit}${after?`&after=${encodeURIComponent(after)}`:""}`,undefined,context)
+    :await request<ObligationEvidenceList>("/api/v2/mcp/execute",{method:"POST",body:JSON.stringify({operation:"obligation_lookup",limit,...(after?{after}:{})})},context);
+  if(!confirmedObligationList(result,workspace,action,limit,after)||action==="SERVE_MCP"&&(!("protocol" in result)||result.protocol!=="nexusrag-evidence-mcp/1"||!("operation" in result)||result.operation!=="obligation_lookup"))
+    throw new ApiRequestError("The obligation evidence list was not confirmed. Reload before retrying.","PERSISTENCE_UNCONFIRMED");
+  return result;
+}
+export async function readObligationEvidence(id:string,revision:number,action:ServingAction,context:ApiRequestContext):Promise<ObligationEvidenceDetail> {
+  const workspace=evidenceWorkspace(action,context);
+  id=evidenceIdentifier(id);
+  if(!Number.isSafeInteger(revision)||revision<1)throw new ApiRequestError("Choose an exact saved Finding revision.","INVALID_SCOPE");
+  const result=action==="SERVE_API"?await request<ObligationEvidenceDetail>(`/api/v2/obligations/${encodeURIComponent(id)}?revision=${revision}`,undefined,context)
+    :await request<ObligationEvidenceDetail>("/api/v2/mcp/execute",{method:"POST",body:JSON.stringify({operation:"obligation_lookup",finding_id:id,revision})},context);
+  if(!await confirmedObligationDetail(result,id,revision,workspace,action)||action==="SERVE_MCP"&&(!("protocol" in result)||result.protocol!=="nexusrag-evidence-mcp/1"||!("operation" in result)||result.operation!=="obligation_lookup"))
+    throw new ApiRequestError("The exact obligation evidence was not confirmed. Reload before retrying.","PERSISTENCE_UNCONFIRMED");
+  return result;
+}
+export async function readFindingServingRights(id:string,action:ServingAction,context:ApiRequestContext):Promise<FindingServingRights> {
+  id=evidenceIdentifier(id);
+  const workspace=evidenceWorkspace(action,context),result=await request<FindingServingRights>(`/api/v2/findings/${encodeURIComponent(id)}/serving-rights?action=${action}`,undefined,context);
+  if(!confirmedServingRights(result,id,workspace,action)||result.confirmed_review!==null)throw new ApiRequestError("The current serving rights were not confirmed. Reload before retrying.","PERSISTENCE_UNCONFIRMED");
+  return result;
+}
+export async function recordFindingServingRights(id:string,action:ServingAction,body:FindingServingCommand,key:string,context:ApiRequestContext):Promise<FindingServingRights> {
+  id=evidenceIdentifier(id);
+  const workspace=evidenceWorkspace(action,context),command=canonicalServingCommand(body);
+  if(!context.expectedUserId||!command)throw new ApiRequestError("Confirm your account, source selections and bounded rights policy before saving.","INVALID_SCOPE");
+  const expectedHash=await servingIntentHash({finding_id:id,finding_revision:command.revision,action,actor_id:context.expectedUserId,command:{selections:command.selections,policy:command.policy}});
+  const result=await request<FindingServingRights>(`/api/v2/findings/${encodeURIComponent(id)}/serving-rights?action=${action}`,{method:"POST",headers:{"Idempotency-Key":key},body:JSON.stringify(command)},context);
+  const confirmation=result?.confirmed_review;
+  if(!confirmedServingRights(result,id,workspace,action)||!confirmation||confirmation.finding_revision!==body.revision||confirmation.actor_id!==context.expectedUserId
+    ||confirmation.review_ids.length!==command.selections.length||confirmation.intent_hash!==expectedHash)
+    throw new ApiRequestError("The saved serving decision was not confirmed. Inspect current rights before retrying.","PERSISTENCE_UNCONFIRMED");
   return result;
 }

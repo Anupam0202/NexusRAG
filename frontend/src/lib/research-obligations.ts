@@ -18,8 +18,10 @@ export function obligationAnchors(candidate:ObligationCandidate) {
 }
 const uuid=(value:unknown)=>typeof value==="string"&&/^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(value);
 const text=(value:unknown,max:number):value is string=>typeof value==="string"&&!!value.trim()&&Array.from(value).length<=max;
-export function confirmedObligations(result:ResearchRunResult,index:number,run:ResearchRun) {
-  const analysis=result.obligations,snapshot=run.source_snapshot;
+// A saved Finding exposes one canonical result and its source snapshot. Keep the
+// same quotation/receipt checks without constructing an artificial whole run.
+export function confirmedObligationResult(result:ResearchRunResult,index:number,snapshot:ResearchRun["source_snapshot"]) {
+  const analysis=result.obligations;
   if(!analysis||!snapshot||analysis.schema_version!=="research-obligations/1"||analysis.criterion_index!==index||analysis.total_documents!==snapshot.length
     ||analysis.interpretation!=="REVIEW_REQUIRED_NO_LEGAL_CERTIFICATION"||analysis.coverage!=="BOUNDED_RETRIEVAL_NOT_COMPLETE_OBLIGATION_REGISTER"
     ||!Array.isArray(analysis.candidates)||analysis.candidates.length>12||!Array.isArray(analysis.rejections)
@@ -67,4 +69,7 @@ export function confirmedObligations(result:ResearchRunResult,index:number,run:R
       &&receipt.chunk_id===source.chunk_id&&receipt.original_content_hash===source.original_content_hash)))
     &&result.validated_citation_ids.length===used.size&&result.validated_citation_ids.every((id,i)=>id===result.sources[i].citation_id&&used.has(id))
     &&result.abstained===(analysis.candidates.length===0)&&result.claim_state===(analysis.candidates.length?"REVIEW_REQUIRED":"UNSUPPORTED");
+}
+export function confirmedObligations(result:ResearchRunResult,index:number,run:ResearchRun) {
+  return confirmedObligationResult(result,index,run.source_snapshot);
 }

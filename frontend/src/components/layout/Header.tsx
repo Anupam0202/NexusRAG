@@ -12,6 +12,7 @@ const PAGE_TITLES: Record<string, string> = {
   "/evidence-os": "Evidence OS",
   "/findings": "Findings & Reviews",
   "/radar": "Terms & Quota Radar",
+  "/evidence-api": "Evidence API",
   "/research": "Research Plans",
   "/chat": "Chat",
   "/documents": "Documents",

@@ -1,3 +1,49 @@
+# Current cloud continuation — 2026-10-29, Obligation Evidence serving063
+
+Continue the ONE accepted224-requirement/ten-product/twelve-mode Goal. Batch063
+now connects genuine saved Obligation Analysis Findings to typed REST/custom
+HTTP MCP readers, separate exact-version/hash/action serving decisions and an
+actual workspace consumer UI. Independent exact-revision approval, all50disclosed
+source versions, current source rights and qualifications remain mandatory.
+Manual notes do not acquire inferred run provenance; unavailable/current-withheld
+content stays explicit. API/MCP actions and immutable retry confirmations remain
+independent, with no copied free-form policies in mutation receipts.
+
+Ordinary independent review reproduced and corrected shared-intent erasure
+resurrecting an older ALLOW, inconsistent detail/current-rights projection,
+nullable withdrawal-cap predicate, stale displayed content after confirmed rights
+withdrawal and uppercase UUID links. Source lifecycle keeps an erased opaque
+head rather than restoring earlier rights. All before failures are retained;
+quotas/assertions/capacities/deadlines and older scope are unchanged.
+
+Current scoped source checks pass:640backend+74subtests,64isolated,866Gateway,
+731frontend plus focused/module-location checks,148scripts,lint/types,Next/OpenNext
+28routes,14builtWorker and2complete1280light/320dark readerbrowser journeys with
+zero skips/retries. Browser includes all50versions, exact lost-reply retry, action
+independence, real60/minute exhaustion/wait, review/source loss and explicit
+controlled lifecycle DTO rollback. FullorderedSQL/native626.265s and74table/
+229function backuprestore pass;50x50list with8164bytepolicies170ms and53nativeRPC
+max382ms. That full SQL capture predates encoder relocation; canonicalbytes are
+unchanged, current-layout realNode22/Gateway/SQL readprobe separatelypasses.
+Complete NEW frozen-source/dependency/SQL/UI recovery and exact-head CI are next;
+these pending receipts cannot be inferred from earlier-source passes.
+
+Publishedb101CI terminal8success/4failure/2skip includes ordinaryPG/fullfrontend
+PASS, but script-nativecopydiagnostic, excludeddependency/runtime and summaryFAIL.
+The reviewed native-prefix diagnostic correction is included before063. Existing
+failed and excluded gates remain binding; no finding logs were inspected and no
+merge/deployment occurred. All224 exact definitions, tenproduct rows and twelve
+mode source remain unchanged/open. Otherdomainreaders and fullprivate/quality/
+held-data/runtime/approvedrelease/rollback/cleanup acceptance remain incomplete.
+
+061/062/063 are unapproved and uninstalled;059/060 approvals are consumed.
+No new security or paused022, hostedSQL, providerprocessing, newhostedusers,
+merge/deploy, production or destructive platform action is authorized.
+Read docs/implementation/OBLIGATION_EVIDENCE_SERVING_063.md and the newest private
+cloud handoff for exact source identities, review proofs and remaining gaps.
+
+---
+
 # Current cloud continuation — 2026-10-29, native copy diagnostic compatibility
 
 Exact b101 ordinary PostgreSQL CI now PASSES, including replay/checkers/backup.

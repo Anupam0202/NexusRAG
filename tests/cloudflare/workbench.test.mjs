@@ -44,9 +44,11 @@ test("MCP finding lookup uses the same private record authorization", async t =>
   assert.equal((await handle(request("/api/v2/mcp/execute", { method: "POST",
     body: JSON.stringify({ operation: "finding_retrieval" }) }), env)).status, 200);
 });
-test("unsupported product aliases cannot masquerade as findings or exports", async t => {
-  const calls = mock(t, "viewer");
-  for (const path of ["/api/v2/obligations", "/api/v2/procurement", "/api/v2/passports"]) {
+test("missing Obligation storage is explicit and unsupported products cannot masquerade as findings or exports", async t => {
+  const calls = mock(t, "viewer", (_url,_data,response)=>response({}));
+  const obligation=await handle(request("/api/v2/obligations"),env);
+  assert.equal(obligation.status,503);assert.equal((await obligation.json()).error.code,"MIGRATION_REQUIRED");
+  for (const path of ["/api/v2/procurement", "/api/v2/passports"]) {
     assert.equal((await handle(request(path), env)).status, 501);
   }
   assert.equal(calls.some(call => /findings|evidence_exports/.test(call.url.pathname)), false);

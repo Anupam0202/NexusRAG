@@ -189,7 +189,7 @@ class ResearchWorkflowTests(unittest.TestCase):
         workflow=(ROOT / ".github/workflows/v6-database-rehearsal.yml").read_text()
         policy_path="frontend/src/lib/document-original-policy.json"
         self.assertIn('mkdir -p "$source_dir/frontend/src/lib"',workflow)
-        for name in (policy_path,"frontend/src/lib/research-modes.json","backend/evals/datasets/sample_corpus.json"):
+        for name in (policy_path,"frontend/src/lib/research-modes.json","frontend/src/lib/serving-intent.js","backend/evals/datasets/sample_corpus.json"):
             directory=Path(name).parent.as_posix()
             self.assertIn(f'cp "$GITHUB_WORKSPACE/{name}" "$source_dir/{directory}/"',workflow)
         self.assertIn("COPIED_GATEWAY_ENTRY_IMPORT_PASS",workflow)
@@ -205,7 +205,7 @@ class ResearchWorkflowTests(unittest.TestCase):
             copied=Path(directory)
             shutil.copytree(ROOT / "apps/gateway/src",copied / "apps/gateway/src")
             shutil.copyfile(ROOT / "package.json",copied / "package.json")
-            for name in ("frontend/src/lib/document-original-policy.json","frontend/src/lib/research-modes.json","frontend/src/lib/finding-package-limits.json","backend/evals/datasets/sample_corpus.json"):
+            for name in ("frontend/src/lib/document-original-policy.json","frontend/src/lib/research-modes.json","frontend/src/lib/finding-package-limits.json","frontend/src/lib/serving-intent.js","backend/evals/datasets/sample_corpus.json"):
                 target=copied / name
                 target.parent.mkdir(parents=True,exist_ok=True)
                 shutil.copyfile(ROOT / name,target)

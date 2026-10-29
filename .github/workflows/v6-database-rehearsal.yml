@@ -146,6 +146,7 @@ jobs:
           cp "$GITHUB_WORKSPACE/frontend/src/lib/document-original-policy.json" "$source_dir/frontend/src/lib/"
           cp "$GITHUB_WORKSPACE/frontend/src/lib/research-modes.json" "$source_dir/frontend/src/lib/"
           cp "$GITHUB_WORKSPACE/frontend/src/lib/finding-package-limits.json" "$source_dir/frontend/src/lib/"
+          cp "$GITHUB_WORKSPACE/frontend/src/lib/serving-intent.js" "$source_dir/frontend/src/lib/"
           cp "$GITHUB_WORKSPACE/package.json" "$source_dir/"
           mkdir -p "$source_dir/backend/src/domain"
           cp "$GITHUB_WORKSPACE/backend/src/domain/deterministic_calculations.py" "$source_dir/backend/src/domain/"
@@ -195,6 +196,7 @@ jobs:
           cp "$GITHUB_WORKSPACE/supabase/migrations/20261025003900_research_procurement_execution.sql" "$source_dir/supabase/migrations/"
           cp "$GITHUB_WORKSPACE/supabase/migrations/20261025093226_finding_evidence_packages.sql" "$source_dir/supabase/migrations/"
           cp "$GITHUB_WORKSPACE/supabase/migrations/20261026123000_radar_supplied_snapshots.sql" "$source_dir/supabase/migrations/"
+          cp "$GITHUB_WORKSPACE/supabase/migrations/20261027153000_obligation_evidence_serving.sql" "$source_dir/supabase/migrations/"
           chmod -R a+rX "$source_dir"
           } >>"$log" 2>&1
           phase gateway_import
@@ -211,6 +213,7 @@ jobs:
             PGDATABASE="$db" \
             NEXUS_PACKAGE_CAPACITY_OUTPUT="$package_dir/capacity.json" \
             NEXUS_RADAR_PACKAGE_OUTPUT="$package_dir/radar.json" \
+            NEXUS_OBLIGATION_EVIDENCE_OUTPUT="$package_dir/obligation-evidence.json" \
             bash "$source_dir/tests/postgres/local-rehearsal.sh" >>"$log" 2>&1; then
             # PostgreSQL created these synthetic artifacts inside a private0700
             # directory. Transfer ownership to the runner before its Node checks;
@@ -245,6 +248,8 @@ jobs:
             grep -F 'REAL_SQL_FINDING_PACKAGE_CONCURRENCY_PASS' "$log"
             grep -F 'RADAR_SUPPLIED_SNAPSHOT_SQL_PASS' "$log"
             grep -F 'REAL_SQL_RADAR_SUPPLIED_SNAPSHOT_WORKFLOW_PASS' "$log"
+            grep -F 'OBLIGATION_EVIDENCE_SQL_PASS' "$log"
+            grep -F 'REAL_SQL_OBLIGATION_EVIDENCE_SERVING_PASS' "$log"
             grep -F 'RADAR_PACKAGE_JSONLD_PASS' "$log"
             grep -F 'ACTUAL_WORKER_RADAR_PACKAGE_PASS' "$log"
             grep -F 'ACTUAL_WORKER_FINDING_PACKAGE_CAPACITY_PASS' "$log"

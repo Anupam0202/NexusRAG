@@ -133,6 +133,9 @@ jobs:
       - name: Actual Worker combined Obligation execution and ordinary outage
         run: node scripts/test-research-obligation-worker.mjs
         working-directory: frontend
+      - name: Actual Worker typed Obligation Evidence REST and custom MCP
+        run: node scripts/test-obligation-evidence-worker.mjs
+        working-directory: frontend
       - name: Actual Worker combined Entity execution and ordinary outage
         run: node scripts/test-research-entity-worker.mjs
         working-directory: frontend
@@ -241,6 +244,21 @@ jobs:
           done
           test "$ready" = true || { cat /tmp/nexusrag-radar-fixture.log; exit 1; }
           E2E_BASE_URL=http://127.0.0.1:3036 npm exec playwright -- test --config=playwright.radar.config.ts
+      - name: Synthetic Obligation Evidence serving rights and reader workflow
+        working-directory: frontend
+        run: |
+          set -euo pipefail
+          export E2E_OBLIGATION_SQL_FIXTURE="$GITHUB_WORKSPACE/tests/fixtures/obligation-evidence-sql.json"
+          node scripts/obligation-evidence-browser-fixture.mjs 3037 > /tmp/nexusrag-obligation-evidence-fixture.log 2>&1 &
+          fixture_pid=$!
+          trap 'kill "$fixture_pid" 2>/dev/null || true' EXIT
+          ready=false
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent --max-time 2 http://127.0.0.1:3037/ >/dev/null; then ready=true; break; fi
+            sleep 1
+          done
+          test "$ready" = true || { cat /tmp/nexusrag-obligation-evidence-fixture.log; exit 1; }
+          E2E_BASE_URL=http://127.0.0.1:3037 npm exec playwright -- test --config=playwright.obligation-evidence.config.ts
       - name: Actual Cloudflare Worker document routing regressions
         working-directory: frontend
         env:

@@ -54,6 +54,7 @@ PSQL=(psql -X -v ON_ERROR_STOP=1 -d "$PGDATABASE")
 "${PSQL[@]}" -f "$ROOT/supabase/migrations/20261025003900_research_procurement_execution.sql"
 "${PSQL[@]}" -f "$ROOT/supabase/migrations/20261025093226_finding_evidence_packages.sql"
 "${PSQL[@]}" -f "$ROOT/supabase/migrations/20261026123000_radar_supplied_snapshots.sql"
+"${PSQL[@]}" -f "$ROOT/supabase/migrations/20261027153000_obligation_evidence_serving.sql"
 "${PSQL[@]}" -f "$TESTS/fixtures.sql"
 "${PSQL[@]}" -f "$TESTS/research-plan-assertions.sql"
 "${PSQL[@]}" -f "$TESTS/research-passport-subject-assertions.sql"
@@ -134,6 +135,8 @@ NEXUS_DISPOSABLE_SQL=1 NEXUS_DILIGENCE_CAPACITY=1 node "$TESTS/research-diligenc
 NEXUS_DISPOSABLE_SQL=1 node "$TESTS/research-passport-integration.mjs"
 NEXUS_DISPOSABLE_SQL=1 node "$TESTS/research-procurement-integration.mjs"
 NEXUS_DISPOSABLE_SQL=1 node "$TESTS/radar-snapshot-integration.mjs"
+"${PSQL[@]}" -f "$TESTS/obligation-evidence-assertions.sql"
+NEXUS_DISPOSABLE_SQL=1 node "$TESTS/obligation-evidence-integration.mjs"
 # This concurrent package fixture commits shared-actor admissions, membership,
 # findings and quota rows. Keep rollback-only assertions and native mode-inventory
 # consumers ahead of it so their documented fixture preconditions remain intact.

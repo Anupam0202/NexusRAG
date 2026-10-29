@@ -2,6 +2,16 @@ import { expect, test } from "@playwright/test";
 
 // Run against Wrangler local or the approved deployed Worker, not Next's SSR server.
 const id = "00000000-0000-4000-8000-000000000001";
+test("Obligation Evidence route serves its public sign-in shell from the built Worker", async ({ page }) => {
+  const errors: string[] = [];
+  page.on("pageerror", error => errors.push(error.name));
+  const response = await page.goto("/evidence-api");
+  expect(response?.status()).toBe(200);
+  await expect(page.getByRole("heading", { name: "Sign in to inspect obligation evidence" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Sign in", exact: true }).last())
+    .toHaveAttribute("href", "/auth/login?next=%2Fevidence-api");
+  expect(errors).toEqual([]);
+});
 test("Radar route serves its public sign-in shell from the built Worker", async ({ page }) => {
   const errors: string[] = [];
   page.on("pageerror", error => errors.push(error.name));
