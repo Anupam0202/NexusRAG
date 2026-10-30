@@ -13,6 +13,23 @@
   "interpretation": "OPEN_ENGINEERING includes implemented but not fully accepted requirements; it does not assert that no code or scoped evidence exists. External approvals do not close unfinished internal work.",
   "entries": [
     {
+      "id": "ENGINEERING-LOCAL-VECTOR-LIFECYCLE",
+      "requirement": "Keep the local retrieval store consistent through last-document deletion, process restart, new upload/search and failed persistence retries",
+      "normative_source": "Accepted R29/G19/S22 service-mediated deletion, retention and reconstructible-index workflows; all224 exact definitions retained",
+      "status": "IN_PROGRESS",
+      "environment": "Cloud-only unique synthetic offline local FAISS fixtures and fresh process restarts; no hosted/private-user/provider or full distributed lifecycle acceptance",
+      "next_action": "Freeze the reviewed correction, verify NEW source/dependency recovery and exact-head CI, then continue remaining accepted domain readers, private/lifecycle/held-data/runtime/release/cleanup work. No new security or paused022; no merge/deploy or destructive platform authority.",
+      "acceptance_evidence": [
+        {
+          "environment": "Owned cloud offline FastAPI/hash embeddings/local FAISS files; independent process restarts and synthetic persistence failures",
+          "observed_at": "2026-10-30T14:58:09.509716+00:00",
+          "source_identity": "Parentda7776e plus vector_store.py f2ecd408ec74215338dcd63b5f10e72055ee0de8d3598b06536c1d05c486176b and test_retrieval.py e6c0d577929f218416a3d3fcf212a37c67b986b7dd853793ab229eca010c58b7",
+          "command_or_url": "docs/implementation/LOCAL_VECTOR_STORE_LIFECYCLE_064.md; private next-demo-lifecycle064 before/after/review/final-owning records",
+          "result": "Actual last-delete/restart/new-upload IndexError reproduced; final23 targeted and real3-process API lifecycle PASS. Independent review found unknown-metadata destruction and failed-add retry divergence; corrected actual-file recheck PASS. Full663 backend+74subtests and64isolated PASS on2CPU. Fresh clean-source/dependency recovery and exact-head CI pending; no full224 or hosted erasure claim."
+        }
+      ]
+    },
+    {
       "id": "ENGINEERING-OBLIGATION-EVIDENCE-SERVING",
       "requirement": "Complete genuine source-backed Obligation Finding reads through REST/custom HTTP MCP and an actual API consumer UI with independent revision review and separate exact-version/hash/action serving decisions",
       "normative_source": "Accepted PRODUCT-03/PRODUCT-10/P09-P13/P28-P32/A10-A12/A18/A23 and shared evidence/review/rights/lifecycle workflow; all224exactdefinitions retained",

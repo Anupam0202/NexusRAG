@@ -1,3 +1,38 @@
+# Current cloud continuation — 2026-10-30, local vector lifecycle064
+
+Continue the ONE full224/ten-product/twelve-mode Goal and immutable accepted
+master. The published063source isda7776e; exactCI terminal9success/3failure/2skip.
+OrdinaryPG,148scripts and frontendPASS. Actualfrontendlog confirms731units,
+2Obligationreader browsercases,14builtWorker and21cross-browser cases. Excluded
+dependency/runtime and requiredsummaryFAIL remain binding; finding logs unread.
+PR12 stays draft, main85b14f1 unchanged; no merge or deployment occurred.
+
+The next bounded correction fixes a local last-document deletion/restart bug:
+empty metadata previously retained old FAISS vectors, so the next upload/search
+could raise IndexError. Paired metadata now validates before load and reconstructs
+the derived cache; empty state removes its old index. Staged publication and
+in-memory rollback preserve add/delete retries on write failure. Independent
+review corrected destructive unknown-metadata fallback and failed-add divergence.
+Actual before/after three-process API proof,23 regressions,663backend+74subtests
+and64isolated PASS. Read LOCAL_VECTOR_STORE_LIFECYCLE_064.md for scope and limits.
+New frozen source/dependency recovery and exact-head CI require separate receipts.
+
+063private source recovery has887hashes/modes verified, newdependencies, current
+fullSQL/native815s and74table229functionrestore,55fixed+regexmarkers, fullowning/
+builds/Worker and package/Radar browser passes. Its localdark initial65scontrol
+waitFAIL remains preserved (~5s beforeHTTPdispatch, fixedbucket expiry; no sole
+cause established). Successful freshGitHub browser execution is a distinct host
+result; no timeout, quota or assertion was waived to erase the local failure.
+
+All224 normative definitions/tenproduct rows remain open; twelve-mode source is
+unchanged.061/062/063 remain unapproved/uninstalled and059/060 approvals consumed.
+No new security/paused022/hostedSQL/provider/newhosteduser/production/destructive
+platform action. An agent hit a usage limit; source/evidence were saved, without
+replacement models, timers or hidden continuation. Complete authorized remaining
+functional work through normally available execution and durable cloud handoffs.
+
+---
+
 # Current cloud continuation — 2026-10-29, Obligation Evidence serving063
 
 Continue the ONE accepted224-requirement/ten-product/twelve-mode Goal. Batch063
