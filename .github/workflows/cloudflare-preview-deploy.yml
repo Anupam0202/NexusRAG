@@ -87,6 +87,19 @@ jobs:
             "$SUPABASE_URL/rest/v1/rpc/nexus_management_version")"
           jq -e '.version == "036" and .atomic_members and .private_findings and .manual_finding_exports and .authoritative_member_identity' <<<"$schema" >/dev/null \
             || { echo "::error::Candidate schema migration 036 is not verified"; exit 1; }
+          byok_authority="$(curl --fail --silent --show-error --connect-timeout 10 --max-time 30 \
+            --config <(printf 'header = "apikey: %s"\nheader = "Authorization: Bearer %s"\n' "$SUPABASE_SERVICE_ROLE_KEY" "$SUPABASE_SERVICE_ROLE_KEY") \
+            -H "Content-Type: application/json" \
+            -d '{"p_workspace":null,"p_actor":null,"p_data_classification":"unknown"}' \
+            "$SUPABASE_URL/rest/v1/rpc/nexus_authorize_byok_processing")"
+          jq -e '.state == "RIGHTS_BLOCKED"' <<<"$byok_authority" >/dev/null \
+            || { echo "::error::Candidate BYOK authority migration 037 is not verified"; exit 1; }
+          processing_policy="$(curl --fail --silent --show-error --connect-timeout 10 --max-time 30 \
+            --config <(printf 'header = "apikey: %s"\nheader = "Authorization: Bearer %s"\n' "$SUPABASE_SERVICE_ROLE_KEY" "$SUPABASE_SERVICE_ROLE_KEY") \
+            -H "Content-Type: application/json" -d '{}' \
+            "$SUPABASE_URL/rest/v1/rpc/nexus_processing_policy_version")"
+          jq -e '.version == "039" and .terms_bound_owner_decisions and .service_only and .canonical_auth_role' <<<"$processing_policy" >/dev/null \
+            || { echo "::error::Candidate canonical processing authority migration 039 is not verified"; exit 1; }
           python3 -c 'import base64,os; assert len(base64.b64decode(os.environ["GEMINI_USER_KEY_ENCRYPTION_SECRET"],validate=True))==32, "encryption secret must be base64-encoded 32-byte key material"'
           response="$(curl --fail --silent --show-error \
             --connect-timeout 10 --max-time 30 \

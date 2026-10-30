@@ -8,7 +8,9 @@ import globals from "globals";
 
 // Maintained, explicit lint stack: no legacy fast-glob/micromatch/braces path.
 export default defineConfig([
-  globalIgnores([".next/**", ".open-next/**", "out/**", "build/**", "next-env.d.ts", "src/e2e/visual-regression.spec.ts-snapshots/**"]),
+  // Wrangler emits bundled dependencies here after local Worker verification.
+  // Lint maintained source (including worker.js), never generated runtime code.
+  globalIgnores([".next/**", ".open-next/**", ".wrangler/**", "out/**", "build/**", "next-env.d.ts", "src/e2e/visual-regression.spec.ts-snapshots/**"]),
   js.configs.recommended,
   ...ts.configs.recommended,
   {

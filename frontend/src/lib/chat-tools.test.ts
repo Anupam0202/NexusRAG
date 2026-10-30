@@ -1,8 +1,31 @@
 import { describe, expect, it } from "vitest";
-import { buildChatRequestFilters, exportChatMarkdown } from "./chat-tools";
+import { buildChatRequestFilters, exportChatJson, exportChatMarkdown } from "./chat-tools";
 import type { UIMessage } from "@/types";
 
 describe("buildChatRequestFilters", () => {
+  const empty = { chatScope: "workspace" as const, documentIds: [], fileTypes: [] };
+  it("includes the whole UTC end day while preserving exact timestamp bounds", () => {
+    expect(buildChatRequestFilters({ ...empty, uploadedAfter: "2026-01-02", uploadedBefore: "2026-01-02" })).toMatchObject({
+      uploaded_after: "2026-01-02T00:00:00.000Z", uploaded_before: "2026-01-02T23:59:59.999Z",
+    });
+    expect(buildChatRequestFilters({ ...empty, uploadedBefore: "2026-01-02T12:30:00Z" }).uploaded_before).toBe("2026-01-02T12:30:00.000Z");
+  });
+  it.each(["2026-02-30", "2026-13-01", "0000-01-01", "01/02/2026", "2026-02-30T12:00:00Z", "2026-01-01T24:00:00Z"])("rejects invalid calendar date %s instead of rolling it forward", uploadedAfter => {
+    expect(() => buildChatRequestFilters({ ...empty, uploadedAfter })).toThrow("Upload dates must be valid dates.");
+  });
+  it("rejects oversized selections instead of silently weakening the requested scope", () => {
+    expect(() => buildChatRequestFilters({ ...empty, documentIds: Array.from({ length: 26 }, (_, i) => `doc-${i}`) })).toThrow("scope will not be silently truncated");
+    expect(() => buildChatRequestFilters({ ...empty, fileTypes: Array.from({ length: 21 }, (_, i) => `ext${i}`) })).toThrow("at most 20");
+  });
+  it.each([
+    { uploadedBy: "not-a-user-id" }, { fileTypes: ["pdf),other"] },
+    { filename: "x".repeat(256) }, { metadataKey: "department" },
+    { metadataValue: "finance" }, { metadataKey: "__proto__", metadataValue: "private" },
+    { metadataKey: "department", metadataValue: "x".repeat(257) },
+    { minPage: "1000001" }, { minPage: "99999999999999999999999" },
+  ])("rejects invalid or incomplete scope %j", filters => {
+    expect(() => buildChatRequestFilters({ ...empty, ...filters })).toThrow();
+  });
   it("normalizes selected documents and page filters", () => {
     expect(
       buildChatRequestFilters({
@@ -10,7 +33,7 @@ describe("buildChatRequestFilters", () => {
         documentIds: ["doc-b", "doc-a", "doc-a", ""],
         fileTypes: ["pdf", "md", "pdf"],
         filename: "  report.pdf ",
-        uploadedBy: " user-1 ",
+        uploadedBy: " 22222222-2222-4222-8222-222222222222 ",
         minPage: "2",
         maxPage: "8",
         uploadedAfter: "2026-01-01",
@@ -23,11 +46,11 @@ describe("buildChatRequestFilters", () => {
       document_ids: ["doc-a", "doc-b"],
       file_types: ["md", "pdf"],
       filename: "report.pdf",
-      uploaded_by: "user-1",
+      uploaded_by: "22222222-2222-4222-8222-222222222222",
       min_page: 2,
       max_page: 8,
       uploaded_after: "2026-01-01T00:00:00.000Z",
-      uploaded_before: "2026-06-01T00:00:00.000Z",
+      uploaded_before: "2026-06-01T23:59:59.999Z",
       metadata_filters: { department: "finance" },
     });
   });
@@ -78,6 +101,24 @@ describe("buildChatRequestFilters", () => {
         metadataValue: "hidden",
       })
     ).toThrow("Metadata keys may contain only letters, numbers, dots, underscores, and dashes.");
+  });
+});
+
+describe("exportChatJson", () => {
+  it("preserves exact source identity and review state without arbitrary private metadata", () => {
+    const exported = JSON.parse(exportChatJson([{ id: "answer", role: "assistant",
+      content: "Evidence [S1]", confidence: 0,
+      metadata: { claim_state: "REVIEW_REQUIRED", validated_citation_ids: [1], private: "not-for-export" },
+      sources: [{ content: "Evidence", filename: "proof.txt", page_number: 2, chunk_index: 3,
+        relevance_score: 0.8, document_type: "text", metadata: { document_id: "document",
+          version_id: "version", chunk_id: "chunk", original_content_hash: "hash",
+          location: { page: 2 }, authority: "SUPABASE_HASH_VERIFIED", private: "not-for-export" } }] }]));
+    expect(exported[0].metadata).toEqual({ claim_state: "REVIEW_REQUIRED", validated_citation_ids: [1] });
+    expect(exported[0].confidence_state).toBe("UNCALIBRATED");
+    expect(exported[0].sources[0].metadata).toEqual({ document_id: "document", version_id: "version",
+      chunk_id: "chunk", original_content_hash: "hash", location: { page: 2 }, authority: "SUPABASE_HASH_VERIFIED" });
+    expect(exported[0].sources[0].relevance_score_meaning).toBe("RANKING_ONLY_NOT_CLAIM_SUPPORT");
+    expect(JSON.stringify(exported)).not.toContain("not-for-export");
   });
 });
 

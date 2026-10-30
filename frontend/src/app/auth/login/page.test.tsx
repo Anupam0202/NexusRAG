@@ -166,4 +166,12 @@ describe("LoginPage", () => {
     await waitFor(() => expect(navigateStatic).toHaveBeenCalledWith("/documents"));
     expect(signInWithOAuth).not.toHaveBeenCalled();
   });
+  it("does not redirect a signed-in user off-site after dot-segment normalization", async () => {
+    authState.mode = "authenticated";
+    window.history.replaceState({}, "", "/auth/login?next=%2Fdocuments%2F..%2F%2Fattacker.invalid");
+    render(<LoginPage />);
+    await waitFor(() => expect(navigateStatic).toHaveBeenCalledWith("/documents"));
+    expect(navigateStatic).not.toHaveBeenCalledWith("//attacker.invalid");
+    expect(signInWithOAuth).not.toHaveBeenCalled();
+  });
 });

@@ -342,12 +342,15 @@ class TestRAGChain:
 
         first = chain.query("What is the private marker?", workspace_id="workspace-a")
         second = chain.query("What is the private marker?", workspace_id="workspace-b")
-        cached = chain.query("What is the private marker?", workspace_id="workspace-a")
+        cached = chain.query(
+            "What is the private marker?", workspace_id="workspace-a", session_id="fresh-context"
+        )
 
         assert calls == ["workspace-a", "workspace-b"]
         assert "workspace-a" in first["answer"]
         assert "workspace-b" in second["answer"]
         assert cached["from_cache"] is True
+        assert len(chain.get_session_history("fresh-context", workspace_id="workspace-a")) == 2
 
     def test_cache_is_isolated_by_retrieval_filter_namespace(self, monkeypatch):
         cache = SemanticCache(settings=Settings(_env_file=None, enable_cache=True))

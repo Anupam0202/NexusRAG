@@ -1,0 +1,32 @@
+import {expect,test} from "@playwright/test";
+import {randomUUID} from "node:crypto";
+
+test.skip(!process.env.E2E_RESEARCH_COMPONENT_FIXTURE,"Requires controlled local originals and provider peers, not hosted identities.");
+for(const mode of ["DEEP_RESEARCH","CONTRADICTION_ANALYSIS"])test(`${mode}: a non-paged original retains its NULL receipt, character locator and usable research after reload`,async({page})=>{
+  await page.setViewportSize({width:320,height:900});
+  const question=`Synthetic multi-query pageless mass ${randomUUID()}`,errors:string[]=[];
+  page.on("pageerror",error=>errors.push(error.message));
+  await page.goto(`/?actor=${randomUUID()}`);
+  await page.getByRole("combobox",{name:"Mode",exact:true}).selectOption(mode);
+  await page.getByRole("textbox",{name:"Question",exact:true}).fill(question);
+  await page.getByRole("textbox",{name:"Completion criteria",exact:true}).fill("Inspect the exact original character locator and retain unknown pages without inventing page0.");
+  await page.getByRole("checkbox",{name:"Synthetic pageless policy.txt",exact:true}).check();
+  if(mode==="CONTRADICTION_ANALYSIS")await page.getByRole("checkbox",{name:"Synthetic second policy.txt",exact:true}).check();
+  await page.getByRole("button",{name:"Save plan",exact:true}).click();
+  await page.getByRole("checkbox",{name:/I confirm that all questions/}).check();await page.getByRole("button",{name:"Start research",exact:true}).click();
+  await expect(page.getByRole("status").filter({hasText:"Execution finished"})).toContainText("1 of 1 questions saved");
+  await page.reload();await page.getByRole("button",{name:`Open research plan: ${question}`,exact:true}).click();
+  const response=page.waitForResponse(response=>/\/api\/v2\/research\/plans\/[^/]+\/runs\/[^/?]+$/.test(response.url())&&response.request().method()==="GET");
+  await page.getByRole("button",{name:/Open execution/}).click();
+  const run=await (await response).json(),result=run.results[0];
+  const source=result.sources.find((source:{filename:string})=>source.filename==="Synthetic pageless policy.txt");
+  expect(source).toBeDefined();expect(source.page_number).toBeNull();
+  expect(source.location.char_start).toBe(0);expect(source.location.char_end).toBe(Array.from(source.content).length);
+  const report=result.deep||result.contradiction,document=report.documents.find((document:{document_id:string})=>document.document_id===source.document_id);
+  expect(document.consulted_sources.find((receipt:{chunk_id:string})=>receipt.chunk_id===source.chunk_id).page_number).toBeNull();
+  const locator=page.locator("summary").filter({hasText:`[${source.citation_id}] Synthetic pageless policy.txt / chunk 0`});
+  await expect(locator).toBeVisible();await expect(locator).not.toContainText("/ page");
+  await locator.click();await expect(locator.locator("..")).toContainText(`SHA256 ${source.original_content_hash}`);
+  await expect(locator.locator("..").getByRole("link",{name:"Inspect document",exact:true})).toHaveAttribute("href",`/documents/${source.document_id}`);
+  expect(errors).toEqual([]);
+});

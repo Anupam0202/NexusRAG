@@ -10,8 +10,25 @@ import {
 } from "./worker-pipeline.js";
 import { deleteQdrantDocument, hybridFuse } from "./worker-lifecycle.js";
 import { handleQueue, sweepJobs } from "./worker-jobs.js";
+import { candidateChunkIds, rehydrateEvidence } from "./retrieval-authority.js";
 import { assessAnswer } from "./answer-evidence.js";
+import { resolveSummaryDocuments } from "./document-summary-scope.js";
+import { handleResearchPlans } from "./research-plans.js";
+import { handleResearchCalculations } from "./research-calculations.js";
+import { handleResearchAggregations } from "./research-aggregations.js";
+import { handleResearchConversions } from "./research-conversions.js";
+import { handleResearchQuantities } from "./research-quantities.js";
+import { handleResearchRuns } from "./research-runs.js";
+import { handleRadar } from "./radar.js";
+import {handleObligationEvidence,obligationEvidenceAvailability} from "./obligation-evidence.js";
+import { SETTINGS_DEFAULTS, persistedSetting } from "./runtime-options.js";
 import { handleWorkbench, listFindings } from "./workbench.js";
+import { handleInvitations } from "./workspace-invitations.js";
+import { readBoundedJsonObject } from "./request-body.js";
+import { metered } from "./quota.js";
+import originalTransfer from "../../../frontend/src/lib/document-original-policy.json" with { type: "json" };
+import { runFixtureEvaluation } from "./fixture-evaluation.js";
+import { normalizeRetrievalFilters, documentFilterQuery, chunkFilterQuery, hasChunkFilters, matchesDocumentFilters, matchesChunkFilters } from "./retrieval-filters.js";
 import {
   deleteUserGeminiKey,
   getUserGeminiKeyRecord,
@@ -21,6 +38,7 @@ import {
 } from "./user-gemini-key.js";
 
 // Supabase service-role access is kept in a Cloudflare secret binding; OAuth and MCP gates are exact-head validated.
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const BASE_HEADERS = Object.freeze({
   "cache-control": "private, no-store, max-age=0",
   "content-security-policy": "default-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
@@ -87,6 +105,7 @@ function headers(request, env) {
   if (origin && origin === env.FRONTEND_ORIGIN) {
     output.set("access-control-allow-origin", origin);
     output.set("access-control-allow-credentials", "true");
+    output.set("access-control-expose-headers", "retry-after");
     output.set("vary", "Origin");
   }
   return output;
@@ -103,12 +122,12 @@ function configured(env) {
   return Boolean(env.SUPABASE_URL && env.SUPABASE_PUBLISHABLE_KEY && env.SUPABASE_SERVICE_ROLE_KEY);
 }
 async function readJsonBody(request) {
-  try { return await request.json(); } catch {
-    throw Object.assign(new Error("The request body must contain valid JSON."), { status: 400, code: "INVALID_REQUEST" });
-  }
+  // Preserve schema-validation422 for valid JSON with an invalid root shape.
+  return readBoundedJsonObject(request, { objectStatus: 422 });
 }
 async function apiFetch(url, init = {}, timeout = 8_000) {
-  return fetch(url, { ...init, signal: AbortSignal.timeout(timeout) });
+  const deadline = AbortSignal.timeout(timeout);
+  return fetch(url, { ...init, signal: init.signal ? AbortSignal.any([init.signal, deadline]) : deadline });
 }
 async function authenticate(request, env) {
   const authorization = request.headers.get("authorization") || "";
@@ -119,7 +138,7 @@ async function authenticate(request, env) {
   if (!user?.id) throw Object.assign(new Error("The authenticated user is unavailable."), { status: 401, code: "AUTH_REQUIRED" });
   return user;
 }
-async function serviceRequest(env, tablePath, init = {}) {
+async function serviceResponse(env, tablePath, init = {}) {
   const response = await apiFetch(`${env.SUPABASE_URL}/rest/v1/${tablePath}`, {
     ...init,
     headers: {
@@ -142,10 +161,13 @@ async function serviceRequest(env, tablePath, init = {}) {
           : "Authoritative storage rejected the operation."), { status, code });
     }
     if (storageError.code === "P0002") throw Object.assign(new Error("Record not found."), { status: 404, code: "NOT_FOUND" });
-    throw Object.assign(new Error("Authoritative storage rejected the request."), { status: 503, code: "PERSISTENCE_UNAVAILABLE", detail });
+    throw Object.assign(new Error("Authoritative storage rejected the request."), { status: 503, code: "PERSISTENCE_UNAVAILABLE", storageCode: storageError.code, detail });
   }
-  const text = await response.text();
-  return text ? JSON.parse(text) : null;
+  return response;
+}
+async function serviceRequest(env, tablePath, init = {}) {
+  const response=await serviceResponse(env,tablePath,init);
+  const text=await response.text();return text?JSON.parse(text):null;
 }
 // Retain database record-level authority: membership is not permission to read
 // another member's private findings, conversations, or exports.
@@ -160,8 +182,11 @@ async function userRequest(request, env, tablePath, init = {}) {
   const text = await response.text();
   return text ? JSON.parse(text) : null;
 }
-async function countWorkspaceRows(env, table, workspace, filters = "") {
-  const response = await apiFetch(`${env.SUPABASE_URL}/rest/v1/${table}?workspace_id=eq.${encodeURIComponent(workspace)}&select=id${filters}`, {
+async function countWorkspaceRows(env, table, workspace, filters = "", countColumn = "id") {
+  return countRows(env, `${table}?workspace_id=eq.${encodeURIComponent(workspace)}&select=${countColumn}${filters}`);
+}
+async function countRows(env, tablePath) {
+  const response = await apiFetch(`${env.SUPABASE_URL}/rest/v1/${tablePath}`, {
     method: "HEAD",
     headers: {
       apikey: env.SUPABASE_SERVICE_ROLE_KEY,
@@ -172,7 +197,10 @@ async function countWorkspaceRows(env, table, workspace, filters = "") {
   if (!response.ok) throw Object.assign(new Error("Authoritative storage rejected the status check."), { status: 503, code: "PERSISTENCE_UNAVAILABLE" });
   const match = response.headers.get("content-range")?.match(/\/(\d+)$/);
   if (!match) throw Object.assign(new Error("Authoritative storage did not return an exact count."), { status: 503, code: "PERSISTENCE_UNAVAILABLE" });
-  return Number(match[1]);
+  const count = Number(match[1]);
+  if (!Number.isSafeInteger(count) || count < 0)
+    throw Object.assign(new Error("Authoritative storage returned an unsafe count."), { status: 503, code: "PERSISTENCE_UNAVAILABLE" });
+  return count;
 }
 
 async function membership(env, userId, workspaceId) {
@@ -181,25 +209,7 @@ async function membership(env, userId, workspaceId) {
   return rows[0];
 }
 const SETTINGS_SELECT = "retrieval_top_k,hybrid_search_alpha,llm_temperature,updated_at";
-const SETTINGS_DEFAULTS = Object.freeze({
-  retrieval_top_k: 10,
-  hybrid_search_alpha: 0.6,
-  llm_temperature: 0.1,
-});
 const SETTINGS_PATCH_FIELDS = new Set(Object.keys(SETTINGS_DEFAULTS));
-function persistedSetting(row, key, { min, max, integer = false }) {
-  const value = row?.[key];
-  if (
-    typeof value !== "number"
-    || !Number.isFinite(value)
-    || value < min
-    || value > max
-    || (integer && !Number.isInteger(value))
-  ) {
-    return SETTINGS_DEFAULTS[key];
-  }
-  return value;
-}
 async function readWorkspaceSettings(env, workspaceId) {
   const rows = await serviceRequest(
     env,
@@ -333,12 +343,153 @@ async function loadBoundDocument(env, workspace, documentId) {
   return rows[0];
 }
 
+async function chunkPreviews(request, env, user, workspace, documentId) {
+  const url = new URL(request.url);
+  const limitText = url.searchParams.get("limit") || "100";
+  const afterText = url.searchParams.get("after");
+  const limit = Number(limitText), after = afterText === null ? null : Number(afterText);
+  const query = String(url.searchParams.get("search") || "").trim();
+  if (!/^\d+$/.test(limitText) || !Number.isSafeInteger(limit) || limit < 1 || limit > 200 ||
+      (afterText !== null && (!/^\d+$/.test(afterText) || !Number.isSafeInteger(after) || after < 0)) || query.length > 200)
+    throw Object.assign(new Error("Invalid bounded chunk search or cursor."), { status: 422, code: "INVALID_SCOPE" });
+  const document = await loadBoundDocument(env, workspace, documentId);
+  if (document.lifecycle_state !== "active" || document.status !== "ready" || !document.active_version_id)
+    throw Object.assign(new Error("This document has no current published chunk view."), { status: 409, code: "VERSION_CONFLICT" });
+  const expected = url.searchParams.get("version_id");
+  if ((after !== null && !expected) || (expected && expected !== document.active_version_id))
+    throw Object.assign(new Error("The document version changed. Refresh the chunk view."), { status: 409, code: "VERSION_CONFLICT" });
+  const versions = await serviceRequest(env, `document_versions?workspace_id=eq.${workspace}&document_id=eq.${documentId}&id=eq.${document.active_version_id}&select=id,workspace_id,document_id,publication_state,index_generation,lifecycle_epoch&limit=1`);
+  const version = versions?.[0];
+  if (!version || version.workspace_id !== workspace || version.document_id !== documentId || version.id !== document.active_version_id ||
+      version.publication_state !== "ready" || !version.index_generation || version.lifecycle_epoch !== document.lifecycle_epoch)
+    throw Object.assign(new Error("Current chunk publication authority is unavailable."), { status: 409, code: "VERSION_CONFLICT" });
+  // Full bounded inventory before filtering: never search just the first UI page.
+  const rows = await serviceRequest(env, `document_chunks?workspace_id=eq.${workspace}&document_id=eq.${documentId}&version_id=eq.${version.id}&select=id,workspace_id,document_id,version_id,chunk_index,original_text,original_content_hash,content,page_number,section_title,token_count,location,metadata&order=chunk_index.asc&limit=401`);
+  if (!Array.isArray(rows)) throw Object.assign(new Error("Chunk persistence returned no usable inventory."), { status: 503, code: "PERSISTENCE_UNAVAILABLE" });
+  if (rows.length > 400) throw Object.assign(new Error("This document exceeds the bounded 400-chunk view. No complete search result was claimed."), { status: 409, code: "CAPACITY_REACHED" });
+  if (!Number.isSafeInteger(document.chunk_count) || document.chunk_count < 1 || rows.length !== document.chunk_count)
+    throw Object.assign(new Error("Published chunk inventory is incomplete or inconsistent."), { status: 409, code: "EVIDENCE_UNVERIFIED" });
+  const seen = new Set(), verified = [];
+  for (const row of rows) {
+    const original = row.original_text ?? row.content;
+    if (row.workspace_id !== workspace || row.document_id !== documentId || row.version_id !== version.id ||
+        !Number.isSafeInteger(row.chunk_index) || row.chunk_index < 0 || seen.has(row.chunk_index) ||
+        typeof original !== "string" || !original.trim() || !/^[a-f0-9]{64}$/.test(row.original_content_hash || "") || await sha256(original) !== row.original_content_hash)
+      throw Object.assign(new Error("Chunk evidence integrity could not be verified. No unverified original was returned."), { status: 409, code: "EVIDENCE_UNVERIFIED" });
+    seen.add(row.chunk_index);
+    verified.push({ chunk_index: row.chunk_index, content: original, original_content_hash: row.original_content_hash,
+      page_number: row.page_number ?? 0, section_title: row.section_title ?? null,
+      token_count: row.token_count ?? null, location: row.location ?? null, metadata: row.metadata ?? {} });
+  }
+  await membership(env, user.id, workspace);
+  const fresh = await loadBoundDocument(env, workspace, documentId);
+  const current = await serviceRequest(env, `document_versions?workspace_id=eq.${workspace}&id=eq.${version.id}&select=publication_state,index_generation,lifecycle_epoch&limit=1`);
+  if (fresh.lifecycle_state !== "active" || fresh.active_version_id !== version.id || fresh.lifecycle_epoch !== document.lifecycle_epoch || fresh.chunk_count !== document.chunk_count ||
+      current?.[0]?.publication_state !== "ready" || current[0].index_generation !== version.index_generation || current[0].lifecycle_epoch !== version.lifecycle_epoch)
+    throw Object.assign(new Error("The document changed while loading. Refresh the chunk view."), { status: 409, code: "VERSION_CONFLICT" });
+  const matches = verified.filter(row => row.content.toLowerCase().includes(query.toLowerCase()));
+  const remaining = matches.filter(row => after === null || row.chunk_index > after);
+  const chunks = remaining.slice(0, limit);
+  return { document_id: documentId, filename: fresh.filename, version_id: version.id, chunks,
+    total: matches.length, total_is_exact: true, query: query || null,
+    next_after: remaining.length > limit ? chunks.at(-1).chunk_index : null,
+    authority: "SUPABASE_HASH_VERIFIED", coverage: { state: "COMPLETE_BOUNDED_DOCUMENT", maximum_chunks: 400 } };
+}
+
+async function documentOriginal(request, env, user, workspace, documentId) {
+  workspace = workspace.toLowerCase(); documentId = documentId.toLowerCase();
+  const document = await loadBoundDocument(env, workspace, documentId);
+  const expected = new URL(request.url).searchParams.get("version_id")?.toLowerCase();
+  if (document.lifecycle_state !== "active" || document.status !== "ready" || !expected || expected !== document.active_version_id)
+    throw Object.assign(new Error("The document version changed or is unavailable. Refresh before downloading."), {status:409,code:"VERSION_CONFLICT"});
+  const readVersion = async () => (await serviceRequest(env, `document_versions?workspace_id=eq.${workspace}&document_id=eq.${documentId}&id=eq.${expected}&select=*&limit=1`))?.[0];
+  const version = await readVersion();
+  if (!version || version.workspace_id !== workspace || version.document_id !== documentId || version.id !== expected ||
+      version.publication_state !== "ready" || version.lifecycle_epoch !== document.lifecycle_epoch ||
+      !/^[a-f0-9]{64}$/.test(version.original_hash || "") || !Number.isSafeInteger(version.original_bytes) ||
+      version.original_bytes < 1 || version.original_bytes > originalTransfer.maximum_bytes ||
+      !Number.isFinite(Date.parse(version.original_verified_at)) || typeof version.original_bucket !== "string" || !version.original_bucket ||
+      typeof version.original_key !== "string" || !version.original_key.startsWith(`${workspace}/${documentId}/`))
+    throw Object.assign(new Error("The stored original has no usable version receipt."), {status:409,code:"ORIGINAL_UNAVAILABLE"});
+  const signal = AbortSignal.any([request.signal, AbortSignal.timeout(originalTransfer.timeout_ms)]);
+  const filename = safeFilename(document.filename), encodedFilename = encodeURIComponent(filename);
+  let acquired;
+  const response = await metered(env, {workspaceId:workspace,provider:originalTransfer.quota_provider,priority:"interactive",action:"original_download"},
+    request.method === "HEAD" ? {requests:1} : {requests:1,egress_bytes:version.original_bytes}, async () => {
+      const original = await fetch(`${env.SUPABASE_URL}/storage/v1/object/${request.method === "HEAD" ? "" : "authenticated/"}${encodeURIComponent(version.original_bucket)}/${storagePath(version.original_key)}`, {
+        method:request.method,signal,headers:{apikey:env.SUPABASE_SERVICE_ROLE_KEY,authorization:`Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`},
+      });
+      acquired = original;
+      try {
+        if (!original.ok) throw Object.assign(new Error("The stored original is unavailable. No download was confirmed."), {status:original.status===404?404:503,code:"ORIGINAL_UNAVAILABLE"});
+        const length = original.headers.get("content-length");
+        if ((length !== null && (!/^\d+$/.test(length) || Number(length) !== version.original_bytes)) || (request.method !== "HEAD" && !original.body))
+          throw Object.assign(new Error("The stored original does not match its byte receipt."), {status:409,code:"ORIGINAL_UNAVAILABLE"});
+        await membership(env,user.id,workspace);
+        const fresh = await loadBoundDocument(env,workspace,documentId), current = await readVersion();
+        if (fresh.lifecycle_state !== "active" || fresh.status !== "ready" || fresh.active_version_id !== expected || fresh.lifecycle_epoch !== document.lifecycle_epoch ||
+            !current || current.publication_state !== "ready" || current.lifecycle_epoch !== version.lifecycle_epoch ||
+            ["original_bucket","original_key","original_hash","original_bytes","original_verified_at"].some(key=>current[key]!==version[key]))
+          throw Object.assign(new Error("The original version changed while loading. Refresh before downloading."), {status:409,code:"VERSION_CONFLICT"});
+        return original;
+      } catch(error) { void original.body?.cancel().catch(()=>{}); throw error; }
+    }).catch(error=>{void acquired?.body?.cancel().catch(()=>{});throw error;});
+  const output = headers(request,env);
+  output.set("content-type","application/octet-stream");
+  output.set("content-length",String(version.original_bytes));
+  output.set("content-disposition",`attachment; filename="${filename.replace(/[^\x20-\x7e]|["\\]/g,"_")}"; filename*=UTF-8''${encodedFilename.replace(/[!'()*]/g,c=>`%${c.charCodeAt(0).toString(16).toUpperCase()}`)}`);
+  output.set("x-nexus-original-sha256",version.original_hash);
+  output.set("x-nexus-original-version",version.id);
+  output.set("x-nexus-original-document",documentId);
+  output.set("x-nexus-original-filename",encodedFilename);
+  output.set("access-control-expose-headers","content-length, content-disposition, x-nexus-original-sha256, x-nexus-original-version, x-nexus-original-document, x-nexus-original-filename");
+  if (request.method === "HEAD") { void response.body?.cancel().catch(()=>{}); return new Response(null,{headers:output}); }
+  const reader = response.body.getReader();
+  let received = 0, finished = false;
+  const stop = () => { finished = true; signal.removeEventListener("abort",abort); };
+  let abort;
+  const body = new ReadableStream({
+    start(controller) {
+      abort = () => { if (!finished) { stop(); controller.error(signal.reason); void reader.cancel(signal.reason).catch(()=>{}); } };
+      signal.addEventListener("abort",abort,{once:true});
+      if (signal.aborted) abort();
+    },
+    async pull(controller) {
+      if (finished) return;
+      try {
+        const {done,value} = await reader.read();
+        if (finished) return;
+        if (done) {
+          if (received !== version.original_bytes) throw new Error("Original transfer ended before its declared length.");
+          stop(); controller.close(); return;
+        }
+        received += value.byteLength;
+        if (received > version.original_bytes) throw new Error("Original transfer exceeded its declared length.");
+        controller.enqueue(value);
+      } catch(error) { if (!finished) { stop(); controller.error(error); void reader.cancel(error).catch(()=>{}); } }
+    },
+    cancel(reason) { stop(); void reader.cancel(reason).catch(()=>{}); },
+  });
+  if (typeof globalThis.FixedLengthStream === "function") {
+    // Workers derives Content-Length from the stream, not manually supplied headers.
+    const fixed = new globalThis.FixedLengthStream(version.original_bytes);
+    // pipeTo forwards failures/cancellation to the returned stream as well.
+    void body.pipeTo(fixed.writable).catch(()=>{});
+    return new Response(fixed.readable,{headers:output});
+  }
+  return new Response(body,{headers:output});
+}
+
 async function enqueueJob(env,job){if(!env.INGESTION_QUEUE?.send)throw Object.assign(new Error("The durable ingestion queue is unavailable."),{status:503,code:"QUEUE_UNAVAILABLE",retryable:true});await env.INGESTION_QUEUE.send({job_id:job.id,workspace_id:job.workspace_id,document_id:job.document_id,version_id:job.version_id,lifecycle_epoch:Number(job.lifecycle_epoch||1)});}
-async function accountAdmission(request, env, user, operation) {
-  const idempotencyKey = request.headers.get("idempotency-key") || "";
-  if (!/^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(idempotencyKey)) {
+function admissionKey(request) {
+  const idempotencyKey = (request.headers.get("idempotency-key") || "").toLowerCase();
+  if (!UUID_PATTERN.test(idempotencyKey)) {
     throw Object.assign(new Error("A valid Idempotency-Key is required."), { status: 400, code: "INVALID_SCOPE" });
   }
+  return idempotencyKey;
+}
+async function accountAdmission(request, env, user, operation) {
+  const idempotencyKey = admissionKey(request);
   const result = await serviceRequest(env, "rpc/nexus_admit_account_operation", {
     method: "POST",
     body: JSON.stringify({ p_user: user.id, p_operation: operation, p_idempotency_key: idempotencyKey }),
@@ -428,33 +579,148 @@ async function deleteDocument(request, env, user, workspace, member, documentId)
   }catch(error){await serviceRequest(env,`deletion_operations?id=eq.${operationId}`,{method:"PATCH",body:JSON.stringify({state:"blocked"})}).catch(()=>null);throw Object.assign(error,{status:error.status||503,code:error.code||"DELETE_PARTIAL_FAILURE"});}
 }
 
-async function chat(request, env, user, workspace, member) {
-  requireCapability(member,"research:run"); const started=Date.now(); const body=await readJsonBody(request); const question=String(body?.question||"").trim(); if(!question||question.length>10000)throw Object.assign(new Error("Question must contain 1 to 10,000 characters."),{status:422,code:"INVALID_SCOPE"});
-  // Never silently widen a scope that this bounded runtime cannot implement.
-  const unsupportedFilters = ["file_types", "filename", "uploaded_by", "min_page", "max_page", "uploaded_after", "uploaded_before", "metadata_filters"];
-  if (unsupportedFilters.some(key => body[key] !== undefined && body[key] !== null && body[key] !== "" && (!Array.isArray(body[key]) || body[key].length))) {
-    throw Object.assign(new Error("This Worker supports document-ID scope only. Advanced retrieval filters are not yet available; remove them or select specific documents."), { status: 422, code: "UNSUPPORTED_FILTER" });
+async function privateTurnRequest(request, env, workspace, sessionId, operation, body) {
+  let rows;
+  try {
+    request.signal.throwIfAborted();
+    rows = await userRequest(request, env, `rpc/${operation}`, {
+      method: "POST", signal: request.signal,
+      body: JSON.stringify({ p_workspace: workspace, p_session: sessionId, ...body }),
+    });
+  } catch {
+    throw Object.assign(new Error("Conversation persistence could not be confirmed. No automatic retry was performed."),
+      { status: 503, code: "TURN_UNCONFIRMED" });
   }
+  if (Array.isArray(rows) && rows.length === 0)
+    throw Object.assign(new Error("Conversation is not available."), { status: 404, code: "CONVERSATION_UNAVAILABLE" });
+  const row = Array.isArray(rows) && rows.length === 1 ? rows[0] : null;
+  if (!row || row.workspace_id !== workspace || row.session_id !== sessionId)
+    throw Object.assign(new Error("Conversation persistence could not be confirmed."), { status: 503, code: "TURN_UNCONFIRMED" });
+  if (operation === "commit_gateway_private_turn" && row.state === "CONFLICT")
+    throw Object.assign(new Error("Conversation changed during this answer. Refresh before starting a new request."),
+      { status: 409, code: "VERSION_CONFLICT" });
+  if (!Number.isSafeInteger(row.revision) || row.revision < 0 || row.revision >= Number.MAX_SAFE_INTEGER
+      || (operation === "read_gateway_private_turn_context" && row.revision >= Number.MAX_SAFE_INTEGER - 1)
+      || (operation === "commit_gateway_private_turn"
+        && (row.state !== "COMMITTED" || row.messages_written !== 2 || row.revision !== body.p_revision + 1)))
+    throw Object.assign(new Error("Conversation persistence could not be confirmed."), { status: 503, code: "TURN_UNCONFIRMED" });
+  return row;
+}
+
+async function chat(request, env, user, workspace, member) {
+  workspace = workspace.toLowerCase();
+  requireCapability(member,"research:run"); const started=Date.now(); const body=await readJsonBody(request); const question=String(body?.question||"").trim(); if(!question||question.length>10000)throw Object.assign(new Error("Question must contain 1 to 10,000 characters."),{status:422,code:"INVALID_SCOPE"});
+  if (body.session_id != null && (typeof body.session_id !== "string" || !UUID_PATTERN.test(body.session_id))) {
+    throw Object.assign(new Error("Session ID must be a valid UUID, or omitted to start a new conversation."),
+      { status: 422, code: "INVALID_SCOPE" });
+  }
+  const sessionId = body.session_id == null ? crypto.randomUUID() : body.session_id.toLowerCase();
+  const filters = normalizeRetrievalFilters(body);
+  const chunkScoped = hasChunkFilters(filters);
   if (body.chat_scope !== undefined && !["workspace", "documents"].includes(body.chat_scope)) {
     throw Object.assign(new Error("Chat scope must be workspace or documents."), { status: 422, code: "INVALID_SCOPE" });
   }
   if (body.document_ids !== undefined && (!Array.isArray(body.document_ids) || body.document_ids.length > 25 || body.document_ids.some(id => typeof id !== "string" || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)))) {
     throw Object.assign(new Error("Document scope must contain at most 25 valid document IDs."), { status: 422, code: "INVALID_SCOPE" });
   }
-  if (body.chat_scope === "documents" && !body.document_ids?.length) {
-    throw Object.assign(new Error("Select at least one document for document-scoped chat."), { status: 422, code: "INVALID_SCOPE" });
+  if (body.chat_scope === "documents" && !body.document_ids?.length && !filters.filename) {
+    throw Object.assign(new Error("Select a document or provide its exact filename for document-scoped chat."), { status: 422, code: "INVALID_SCOPE" });
   }
   if(body?.non_sensitive_attested!==true)throw Object.assign(new Error("Chat blocked: confirm the question contains no personal, confidential, regulated, or other sensitive information."),{status:403,code:"RIGHTS_BLOCKED"});
-  const admission=await accountAdmission(request,env,user,"chat");
   const settings=await readWorkspaceSettings(env,workspace);
-  const documentIds=Array.isArray(body?.document_ids)?body.document_ids.filter(v=>/^[0-9a-f-]{36}$/i.test(v)).slice(0,25):[]; const sessionId=/^[0-9a-f-]{36}$/i.test(String(body?.session_id||""))?body.session_id:crypto.randomUUID();
-  let sessions=await serviceRequest(env,`chat_sessions?workspace_id=eq.${workspace}&id=eq.${sessionId}&user_id=eq.${user.id}&deleted_at=is.null&select=*&limit=1`); if(!sessions?.[0])sessions=await serviceRequest(env,"chat_sessions",{method:"POST",body:JSON.stringify([{id:sessionId,workspace_id:workspace,user_id:user.id,title:question.slice(0,120),visibility:"private"}])});
-  await serviceRequest(env,"chat_messages",{method:"POST",body:JSON.stringify([{workspace_id:workspace,session_id:sessionId,role:"user",content:question,sources:[],metadata:{query_type:"general"}}])});
-  const requestedFilter=documentIds.length?`&id=in.(${documentIds.join(",")})`:"";const activeDocuments=await serviceRequest(env,`documents?workspace_id=eq.${workspace}&lifecycle_state=eq.active&active_version_id=not.is.null${requestedFilter}&select=id,active_version_id&limit=100`);const versions=activeDocuments.length?await serviceRequest(env,`document_versions?workspace_id=eq.${workspace}&publication_state=eq.ready&data_classification=eq.non_sensitive&select=id,document_id,index_generation&limit=100`):[];const eligibleVersionIds=new Set(versions.map(item=>item.id));const eligibleDocuments=activeDocuments.filter(item=>eligibleVersionIds.has(item.active_version_id));const activeDocumentIds=eligibleDocuments.map(item=>item.id),activeVersionIds=eligibleDocuments.map(item=>item.active_version_id),topK=settings.retrieval_top_k;const vectorHits=activeVersionIds.length?await searchChunks(env,{workspaceId:workspace,question,documentIds:activeDocumentIds,versionIds:activeVersionIds,indexGenerations:versions.filter(item=>activeVersionIds.includes(item.id)).map(item=>item.index_generation).filter(Boolean),limit:topK,dataClassification:"non_sensitive",userApiKey:admission.userApiKey,credentialMode:admission.credentialMode}):[];const lexical=activeVersionIds.length?await serviceRequest(env,`document_chunks?workspace_id=eq.${workspace}&version_id=in.(${activeVersionIds.join(",")})&select=id,document_id,version_id,chunk_index,page_number,content,metadata&limit=200`):[];const hits=hybridFuse(question,vectorHits,lexical,topK,settings.hybrid_search_alpha);
-  const sources=hits.map(hit=>({content:String(hit.payload?.content||""),filename:String(hit.payload?.filename||"document"),page_number:Number(hit.payload?.page_number||0),chunk_index:Number(hit.payload?.chunk_index||0),relevance_score:Number(hit.score||hit.lexical_score||0),document_type:"text",metadata:{document_id:hit.payload?.document_id,version_id:hit.payload?.version_id,chunk_id:hit.payload?.chunk_id,hybrid_rrf:hit.rrf}}));let response;
-  if(!sources.length)response={answer:"I could not find sufficient evidence in the selected non-sensitive workspace documents, so I cannot answer reliably.",sources:[],query_type:"general",confidence:0,response_time_seconds:(Date.now()-started)/1000,metadata:{claim_state:"UNSUPPORTED",abstained:true,session_id:sessionId}};else{const generated=await generateAnswer(env,groundedPrompt(question,hits),{workspaceId:workspace,priority:"interactive",dataClassification:"non_sensitive",userApiKey:admission.userApiKey,credentialMode:admission.credentialMode,temperature:settings.llm_temperature});const checked=assessAnswer(generated.answer,sources);const byok=admission.credentialMode==="user_byok";response={answer:checked.answer,sources,query_type:"hybrid",confidence:0,response_time_seconds:(Date.now()-started)/1000,metadata:{claim_state:checked.claim_state,abstained:checked.abstained,validated_citation_ids:checked.citations,citation_required:true,model:generated.model,paid_fallback:false,retrieval:"rrf_dense_lexical",session_id:sessionId,provider_cost_status:"UNKNOWN",provider_cost_owner:byok?"USER_GOOGLE_PROJECT":"CONFIGURED_GOOGLE_PROJECT"}};await serviceRequest(env,"llm_usage_events",{method:"POST",body:JSON.stringify([{workspace_id:workspace,user_id:user.id,provider:"gemini",model:generated.model,operation:byok?"grounded_chat_byok":"grounded_chat_platform",input_tokens:generated.usage.promptTokenCount||null,output_tokens:generated.usage.candidatesTokenCount||null,success:true,cost_microusd:null}])}).catch(()=>null);}
+  const documentIds=Array.isArray(body?.document_ids)?body.document_ids.filter(v=>/^[0-9a-f-]{36}$/i.test(v)).slice(0,25):[];
+  const requestedFilter = documentIds.length ? `&id=in.(${documentIds.join(",")})` : "";
+  const documentRows = await serviceRequest(env, `documents?workspace_id=eq.${workspace}&lifecycle_state=eq.active&active_version_id=not.is.null${requestedFilter}${documentFilterQuery(filters)}&select=id,workspace_id,lifecycle_state,active_version_id,filename,content_type,uploaded_by,created_at&order=id.asc&limit=101`);
+  if (documentRows.length > 100) throw Object.assign(new Error("Select a smaller document scope; this bounded research request supports at most 100 current matching documents."), { status: 413, code: "CAPACITY_REACHED" });
+  const activeDocuments = documentRows.filter(item => matchesDocumentFilters(item, filters));
+  const requestedVersions = activeDocuments.map(item => item.active_version_id);
+  const versions = requestedVersions.length ? await serviceRequest(env, `document_versions?workspace_id=eq.${workspace}&id=in.(${requestedVersions.join(",")})&publication_state=eq.ready&data_classification=eq.non_sensitive&select=id,document_id,index_generation&limit=100`) : [];
+  const eligibleVersionIds = new Set(versions.map(item => item.id));
+  const summaryScope = resolveSummaryDocuments(question,
+    activeDocuments.filter(item => eligibleVersionIds.has(item.active_version_id)),
+    Boolean(documentIds.length || filters.filename));
+  const eligibleDocuments = summaryScope.documents;
+  const activeDocumentIds = eligibleDocuments.map(item => item.id);
+  const activeVersionIds = eligibleDocuments.map(item => item.active_version_id);
+  const topK = settings.retrieval_top_k;
+  const lexicalRows = activeVersionIds.length ? await serviceRequest(env, `document_chunks?workspace_id=eq.${workspace}&version_id=in.(${activeVersionIds.join(",")})${chunkFilterQuery(filters)}&select=id,workspace_id,document_id,version_id,chunk_index,page_number,content,original_text,original_content_hash,location,metadata&order=id.asc&limit=201`) : [];
+  // Chunk filters use an exhaustive bounded durable allowlist for both paths.
+  // Never search the unfiltered vector space or silently truncate that scope.
+  if (chunkScoped && lexicalRows.length > 200) throw Object.assign(new Error("Narrow the page or metadata scope to at most 200 matching chunks, or select fewer documents."), { status: 413, code: "CAPACITY_REACHED" });
+  const lexicalLimited = lexicalRows.length > 200;
+  const lexical = lexicalRows.slice(0, 200).filter(row => matchesChunkFilters(row, filters));
+  const chunkIds = chunkScoped ? lexical.map(row => row.id) : undefined;
+  admissionKey(request);
+  // A read-only caller-bound context rejects foreign sessions before metered
+  // admission. The later transaction rechecks authority and fences this revision.
+  const turnContext = await privateTurnRequest(request, env, workspace, sessionId,
+    "read_gateway_private_turn_context", {});
+  const admission=await accountAdmission(request,env,user,"chat");
+  const vectorHits = activeVersionIds.length && (!chunkScoped || chunkIds.length) ? await searchChunks(env, { workspaceId: workspace, question,
+    documentIds: activeDocumentIds, versionIds: activeVersionIds,
+    indexGenerations: versions.filter(item => activeVersionIds.includes(item.id)).map(item => item.index_generation).filter(Boolean),
+    chunkIds,
+    limit: topK, dataClassification: "non_sensitive", actorId: user.id,
+    userApiKey: admission.userApiKey, credentialMode: admission.credentialMode }) : [];
+  const vectorIds = candidateChunkIds(vectorHits);
+  const vectorRows = vectorIds.length ? await serviceRequest(env, `document_chunks?workspace_id=eq.${workspace}&id=in.(${vectorIds.join(",")})&version_id=in.(${activeVersionIds.join(",")})${chunkFilterQuery(filters)}&select=id,workspace_id,document_id,version_id,chunk_index,page_number,content,original_text,original_content_hash,location,metadata&limit=12`) : [];
+  const loadAuthority = async () => {
+    const documents = activeDocumentIds.length ? await serviceRequest(env, `documents?workspace_id=eq.${workspace}&id=in.(${activeDocumentIds.join(",")})&lifecycle_state=eq.active${documentFilterQuery(filters)}&select=id,workspace_id,active_version_id,lifecycle_state,filename,content_type,uploaded_by,created_at&limit=100`) : [];
+    const currentVersions = activeVersionIds.length ? await serviceRequest(env, `document_versions?workspace_id=eq.${workspace}&id=in.(${activeVersionIds.join(",")})&publication_state=eq.ready&data_classification=eq.non_sensitive&select=id,workspace_id,document_id,publication_state,data_classification,index_generation&limit=100`) : [];
+    return { documents, versions: currentVersions };
+  };
+  const authority = await loadAuthority();
+  const hydratedVector = await rehydrateEvidence({ workspaceId: workspace, candidates: vectorHits, chunks: vectorRows, ...authority, filters });
+  const currentGeneration = new Map(authority.versions.map(version => [version.id, version.index_generation]));
+  const lexicalCandidates = lexical.map(row => ({ id: row.id, payload: { chunk_id: row.id, workspace_id: row.workspace_id,
+    document_id: row.document_id, version_id: row.version_id, index_generation: currentGeneration.get(row.version_id) } }));
+  const hydratedLexical = await rehydrateEvidence({ workspaceId: workspace, candidates: lexicalCandidates, chunks: lexical, ...authority, filters });
+  const hits = hybridFuse(question, hydratedVector, hydratedLexical.map(hit => ({ id: hit.id, ...hit.payload,
+    metadata: { filename: hit.payload.filename, workspace_id: hit.payload.workspace_id,
+      document_type: hit.payload.document_type, index_generation: hit.payload.index_generation,
+      original_content_hash: hit.payload.original_content_hash, location: hit.payload.location } })), topK, settings.hybrid_search_alpha);
+  requireCapability(await membership(env, user.id, workspace), "research:run");
+  const sources=hits.map(hit=>({content:String(hit.payload?.content||""),filename:String(hit.payload?.filename||"document"),page_number:Number(hit.payload?.page_number||0),chunk_index:Number(hit.payload?.chunk_index||0),relevance_score:Number(hit.score||hit.lexical_score||0),document_type:String(hit.payload?.document_type||"text"),metadata:{document_id:hit.payload?.document_id,version_id:hit.payload?.version_id,chunk_id:hit.payload?.chunk_id,hybrid_rrf:hit.rrf,original_content_hash:hit.payload?.original_content_hash,location:hit.payload?.location,authority:"SUPABASE_HASH_VERIFIED"}}));let response;
+  if(!sources.length)response={answer:"I could not find sufficient evidence in the selected non-sensitive workspace documents, so I cannot answer reliably.",sources:[],query_type:"general",confidence:0,response_time_seconds:(Date.now()-started)/1000,metadata:{claim_state:"UNSUPPORTED",abstained:true,session_id:sessionId}};else{const generated=await generateAnswer(env,groundedPrompt(question,hits),{workspaceId:workspace,priority:"interactive",dataClassification:"non_sensitive",actorId:user.id,userApiKey:admission.userApiKey,credentialMode:admission.credentialMode,temperature:settings.llm_temperature});const checked=assessAnswer(generated.answer,sources);const byok=admission.credentialMode==="user_byok";response={answer:checked.answer,sources,query_type:"hybrid",confidence:0,response_time_seconds:(Date.now()-started)/1000,metadata:{claim_state:checked.claim_state,abstained:checked.abstained,validated_citation_ids:checked.citations,citation_required:true,model:generated.model,paid_fallback:false,retrieval:"rrf_dense_lexical",session_id:sessionId,provider_cost_status:"UNKNOWN",provider_cost_owner:byok?"USER_GOOGLE_PROJECT":"CONFIGURED_GOOGLE_PROJECT"}};await serviceRequest(env,"llm_usage_events",{method:"POST",body:JSON.stringify([{workspace_id:workspace,user_id:user.id,provider:"gemini",model:generated.model,operation:byok?"grounded_chat_byok":"grounded_chat_platform",input_tokens:generated.usage.promptTokenCount||null,output_tokens:generated.usage.candidatesTokenCount||null,success:true,cost_microusd:null}])}).catch(()=>null);}
+  // Revalidate before returning/persisting: a concurrent deletion, replacement,
+  // or role revocation must not resurrect previously retrieved private evidence.
+  requireCapability(await membership(env, user.id, workspace), "research:run");
+  if (hits.length) {
+    const finalAuthority = await loadAuthority();
+    const finalChunks = chunkScoped ? await serviceRequest(env, `document_chunks?workspace_id=eq.${workspace}&id=in.(${hits.map(hit => hit.id).join(",")})&version_id=in.(${activeVersionIds.join(",")})${chunkFilterQuery(filters)}&select=id,workspace_id,document_id,version_id,chunk_index,page_number,content,original_text,original_content_hash,location,metadata&limit=12`) : [...lexical, ...vectorRows];
+    const verified = await rehydrateEvidence({ workspaceId: workspace, candidates: hits,
+      chunks: finalChunks, ...finalAuthority, filters });
+    if (verified.length !== hits.length) throw Object.assign(new Error("Evidence authority changed during this answer. Retry against the current source versions."), { status: 409, code: "VERSION_CONFLICT" });
+  }
+  response.metadata.coverage = { scope_documents: activeDocumentIds.length, lexical_candidates: lexical.length,
+    filters_applied: Object.keys(filters), chunk_scope: chunkScoped ? "COMPLETE_BOUNDED_MATCHING_CHUNKS" : "UNFILTERED_CHUNK_SCOPE",
+    lexical_limit_reached: lexicalLimited, completeness: lexicalLimited ? "PARTIAL_BOUNDED_RETRIEVAL" : "BOUNDED_RETRIEVAL_NOT_EXHAUSTIVE",
+    evidence_authority: "SUPABASE_HASH_VERIFIED" };
   response.metadata.account_usage={free_chat_queries_used:admission.credentialMode==="platform_trial"?admission.used:5,free_chat_queries_limit:5,credential_mode:admission.credentialMode};
-  await serviceRequest(env,"chat_messages",{method:"POST",body:JSON.stringify([{workspace_id:workspace,session_id:sessionId,role:"assistant",content:response.answer,sources:response.sources,metadata:{...response.metadata,query_type:response.query_type,confidence:response.confidence,response_time_seconds:response.response_time_seconds}}])}); await serviceRequest(env,`chat_sessions?id=eq.${sessionId}`,{method:"PATCH",body:JSON.stringify({updated_at:new Date().toISOString(),revision:Number(sessions[0].revision||1)+1})}); await audit(env,request,user.id,workspace,"research.run","query"); return response;
+  response.metadata.document_selection = { reason: summaryScope.reason, document_ids: summaryScope.document_ids };
+  const turnPayload = {
+    p_key: admissionKey(request), p_revision: turnContext.revision,
+    p_question: question, p_answer: response.answer, p_sources: response.sources,
+    p_metadata: { ...response.metadata, query_type: response.query_type, confidence: response.confidence,
+      response_time_seconds: response.response_time_seconds },
+  };
+  let staged;
+  try {
+    request.signal.throwIfAborted();
+    staged = await serviceRequest(env, "rpc/stage_gateway_private_turn", {
+      method: "POST", signal: request.signal,
+      body: JSON.stringify({ p_actor: user.id, p_workspace: workspace, p_session: sessionId, ...turnPayload }),
+    });
+  } catch {
+    throw Object.assign(new Error("Conversation persistence could not be confirmed."), { status: 503, code: "TURN_UNCONFIRMED" });
+  }
+  const attestation = Array.isArray(staged) && staged.length === 1 ? staged[0] : null;
+  if (!attestation || attestation.state !== "STAGED" || attestation.workspace_id !== workspace
+      || attestation.session_id !== sessionId || attestation.revision !== turnContext.revision)
+    throw Object.assign(new Error("Conversation persistence could not be confirmed."), { status: 503, code: "TURN_UNCONFIRMED" });
+  const committed = await privateTurnRequest(request, env, workspace, sessionId, "commit_gateway_private_turn", turnPayload);
+  response.metadata.session_revision = committed.revision;
+  await audit(env,request,user.id,workspace,"research.run","query"); return response;
 }
 async function handle(request, env = {}) {
   const url = new URL(request.url);
@@ -467,7 +733,15 @@ async function handle(request, env = {}) {
   if (!configured(env)) return fail(request, env, "CONFIGURATION_ERROR", "The authenticated gateway is not configured.", 503);
   try {
     const user = await authenticate(request, env);
-    if (!allowRequest(user.id)) return fail(request, env, "TENANT_QUOTA_EXCEEDED", "Per-user request limit reached.", 429, true);
+    if (!allowRequest(user.id)) {
+      const response=fail(request,env,"TENANT_QUOTA_EXCEEDED","Per-user request limit reached.",429,true);
+      response.headers.set("retry-after","60");return response;
+    }
+
+    if(url.pathname.startsWith("/api/v2/radar/")){
+      const workspace=workspaceId(request),member=await membership(env,user.id,workspace);
+      return await handleRadar({request,env,user,workspace,member,serviceRequest,json});
+    }
 
     if (url.pathname === "/api/v2/capabilities" && (request.method === "GET" || request.method === "HEAD")) {
       const bound = request.headers.get("x-nexus-workspace-id") || request.headers.get("x-workspace-id");
@@ -479,19 +753,22 @@ async function handle(request, env = {}) {
     if (url.pathname === "/api/v2/mcp/operations" && (request.method === "GET" || request.method === "HEAD")) {
       const id = workspaceId(request); const member = await membership(env, user.id, id);
       const granted = new Set(ROLE_CAPABILITIES[member.role] || []);
+      const obligation=granted.has("obligation:read")?await obligationEvidenceAvailability({env,serviceRequest}):{available:false,reason:"FORBIDDEN"};
+      const implemented=["finding_retrieval","claim_retrieval",...(obligation.available?["obligation_lookup"]:[])];
       return json(request, env, { protocol: "nexusrag-evidence-mcp/1", destructive_operations: false,
         operations: Object.entries(MCP_OPERATIONS).filter(([name, spec]) =>
-          ["finding_retrieval", "claim_retrieval"].includes(name) && granted.has(spec.capability))
+          implemented.includes(name) && granted.has(spec.capability))
           .map(([name, spec]) => ({ name, capability: spec.capability, result_limit: 50, deadline_ms: 8000, read_only: true })),
-        unavailable_operations: Object.keys(MCP_OPERATIONS).filter(name => !["finding_retrieval", "claim_retrieval"].includes(name)) });
+        unavailable_operations: Object.keys(MCP_OPERATIONS).filter(name => !implemented.includes(name)),obligation_evidence:obligation });
     }
     if (url.pathname === "/api/v2/mcp/execute" && request.method === "POST") {
       const id = workspaceId(request); const member = await membership(env, user.id, id);
       const body = await readJsonBody(request); const operation = String(body?.operation || ""); const spec = MCP_OPERATIONS[operation];
       if (!spec) throw Object.assign(new Error("The MCP operation is not available."), { status: 404, code: "INVALID_SCOPE" });
       if (!(ROLE_CAPABILITIES[member.role] || []).includes(spec.capability)) throw Object.assign(new Error("The required capability is not granted."), { status: 403, code: "FORBIDDEN" });
+      if(operation==="obligation_lookup")return await handleObligationEvidence({request,env,user,workspace:id,member,serviceRequest,json},body);
       const limit = Math.min(Math.max(Number.parseInt(String(body?.limit || 20), 10) || 20, 1), 50);
-      if (["obligation_lookup", "procurement_lookup", "passport_retrieval"].includes(operation))
+      if (["procurement_lookup", "passport_retrieval"].includes(operation))
         return fail(request, env, "CAPABILITY_UNAVAILABLE", "This product operation is not implemented.", 501);
       const rows = spec.table === "findings"
         ? (await listFindings({ request, env, user, workspace: id, member, serviceRequest, json }, limit)).items
@@ -499,37 +776,86 @@ async function handle(request, env = {}) {
       await audit(env, request, user.id, id, `mcp.${operation}`, spec.table);
       return json(request, env, { protocol: "nexusrag-evidence-mcp/1", operation, items: rows, limit, workspace_id: id });
     }
+    if(url.pathname==="/api/v2/obligations"||url.pathname.startsWith("/api/v2/obligations/")){
+      const id=workspaceId(request),member=await membership(env,user.id,id);
+      if(!(ROLE_CAPABILITIES[member.role]||[]).includes("obligation:read"))throw Object.assign(new Error("The required capability is not granted."),{status:403,code:"FORBIDDEN"});
+      return await handleObligationEvidence({request,env,user,workspace:id,member,serviceRequest,json});
+    }
     if (url.pathname === "/api/v2/findings" || url.pathname.startsWith("/api/v2/findings/")) {
       const id = workspaceId(request); const member = await membership(env, user.id, id);
-      return await handleWorkbench({ request, env, user, workspace: id, member, serviceRequest, json })
+      return await handleWorkbench({ request, env, user, workspace: id, member, serviceRequest, serviceResponse, json })
         || fail(request, env, "NOT_FOUND", "Finding route not found.", 404);
+    }
+
+    if (url.pathname === "/api/v2/research/plans" || url.pathname.startsWith("/api/v2/research/plans/")) {
+      const id = workspaceId(request); const member = await membership(env, user.id, id);
+      return await handleResearchRuns({ request, env, user, workspace: id, member, serviceRequest, json })
+        || await handleResearchQuantities({ request, env, user, workspace: id, member, serviceRequest, json })
+        || await handleResearchConversions({ request, env, user, workspace: id, member, serviceRequest, json })
+        || await handleResearchAggregations({ request, env, user, workspace: id, member, serviceRequest, json })
+        || await handleResearchCalculations({ request, env, user, workspace: id, member, serviceRequest, json })
+        || await handleResearchPlans({ request, env, user, workspace: id, member, serviceRequest, json })
+        || fail(request, env, "NOT_FOUND", "Research plan route not found.", 404);
+    }
+
+    const invitationResponse = await handleInvitations({request,env,user,serviceRequest,membership,workspaceId,json,fail});
+    if (invitationResponse) return invitationResponse;
+
+    if (url.pathname === "/api/v1/evaluations/sample" && request.method === "POST") {
+      const id = workspaceId(request); await membership(env, user.id, id);
+      return json(request, env, runFixtureEvaluation(await readJsonBody(request)));
     }
 
     if (url.pathname === "/api/v1/workspaces" && request.method === "POST") return json(request, env, await createWorkspace(request, env, user), 201);
     if (url.pathname === "/api/v1/workspaces" && (request.method === "GET" || request.method === "HEAD")) {
-      const members = await serviceRequest(env, `workspace_members?user_id=eq.${encodeURIComponent(user.id)}&select=workspace_id,role&limit=50`);
-      const ids = members.map((item) => item.workspace_id);
-      const workspaces = ids.length ? await serviceRequest(env, `workspaces?id=in.(${ids.join(",")})&select=id,name,slug,plan,lifecycle_state,created_at&limit=50`) : [];
-      const roles = Object.fromEntries(members.map((item) => [item.workspace_id, item.role]));
-      return json(request, env, { workspaces: workspaces.map((item) => ({ ...item, workspace_id: item.id, role: roles[item.id] })) });
+      const limitText = url.searchParams.get("limit") ?? "50";
+      const limit = Number(limitText), after = url.searchParams.get("after");
+      if (!/^[0-9]+$/.test(limitText) || !Number.isInteger(limit) || limit < 1 || limit > 100 || (after !== null && !UUID_PATTERN.test(after)))
+        throw Object.assign(new Error("Workspace pagination is invalid."), { status: 422, code: "INVALID_SCOPE" });
+      const scope = `workspace_members?user_id=eq.${encodeURIComponent(user.id)}&workspaces.lifecycle_state=eq.active`;
+      const total = await countRows(env, `${scope}&select=workspace_id,workspaces!inner(id)`);
+      // Read joined membership and active authority together after the count.
+      // The total and page are separate observations, not a transaction snapshot.
+      const members = await serviceRequest(env, `${scope}${after ? `&workspace_id=gt.${encodeURIComponent(after)}` : ""}&select=workspace_id,role,workspaces!inner(id,name,slug,plan,lifecycle_state,created_at)&order=workspace_id.asc&limit=${limit + 1}`);
+      if (!Array.isArray(members) || members.length > limit + 1)
+        throw Object.assign(new Error("Authoritative workspace page is invalid."), { status: 503, code: "PERSISTENCE_UNAVAILABLE" });
+      const hasMore = members.length > limit, page = members.slice(0, limit);
+      if (members.some(row => !row || !UUID_PATTERN.test(row.workspace_id) || row.workspaces?.id !== row.workspace_id || row.workspaces?.lifecycle_state !== "active" || !["owner","admin","editor","viewer"].includes(row.role)))
+        throw Object.assign(new Error("Authoritative workspace inventory is invalid."), { status: 503, code: "PERSISTENCE_UNAVAILABLE" });
+      return json(request, env, { workspaces: page.map(row => ({ ...row.workspaces, workspace_id: row.workspace_id, role: row.role })),
+        total, total_is_exact: true, next_after: hasMore ? page.at(-1).workspace_id : null });
     }
     if (url.pathname === "/api/v1/workspaces/current" && (request.method === "GET" || request.method === "HEAD")) {
       const bound = request.headers.get("x-nexus-workspace-id") || request.headers.get("x-workspace-id");
-      const memberships = bound ? null : await serviceRequest(env, `workspace_members?user_id=eq.${encodeURIComponent(user.id)}&select=workspace_id,role&order=workspace_id.asc&limit=1`);
+      const memberships = bound ? null : await serviceRequest(env, `workspace_members?user_id=eq.${encodeURIComponent(user.id)}&select=workspace_id,role,workspaces!inner(lifecycle_state)&workspaces.lifecycle_state=eq.active&order=workspace_id.asc&limit=1`);
       const id = bound ? workspaceId(request) : memberships?.[0]?.workspace_id;
       if (!id) throw Object.assign(new Error("Create a workspace to continue."), { status: 404, code: "WORKSPACE_NOT_FOUND" });
       const member = await membership(env, user.id, id);
       const rows = await serviceRequest(env, `workspaces?id=eq.${id}&select=id,name,slug,plan,lifecycle_state,created_at&limit=1`);
-      return json(request, env, { ...(rows[0] || {}), workspace_id: id, role: member.role });
+      return json(request, env, { ...(rows[0] || {}), workspace_id: id, role: member.role, user_id: user.id });
     }
 
     if (url.pathname === "/api/v1/workspaces/current/members" && (request.method === "GET" || request.method === "HEAD")) {
       const id = workspaceId(request); await membership(env, user.id, id);
-      const records = await serviceRequest(env, `workspace_members?workspace_id=eq.${id}&select=user_id,role,created_at,profiles(display_name)&order=created_at.asc&limit=100`);
-      const members = records.map(({ profiles, ...record }) => ({ ...record, display_name: profiles?.display_name || null }));
-      const schema = await serviceRequest(env, "rpc/nexus_management_version", { method: "POST", body: "{}" }).catch(() => null);
-      return json(request, env, { workspace_id: id, members, total: members.length, management_supported: schema?.version === "036",
-        invitation_supported: false, add_requires_existing_account: true });
+      const after = url.searchParams.get("after");
+      const rawLimit = url.searchParams.get("limit") ?? "100";
+      if ((after !== null && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(after)) ||
+          !/^[1-9][0-9]{0,2}$/.test(rawLimit) || Number(rawLimit) > 100)
+        return fail(request, env, "INVALID_SCOPE", "Choose a valid member cursor and page size from 1 to 100.", 422);
+      const limit = Number(rawLimit);
+      const [records, total, schema, invitationSchema] = await Promise.all([
+        serviceRequest(env, `workspace_members?workspace_id=eq.${id}${after ? `&user_id=gt.${encodeURIComponent(after)}` : ""}&select=user_id,role,created_at,profiles(display_name)&order=user_id.asc&limit=${limit + 1}`),
+        countWorkspaceRows(env, "workspace_members", id, "", "user_id"),
+        serviceRequest(env, "rpc/nexus_management_version", { method: "POST", body: "{}" }).catch(() => null),
+        serviceRequest(env, "rpc/nexus_invitation_version", { method: "POST", body: "{}" }).catch(() => null),
+      ]);
+      // Revalidate access after reads: a removed member must not receive a late roster.
+      await membership(env, user.id, id);
+      const more = records.length > limit;
+      const members = records.slice(0, limit).map(({ profiles, ...record }) => ({ ...record, display_name: profiles?.display_name || null }));
+      return json(request, env, { workspace_id: id, members, total, total_is_exact: true,
+        next_after: more ? members.at(-1).user_id : null, management_supported: schema?.version === "036",
+        invitation_supported: invitationSchema?.version === "040" && invitationSchema.recipient_bound === true && invitationSchema.manual_delivery === true, add_requires_existing_account: true });
     }
     const memberRoute = url.pathname.match(/^\/api\/v1\/workspaces\/current\/members(?:\/([0-9a-f-]{36}))?$/i);
     if (memberRoute && ["POST", "PATCH", "DELETE"].includes(request.method)) {
@@ -547,6 +873,28 @@ async function handle(request, env = {}) {
         p_target: memberRoute[1] || String(body?.email_or_user_id || "").trim(), p_role: body?.role || null,
       }) });
       return json(request, env, result, operation === "add" ? 201 : 200);
+    }
+    if (url.pathname === "/api/v1/privacy/processing-policy" && ["GET", "HEAD", "PATCH"].includes(request.method)) {
+      const id = workspaceId(request); const member = await membership(env, user.id, id);
+      const body = request.method === "PATCH" ? await readJsonBody(request) : null;
+      if (body && (!body || typeof body !== "object" || Array.isArray(body) ||
+        Object.keys(body).some(key => !["operation", "terms_hash", "policy_version", "acknowledged_non_sensitive_only"].includes(key)) ||
+        !["approve", "revoke"].includes(body.operation) || !Number.isSafeInteger(body.policy_version) || body.policy_version < 0 ||
+        (body.operation === "approve" && (body.acknowledged_non_sensitive_only !== true || !/^[0-9a-f]{64}$/.test(body.terms_hash || "")))))
+        return fail(request, env, "INVALID_SCOPE", "Choose a valid terms-bound owner decision.", 422);
+      if (request.method === "PATCH" && (!body || member.role !== "owner"))
+        return fail(request, env, member.role !== "owner" ? "FORBIDDEN" : "INVALID_SCOPE", "Only a current workspace owner can record this decision.", member.role !== "owner" ? 403 : 422);
+      try {
+        const policy = await serviceRequest(env, "rpc/nexus_workspace_processing_policy", { method: "POST", body: JSON.stringify({
+          p_workspace: id, p_actor: user.id, p_operation: body?.operation || "read",
+          p_terms_hash: body?.terms_hash || null, p_policy_version: body?.policy_version ?? null,
+        }) });
+        if (policy?.schema_version !== "038") return fail(request, env, "MIGRATION_REQUIRED", "Terms-bound policy controls require migration 038.", 503);
+        return json(request, env, policy);
+      } catch (error) {
+        if (error?.code === "PERSISTENCE_UNAVAILABLE" && ["PGRST202", "42883"].includes(error.storageCode)) return fail(request, env, "MIGRATION_REQUIRED", "Policy storage is unavailable. Verify migration 038 before approving processing.", 503);
+        throw error;
+      }
     }
     if (url.pathname === "/api/v1/privacy/settings" && (request.method === "GET" || request.method === "HEAD")) {
       const id = workspaceId(request); await membership(env, user.id, id);
@@ -623,15 +971,52 @@ async function handle(request, env = {}) {
       if(jobRoute[2]==="retry"&&request.method==="POST")return json(request,env,await retryExistingJob(env,id,jobRoute[1],member),202);
       if(jobRoute[2]==="cancel"&&request.method==="POST")return json(request,env,await cancelExistingJob(env,id,jobRoute[1],member),202);
     }
-    const documentRoute=url.pathname.match(/^\/api\/v1\/documents\/([0-9a-f-]{36})\/(status|chunks|reindex|delete)$/i);
+    const documentRoute=url.pathname.match(/^\/api\/v1\/documents\/([0-9a-f-]{36})\/(status|chunks|original|reindex|delete)$/i);
     if(documentRoute){const id=workspaceId(request);const member=await membership(env,user.id,id);const documentId=documentRoute[1];const action=documentRoute[2];
       if(action==="status"&&(request.method==="GET"||request.method==="HEAD")){const document=await loadBoundDocument(env,id,documentId);const jobs=await serviceRequest(env,`ingestion_jobs?workspace_id=eq.${id}&document_id=eq.${documentId}&select=*&order=created_at.desc&limit=1`);return json(request,env,jobs?.[0]?jobView(jobs[0],document):{job_id:"",document_id:documentId,filename:document.filename,status:document.status==="ready"?"completed":document.status==="error"?"failed":document.status,stage:document.status,progress:document.status==="ready"?100:0,message:`Document ${document.status}`,error_message:document.error_message,created_at:document.created_at,updated_at:document.updated_at,document:documentView(document)});}
-      if(action==="chunks"&&(request.method==="GET"||request.method==="HEAD")){const document=await loadBoundDocument(env,id,documentId);const limit=Math.min(Math.max(Number.parseInt(url.searchParams.get("limit")||"100",10)||100,1),200);const query=String(url.searchParams.get("search")||"").trim().toLowerCase();let chunks=document.active_version_id?await serviceRequest(env,`document_chunks?workspace_id=eq.${id}&document_id=eq.${documentId}&version_id=eq.${document.active_version_id}&select=chunk_index,content,page_number,section_title,token_count,metadata&order=chunk_index.asc&limit=${limit}`):[];if(query)chunks=chunks.filter(c=>String(c.content||"").toLowerCase().includes(query));return json(request,env,{document_id:documentId,filename:document.filename,chunks,total:chunks.length,query:query||null});}
+      if(action==="chunks"&&(request.method==="GET"||request.method==="HEAD"))return json(request,env,await chunkPreviews(request,env,user,id,documentId));
+      if(action==="original"&&(request.method==="GET"||request.method==="HEAD"))return await documentOriginal(request,env,user,id,documentId);
       if(action==="reindex"&&request.method==="POST")return json(request,env,await reindexDocument(request,env,user,id,member,documentId),202);
       if(action==="delete"&&request.method==="POST")return json(request,env,await deleteDocument(request,env,user,id,member,documentId));
     }
     const sessionRoute=url.pathname.match(/^\/api\/v1\/chat\/sessions\/([0-9a-f-]{36})\/(messages|clear)$/i);
-    if(sessionRoute){const id=workspaceId(request);await membership(env,user.id,id);const sessionId=sessionRoute[1];const sessions=await serviceRequest(env,`chat_sessions?workspace_id=eq.${id}&id=eq.${sessionId}&user_id=eq.${user.id}&deleted_at=is.null&select=*&limit=1`);if(!sessions?.[0]&&sessionRoute[2]==="messages")return json(request,env,{session_id:sessionId,messages:[],total:0});if(!sessions?.[0])throw Object.assign(new Error("Chat session not found."),{status:404,code:"SESSION_NOT_FOUND"});if(sessionRoute[2]==="messages"&&(request.method==="GET"||request.method==="HEAD")){const messages=await serviceRequest(env,`chat_messages?workspace_id=eq.${id}&session_id=eq.${sessionId}&select=role,content,sources,metadata,created_at&order=created_at.asc&limit=500`);return json(request,env,{session_id:sessionId,messages,total:messages.length});}if(sessionRoute[2]==="clear"&&request.method==="POST"){const messages=await serviceRequest(env,`chat_messages?workspace_id=eq.${id}&session_id=eq.${sessionId}&select=id`);await serviceRequest(env,`chat_messages?workspace_id=eq.${id}&session_id=eq.${sessionId}`,{method:"DELETE"});await serviceRequest(env,`chat_sessions?id=eq.${sessionId}`,{method:"PATCH",body:JSON.stringify({updated_at:new Date().toISOString(),revision:Number(sessions[0].revision||1)+1})});return json(request,env,{success:true,durable_messages_deleted:messages.length});}}
+    if(sessionRoute){
+      const id=workspaceId(request);await membership(env,user.id,id);
+      const sessionId=sessionRoute[1].toLowerCase();
+      if(sessionRoute[2]==="clear"&&request.method==="POST"){
+        let rows;
+        try {
+          rows=await userRequest(request,env,"rpc/clear_private_history",{
+            method:"POST",body:JSON.stringify({p_workspace:id.toLowerCase(),p_session:sessionId})});
+        } catch {
+          return fail(request,env,"CLEANUP_UNCONFIRMED","Conversation cleanup could not be confirmed.",503,true);
+        }
+        if(Array.isArray(rows)&&rows.length===0)
+          return fail(request,env,"CONVERSATION_UNAVAILABLE","Conversation is not available.",404);
+        const receipt=Array.isArray(rows)&&rows.length===1?rows[0]:null;
+        if(!receipt||receipt.workspace_id!==id.toLowerCase()||receipt.session_id!==sessionId||receipt.success!==true||
+          !Number.isSafeInteger(receipt.durable_messages_deleted)||receipt.durable_messages_deleted<0)
+          return fail(request,env,"CLEANUP_UNCONFIRMED","Conversation cleanup could not be confirmed.",503,true);
+        return json(request,env,{success:true,durable_messages_deleted:receipt.durable_messages_deleted});
+      }
+      if(sessionRoute[2]==="messages"&&(request.method==="GET"||request.method==="HEAD")){
+        let rows;
+        try {
+          rows=await userRequest(request,env,"rpc/read_gateway_private_history",{
+            method:"POST",body:JSON.stringify({p_workspace:id.toLowerCase(),p_session:sessionId})});
+        } catch {
+          return fail(request,env,"HISTORY_UNCONFIRMED","Conversation history could not be confirmed.",503,true);
+        }
+        if(!Array.isArray(rows)||rows.length>500||rows.some(row=>
+          !row||row.workspace_id!==id.toLowerCase()||row.session_id!==sessionId||
+          !["user","assistant","system"].includes(row.role)||typeof row.content!=="string"||
+          !Array.isArray(row.sources)||!row.metadata||typeof row.metadata!=="object"||Array.isArray(row.metadata)||
+          !(typeof row.created_at==="string"||row.created_at===null)))
+          return fail(request,env,"HISTORY_UNCONFIRMED","Conversation history could not be confirmed.",503,true);
+        const messages=rows.map(({role,content,sources,metadata,created_at})=>({role,content,sources,metadata,created_at}));
+        return json(request,env,{session_id:sessionId,messages,total:messages.length});
+      }
+    }
     if (url.pathname === "/api/v1/chat" && request.method === "POST") {
       const id=workspaceId(request);const member=await membership(env,user.id,id);const result=await chat(request,env,user,id,member);
       if((request.headers.get("accept")||"").includes("text/event-stream")){const encoder=new TextEncoder();const stream=new ReadableStream({start(controller){for(const token of result.answer.match(/.{1,96}/gs)||[])controller.enqueue(encoder.encode(`event: token\ndata: ${JSON.stringify({content:token})}\n\n`));controller.enqueue(encoder.encode(`event: sources\ndata: ${JSON.stringify({sources:result.sources})}\n\nevent: done\ndata: ${JSON.stringify({metadata:result.metadata})}\n\n`));controller.close();}});const output=headers(request,env);output.set("content-type","text/event-stream; charset=utf-8");output.set("connection","keep-alive");return new Response(stream,{status:200,headers:output});}
@@ -692,6 +1077,12 @@ async function handle(request, env = {}) {
       return json(request, env, {
         service: "NexusRAG Cloudflare Gateway",
         status: supabaseDataApiReachable ? "READY" : "DEGRADED",
+        readiness: "NOT_PROBED",
+        dependency_status: {
+          supabase_data_api: supabaseDataApiReachable ? "REACHABLE" : "UNAVAILABLE",
+          qdrant: qdrantConfigured ? "CONFIGURED_NOT_PROBED" : "NOT_CONFIGURED",
+          gemini: env.GOOGLE_API_KEY ? "CONFIGURED_NOT_PROBED" : "NOT_CONFIGURED",
+        },
         version: "v6-preview",
         total_documents: totalDocuments,
         total_chunks: totalChunks,
@@ -783,7 +1174,7 @@ async function handle(request, env = {}) {
       if (["/api/v2/claims", "/api/v2/findings"].includes(url.pathname)) {
         return await handleWorkbench({ request, env, user, workspace: id, member, serviceRequest, json });
       }
-      if (["/api/v2/obligations", "/api/v2/procurement", "/api/v2/passports"].includes(url.pathname)) {
+      if (["/api/v2/procurement", "/api/v2/passports"].includes(url.pathname)) {
         return fail(request, env, "CAPABILITY_UNAVAILABLE", "This product lookup is not implemented in this runtime.", 501);
       }
       const rows = await userRequest(request, env, `${route.table}?workspace_id=eq.${id}&select=*&limit=${limit}`);

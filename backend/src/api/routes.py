@@ -47,6 +47,7 @@ from config.settings import Settings, get_settings
 from evals.run_eval import DEFAULT_DATASET, run_evaluation
 from src.api.auth import WorkspaceContext, WorkspaceRole, require_enterprise_workspace_role
 from src.api.dependencies import get_rag_chain, get_vector_store, verify_api_key
+from src.api.private_turn import prepare_private_turn, persist_private_turn, revalidate_private_turn
 from src.api.models import (
     AnalyticsSummary,
     AuditEventListResponse,
@@ -98,12 +99,13 @@ from src.repositories.documents import (
     compute_sha256,
 )
 from src.repositories.jobs import IngestionJobRepository
-from src.repositories.messages import MessageRepository
+from src.repositories.messages import ConversationUnavailableError, MessageRepository
 from src.repositories.provider_health import persist_provider_health_snapshot
 from src.repositories.settings import WorkspaceSettingsRepository
 from src.retrieval.vector_store import VectorStoreManager
 from src.telemetry.events import estimate_tokens, get_telemetry_recorder
 from src.tenancy.lifecycle import WorkspaceLifecycleService
+from src.tenancy.manual_retention import ManualRetentionError, run_manual_retention
 from src.tenancy.quotas import QuotaExceededError, TenantQuotaEnforcer
 from src.utils.layered_cache import get_layered_cache
 from src.utils.logger import get_logger
@@ -352,88 +354,6 @@ async def _workspace_chunk_count(
                 error=str(exc)[:300],
             )
     return max(candidates)
-
-
-def _valid_chat_session_id(session_id: str | None) -> str | None:
-    if not session_id:
-        return str(uuid.uuid4())
-    try:
-        uuid.UUID(session_id)
-    except ValueError:
-        return None
-    return session_id
-
-
-def _chat_title(question: str) -> str:
-    title = " ".join(question.split())
-    return (title[:77] + "...") if len(title) > 80 else title
-
-
-async def _persist_chat_turn(
-    *,
-    workspace: WorkspaceContext | None,
-    settings: Settings,
-    session_id: str | None,
-    question: str,
-    answer: str,
-    sources: list[SourceChunk],
-    metadata: dict,
-) -> str | None:
-    if not _should_persist_workspace_event(workspace, settings):
-        return session_id
-
-    durable_session_id = _valid_chat_session_id(session_id)
-    if durable_session_id is None:
-        logger.warning(
-            "chat_history_invalid_session_id",
-            workspace_id=_context_workspace_id(workspace),
-            session_id=session_id,
-        )
-        return session_id
-
-    workspace_id = _context_workspace_id(workspace)
-    user_id = _context_user_id(workspace)
-    source_payload = [source.model_dump(mode="json") for source in sources]
-    try:
-        repo = MessageRepository()
-        await repo.ensure_session(
-            workspace_id=workspace_id,
-            session_id=durable_session_id,
-            user_id=user_id,
-            title=_chat_title(question),
-        )
-        await repo.add_message(
-            workspace_id=workspace_id,
-            session_id=durable_session_id,
-            role="user",
-            content=question,
-            metadata={"source": "chat_api"},
-        )
-        await repo.add_message(
-            workspace_id=workspace_id,
-            session_id=durable_session_id,
-            role="assistant",
-            content=answer,
-            sources=source_payload,
-            metadata={
-                "source": "chat_api",
-                "query_type": metadata.get("query_type"),
-                "confidence": metadata.get("confidence"),
-                "response_time_seconds": metadata.get("response_time_seconds"),
-                "model": metadata.get("model"),
-                "from_cache": metadata.get("from_cache"),
-                "generation_fallback": metadata.get("generation_fallback"),
-            },
-        )
-    except Exception as exc:
-        logger.warning(
-            "chat_history_persist_failed",
-            workspace_id=workspace_id,
-            session_id=durable_session_id,
-            error=str(exc)[:300],
-        )
-        return session_id
-    return durable_session_id
 
 
 def _preflight_upload_limits(filename: str, content: bytes, settings: Settings) -> None:
@@ -869,7 +789,9 @@ async def query_chat_with_durable_fallback(
     retrieval_filters: dict[str, Any],
     persist_event: bool,
     settings: Settings,
+    isolated_context: str | None = None,
 ) -> dict[str, Any]:
+    private_options = {"isolated_context": isolated_context} if isolated_context else {}
     result = chain.query(
         question,
         workspace_id=workspace_id,
@@ -878,6 +800,7 @@ async def query_chat_with_durable_fallback(
         top_k=top_k,
         use_reranking=use_reranking,
         retrieval_filters=retrieval_filters or None,
+        **private_options,
     )
     if persist_event and not result.get("sources"):
         durable_docs = await _durable_chunk_documents_for_filters(
@@ -2096,6 +2019,13 @@ async def chat(
     telemetry = get_telemetry_recorder()
     persist_event = _should_persist_workspace_event(workspace, settings)
     retrieval_filters = _chat_retrieval_filters(body)
+    repository = MessageRepository()
+    turn_context = await prepare_private_turn(workspace=workspace, settings=settings,
+        session_id=body.session_id, repository=repository)
+    session_id = turn_context.session_id if turn_context else body.session_id
+    if turn_context and not history:
+        history = [dict(message) for message in turn_context.history]
+        history_token_parts = [message["content"] for message in history]
     estimated_input_tokens = estimate_tokens(body.question, *history_token_parts)
 
     try:
@@ -2122,18 +2052,20 @@ async def chat(
         )
         raise HTTPException(status_code=429, detail=str(exc)) from exc
 
+    await revalidate_private_turn(context=turn_context, repository=repository)
     try:
         result = await query_chat_with_durable_fallback(
             chain=chain,
             question=body.question,
             workspace_id=workspace_id,
-            session_id=body.session_id,
+            session_id=session_id,
             conversation_history=history if history else None,
             top_k=body.top_k,
             use_reranking=body.use_reranking,
             retrieval_filters=retrieval_filters,
             persist_event=persist_event,
             settings=settings,
+            isolated_context=turn_context.cache_authority if turn_context else None,
         )
     except Exception as exc:
         await telemetry.record_llm_usage(
@@ -2181,6 +2113,7 @@ async def chat(
     metadata["response_time_seconds"] = result.get("response_time_seconds", 0.0)
     answer = result["answer"]
     latency_ms = int(float(result.get("response_time_seconds", 0.0) or 0.0) * 1000)
+    metadata["session_id"] = session_id
 
     await telemetry.record_llm_usage(
         workspace_id=workspace_id,
@@ -2201,6 +2134,14 @@ async def chat(
         workspace_id=workspace_id,
         persist=persist_event,
     )
+    try:
+        await persist_private_turn(context=turn_context, repository=repository, question=body.question,
+            answer=answer, sources=[source.model_dump(mode="json") for source in sources], metadata=metadata)
+    except HTTPException as exc:
+        await _record_audit_event(workspace=workspace, settings=settings,
+            action="chat.turn_unconfirmed", resource_type="chat_session", resource_id=session_id,
+            metadata={"status": exc.status_code, "generation_completed": True})
+        raise
     await _record_audit_event(
         workspace=workspace,
         settings=settings,
@@ -2221,16 +2162,6 @@ async def chat(
             "latency_ms": latency_ms,
         },
     )
-    persisted_session_id = await _persist_chat_turn(
-        workspace=workspace,
-        settings=settings,
-        session_id=body.session_id,
-        question=body.question,
-        answer=answer,
-        sources=sources,
-        metadata=metadata,
-    )
-    metadata["session_id"] = persisted_session_id or body.session_id
     return QueryResponse(
         answer=answer,
         sources=sources,
@@ -2251,21 +2182,44 @@ async def clear_session(
     chain: RAGChain = Depends(get_rag_chain),
 ) -> dict:
     workspace_id = _context_workspace_id(workspace)
-    chain.clear_session(session_id, workspace_id=workspace_id)
     durable_messages_deleted = 0
-    if _should_persist_workspace_event(workspace, settings):
+    if workspace and not workspace.user.is_demo:
+        if not settings.supabase_configured or not workspace.user.access_token:
+            raise HTTPException(status_code=503,
+                detail="Conversation cleanup could not be confirmed.")
         try:
             durable_messages_deleted = await MessageRepository().clear_session(
                 workspace_id=workspace_id,
                 session_id=session_id,
+                access_token=workspace.user.access_token,
             )
-        except Exception as exc:
+            if type(durable_messages_deleted) is not int or durable_messages_deleted < 0:
+                raise ValueError("Unconfirmed cleanup count")
+        except ConversationUnavailableError:
+            raise HTTPException(status_code=404,
+                detail="Conversation is not available.") from None
+        except Exception:
             logger.warning(
                 "chat_history_clear_failed",
                 workspace_id=workspace_id,
-                session_id=session_id,
-                error=str(exc)[:300],
+                stage="durable",
             )
+            raise HTTPException(
+                status_code=503,
+                detail="Conversation cleanup could not be confirmed.",
+            ) from None
+    try:
+        chain.clear_session(session_id, workspace_id=workspace_id)
+    except Exception:
+        logger.warning(
+            "chat_history_clear_failed",
+            workspace_id=workspace_id,
+            stage="memory",
+        )
+        raise HTTPException(
+            status_code=503,
+            detail="Conversation cleanup could not be confirmed.",
+        ) from None
     await _record_audit_event(
         workspace=workspace,
         settings=settings,
@@ -2292,11 +2246,14 @@ async def list_session_messages(
 ) -> ChatHistoryResponse:
     workspace_id = _context_workspace_id(workspace)
     messages: list[ChatHistoryMessage] = []
-    if _should_persist_workspace_event(workspace, settings):
+    if workspace and not workspace.user.is_demo:
         try:
-            rows = await MessageRepository().list_messages(
+            if not settings.supabase_configured or not workspace.user.access_token:
+                raise ValueError("History authority is unavailable")
+            rows = await MessageRepository().list_authorized_messages(
                 workspace_id=workspace_id,
                 session_id=session_id,
+                access_token=workspace.user.access_token,
             )
             messages = [
                 ChatHistoryMessage(
@@ -2308,15 +2265,17 @@ async def list_session_messages(
                 )
                 for row in rows
             ]
-        except Exception as exc:
+        except Exception:
             logger.warning(
                 "chat_history_read_failed",
                 workspace_id=workspace_id,
-                session_id=session_id,
-                error=str(exc)[:300],
             )
+            raise HTTPException(
+                status_code=503,
+                detail="Conversation history is unavailable. Please retry.",
+            ) from None
 
-    if not messages:
+    else:
         messages = [
             ChatHistoryMessage(
                 role=str(message.get("role") or "assistant"),
@@ -2481,7 +2440,10 @@ def _raise_api_key_validation_error(exc: Exception) -> None:
         raise HTTPException(400, "Invalid API key. Please check and try again.")
     if any(term in err_msg for term in ("quota", "429", "resource exhausted")):
         raise HTTPException(400, "This API key has also exceeded its quota.")
-    logger.warning("api_key_validation_warning", error=str(exc)[:300])
+    logger.warning("api_key_validation_unavailable", error_type=type(exc).__name__)
+    raise HTTPException(
+        503, "Provider key verification is unavailable. The key was not accepted."
+    ) from exc
 
 
 def _validate_provider_api_key(provider: str, api_key: str) -> None:
@@ -2514,6 +2476,9 @@ def _validate_provider_api_key(provider: str, api_key: str) -> None:
             raise HTTPException(400, "Invalid API key - no models accessible.")
     except ImportError:
         logger.warning("api_key_validation_library_unavailable", provider=normalized_provider)
+        raise HTTPException(
+            503, "Provider key verification is unavailable. The key was not accepted."
+        )
     except HTTPException:
         raise
     except Exception as exc:
@@ -2553,7 +2518,7 @@ async def set_api_key(
             "api_key_persist_failed",
             workspace_id=workspace_id,
             provider=normalized_provider,
-            error=str(exc)[:300],
+            error_type=type(exc).__name__,
         )
 
     logger.info(
@@ -2762,25 +2727,17 @@ async def run_retention(
     if not _should_persist_workspace_event(workspace, settings):
         raise HTTPException(403, "Demo mode cannot run durable retention.")
     workspace_id = _context_workspace_id(workspace)
-    row = await WorkspaceSettingsRepository().get_settings(workspace_id=workspace_id)
-    retention_days = _safe_int((row or {}).get("retention_days"))
-    if not (row or {}).get("retention_enabled") or retention_days < 1:
-        raise HTTPException(409, "Enable a retention schedule before running cleanup.")
     qdrant = QdrantVectorStore(settings) if settings.qdrant_configured else None
-    result = await WorkspaceLifecycleService(vector_store=vs, qdrant_store=qdrant).apply_retention(
-        workspace_id=workspace_id,
-        retention_days=retention_days,
-    )
-    now = datetime.now(UTC)
-    if result.failures:
-        await WorkspaceSettingsRepository().upsert_settings(
+    try:
+        result = await run_manual_retention(
+            settings=WorkspaceSettingsRepository(),
+            lifecycle=WorkspaceLifecycleService(vector_store=vs, qdrant_store=qdrant),
             workspace_id=workspace_id,
-            values={
-                "next_retention_at": (now + timedelta(hours=1)).isoformat(),
-                "retention_lease_owner": None,
-                "retention_lease_expires_at": None,
-            },
+            actor_id=workspace.user.id,
+            worker_id=f"manual-retention:{uuid.uuid4().hex}",
         )
+    except ManualRetentionError as exc:
+        result = exc.result
         await _record_audit_event(
             workspace=workspace,
             settings=settings,
@@ -2788,24 +2745,28 @@ async def run_retention(
             resource_type="workspace",
             resource_id=workspace_id,
             metadata={
-                "documents_deleted": result.documents_deleted,
-                "chat_sessions_deleted": result.chat_sessions_deleted,
-                "failures": result.failures,
+                "code": exc.code,
+                "retry_scheduled": exc.retry_scheduled,
+                "documents_deleted": result.documents_deleted if result else 0,
+                "chat_sessions_deleted": result.chat_sessions_deleted if result else 0,
+                "failures": result.failures if result else [],
             },
         )
+        if exc.code == "CLAIM_UNAVAILABLE":
+            raise HTTPException(409, "Retention is disabled or another cleanup is running.") from None
+        if exc.code == "LEASE_LOST":
+            raise HTTPException(409, "Retention authority changed. Cleanup completion was not confirmed.") from None
+        if exc.retry_scheduled:
+            message = (
+                "Retention cleanup completed with partial failures and was scheduled for retry."
+                if result is not None else
+                "Retention cleanup failed and was scheduled for retry. Cleanup progress is unverified."
+            )
+        else:
+            message = "Retention could not be confirmed. Retry scheduling and cleanup completion are unverified."
         raise HTTPException(
-            502,
-            "Retention cleanup completed with partial failures and was scheduled for retry.",
-        )
-    await WorkspaceSettingsRepository().upsert_settings(
-        workspace_id=workspace_id,
-        values={
-            "last_retention_at": now.isoformat(),
-            "next_retention_at": (now + timedelta(days=1)).isoformat(),
-            "retention_lease_owner": None,
-            "retention_lease_expires_at": None,
-        },
-    )
+            502, message,
+        ) from None
     await _record_audit_event(
         workspace=workspace,
         settings=settings,

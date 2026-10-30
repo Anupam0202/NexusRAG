@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from typing import Any
+from unittest.mock import AsyncMock
 
 import pytest
 
@@ -28,6 +29,7 @@ class FakeSupabase:
     def __init__(self) -> None:
         self.calls: list[tuple[str, str, Any, dict[str, Any]]] = []
         self.rows: dict[str, list[dict[str, Any]]] = {}
+        self.deleted_rows: dict[str, list[dict[str, Any]]] = {}
         self.counter = 0
 
     def _next_id(self, table: str) -> str:
@@ -108,7 +110,7 @@ class FakeSupabase:
         self.calls.append(
             ("delete", table, query, {"service_role": service_role, "prefer": prefer})
         )
-        return [{"deleted": True}]
+        return self.deleted_rows.get(table, [{"deleted": True}])
 
     async def upload_object(
         self,
@@ -545,44 +547,46 @@ async def test_provider_health_repository_persists_workspace_snapshot() -> None:
 
 
 @pytest.mark.asyncio
-async def test_message_repository_ensures_explicit_session_id() -> None:
+async def test_message_repository_has_no_unfenced_private_turn_writers() -> None:
     fake = FakeSupabase()
     repo = MessageRepository(fake)  # type: ignore[arg-type]
 
-    session = await repo.ensure_session(
-        workspace_id="workspace-1",
-        session_id="11111111-1111-1111-1111-111111111111",
-        user_id="user-1",
-        title="First question",
-    )
-
-    assert session["id"] == "11111111-1111-1111-1111-111111111111"
-    assert fake.calls[0][0] == "select"
-    assert "id=eq.11111111-1111-1111-1111-111111111111" in fake.calls[0][2]
-    insert_call = fake.calls[1]
-    assert insert_call[0] == "insert"
-    assert insert_call[1] == "chat_sessions"
-    assert insert_call[2]["id"] == "11111111-1111-1111-1111-111111111111"
+    for name in ("ensure_session", "create_session", "add_message", "get_session", "list_messages"):
+        assert not hasattr(repo, name)
+    assert fake.calls == []
 
 
 @pytest.mark.asyncio
 async def test_message_repository_lists_and_clears_workspace_session_messages() -> None:
     fake = FakeSupabase()
-    fake.rows["chat_messages"] = [{"role": "user", "content": "hello"}]
+    workspace_id = "11111111-1111-4111-8111-111111111111"
+    session_id = "a1111111-1111-4111-8111-111111111111"
+    fake.rows["chat_messages"] = [{
+        "role": "user", "content": "hello", "workspace_id": workspace_id,
+        "session_id": session_id,
+    }]
+    fake.rpc_as_user = AsyncMock(side_effect=[fake.rows["chat_messages"], [{"workspace_id": workspace_id,
+        "session_id": session_id, "success": True, "durable_messages_deleted": 1}]])
     repo = MessageRepository(fake)  # type: ignore[arg-type]
 
-    messages = await repo.list_messages(
-        workspace_id="workspace-1",
-        session_id="11111111-1111-1111-1111-111111111111",
+    messages = await repo.list_authorized_messages(
+        workspace_id=workspace_id,
+        session_id=session_id,
+        access_token="synthetic.user.token",
     )
     deleted = await repo.clear_session(
-        workspace_id="workspace-1",
-        session_id="11111111-1111-1111-1111-111111111111",
+        workspace_id=workspace_id,
+        session_id=session_id,
+        access_token="synthetic.user.token",
     )
 
     assert messages[0]["content"] == "hello"
     assert deleted == 1
-    assert "workspace_id=eq.workspace-1" in fake.calls[0][2]
-    assert "session_id=eq.11111111-1111-1111-1111-111111111111" in fake.calls[0][2]
-    assert "workspace_id=eq.workspace-1" in fake.calls[1][2]
-    assert "session_id=eq.11111111-1111-1111-1111-111111111111" in fake.calls[1][2]
+    assert fake.calls == []  # No privileged table read/delete.
+    assert fake.rpc_as_user.await_count == 2
+    assert fake.rpc_as_user.await_args_list[0].args == ("read_private_history",
+        {"p_workspace": workspace_id, "p_session": session_id, "p_limit": 50})
+    assert fake.rpc_as_user.await_args_list[1].args == ("clear_private_history",
+        {"p_workspace": workspace_id, "p_session": session_id})
+    assert all(call.kwargs == {"access_token": "synthetic.user.token"}
+               for call in fake.rpc_as_user.await_args_list)

@@ -2,7 +2,22 @@
 DO $$ DECLARE n int; BEGIN
  SELECT count(*) INTO n FROM pg_class c JOIN pg_namespace s ON s.oid=c.relnamespace
  WHERE s.nspname='public' AND c.relkind='r' AND c.relrowsecurity;
- IF n<>56 THEN RAISE EXCEPTION 'expected 56 RLS tables, found %',n; END IF;
+ IF n<>70 THEN RAISE EXCEPTION 'expected 70 RLS tables including immutable research drafts, calculations, source quantities, research executions, finding evidence packages, supplied Radar snapshots and Obligation Evidence serving, found %',n; END IF;
+ IF (SELECT count(*) FROM pg_class c JOIN pg_namespace s ON s.oid=c.relnamespace
+     WHERE s.nspname='public' AND c.relkind='r' AND c.relrowsecurity
+       AND c.relname IN ('finding_export_rights','finding_packages'))<>2 THEN
+  RAISE EXCEPTION 'the two finding evidence package RLS tables are missing';
+ END IF;
+ IF (SELECT count(*) FROM pg_class c JOIN pg_namespace s ON s.oid=c.relnamespace
+     WHERE s.nspname='public' AND c.relkind='r' AND c.relrowsecurity
+       AND c.relname IN ('radar_sources','radar_snapshots','radar_changes','radar_reviews','radar_findings'))<>5 THEN
+  RAISE EXCEPTION 'the five supplied Radar snapshot RLS tables are missing';
+ END IF;
+ IF (SELECT count(*) FROM pg_class c JOIN pg_namespace s ON s.oid=c.relnamespace
+     WHERE s.nspname='public' AND c.relkind='r' AND c.relrowsecurity
+       AND c.relname IN ('obligation_evidence_origins','finding_serving_rights'))<>2 THEN
+  RAISE EXCEPTION 'the two Obligation Evidence serving RLS tables are missing';
+ END IF;
  IF has_table_privilege('authenticated','public.provider_registry','select') OR has_table_privilege('anon','public.provider_registry','select') THEN
   RAISE EXCEPTION 'client role unexpectedly reads protected provider table';
  END IF;

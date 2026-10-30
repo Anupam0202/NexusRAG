@@ -9,13 +9,13 @@ import type { SourceChunk } from "@/types";
 import {
   Send, ArrowDown, Sparkles, FileSearch, Brain,
   MessageSquare, Trash2, Zap, BookOpen, Search, Upload, Files,
-  Download, FileJson, SlidersHorizontal, X,
+  Download, FileJson, SlidersHorizontal, X, RotateCcw,
 } from "lucide-react";
 import { AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { useStore } from "@/hooks/useStore";
 import { useDocuments } from "@/hooks/useDocuments";
-import { clearSession } from "@/lib/api";
+import { ApiRequestError, clearSession } from "@/lib/api";
 import { buildChatRequestFilters, exportChatJson, exportChatMarkdown } from "@/lib/chat-tools";
 import { toggleDocumentSelection } from "@/lib/workspace-controls";
 import { toast } from "sonner";
@@ -30,7 +30,15 @@ const SUGGESTIONS = [
 ];
 
 export default function ChatInterface() {
-  const { sendMessage, messages } = useChat();
+  const identity = useStore(state => JSON.stringify([state.authMode, state.authUser?.id, state.workspaceId]));
+  return <WorkspaceChat key={identity} />;
+}
+function WorkspaceChat() {
+  const { sendMessage, messages, documentSelectionRequest } = useChat();
+  const alive = useRef(true);
+  useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
+  const [clearing, setClearing] = useState(false);
+  const [localResetSession, setLocalResetSession] = useState<string | null>(null);
   const [input, setInput] = useState("");
   const [nonSensitiveAttested, setNonSensitiveAttested] = useState(false);
   const [activeSources, setActiveSources] = useState<SourceChunk[] | null>(null);
@@ -58,7 +66,7 @@ export default function ChatInterface() {
   const bottomRef = useRef<HTMLDivElement>(null);
 
   const store = useStore();
-  const canChat = store.authMode === "authenticated" || store.authMode === "demo";
+  const canChat = store.authMode === "demo" || (store.authMode === "authenticated" && !!store.workspaceId);
   const docCount = documents.length;
   const isStreaming = messages.some((m) => m.isStreaming);
   const readyDocuments = useMemo(
@@ -75,6 +83,7 @@ export default function ChatInterface() {
     Boolean(input.trim()) &&
     nonSensitiveAttested &&
     !isStreaming &&
+    !clearing &&
     canChat &&
     (chatScope === "workspace" || hasDocumentFilter);
 
@@ -173,12 +182,32 @@ export default function ChatInterface() {
 
   const scrollToBottom = () => bottomRef.current?.scrollIntoView({ behavior: "smooth" });
 
-  const clearChat = () => {
-    store.clearMessages?.();
-    setActiveSources(null);
-    if (canChat) {
-      clearSession(store.sessionId).catch(() => {/* best-effort */ });
-    }
+  const clearChat = async () => {
+    if (!canChat || clearing || isStreaming) return;
+    const sessionId = store.sessionId;
+    const current = () => alive.current && useStore.getState().sessionId === sessionId &&
+      useStore.getState().authUser?.id === store.authUser?.id && useStore.getState().workspaceId === store.workspaceId;
+    setClearing(true);
+    try {
+      const receipt = await clearSession(sessionId, { workspaceId: store.workspaceId,
+        expectedUserId: store.authMode === "authenticated" ? store.authUser?.id ?? null : undefined });
+      if (!receipt.success) throw new Error("Chat deletion is not complete.");
+      if (current()) { store.clearMessages(); setActiveSources(null); setLocalResetSession(null); toast.success("Chat history cleared"); }
+    } catch (error) {
+      if (!current()) return;
+      if (error instanceof ApiRequestError && error.code === "SESSION_NOT_FOUND") {
+        store.clearMessages(); setActiveSources(null); // No durable session exists.
+      } else {
+        if (error instanceof ApiRequestError && error.code === "CONVERSATION_UNAVAILABLE") setLocalResetSession(sessionId);
+        toast.error(error instanceof Error ? error.message : "Unable to clear durable chat history. Messages were retained.");
+      }
+    } finally { if (current()) setClearing(false); }
+  };
+
+  const resetLocalDraft = () => {
+    if (!canChat || clearing || isStreaming || localResetSession !== store.sessionId) return;
+    store.clearMessages(); setActiveSources(null); setLocalResetSession(null);
+    toast.success("Local draft reset. Stored history was not changed.");
   };
 
   const downloadChat = (format: "markdown" | "json") => {
@@ -391,7 +420,7 @@ export default function ChatInterface() {
                     id="chat-filename-filter"
                     value={filenameFilter}
                     onChange={(event) => setFilenameFilter(event.target.value)}
-                    placeholder="Filename filter"
+                    placeholder="Exact filename (case-sensitive)"
                     className="rounded-lg border border-[var(--border)] bg-[var(--bg-secondary)] px-3 py-2 text-xs outline-none focus:border-brand-500"
                   />
                   <label htmlFor="chat-uploader-filter" className="sr-only">
@@ -455,7 +484,7 @@ export default function ChatInterface() {
                     id="chat-metadata-key-filter"
                     value={metadataKey}
                     onChange={(event) => setMetadataKey(event.target.value)}
-                    placeholder="Metadata key"
+                    placeholder="Exact chunk metadata key"
                     className="rounded-lg border border-[var(--border)] bg-[var(--bg-secondary)] px-3 py-2 text-xs outline-none focus:border-brand-500"
                   />
                   <label htmlFor="chat-metadata-value-filter" className="sr-only">
@@ -465,10 +494,16 @@ export default function ChatInterface() {
                     id="chat-metadata-value-filter"
                     value={metadataValue}
                     onChange={(event) => setMetadataValue(event.target.value)}
-                    placeholder="Metadata value"
+                    placeholder="Exact metadata text value"
                     className="rounded-lg border border-[var(--border)] bg-[var(--bg-secondary)] px-3 py-2 text-xs outline-none focus:border-brand-500"
                   />
                 </div>
+                <p className="text-xs text-[var(--text-muted)]">
+                  Dates use UTC; the end date includes the entire day. Page 0 matches only
+                  explicitly unpaginated chunks, not missing page data. Metadata matches
+                  literal keys and exact text values. Research is bounded to 100 matching
+                  documents; page/metadata scopes must contain at most 200 matching chunks.
+                </p>
               </div>
             )}
             <label className="mb-2 flex items-start gap-2 text-[11px] leading-4 text-[var(--text-muted)]">
@@ -507,6 +542,18 @@ export default function ChatInterface() {
               />
 
               <div className="flex items-center gap-1 shrink-0 pb-0.5">
+                {documentSelectionRequest && (
+                  <button type="button" aria-label="Choose summary documents" title="Choose summary documents"
+                    disabled={isStreaming || clearing}
+                    onClick={() => {
+                      setChatScope("documents"); setShowFilters(true);
+                      setInput(current => current.trim() ? current : documentSelectionRequest.question);
+                      inputRef.current?.focus();
+                    }}
+                    className="flex h-8 w-8 items-center justify-center rounded-lg text-brand-500 hover:bg-[var(--bg-hover)]">
+                    <Files size={15} />
+                  </button>
+                )}
                 {messages.length > 0 && (
                   <>
                     <button
@@ -527,9 +574,17 @@ export default function ChatInterface() {
                     </button>
                   </>
                 )}
+                {messages.length > 0 && localResetSession === store.sessionId && (
+                  <button onClick={resetLocalDraft} disabled={clearing || isStreaming}
+                    aria-label="Reset local draft" title="Reset local draft; stored history is unchanged"
+                    className="flex h-8 w-8 items-center justify-center rounded-lg text-[var(--text-muted)] hover:text-brand-500 transition-all">
+                    <RotateCcw size={15} />
+                  </button>
+                )}
                 {messages.length > 0 && (
                   <button
                     onClick={clearChat}
+                    disabled={clearing || isStreaming}
                     title="Clear chat"
                     className="flex h-8 w-8 items-center justify-center rounded-xl text-[var(--text-muted)] hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all"
                   >

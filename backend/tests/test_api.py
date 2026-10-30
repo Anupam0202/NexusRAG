@@ -9,6 +9,7 @@ from __future__ import annotations
 import os
 from datetime import UTC, datetime
 from types import SimpleNamespace
+from unittest.mock import AsyncMock
 
 import pytest
 from fastapi.testclient import TestClient
@@ -21,6 +22,7 @@ from src.api.auth import CurrentUser, WorkspaceContext, WorkspaceRole
 from src.api.models import QueryRequest
 from src.api.websocket import _stream_retrieval_filters
 from src.generation.provider_keys import get_provider_key_manager
+from src.repositories.messages import PrivateTurnContext
 
 
 def _enterprise_settings(**overrides) -> Settings:
@@ -49,6 +51,14 @@ def _workspace_context(workspace_id: str = "workspace-1") -> WorkspaceContext:
     )
 
 
+def _mock_private_turn_authority(monkeypatch):
+    context = PrivateTurnContext("workspace-1", "11111111-1111-4111-8111-111111111111",
+        "user-1", 1, 0, (), "synthetic.user.token")
+    monkeypatch.setattr(routes, "prepare_private_turn", AsyncMock(return_value=context))
+    monkeypatch.setattr(routes, "revalidate_private_turn", AsyncMock())
+    monkeypatch.setattr(routes, "persist_private_turn", AsyncMock())
+
+
 def _pdf_bytes(pages: int, *, with_text: bool) -> bytes:
     import fitz
 
@@ -69,6 +79,15 @@ class TestHealthEndpoint:
         assert resp.status_code == 200
         data = resp.json()
         assert data["status"] == "healthy"
+        assert data["probe"] == "liveness"
+        assert data["readiness"] == "NOT_PROBED"
+        assert "total_chunks" not in data
+
+    def test_liveness_never_loads_or_counts_private_vectors(self, test_client: TestClient, monkeypatch):
+        def denied():
+            raise AssertionError("Anonymous liveness must not initialize or inspect tenant vectors")
+        monkeypatch.setattr("src.api.dependencies.get_vector_store", denied)
+        assert test_client.get("/health").status_code == 200
 
 
 def test_stream_chat_filters_match_rest_date_and_metadata_surface() -> None:
@@ -595,6 +614,7 @@ class TestAnalytics:
         self,
         monkeypatch,
     ):
+        _mock_private_turn_authority(monkeypatch)
         class DurableChunkRepository:
             async def list_for_document(self, **_kwargs):
                 return [
@@ -679,6 +699,7 @@ class TestAnalytics:
         self,
         monkeypatch,
     ):
+        _mock_private_turn_authority(monkeypatch)
         class DurableChunkRepository:
             async def list_for_document(self, **_kwargs):
                 return [

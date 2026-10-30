@@ -77,6 +77,6 @@ async def persist_provider_health_snapshot(
         logger.warning(
             "provider_health_snapshot_persist_failed",
             workspace_id=workspace_id,
-            error=str(exc)[:300],
+            error_type=type(exc).__name__,
         )
         return 0

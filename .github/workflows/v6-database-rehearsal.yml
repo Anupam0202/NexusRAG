@@ -21,6 +21,9 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
       - name: Verify immutable candidate identity
         run: |
           set -euo pipefail
@@ -34,20 +37,121 @@ jobs:
           sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
           sudo apt-get update
           sudo apt-get install -y postgresql-17 postgresql-17-pgvector
+      - name: Install locked functional package processors and local Worker harness
+        working-directory: frontend
+        run: npm ci --ignore-scripts --no-audit --no-fund
       - name: Replay clean baseline and candidate migrations
         run: |
-          set -euo pipefail
+          set -Eeuo pipefail
+          # Keep the annotation channel outside redirected producer/checker logs.
+          exec 3>&1
+          log="$RUNNER_TEMP/postgres-rehearsal.log"
+          phase_file="$RUNNER_TEMP/postgres-rehearsal.phase"
+          rehearsal_phase=initialization
+          rehearsal_failed_command=""
+          source_dir=""
+          package_dir=""
+          port=""
+          db=nexusrag_candidate_rehearsal
+          cluster_started=false
+          database_created=false
+          phase() {
+            rehearsal_phase="$1"
+            printf '%s\n' "$rehearsal_phase" >"$phase_file"
+            printf 'NEXUS_REHEARSAL_PHASE=%s\n' "$rehearsal_phase" >>"$log"
+            printf 'Rehearsal phase: %s\n' "$rehearsal_phase" >&3
+          }
+          report_failure() {
+            local failure_phase="$rehearsal_phase" recorded_phase=""
+            if [[ -r "$phase_file" ]]; then
+              IFS= read -r -n 81 recorded_phase <"$phase_file" || true
+              if [[ "$recorded_phase" =~ ^[a-z][a-z0-9_]{0,79}$ ]]; then
+                failure_phase="$recorded_phase"
+              fi
+            fi
+            python3 "$GITHUB_WORKSPACE/scripts/report_postgres_rehearsal_failure.py" "$log" \
+              --phase "$rehearsal_phase" --exit-code "$1" \
+              --phase-file "$phase_file" \
+              --failed-command "$rehearsal_failed_command" >&3 || \
+              printf '::error::Disposable PostgreSQL rehearsal failed in phase %s (exit %s); diagnostic reporting was unavailable.\n' "$failure_phase" "$1" >&3
+          }
+          cleanup() {
+            local cleanup_status=0 removal_status=0
+            if [[ "$database_created" = true ]]; then
+              sudo -u postgres dropdb --if-exists -h /var/run/postgresql -p "$port" "$db" >>"$log" 2>&1 || {
+                removal_status=$?
+                if [[ "$cleanup_status" -eq 0 ]]; then cleanup_status=$removal_status; fi
+              }
+            fi
+            if [[ "$cluster_started" = true ]]; then
+              sudo pg_ctlcluster 17 main stop >>"$log" 2>&1 || {
+                removal_status=$?
+                if [[ "$cleanup_status" -eq 0 ]]; then cleanup_status=$removal_status; fi
+              }
+            fi
+            if [[ -n "$source_dir" ]]; then
+              rm -rf "$source_dir" >>"$log" 2>&1 || {
+                removal_status=$?
+                if [[ "$cleanup_status" -eq 0 ]]; then cleanup_status=$removal_status; fi
+              }
+            fi
+            if [[ -n "$package_dir" ]]; then
+              sudo rm -rf "$package_dir" >>"$log" 2>&1 || {
+                removal_status=$?
+                if [[ "$cleanup_status" -eq 0 ]]; then cleanup_status=$removal_status; fi
+              }
+            fi
+            return "$cleanup_status"
+          }
+          finish() {
+            local rehearsal_status=$?
+            trap - EXIT ERR
+            set +e
+            if [[ "$rehearsal_status" -ne 0 ]]; then report_failure "$rehearsal_status"; fi
+            if [[ "$rehearsal_status" -eq 0 ]]; then phase cleanup; fi
+            cleanup
+            local cleanup_status=$?
+            if [[ "$rehearsal_status" -eq 0 && "$cleanup_status" -ne 0 ]]; then
+              rehearsal_status=$cleanup_status
+              report_failure "$rehearsal_status"
+            fi
+            exit "$rehearsal_status"
+          }
+          trap 'rehearsal_failed_command=$BASH_COMMAND' ERR
+          trap finish EXIT
+          : >"$log"
+          phase cluster_startup
+          {
           if ! pg_lsclusters --no-header | awk '$1 == "17" && $2 == "main" { found = 1 } END { exit !found }'; then
             sudo pg_createcluster --port 55432 17 main
           fi
           sudo pg_ctlcluster 17 main start
+          cluster_started=true
           port="$(pg_lsclusters --no-header | awk '$1 == "17" && $2 == "main" { print $3; exit }')"
           test -n "$port"
-          db=nexusrag_candidate_rehearsal
-          log="$RUNNER_TEMP/postgres-rehearsal.log"
-          source_dir="$(mktemp -d /tmp/nexusrag-pg-rehearsal.XXXXXX)"
+          node_bin="$(command -v node)"
+          } >>"$log" 2>&1
+          phase temporary_directories
+          source_dir="$(mktemp -d /tmp/nexusrag-pg-rehearsal.XXXXXX 2>>"$log")"
+          package_dir="$(mktemp -d /tmp/nexusrag-package-rehearsal.XXXXXX 2>>"$log")"
+          sudo chown postgres "$package_dir" >>"$log" 2>&1
+          phase source_copy
+          {
           mkdir -p "$source_dir/tests" "$source_dir/supabase/baseline" "$source_dir/supabase/migrations"
           cp -R "$GITHUB_WORKSPACE/tests/postgres" "$source_dir/tests/"
+          cp -R "$GITHUB_WORKSPACE/tests/fixtures" "$source_dir/tests/"
+          mkdir -p "$source_dir/apps/gateway"
+          cp -R "$GITHUB_WORKSPACE/apps/gateway/src" "$source_dir/apps/gateway/"
+          mkdir -p "$source_dir/frontend/src/lib"
+          cp "$GITHUB_WORKSPACE/frontend/src/lib/document-original-policy.json" "$source_dir/frontend/src/lib/"
+          cp "$GITHUB_WORKSPACE/frontend/src/lib/research-modes.json" "$source_dir/frontend/src/lib/"
+          cp "$GITHUB_WORKSPACE/frontend/src/lib/finding-package-limits.json" "$source_dir/frontend/src/lib/"
+          cp "$GITHUB_WORKSPACE/frontend/src/lib/serving-intent.js" "$source_dir/frontend/src/lib/"
+          cp "$GITHUB_WORKSPACE/package.json" "$source_dir/"
+          mkdir -p "$source_dir/backend/src/domain"
+          cp "$GITHUB_WORKSPACE/backend/src/domain/deterministic_calculations.py" "$source_dir/backend/src/domain/"
+          mkdir -p "$source_dir/backend/evals/datasets"
+          cp "$GITHUB_WORKSPACE/backend/evals/datasets/sample_corpus.json" "$source_dir/backend/evals/datasets/"
           cp "$GITHUB_WORKSPACE/supabase/baseline/001_v6_zero_cost_baseline.sql" "$source_dir/supabase/baseline/"
           cp "$GITHUB_WORKSPACE/supabase/migrations/026_allow_reindex_original_reuse.sql" "$source_dir/supabase/migrations/"
           cp "$GITHUB_WORKSPACE/supabase/migrations/027_metered_operation_admission.sql" "$source_dir/supabase/migrations/"
@@ -60,30 +164,140 @@ jobs:
           cp "$GITHUB_WORKSPACE/supabase/migrations/034_explicit_byok_cost_consent_and_unknown_costs.sql" "$source_dir/supabase/migrations/"
           cp "$GITHUB_WORKSPACE/supabase/migrations/035_atomic_workspace_management_and_finding_exports.sql" "$source_dir/supabase/migrations/"
           cp "$GITHUB_WORKSPACE/supabase/migrations/036_confirmed_auth_member_identity.sql" "$source_dir/supabase/migrations/"
+          cp "$GITHUB_WORKSPACE/supabase/migrations/037_byok_workspace_processing_authority.sql" "$source_dir/supabase/migrations/"
+          cp "$GITHUB_WORKSPACE/supabase/migrations/038_terms_bound_workspace_processing_policy.sql" "$source_dir/supabase/migrations/"
+          cp "$GITHUB_WORKSPACE/supabase/migrations/039_canonical_service_role_processing_authority.sql" "$source_dir/supabase/migrations/"
+          cp "$GITHUB_WORKSPACE/supabase/migrations/040_recipient_bound_workspace_invitations.sql" "$source_dir/supabase/migrations/"
+          cp "$GITHUB_WORKSPACE/supabase/migrations/041_fenced_retention_schedule_completion.sql" "$source_dir/supabase/migrations/"
+          cp "$GITHUB_WORKSPACE/supabase/migrations/042_scoped_manual_retention_claim.sql" "$source_dir/supabase/migrations/"
+          cp "$GITHUB_WORKSPACE/supabase/migrations/20261011124337_private_history_read.sql" "$source_dir/supabase/migrations/"
+          cp "$GITHUB_WORKSPACE/supabase/migrations/20261011140756_private_history_clear.sql" "$source_dir/supabase/migrations/"
+          cp "$GITHUB_WORKSPACE/supabase/migrations/20261011185509_gateway_private_history_read.sql" "$source_dir/supabase/migrations/"
+          cp "$GITHUB_WORKSPACE/supabase/migrations/20261013084820_gateway_private_turn_authority.sql" "$source_dir/supabase/migrations/"
+          cp "$GITHUB_WORKSPACE/supabase/migrations/20261013195435_backend_private_turn_authority.sql" "$source_dir/supabase/migrations/"
+          cp "$GITHUB_WORKSPACE/supabase/migrations/20261014194036_research_plan_persistence.sql" "$source_dir/supabase/migrations/"
+          cp "$GITHUB_WORKSPACE/supabase/migrations/20261015053618_research_calculation_execution.sql" "$source_dir/supabase/migrations/"
+          cp "$GITHUB_WORKSPACE/supabase/migrations/20261015063813_research_aggregate_execution.sql" "$source_dir/supabase/migrations/"
+          cp "$GITHUB_WORKSPACE/supabase/migrations/20261015102115_research_conversion_execution.sql" "$source_dir/supabase/migrations/"
+          cp "$GITHUB_WORKSPACE/supabase/migrations/20261015115026_research_source_quantities.sql" "$source_dir/supabase/migrations/"
+          cp "$GITHUB_WORKSPACE/supabase/migrations/20261015173322_research_answer_execution.sql" "$source_dir/supabase/migrations/"
+          cp "$GITHUB_WORKSPACE/supabase/migrations/20261015230009_research_finding_lineage.sql" "$source_dir/supabase/migrations/"
+          cp "$GITHUB_WORKSPACE/supabase/migrations/20261015235533_research_comparison_execution.sql" "$source_dir/supabase/migrations/"
+          cp "$GITHUB_WORKSPACE/supabase/migrations/20261016072408_research_timeline_execution.sql" "$source_dir/supabase/migrations/"
+          cp "$GITHUB_WORKSPACE/supabase/migrations/20261017074502_research_contradiction_execution.sql" "$source_dir/supabase/migrations/"
+          cp "$GITHUB_WORKSPACE/supabase/migrations/20261017133234_research_query_retrieval.sql" "$source_dir/supabase/migrations/"
+          cp "$GITHUB_WORKSPACE/supabase/migrations/20261018094339_research_deep_execution.sql" "$source_dir/supabase/migrations/"
+          cp "$GITHUB_WORKSPACE/supabase/migrations/20261019015325_research_obligation_execution.sql" "$source_dir/supabase/migrations/"
+          cp "$GITHUB_WORKSPACE/supabase/migrations/20261020123354_finding_creation_audit_replay.sql" "$source_dir/supabase/migrations/"
+          cp "$GITHUB_WORKSPACE/supabase/migrations/20261021100301_research_entity_execution.sql" "$source_dir/supabase/migrations/"
+          cp "$GITHUB_WORKSPACE/supabase/migrations/20261022120413_research_diligence_execution.sql" "$source_dir/supabase/migrations/"
+          cp "$GITHUB_WORKSPACE/supabase/migrations/20261023123558_research_passport_subject.sql" "$source_dir/supabase/migrations/"
+          cp "$GITHUB_WORKSPACE/supabase/migrations/20261024113940_research_passport_execution.sql" "$source_dir/supabase/migrations/"
+          cp "$GITHUB_WORKSPACE/supabase/migrations/20261025003900_research_procurement_execution.sql" "$source_dir/supabase/migrations/"
+          cp "$GITHUB_WORKSPACE/supabase/migrations/20261025093226_finding_evidence_packages.sql" "$source_dir/supabase/migrations/"
+          cp "$GITHUB_WORKSPACE/supabase/migrations/20261026123000_radar_supplied_snapshots.sql" "$source_dir/supabase/migrations/"
+          cp "$GITHUB_WORKSPACE/supabase/migrations/20261027153000_obligation_evidence_serving.sql" "$source_dir/supabase/migrations/"
           chmod -R a+rX "$source_dir"
-          cleanup() {
-            sudo -u postgres dropdb --if-exists -h /var/run/postgresql -p "$port" "$db" >/dev/null 2>&1 || true
-            sudo pg_ctlcluster 17 main stop >/dev/null 2>&1 || true
-            rm -rf "$source_dir"
-          }
-          trap cleanup EXIT
-          sudo -u postgres createdb -h /var/run/postgresql -p "$port" "$db"
+          } >>"$log" 2>&1
+          phase gateway_import
+          node --input-type=module -e 'await import(process.argv[1]); console.log("COPIED_GATEWAY_ENTRY_IMPORT_PASS");' "$source_dir/apps/gateway/src/preview-worker.js" >>"$log" 2>&1
+          phase database_create
+          sudo -u postgres createdb -h /var/run/postgresql -p "$port" "$db" >>"$log" 2>&1
+          database_created=true
+          phase sql_rehearsal
           if sudo -u postgres env \
+            PATH="$(dirname "$node_bin"):$PATH" \
             PGHOST=/var/run/postgresql \
             PGPORT="$port" \
             PGUSER=postgres \
             PGDATABASE="$db" \
-            bash "$source_dir/tests/postgres/local-rehearsal.sh" >"$log" 2>&1; then
+            NEXUS_PACKAGE_CAPACITY_OUTPUT="$package_dir/capacity.json" \
+            NEXUS_RADAR_PACKAGE_OUTPUT="$package_dir/radar.json" \
+            NEXUS_OBLIGATION_EVIDENCE_OUTPUT="$package_dir/obligation-evidence.json" \
+            bash "$source_dir/tests/postgres/local-rehearsal.sh" >>"$log" 2>&1; then
+            # PostgreSQL created these synthetic artifacts inside a private0700
+            # directory. Transfer ownership to the runner before its Node checks;
+            # retain the private directory/file modes, including producerumask077.
+            phase artifact_ownership
+            sudo chown -R "$(id -u):$(id -g)" "$package_dir" >>"$log" 2>&1
+            phase package_checkers
+            (
+              cd "$GITHUB_WORKSPACE/frontend"
+              phase legacy_package_jsonld
+              node scripts/test-finding-package-jsonld.mjs "$package_dir/capacity.json"
+              phase legacy_package_worker
+              node scripts/test-finding-package-worker.mjs "$package_dir/capacity.json" "$package_dir/capacity.receipt.json" --slow-body
+              phase radar_package_worker
+              node scripts/test-radar-package.mjs "$package_dir/radar.json" "$package_dir/radar.receipt.json" --slow-body
+            ) >>"$log" 2>&1
+            phase backup_restore
             sudo -u postgres env \
               PGHOST=/var/run/postgresql \
               PGPORT="$port" \
               PGUSER=postgres \
               PGDATABASE="$db" \
               bash "$source_dir/tests/postgres/backup-restore.sh" >>"$log" 2>&1
-            grep -E 'postgres_durable_extraction_stage_pass|concurrent_reservation_settlement_pass|concurrent_account_trial_limit_pass|account_trial_byok_assertions_pass|account_trial_rollback_pass|storage_rls_two_identity_pass|reindex_original_storage_reuse_pass|LOCAL_POSTGRES_REHEARSAL_PASS|POSTGRES_BACKUP_RESTORE_PASS' "$log"
+            phase pass_marker_validation
+            grep -F 'GATEWAY_PRIVATE_TURN_AUTHORITY_PASS' "$log"
+            grep -F 'GATEWAY_PRIVATE_TURN_CONCURRENT_AUTHORITY_PASS' "$log"
+            grep -F 'BACKEND_PRIVATE_TURN_AUTHORITY_PASS' "$log"
+            grep -F 'BACKEND_PRIVATE_TURN_CONCURRENT_AUTHORITY_PASS' "$log"
+            grep -F 'RESEARCH_PLAN_SQL_PASS' "$log"
+            grep -F 'FINDING_PACKAGE_SQL_PASS' "$log"
+            grep -F 'FINDING_PACKAGE_CAPACITY_SQL_PASS' "$log"
+            grep -F 'REAL_SQL_FINDING_PACKAGE_CONCURRENCY_PASS' "$log"
+            grep -F 'RADAR_SUPPLIED_SNAPSHOT_SQL_PASS' "$log"
+            grep -F 'REAL_SQL_RADAR_SUPPLIED_SNAPSHOT_WORKFLOW_PASS' "$log"
+            grep -F 'OBLIGATION_EVIDENCE_SQL_PASS' "$log"
+            grep -F 'REAL_SQL_OBLIGATION_EVIDENCE_SERVING_PASS' "$log"
+            grep -F 'RADAR_PACKAGE_JSONLD_PASS' "$log"
+            grep -F 'ACTUAL_WORKER_RADAR_PACKAGE_PASS' "$log"
+            grep -F 'ACTUAL_WORKER_FINDING_PACKAGE_CAPACITY_PASS' "$log"
+            grep -F 'FINDING_PACKAGE_JSONLD_PASS' "$log"
+            grep -F 'RESEARCH_PASSPORT_SUBJECT_SQL_PASS' "$log"
+            grep -F 'POSTGRES_PASSPORT_SUBJECT_CONCURRENT_RETRY_PASS' "$log"
+            grep -F 'RESEARCH_TIMELINE_SQL_PASS' "$log"
+            grep -F 'TIMELINE_NATIVE_DATE_PARITY_PASS cases=146' "$log"
+            grep -F 'REAL_SQL_PRODUCTION_TIMELINE_EXECUTOR_PASS' "$log"
+            grep -F 'REAL_SQL_PRODUCTION_COMPARISON_EXECUTOR_PASS' "$log"
+            grep -F 'RESEARCH_CONTRADICTION_SQL_PASS' "$log"
+            grep -F 'REAL_SQL_PRODUCTION_CONTRADICTION_EXECUTOR_PASS' "$log"
+            grep -F 'RESEARCH_QUERY_RETRIEVAL_SQL_PASS' "$log"
+            grep -F 'RESEARCH_DEEP_SQL_PASS:60sources12subquestions+main13steps780receipts' "$log"
+            grep -F 'REAL_SQL_PRODUCTION_DEEP_EXECUTOR_PASS' "$log"
+            grep -F '"max_context_boundary":true,"unique_prior_originals":144,"final_original_contexts":156' "$log"
+            grep -F '"original_null_zero_positive_page_receipts":true' "$log"
+            grep -F 'RESEARCH_FAIR_CANDIDATE_SQL_PASS sources=50' "$log"
+            grep -F 'REAL_SQL_ORIGINAL_TRANSFER_QUOTA_PASS' "$log"
+            grep -F 'RESEARCH_CALCULATION_SQL_PASS' "$log"
+            grep -F 'RESEARCH_CALCULATION_PYTHON_ENGINE_PARITY_PASS cases=196' "$log"
+            grep -F 'RESEARCH_AGGREGATION_PYTHON_ENGINE_PARITY_PASS cases=756' "$log"
+            grep -F 'RESEARCH_AGGREGATION_SQL_PASS' "$log"
+            grep -F 'POSTGRES_RESEARCH_AGGREGATION_CONCURRENT_RETRY_PASS' "$log"
+            grep -F 'RESEARCH_CONVERSION_PYTHON_ENGINE_PARITY_PASS cases=140' "$log"
+            grep -F 'RESEARCH_CONVERSION_SQL_PASS' "$log"
+            grep -F 'RESEARCH_QUANTITY_SQL_PASS' "$log"
+            grep -F 'POSTGRES_RESEARCH_QUANTITY_CONCURRENT_RETRY_PASS' "$log"
+            grep -F 'RESEARCH_LARGE_SOURCE_SQL_PASS:400stored chunks' "$log"
+            grep -F 'POSTGRES_RESEARCH_CONVERSION_CONCURRENT_RETRY_PASS' "$log"
+            grep -F 'POSTGRES_RESEARCH_CALCULATION_CONCURRENT_RETRY_PASS' "$log"
+            grep -F 'POSTGRES_RESEARCH_PLAN_CONCURRENT_RETRY_PASS' "$log"
+            grep -F 'REAL_SQL_PRODUCTION_OBLIGATION_EXECUTOR_PASS' "$log"
+            grep -F 'REAL_SQL_OBLIGATION_ORDINARY_RECOVERY_REVIEW_PASS' "$log"
+            grep -F 'REAL_SQL_OBLIGATION_COMBINED_CAPACITY_PASS' "$log"
+            grep -F 'ORDINARY_FINDING_AUDIT_REPLAY_PASS eight_paths_one_creation_event' "$log"
+            grep -F 'REAL_SQL_ENTITY_EXECUTOR_RECOVERY_REVIEW_PASS' "$log"
+            grep -F 'REAL_SQL_ENTITY_COMBINED_CAPACITY_PASS' "$log"
+            grep -F 'RESEARCH_DILIGENCE_ORDINARY_SQL_PASS selected60_questions13_subject_scope' "$log"
+            grep -F 'REAL_SQL_DILIGENCE_EXECUTOR_RECOVERY_REVIEW_PASS' "$log"
+            grep -F 'REAL_SQL_DILIGENCE_COMBINED_CAPACITY_PASS' "$log"
+            grep -F 'REAL_SQL_PASSPORT_EXECUTOR_RECOVERY_REVIEW_PASS' "$log"
+            grep -F 'REAL_SQL_PROCUREMENT_EXECUTOR_RECOVERY_REVIEW_PASS' "$log"
+            grep -E 'GATEWAY_PRIVATE_HISTORY_AUTHORITY_PASS|PRIVATE_HISTORY_CLEAR_CONCURRENT_AUTHORITY_PASS|PRIVATE_HISTORY_CLEAR_AUTHORITY_PASS|PRIVATE_HISTORY_RPC_TWO_IDENTITY_PASS|POSTGRES_RETENTION_SCHEDULE_FENCE_PASS|POSTGRES_RETENTION_CONCURRENT_FENCE_PASS|POSTGRES_RECIPIENT_INVITATION_AUTHORITY_PASS|POSTGRES_INVITATION_CONCURRENT_ACCEPT_CAPACITY_PASS|postgres_durable_extraction_stage_pass|concurrent_reservation_settlement_pass|concurrent_account_trial_limit_pass|account_trial_byok_assertions_pass|account_trial_rollback_pass|storage_rls_two_identity_pass|reindex_original_storage_reuse_pass|LOCAL_POSTGRES_REHEARSAL_PASS|POSTGRES_BACKUP_RESTORE_PASS' "$log"
           else
-            tail -n 80 "$log"
-            exit 1
+            rehearsal_status=$?
+            tail -n 80 "$log" || true
+            exit "$rehearsal_status"
           fi
       - name: Preserve non-sensitive rehearsal evidence
         if: always()
@@ -103,6 +317,7 @@ jobs:
           path: |
             ${{ runner.temp }}/v6-database-rehearsal.txt
             ${{ runner.temp }}/postgres-rehearsal.log
+            ${{ runner.temp }}/postgres-rehearsal.phase
           if-no-files-found: warn
           retention-days: 14
 

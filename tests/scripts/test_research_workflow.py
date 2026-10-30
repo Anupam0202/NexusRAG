@@ -1,0 +1,325 @@
+"""Keep the ordinary draft persistence workflow in source and required CI."""
+import json
+from pathlib import Path
+import shutil
+import subprocess
+import tempfile
+import unittest
+import yaml
+
+ROOT = Path(__file__).resolve().parents[2]
+
+class ResearchWorkflowTests(unittest.TestCase):
+    def test_stateful_package_fixture_follows_shared_fixture_consumers(self):
+        commands=[line.strip() for line in (ROOT/"tests/postgres/local-rehearsal.sh").read_text().splitlines()
+                  if line.strip() and not line.lstrip().startswith("#")]
+        package='NEXUS_DISPOSABLE_SQL=1 node "$TESTS/finding-package-integration.mjs"'
+        self.assertEqual(commands.count(package),1)
+        package_position=commands.index(package)
+        for position,command in enumerate(commands):
+            if '"$TESTS/' in command and any(name in command for name in (
+                    "-assertions.sql", "finding-package-capacity.sql", "-concurrency.sh",
+                    "research-finding-audit-replay.mjs")):
+                self.assertLess(position,package_position,command)
+        self.assertLess(package_position,next(i for i,command in enumerate(commands)
+                                             if command.startswith("echo 'LOCAL_POSTGRES_REHEARSAL_PASS")))
+
+    def test_finding_package_capacity_concurrency_and_real_worker_are_required(self):
+        database=(ROOT/".github/workflows/v6-database-rehearsal.yml").read_text()
+        foundation=(ROOT/".github/workflows/v6-foundation-ci.yml").read_text()
+        rehearsal=(ROOT/"tests/postgres/local-rehearsal.sh").read_text()
+        self.assertIn("20261025093226_finding_evidence_packages.sql",database)
+        self.assertIn("finding-package-limits.json",database)
+        for name in ("finding-package-assertions.sql","finding-package-capacity.sql","finding-package-integration.mjs"):
+            self.assertIn(name,rehearsal)
+        for marker in ("FINDING_PACKAGE_SQL_PASS","FINDING_PACKAGE_CAPACITY_SQL_PASS","REAL_SQL_FINDING_PACKAGE_CONCURRENCY_PASS",
+                       "ACTUAL_WORKER_FINDING_PACKAGE_CAPACITY_PASS","FINDING_PACKAGE_JSONLD_PASS"):
+            self.assertIn(f"grep -F '{marker}'",database)
+        self.assertIn("node scripts/test-finding-package-worker.mjs",database)
+        self.assertIn("finding-packages.spec.ts --workers=1",foundation)
+        fixture=json.loads((ROOT/"tests/fixtures/finding-package-sql.json").read_text())
+        self.assertEqual(fixture["schema_version"],"finding-package/1")
+        limits=json.loads((ROOT/"frontend/src/lib/finding-package-limits.json").read_text())
+        self.assertEqual(limits["max_manifest_bytes"],33554432)
+
+    def test_procurement_database_and_browser_paths_are_required_not_mock_only(self):
+        migration="20261025003900_research_procurement_execution.sql"
+        workflow=(ROOT/".github/workflows/v6-database-rehearsal.yml").read_text()
+        rehearsal=(ROOT/"tests/postgres/local-rehearsal.sh").read_text()
+        self.assertIn(migration,workflow)
+        self.assertIn(migration,rehearsal)
+        self.assertIn('NEXUS_DISPOSABLE_SQL=1 node "$TESTS/research-procurement-integration.mjs"',rehearsal)
+        self.assertIn("grep -F 'REAL_SQL_PROCUREMENT_EXECUTOR_RECOVERY_REVIEW_PASS'",workflow)
+        self.assertIn("research-procurement.spec.ts",(ROOT/".github/workflows/v6-foundation-ci.yml").read_text())
+
+    def test_procurement_native_capacity_uses_actual_worker_in_required_ci(self):
+        workflow=yaml.safe_load((ROOT/".github/workflows/v6-foundation-ci.yml").read_text())
+        matching=[step for step in workflow["jobs"]["frontend"]["steps"]
+                  if step.get("run")=="node scripts/test-research-procurement-worker.mjs"]
+        self.assertEqual(len(matching),1)
+        self.assertEqual(matching[0].get("working-directory"),"frontend")
+        wrapper=(ROOT/"frontend/scripts/test-research-procurement-worker.mjs").read_text()
+        self.assertIn('process.env.NEXUS_NATIVE_RESEARCH_MODE="PROCUREMENT_RESEARCH"',wrapper)
+        self.assertIn('await import("./test-research-obligation-worker.mjs")',wrapper)
+        self.assertTrue((ROOT/"tests/fixtures/research-procurement-data.mjs").is_file())
+
+    def test_passport_executor_native_capacity_runs_with_the_actual_worker_in_required_ci(self):
+        workflow=yaml.safe_load((ROOT/".github/workflows/v6-foundation-ci.yml").read_text())
+        matching=[step for step in workflow["jobs"]["frontend"]["steps"]
+                  if step.get("run")=="node scripts/test-research-passport-worker.mjs"]
+        self.assertEqual(len(matching),1)
+        self.assertEqual(matching[0].get("working-directory"),"frontend")
+        wrapper=(ROOT/"frontend/scripts/test-research-passport-worker.mjs").read_text()
+        self.assertIn('process.env.NEXUS_NATIVE_RESEARCH_MODE="PRODUCT_PASSPORT"',wrapper)
+        self.assertIn('await import("./test-research-obligation-worker.mjs")',wrapper)
+        self.assertTrue((ROOT/"tests/fixtures/research-passport-data.mjs").is_file())
+
+    def test_declared_passport_identity_persistence_and_browser_journey_run_in_required_ci(self):
+        migration="20261023123558_research_passport_subject.sql"
+        workflow=(ROOT/".github/workflows/v6-database-rehearsal.yml").read_text()
+        rehearsal=(ROOT/"tests/postgres/local-rehearsal.sh").read_text()
+        self.assertIn(migration,workflow)
+        self.assertIn(migration,rehearsal)
+        for file in ("research-passport-subject-assertions.sql","research-passport-subject-concurrency.sh"):
+            self.assertIn(file,rehearsal)
+        for marker in ("RESEARCH_PASSPORT_SUBJECT_SQL_PASS","POSTGRES_PASSPORT_SUBJECT_CONCURRENT_RETRY_PASS"):
+            self.assertIn(f"grep -F '{marker}'",workflow)
+        self.assertIn("research-passport-subject.spec.ts",(ROOT/".github/workflows/v6-foundation-ci.yml").read_text())
+
+    def test_diligence_persistence_capacity_native_and_browser_journeys_are_in_required_ci(self):
+        migration="20261022120413_research_diligence_execution.sql"
+        workflow=(ROOT/".github/workflows/v6-database-rehearsal.yml").read_text()
+        rehearsal=(ROOT/"tests/postgres/local-rehearsal.sh").read_text()
+        self.assertIn(migration,workflow)
+        self.assertIn(migration,rehearsal)
+        self.assertIn('NEXUS_DISPOSABLE_SQL=1 node "$TESTS/research-diligence-integration.mjs"',rehearsal)
+        self.assertIn('NEXUS_DILIGENCE_CAPACITY=1 node "$TESTS/research-diligence-integration.mjs"',rehearsal)
+        for marker in ("REAL_SQL_DILIGENCE_EXECUTOR_RECOVERY_REVIEW_PASS","REAL_SQL_DILIGENCE_COMBINED_CAPACITY_PASS"):
+            self.assertIn(f"grep -F '{marker}'",workflow)
+        foundation=(ROOT/".github/workflows/v6-foundation-ci.yml").read_text()
+        self.assertIn("research-diligence.spec.ts",foundation)
+        self.assertIn("node scripts/test-research-diligence-worker.mjs",foundation)
+
+    def test_cold_component_startup_runs_with_installed_browsers_in_required_ci(self):
+        workflow=yaml.safe_load((ROOT/".github/workflows/v6-foundation-ci.yml").read_text())
+        steps=workflow["jobs"]["frontend"]["steps"]
+        matching=[step for step in steps if "node scripts/test-component-fixture-startup.mjs" in step.get("run","")]
+        self.assertEqual(len(matching),1)
+        self.assertEqual(matching[0].get("working-directory"),"frontend")
+        command=matching[0]["run"]
+        self.assertLess(command.index("playwright -- install"),command.index("node scripts/test-component-fixture-startup.mjs"))
+        self.assertTrue((ROOT/"frontend/scripts/test-component-fixture-startup.mjs").is_file())
+
+    def test_entity_execution_persistence_capacity_and_browser_journeys_run_in_required_ci(self):
+        migration = "20261021100301_research_entity_execution.sql"
+        workflow = (ROOT / ".github/workflows/v6-database-rehearsal.yml").read_text()
+        rehearsal = (ROOT / "tests/postgres/local-rehearsal.sh").read_text()
+        self.assertIn(migration, workflow)
+        self.assertIn(migration, rehearsal)
+        self.assertIn('NEXUS_DISPOSABLE_SQL=1 node "$TESTS/research-entity-integration.mjs"', rehearsal)
+        self.assertIn('NEXUS_ENTITY_CAPACITY=1 node "$TESTS/research-entity-integration.mjs"', rehearsal)
+        for marker in ("REAL_SQL_ENTITY_EXECUTOR_RECOVERY_REVIEW_PASS", "REAL_SQL_ENTITY_COMBINED_CAPACITY_PASS"):
+            self.assertIn(f"grep -F '{marker}'", workflow)
+        self.assertIn("research-entities.spec.ts", (ROOT / ".github/workflows/v6-foundation-ci.yml").read_text())
+
+    def test_obligation_execution_migration_and_real_production_executor_run_in_database_ci(self):
+        migration = "20261019015325_research_obligation_execution.sql"
+        workflow = (ROOT / ".github/workflows/v6-database-rehearsal.yml").read_text()
+        rehearsal = (ROOT / "tests/postgres/local-rehearsal.sh").read_text()
+        self.assertIn(migration, workflow)
+        self.assertIn(migration, rehearsal)
+        self.assertIn('NEXUS_RESEARCH_MODE=OBLIGATION_ANALYSIS node "$TESTS/research-comparison-integration.mjs"', rehearsal)
+        self.assertIn("grep -F 'REAL_SQL_PRODUCTION_OBLIGATION_EXECUTOR_PASS'", workflow)
+        self.assertIn("grep -F 'REAL_SQL_OBLIGATION_ORDINARY_RECOVERY_REVIEW_PASS'", workflow)
+        self.assertIn("grep -F 'REAL_SQL_OBLIGATION_COMBINED_CAPACITY_PASS'", workflow)
+        self.assertIn('cp -R "$GITHUB_WORKSPACE/tests/fixtures" "$source_dir/tests/"', workflow)
+        foundation = (ROOT / ".github/workflows/v6-foundation-ci.yml").read_text()
+        self.assertIn("research-obligations.spec.ts", foundation)
+
+    def test_native_research_steps_run_from_the_frontend_directory(self):
+        workflow = yaml.safe_load((ROOT / ".github/workflows/v6-foundation-ci.yml").read_text())
+        commands = {
+            "node scripts/test-research-query-worker.mjs",
+            "node scripts/test-research-deep-worker.mjs",
+            "node scripts/test-research-obligation-worker.mjs",
+            "node scripts/test-research-entity-worker.mjs",
+            "node scripts/test-research-diligence-worker.mjs",
+        }
+        steps = [step for job in workflow["jobs"].values() for step in job.get("steps", [])
+                 if step.get("run") in commands]
+        self.assertEqual({step["run"] for step in steps}, commands)
+        for step in steps:
+            with self.subTest(command=step["run"]):
+                self.assertEqual(step.get("working-directory"), "frontend")
+                self.assertTrue((ROOT / "frontend" / step["run"].split(" ", 1)[1]).is_file())
+
+    def test_bounded_multi_query_transport_and_real_sql_receipts_are_in_required_ci(self):
+        migration="20261017133234_research_query_retrieval.sql"
+        self.assertIn(migration,(ROOT / "tests/postgres/local-rehearsal.sh").read_text())
+        workflow=(ROOT / ".github/workflows/v6-database-rehearsal.yml").read_text()
+        self.assertIn(migration,workflow)
+        self.assertIn("RESEARCH_QUERY_RETRIEVAL_SQL_PASS",workflow)
+        self.assertIn("RESEARCH_FAIR_CANDIDATE_SQL_PASS sources=50",workflow)
+        self.assertIn("research-query-retrieval-assertions.sql",(ROOT / "tests/postgres/local-rehearsal.sh").read_text())
+        self.assertIn("test-research-query-worker.mjs",(ROOT / ".github/workflows/v6-foundation-ci.yml").read_text())
+        worker=(ROOT / "frontend/scripts/test-research-query-worker.mjs").read_text()
+        self.assertIn("apps/gateway/src/worker-pipeline.js",worker)
+        self.assertIn("ACTUAL_WORKER_RESEARCH_QUERY_BATCH_PASS",worker)
+        self.assertIn("startLocalWorker",worker)
+        harness=(ROOT / "frontend/scripts/local-worker-harness.mjs").read_text()
+        self.assertIn("createTestHarness",harness)
+        self.assertIn('dev:{ip:"127.0.0.1",port:0,inspector_port:0}',harness)
+
+    def test_owned_native_worker_lifecycle_runs_without_reserving_a_released_port(self):
+        workflow=yaml.safe_load((ROOT / ".github/workflows/v6-foundation-ci.yml").read_text())
+        steps=workflow["jobs"]["frontend"]["steps"]
+        step=next(row for row in steps if row.get("run")=="node scripts/test-local-worker-harness.mjs")
+        self.assertEqual(step.get("working-directory"),"frontend")
+        for name in ("deep","query","obligation"):
+            script=(ROOT / f"frontend/scripts/test-research-{name}-worker.mjs").read_text()
+            self.assertIn("await startLocalWorker",script)
+            self.assertIn("await runtime.close()",script)
+            self.assertNotIn("reserve.listen",script)
+            self.assertNotIn('spawnSync("taskkill"',script)
+        for name in ("deep","obligation"):
+            script=(ROOT / f"frontend/scripts/test-research-{name}-worker.mjs").read_text()
+            self.assertIn('released.listen(port,"127.0.0.1"',script)
+
+    def test_original_delivery_policy_is_copied_into_the_real_sql_rehearsal(self):
+        workflow=(ROOT / ".github/workflows/v6-database-rehearsal.yml").read_text()
+        policy_path="frontend/src/lib/document-original-policy.json"
+        self.assertIn('mkdir -p "$source_dir/frontend/src/lib"',workflow)
+        for name in (policy_path,"frontend/src/lib/research-modes.json","frontend/src/lib/serving-intent.js","backend/evals/datasets/sample_corpus.json"):
+            directory=Path(name).parent.as_posix()
+            self.assertIn(f'cp "$GITHUB_WORKSPACE/{name}" "$source_dir/{directory}/"',workflow)
+        self.assertIn("COPIED_GATEWAY_ENTRY_IMPORT_PASS",workflow)
+        self.assertIn("REAL_SQL_ORIGINAL_TRANSFER_QUOTA_PASS",workflow)
+        self.assertIn("../../../"+policy_path,(ROOT / "apps/gateway/src/preview-worker.js").read_text())
+        self.assertIn('./document-original-policy.json',(ROOT / "frontend/src/lib/document-original.ts").read_text())
+        policy=json.loads((ROOT / policy_path).read_text())
+        self.assertEqual(policy["schema_version"],"document-original/1")
+        self.assertEqual(policy["maximum_bytes"],500*1024*1024)
+
+    def test_copied_gateway_entry_loads_without_a_dependency_checkout(self):
+        with tempfile.TemporaryDirectory(prefix="nexus-gateway-copy-") as directory:
+            copied=Path(directory)
+            shutil.copytree(ROOT / "apps/gateway/src",copied / "apps/gateway/src")
+            shutil.copyfile(ROOT / "package.json",copied / "package.json")
+            for name in ("frontend/src/lib/document-original-policy.json","frontend/src/lib/research-modes.json","frontend/src/lib/finding-package-limits.json","frontend/src/lib/serving-intent.js","backend/evals/datasets/sample_corpus.json"):
+                target=copied / name
+                target.parent.mkdir(parents=True,exist_ok=True)
+                shutil.copyfile(ROOT / name,target)
+            result=subprocess.run([shutil.which("node") or "node","--input-type=module","-e","await import(process.argv[1]);",(copied / "apps/gateway/src/preview-worker.js").as_uri()],capture_output=True,text=True,timeout=30)
+            self.assertEqual(result.returncode,0,result.stderr)
+
+    def test_conversion_contract_parity_and_browser_are_in_required_ci(self):
+        rehearsal=(ROOT / "tests/postgres/local-rehearsal.sh").read_text()
+        workflow=(ROOT / ".github/workflows/v6-database-rehearsal.yml").read_text()
+        for name in ("20261015102115_research_conversion_execution.sql", "research-conversion-assertions.sql", "conversion-parity.py", "research-conversion-concurrency.sh"):
+            self.assertIn(name,rehearsal)
+        self.assertIn("20261015102115_research_conversion_execution.sql",workflow)
+        self.assertIn("RESEARCH_CONVERSION_PYTHON_ENGINE_PARITY_PASS cases=140",workflow)
+        self.assertIn("POSTGRES_RESEARCH_CONVERSION_CONCURRENT_RETRY_PASS",workflow)
+        self.assertIn("research-conversions.spec.ts",(ROOT / ".github/workflows/v6-foundation-ci.yml").read_text())
+
+    def test_source_quantity_capture_and_concurrency_are_in_required_ci(self):
+        rehearsal=(ROOT / "tests/postgres/local-rehearsal.sh").read_text()
+        workflow=(ROOT / ".github/workflows/v6-database-rehearsal.yml").read_text()
+        for name in ("20261015115026_research_source_quantities.sql", "research-quantity-assertions.sql", "research-quantity-concurrency.sh"):
+            self.assertIn(name,rehearsal)
+        self.assertIn("20261015115026_research_source_quantities.sql",workflow)
+        self.assertIn("RESEARCH_QUANTITY_SQL_PASS",workflow)
+        self.assertIn("POSTGRES_RESEARCH_QUANTITY_CONCURRENT_RETRY_PASS",workflow)
+        self.assertIn("research-quantities.spec.ts",(ROOT / ".github/workflows/v6-foundation-ci.yml").read_text())
+
+    def test_aggregate_execution_parity_and_browser_are_in_required_ci(self):
+        rehearsal=(ROOT / "tests/postgres/local-rehearsal.sh").read_text()
+        workflow=(ROOT / ".github/workflows/v6-database-rehearsal.yml").read_text()
+        for name in ("20261015063813_research_aggregate_execution.sql", "research-aggregation-assertions.sql", "aggregation-parity.py", "research-aggregation-concurrency.sh"):
+            self.assertIn(name,rehearsal)
+        self.assertIn("20261015063813_research_aggregate_execution.sql",workflow)
+        self.assertIn("RESEARCH_AGGREGATION_PYTHON_ENGINE_PARITY_PASS cases=756",workflow)
+        self.assertIn("POSTGRES_RESEARCH_AGGREGATION_CONCURRENT_RETRY_PASS",workflow)
+        self.assertIn("research-aggregations.spec.ts",(ROOT / ".github/workflows/v6-foundation-ci.yml").read_text())
+
+    def test_calculation_execution_and_retries_are_in_the_real_rehearsal(self):
+        rehearsal=(ROOT / "tests/postgres/local-rehearsal.sh").read_text()
+        workflow=(ROOT / ".github/workflows/v6-database-rehearsal.yml").read_text()
+        for name in ("20261015053618_research_calculation_execution.sql", "research-calculation-assertions.sql", "research-calculation-concurrency.sh"):
+            self.assertIn(name,rehearsal)
+        self.assertIn("20261015053618_research_calculation_execution.sql",workflow)
+        self.assertIn("POSTGRES_RESEARCH_CALCULATION_CONCURRENT_RETRY_PASS",workflow)
+        self.assertIn("calculation-parity.py",rehearsal)
+        self.assertIn("RESEARCH_CALCULATION_PYTHON_ENGINE_PARITY_PASS cases=196",workflow)
+        self.assertIn("research-calculations.spec.ts",(ROOT / ".github/workflows/v6-foundation-ci.yml").read_text())
+
+    def test_forward_sql_and_ordinary_retries_are_in_the_disposable_rehearsal(self):
+        sql = "20261014194036_research_plan_persistence.sql"
+        rehearsal = (ROOT / "tests/postgres/local-rehearsal.sh").read_text()
+        workflow = (ROOT / ".github/workflows/v6-database-rehearsal.yml").read_text()
+        self.assertIn(sql, rehearsal)
+        self.assertIn(sql, workflow)
+        self.assertIn("research-plan-assertions.sql", rehearsal)
+        self.assertIn("research-plan-concurrency.sh", rehearsal)
+        self.assertIn("POSTGRES_RESEARCH_PLAN_CONCURRENT_RETRY_PASS", workflow)
+
+    def test_twelve_shared_modes_are_present_in_the_sql_contract(self):
+        modes = json.loads((ROOT / "frontend/src/lib/research-modes.json").read_text())
+        sql = (ROOT / "supabase/migrations/20261014194036_research_plan_persistence.sql").read_text()
+        self.assertEqual(len(modes), 12)
+        for name in modes:
+            self.assertIn("when '" + name + "'", sql)
+
+    def test_browser_fixture_uses_the_production_page_client_and_gateway(self):
+        fixture = (ROOT / "frontend/scripts/research-browser-fixture.mjs").read_text()
+        entry = (ROOT / "frontend/scripts/fixtures/research-plans.tsx").read_text()
+        self.assertIn("apps/gateway/src/preview-worker.js", fixture)
+        self.assertIn("src/app/research/page", entry)
+        self.assertIn("E2E_RESEARCH_COMPONENT_FIXTURE", (ROOT / ".github/workflows/v6-foundation-ci.yml").read_text())
+
+    def test_saved_research_copy_parity_is_in_required_browser_ci(self):
+        workflow=(ROOT / ".github/workflows/v6-foundation-ci.yml").read_text()
+        browser=(ROOT / "frontend/src/e2e/research-copy.spec.ts").read_text()
+        self.assertIn("research-copy.spec.ts",workflow)
+        for mode in ("COMPARE","TIMELINE","CONTRADICTION_ANALYSIS","DEEP_RESEARCH"):
+            self.assertIn(mode,browser)
+        self.assertIn("JSON.stringify(structure, null, 2)",browser)
+        self.assertIn("await page.reload()",browser)
+        self.assertTrue((ROOT / "frontend/src/lib/research-run-copy.ts").is_file())
+
+    def test_chat_copy_ordinary_recovery_is_in_required_browser_ci(self):
+        workflow=(ROOT / ".github/workflows/v6-foundation-ci.yml").read_text()
+        browser=(ROOT / "frontend/src/e2e/chat-copy.spec.ts").read_text()
+        self.assertIn("summary-selection.spec.ts chat-copy.spec.ts",workflow)
+        self.assertIn("E2E_SUMMARY_COMPONENT_FIXTURE",browser)
+        self.assertIn('toHaveText("The clipboard was unavailable.")',browser)
+        self.assertIn('toHaveAttribute("aria-busy", "true")',browser)
+        self.assertIn(".toBe(expected)",browser)
+
+    def test_generated_html_fixture_declares_cold_dependency_entry(self):
+        fixture=(ROOT / "frontend/scripts/research-browser-fixture.mjs").read_text()
+        self.assertIn('entries: ["scripts/fixtures/research-plans.tsx"]',fixture)
+        self.assertIn("force: true, holdUntilCrawlEnd: true",fixture)
+        self.assertIn("unexpectedNavigations",(ROOT / "frontend/src/e2e/research-calculations.spec.ts").read_text())
+
+    def test_public_route_and_separate_plan_execution_status_are_exercised(self):
+        self.assertIn('path: "/research"', (ROOT / "frontend/src/e2e/public-smoke.spec.ts").read_text())
+        page = (ROOT / "frontend/src/app/research/page.tsx").read_text()
+        self.assertIn("Saved plan. Executions are tracked separately.", page)
+        self.assertIn("<ResearchRuns", page)
+        runs = (ROOT / "frontend/src/components/research/ResearchRuns.tsx").read_text()
+        self.assertIn("completion criteria still require review", runs)
+        self.assertIn("No processing will start", runs)
+        self.assertIn("not currently available", page)
+
+    def test_large_source_picker_stays_in_ordinary_browser_ci(self):
+        workflow=(ROOT / ".github/workflows/v6-foundation-ci.yml").read_text()
+        browser=(ROOT / "frontend/src/e2e/research-picker.spec.ts").read_text()
+        self.assertIn("research-picker.spec.ts",workflow)
+        self.assertIn("toBeGreaterThan(200)",browser)
+        self.assertIn("toBeLessThanOrEqual(420)",browser)
+        self.assertIn("No synthetic file has this name",browser)
+        self.assertIn('name:"Copy to a new plan"',browser)
+
+if __name__ == "__main__":
+    unittest.main()

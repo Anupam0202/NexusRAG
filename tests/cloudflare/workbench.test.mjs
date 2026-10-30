@@ -44,9 +44,11 @@ test("MCP finding lookup uses the same private record authorization", async t =>
   assert.equal((await handle(request("/api/v2/mcp/execute", { method: "POST",
     body: JSON.stringify({ operation: "finding_retrieval" }) }), env)).status, 200);
 });
-test("unsupported product aliases cannot masquerade as findings or exports", async t => {
-  const calls = mock(t, "viewer");
-  for (const path of ["/api/v2/obligations", "/api/v2/procurement", "/api/v2/passports"]) {
+test("missing Obligation storage is explicit and unsupported products cannot masquerade as findings or exports", async t => {
+  const calls = mock(t, "viewer", (_url,_data,response)=>response({}));
+  const obligation=await handle(request("/api/v2/obligations"),env);
+  assert.equal(obligation.status,503);assert.equal((await obligation.json()).error.code,"MIGRATION_REQUIRED");
+  for (const path of ["/api/v2/procurement", "/api/v2/passports"]) {
     assert.equal((await handle(request(path), env)).status, 501);
   }
   assert.equal(calls.some(call => /findings|evidence_exports/.test(call.url.pathname)), false);
@@ -78,6 +80,33 @@ test("malformed, oversized, and missing-idempotency inputs fail before mutation"
   }
   assert.equal(calls.some(call => call.url.pathname.includes("/rpc/nexus_finding")), false);
 });
+test("chunked finding overflow stops without waiting for the body end or mutating", async t => {
+  const calls = mock(t);
+  let cancelled = false;
+  const stream = new ReadableStream({
+    start(controller) {
+      controller.enqueue(new TextEncoder().encode('{"title":"test","authored_markdown":"'));
+      controller.enqueue(new TextEncoder().encode("x".repeat(100_001)));
+    },
+    cancel() { cancelled = true; return new Promise(() => {}); },
+  });
+  const result = await handle(request("/api/v2/findings", {
+    method: "POST", body: stream, duplex: "half",
+    headers: { "Idempotency-Key": "stream-overflow" },
+  }), env);
+  assert.equal(result.status, 413);
+  assert.equal(cancelled, true);
+  assert.equal(calls.some(call => call.url.pathname.includes("/rpc/nexus_finding")), false);
+});
+test("general chat JSON overflow fails before account reservation or persistence", async t => {
+  const calls = mock(t);
+  const result = await handle(request("/api/v1/chat", {
+    method: "POST",
+    body: JSON.stringify({ question: "x".repeat(100_001), non_sensitive_attested: true }),
+  }), env);
+  assert.equal(result.status, 413);
+  assert.equal(calls.some(call => /account|chat_messages|chat_sessions|gemini/.test(call.url.pathname)), false);
+});
 test("edit requires a revision and propagates database conflict without leaking detail", async t => {
   mock(t, "editor", () => new Response(JSON.stringify({ message: "NR:VERSION_CONFLICT sensitive-server-detail" }), { status: 400 }));
   const path = `/api/v2/findings/${finding}`;
@@ -86,6 +115,26 @@ test("edit requires a revision and propagates database conflict without leaking 
   const conflict = await handle(request(path, { method: "PATCH", body: '{"title":"test","authored_markdown":"","revision":1}' }), env);
   assert.equal(conflict.status, 409);
   assert.doesNotMatch(await conflict.text(), /sensitive-server-detail/);
+});
+test("Finding create and edit preserve PostgreSQL code-point bounds for supplementary Unicode", async t => {
+  const title = "📊".repeat(160), authored = "📜".repeat(10_000);
+  const operations = [];
+  mock(t, "editor", (_url, data, response) => {
+    operations.push(data.p_operation);
+    assert.equal(data.p_command.title, title);
+    assert.equal(data.p_command.authored_markdown, authored);
+    return response({ id: finding, revision: data.p_operation === "create" ? 1 : 2 });
+  });
+  const created = await handle(request("/api/v2/findings", { method: "POST",
+    headers: { "Idempotency-Key": "unicode-finding" }, body: JSON.stringify({ title, authored_markdown: authored }) }), env);
+  assert.equal(created.status, 201);
+  const edited = await handle(request(`/api/v2/findings/${finding}`, { method: "PATCH",
+    body: JSON.stringify({ title, authored_markdown: authored, revision: 1 }) }), env);
+  assert.equal(edited.status, 200);
+  const tooLong = await handle(request(`/api/v2/findings/${finding}`, { method: "PATCH",
+    body: JSON.stringify({ title: title + "📊", authored_markdown: authored, revision: 2 }) }), env);
+  assert.equal(tooLong.status, 422);
+  assert.deepEqual(operations, ["create", "edit"]);
 });
 test("MCP capability discovery advertises only record-authorized runtime operations", async t => {
   mock(t);

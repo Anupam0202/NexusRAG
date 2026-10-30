@@ -15,11 +15,12 @@ const PRODUCTS = [
   { name: "Scientific Evidence Workbench", description: "Paper, registry, dataset, and authority evidence with versioned extraction and review.", icon: Beaker, state: "CONNECTORS_PENDING" },
   { name: "Open-Source Assurance Graph", description: "OSV, KEV, SPDX, VEX, and SLSA evidence without flattening uncertainty.", icon: Code2, state: "PROVIDER_REVIEW" },
   { name: "Infrastructure & Public Risk", description: "Watchlist-driven monitoring of authoritative public-risk sources within bounded quotas.", icon: CloudCog, state: "PROVIDER_REVIEW" },
-  { name: "Evidence API & MCP", description: "Capability-scoped evidence operations with tenant, rights, version, and budget enforcement.", icon: Network, state: "DECLARATION_ONLY" },
+  { name: "Evidence API & MCP", description: "Inspect reviewed obligation evidence with separately reviewed API and custom MCP serving rights.", icon: Network, state: "PARTIAL_WORKFLOW" },
 ] as const;
 
 const STATUS_STYLE: Record<string, string> = {
   FOUNDATION_ONLY: "bg-slate-500/10 text-slate-700 dark:text-slate-300",
+  PARTIAL_WORKFLOW: "bg-blue-500/10 text-blue-700 dark:text-blue-300",
   DECLARATION_ONLY: "bg-blue-500/10 text-blue-700 dark:text-blue-300",
   PROVIDER_REVIEW: "bg-amber-500/10 text-amber-700 dark:text-amber-300",
   CONNECTORS_PENDING: "bg-slate-500/10 text-slate-700 dark:text-slate-300",
@@ -76,6 +77,8 @@ export default function EvidenceOSPage() {
                       <span className={`rounded-full px-2 py-1 text-[10px] font-bold tracking-wide ${STATUS_STYLE[state]}`}>{state.replaceAll("_", " ")}</span>
                     </div>
                     <p className="mt-1 text-xs leading-5 text-[var(--text-secondary)]">{description}</p>
+                    {name==="API Terms & Quota Radar"&&<Link href="/radar" className="mt-2 inline-block text-xs underline">Open supplied snapshot review</Link>}
+                    {name==="Evidence API & MCP"&&<Link href="/evidence-api" className="mt-2 inline-block text-xs underline">Open obligation evidence reader</Link>}
                   </div>
                 </div>
               </article>
