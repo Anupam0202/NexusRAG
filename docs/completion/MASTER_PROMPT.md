@@ -38,16 +38,26 @@ it blocks the current tier (for example, real keyword search if Tier 1 answers m
 the documents). IDs such as NX-03 refer to the issue ledger in Part 2, section D.
 
 **Tier 0 — Unblock.** Aim to finish this in your first session. It is done when all of the following hold.
-1. Every Gemini call reads its model from `GEMINI_MODEL` or `GEMINI_EMBEDDING_MODEL`, with one shared default
-   per variable, and every deploy sets these variables explicitly. Use `gemini-3.6-flash` as the default
-   generation model and `gemini-3.5-flash-lite` as the low-cost option: both are stable and free-tier on
-   Google's model and pricing pages (checked 2026-11-09); `gemini-3.8-flash` is newer but not yet labelled
-   stable. Keep embeddings on `gemini-embedding-001` at 768 dimensions (supported until 2028-05-14), because
-   changing the model or the dimension forces a new Qdrant collection and a full re-index. Remove the dead
-   `gemini-2.0-*` fallbacks. A live call with the test key succeeds for generation, embedding and PDF text
-   extraction with the exact request shape the code sends. (NX-06: `gemini-2.5-flash` shuts down on 2026-12-01,
-   confirmed on Google's deprecations page; after that date its calls are rerouted to `gemini-3.5-flash-lite`.)
-2. CI is green on the pull request that will become `main`. The frontend Docker build no longer type-checks
+1. Gemini follows the model policy (D24) and keeps working when Google retires a model. One module owns model
+   choice: generation tries `gemini-3.5-flash-lite` (stable, free tier, least expensive model class, and the model
+   Google reroutes `gemini-2.5-flash` to), then `gemini-3.1-flash-lite` (cheapest stable), then `gemini-flash-latest`
+   (alias Google moves to each new Flash release with two weeks' email notice) as a last resort. `GEMINI_MODEL`
+   accepts a comma-separated override of that list, and every deploy sets it explicitly. A call that fails because
+   the model is unavailable (404, or 400 saying the model is not found, not supported or retired) retries once on
+   the next candidate and remembers the working model; key, quota and safety errors never trigger fallback. Send a
+   thinking setting only where it is documented: `thinkingBudget: 0` for `gemini-2.5-*`, nothing for `*-flash-lite`
+   3.x models (their default is `minimal`), `thinkingLevel: "low"` for other 3.x models. Embeddings stay pinned to
+   `gemini-embedding-001` at 768 dimensions (supported until 2028-05-14, cheaper than `gemini-embedding-2`); record
+   the embedding model and dimension on each index generation, and never fall back automatically, because a different
+   embedding model breaks search — migrate by re-indexing into a new generation well before any shutdown. A daily
+   step in the existing cron lists models with the platform key and logs and exposes in `/health` which candidate is
+   active; a weekly GitHub Actions check fails, emailing the owner, if a configured model disappears. Remove the dead
+   `gemini-2.0-*` fallbacks. Live calls with the test key succeed for generation, embedding and PDF text extraction
+   with the exact request shapes the code sends. (NX-06: `gemini-2.5-flash` shuts down on 2026-12-01 and its calls are
+   then rerouted to `gemini-3.5-flash-lite`; production's live code sends `thinkingBudget: 0`, so if that model
+   rejects it, the updated gateway must reach production before 2026-12-01.)
+2. CI is green on the pull request that will become `main`. (2026-11-09: NX-10 fixed in `41eb758`; NX-09 and the
+   NX-01 build fix in `5a28cd2`, verified locally — confirm in CI.) The frontend Docker build no longer type-checks
    files outside its build context (NX-10). `npm audit --audit-level=high` in `frontend/` reports nothing
    (NX-09), and the Next.js upgrade is proven compatible with OpenNext by building the Worker and checking that
    an unknown path returns 404 and `/research` returns 200 (NX-01). The backend image gate is resolved the way
@@ -155,6 +165,10 @@ settings. For each one:
    not confirm a new destructive action.
 5. Act on exact IDs only, never by prefix, wildcard or pattern, and afterwards verify that the resource is gone
    and that everything that should still work does.
+
+Since 2026-11-09 the owner has delegated many of these decisions (section 9, D25). For a delegated action, steps
+3 and 4 become: record the exact list in PROGRESS.md and report it in your next message; steps 1, 2 and 5 still
+apply in full.
 
 Applying migrations to the rehearsal project, deploying to the candidate preview, creating and deleting your own
 test data on the rehearsal project, and making provider calls within free tiers are normal development work. Do
@@ -349,15 +363,23 @@ only commands, non-obvious facts and conventions. Do not describe the architectu
 
 ### 9. Owner checkpoints
 
-Stop and ask the owner before: any destructive or irreversible action (section 3), including deleting branches,
-releases, environments, workflow artifacts or repositories and changing rulesets; applying migrations to
-production or deploying anything that serves production; changing a required CI job or gate, including removing
-the execution-ledger gate or the backend image gate (propose it in a pull request and ask in chat); hiding or
-cutting product scope; pushing to a `release/production-*` branch, which triggers live provider validation with
-the platform's keys; enabling test sign-in methods or creating test users; anything that costs money; rotating
-credentials; and merging. Batch your questions into one message, give your recommended default for each (Part 2,
-section I lists them), say what you will work on while you wait, and keep working on items that do not depend on
-the answers.
+On 2026-11-09 the owner made you the decision-maker for this application: "You are the owner of this application,
+you will make the best decisions to make this app best ever by sustaining the business idea" (D25). Decide product
+and technical questions yourself — take the recommended defaults in Part 2, section I unless evidence shows a better
+option, and record each decision and its reason in PROGRESS.md. You may, without asking, but after the backups and
+verification section 3 requires and with a note in your next message: deploy to production once Tier 1 is verified
+on the preview, with a smoke test and a ready rollback; apply migrations to production at the same release, after
+snapshotting the affected tables; set or change non-secret production variables such as `GEMINI_MODEL`; delete
+compute resources that hold no data (for example the PR3 Workers and their empty queues) after a read-only
+inventory; and change CI jobs and workflows, including the execution-ledger gate and the backend image gate, in
+reviewed commits.
+
+Still ask the owner first, because these are irreversible, cost money or belong to the owner's account: deleting
+anything that holds data (Supabase projects, schemas, tables or rows, Storage objects, Qdrant collections with
+points); spending money or changing plans; rotating or revoking credentials and adding secrets (the owner enters
+them); changing GitHub rulesets, branch protection, environments, collaborators or visibility; deleting
+repositories or branches; and merging pull requests — the owner merges. Batch such questions into one message,
+give your recommended answer for each, and keep working on everything that does not depend on the answers.
 
 ### 10. Anti-patterns to avoid
 
@@ -389,12 +411,13 @@ Do these in order. Steps 2–5 are read-only, so you can start Tier 0 code work 
    the heads of `main` and `codex/runtime-manifest-008`; check `git config user.name` and `user.email`; look at
    PR #12 and its latest checks (`gh pr view 12` and `gh pr checks 12`, or the GitHub connector). Take the
    read-only GitHub inventory in Part 2, section F1.
-2. Gemini. Get the test key through `request_credential` if it is not set up. List models with `GET
-   https://generativelanguage.googleapis.com/v1beta/models?pageSize=1000` and re-read Google's deprecations page
-   (now at https://aistudio.google.com/docs/deprecations). Confirm that `gemini-3.6-flash` and
-   `gemini-3.5-flash-lite` are listed and work with the code's request shape — in particular check whether they
-   reject `thinkingConfig.thinkingBudget: 0`, which `apps/gateway/src/worker-pipeline.js` sends with every
-   answer — and keep `gemini-embedding-001`.
+2. Gemini. The owner adds the test key under the NexusRAG environment's Network secrets (section 5). List models
+   with `GET https://generativelanguage.googleapis.com/v1beta/models?pageSize=1000` and re-read Google's
+   deprecations page (https://aistudio.google.com/docs/deprecations). Confirm `gemini-3.5-flash-lite`,
+   `gemini-3.1-flash-lite` and `gemini-flash-latest` are listed. Test `gemini-3.5-flash-lite` with the live
+   production request shape, including `thinkingConfig.thinkingBudget: 0` — if it is rejected, production chat
+   breaks on 2026-12-01 when Google reroutes `gemini-2.5-flash` to it, so ship the updated gateway first — and test
+   PDF input and `gemini-embedding-001` at 768 dimensions.
 3. Qdrant, immediately. The cluster is `https://fc0c77d2-d9fd-4648-8459-09fa74372f16.eu-west-2-0.aws.cloud.qdrant.io` (AWS
    London). On 2026-11-09 it existed — it answered 403 without a key while made-up cluster IDs got no answer —
    but whether it was running or suspended was unknown. With the key (see section 5), call
@@ -576,7 +599,7 @@ Live URLs: `https://nexusrag-v6-frontend-preview.nexusrag-evidence-preview.worke
 | NX-03 | Critical | 1 | Documents show Ready but cannot be answered. Confirmed 2026-11-09: production's 7 legacy documents (June–July) have chunk rows but no version rows, and the v6 gateway answers only from ready versions | `preview-worker.js:640-649`; `worker-lifecycle.js:70-71,144-152`; `worker-pipeline.js:13,57` | Migrate or re-ingest legacy documents into versions (owner OK for production data); Ready = a published version whose chunk rows equal its Qdrant points; a re-index path |
 | NX-04 | Critical | 1 | A named-document summary pulled in another document (cover letter vs résumé) | Fixed in source by `4696a51` (`document-summary-scope.js`); not deployed | Verify on preview; ambiguous requests ask which document |
 | NX-05 | Critical | 1 | Answers from the wrong workspace or a stale selection (reported) | `preview-worker.js:206-265`; `worker-pipeline.js:100-111,171-177`; `frontend/src/lib/api-context.ts:9-16` | Two-user, two-tab test on preview; fix any leak at the source |
-| NX-06 | Critical (time) | 0 | `gemini-2.5-flash` is the hard-coded default and shuts down on 2026-12-01 (confirmed 2026-11-09; its calls then reroute to `gemini-3.5-flash-lite`); Python fallbacks name models shut down on 2026-06-01 | Section B list of call sites; `v6-live-provider-validation.yml:41`; `backend/config/settings.py:77-81`; `backend/src/ingestion/ocr_manager.py:153-169` | Centralize defaults on `gemini-3.6-flash`, set variables in every deploy, test live before 2026-12-01 |
+| NX-06 | Critical (time) | 0 | `gemini-2.5-flash` is the hard-coded default and shuts down on 2026-12-01 (its calls then reroute to `gemini-3.5-flash-lite`, and the live code always sends `thinkingBudget: 0`); Python fallbacks name models shut down on 2026-06-01; no handling for future retirements | Section B list of call sites; `v6-live-provider-validation.yml:41`; `backend/config/settings.py:77-81`; `backend/src/ingestion/ocr_manager.py:153-169` | Implement the D24 model policy (Tier 0 item 1) and test live before 2026-12-01 |
 | NX-07 | Critical (time) | 0 | Qdrant cluster exists (2026-11-09) but its running state is unknown; no keep-alive or probe | `fc0c77d2-d9fd-4648-8459-09fa74372f16.eu-west-2-0.aws.cloud.qdrant.io`; `preview-worker.js:1083` | Check with the key now; resume if suspended; keep-alive and typed state (Tier 4) |
 | NX-08 | Critical | 0–4 | Production is 35 migrations behind; hosted versions differ from repository filenames | Section H | Name-based reconciliation, rehearsal first, backup, owner-confirmed production apply plus matching release |
 | NX-09 | Critical | 0 | npm audit: critical `next` (GHSA-2464-fhr4-w9xw), high `vite` 8.0.16, `body-parser`, `undici`, `zod` <4.6.6 | CI run 41077993798, job 124139237880 | Upgrade; prove the Next/OpenNext pairing (NX-01) |
@@ -803,7 +826,11 @@ improvement wherever a change was meant to improve something.
   products, so say so on the BYOK screen. Paid prices for `gemini-3.6-flash` and `gemini-3.8-flash` double on
   2027-01-01. Before pinning, still confirm with `GET /v1beta/models` and the test key. To stay future-proof,
   add a check (in CI with a key, or at startup) that the configured models are listed, and re-read the
-  deprecations page whenever you touch model settings. Then centralize defaults and set `GEMINI_MODEL` and `GEMINI_EMBEDDING_MODEL` in every deploy; check whether Gemini
+  deprecations page whenever you touch model settings. Google documents a `gemini-flash-latest` alias that is
+  hot-swapped to each new Flash release (possibly a preview) with two weeks' email notice, and recommends pinned
+  stable models for production, hence D24 uses it only as the last fallback. Gemini 3 models take a thinking level
+  (`minimal`, `low`, `medium`, `high`; `gemini-3.5-flash-lite` defaults to `minimal`, `gemini-3.6-flash` to
+  `medium`); `thinkingBudget` is not documented for them. Then centralize defaults and set `GEMINI_MODEL` and `GEMINI_EMBEDDING_MODEL` in every deploy; check whether Gemini
   3 models expect `thinkingLevel` instead of `thinkingBudget`; map 400 `API_KEY_INVALID`, 401, 403, 404 and 429
   to distinct errors; remove `gemini-2.0-*`; keep `gemini-embedding-001` at 768 dimensions (`gemini-embedding-2`
   needs a new collection, uses text prefixes instead of `taskType`, and is a different vector space); if the
@@ -862,6 +889,8 @@ missing `20261025093226_finding_evidence_packages`, `20261026123000_radar_suppli
 
 ### I. Owner decisions and recommended defaults
 
+Since 2026-11-09 these are yours to decide (D25): treat each recommended default as decided unless evidence shows a better option, and record any change and its reason in PROGRESS.md. The exceptions in Part 1, section 9 still need the owner.
+
 | # | Decision | Recommended default |
 |---|---|---|
 | D1 | Merge PR #12 once green | Yes; the owner merges (squash or rebase, as protection requires) |
@@ -881,12 +910,14 @@ missing `20261025093226_finding_evidence_packages`, `20261026123000_radar_suppli
 | D15 | Keep-alive calls for Qdrant (and Supabase if needed) | Yes: one light daily request from the existing cron |
 | D16 | Legacy production data (8 users, ~7 documents) | Keep; offer re-indexing; never delete without explicit approval |
 | D17 | Production release timing | Right after Tier 1 is verified on preview, and before 1 December if the Gemini shutdown is confirmed |
-| D18 | Stopgap `GEMINI_MODEL` on the live production gateway | Its live code (version #52) reads `GEMINI_MODEL` and sends `thinkingBudget: 0`. If the release will miss 1 December, test `gemini-3.6-flash` with that request shape, then set the variable through the Workers settings API so secrets are kept (a production change: confirm with the owner first) |
+| D18 | Production before 1 December | Google reroutes `gemini-2.5-flash` to `gemini-3.5-flash-lite`, the D24 default, so setting `GEMINI_MODEL` alone changes little; the live code's `thinkingBudget: 0` is the risk. Test it live; if the model rejects it, release the updated gateway to production before 1 December (delegated, D25) |
 | D19 | Deleting `NexusRAG-Recovery` | Done by the owner on 2026-11-09 |
 | D20 | GitHub settings realignment (environments, secret names, rulesets, required checks) | Yes, exactly as proposed in the lean-pipeline pull request; applied by the owner or with explicit authorization |
 | D21 | Dropping unused database objects | Yes, after the Tier 3 scope is fixed: rehearsal first, then production with a backup and confirmation |
 | D22 | Deleting merged branches, old workflow artifacts and caches | Yes, after PR #12 merges; the owner approves the exact list |
 | D23 | Working branch | Decided 2026-11-09: commit and push to `codex/runtime-manifest-008` (PR #12); after it merges, a new branch from `main` |
+| D24 | Gemini model policy | Decided 2026-11-09 (owner asked for the least expensive, future-proof model that survives retirements): generation `gemini-3.5-flash-lite` → `gemini-3.1-flash-lite` → `gemini-flash-latest` with automatic fallback on model-unavailable errors, a daily availability check and a weekly CI check; embeddings pinned to `gemini-embedding-001` (768) per index generation, migrated only by re-indexing |
+| D25 | Who decides | Decided 2026-11-09: the owner delegated product and technical decisions to Claude; the exceptions that still need the owner are listed in Part 1, section 9 |
 
 ### J. Glossary of terms in older documents
 
@@ -1014,7 +1045,7 @@ the candidate frontend URL. Redeploying an existing Worker keeps its secrets.
 - Fresh databases come from `supabase/baseline/001_v6_zero_cost_baseline.sql` plus migrations 026 onward; numbered 001–025 do not replay. Hosted projects record different version numbers, so match migrations by name.
 - `next` is pinned because the OpenNext adapter must support Next's manifest format; after changing either, build the Worker and check that an unknown path returns 404.
 - `NEXT_PUBLIC_*` values are baked in at build time; a build without them deploys a broken app.
-- `gemini-2.5-flash`, the current hard-coded default, shuts down on 2026-12-01; switch to `gemini-3.6-flash` via `GEMINI_MODEL` (NX-06).
+- Gemini model policy (D24): generation `gemini-3.5-flash-lite` → `gemini-3.1-flash-lite` → `gemini-flash-latest` with fallback on model-unavailable errors; embeddings pinned to `gemini-embedding-001` (768) per index generation. `gemini-2.5-flash` shuts down on 2026-12-01.
 - Embeddings are `gemini-embedding-001` at 768 dimensions; changing model or dimension needs a new Qdrant collection and a re-index. The Python backend's embeddings are a different space and must never share a collection.
 - `GEMINI_USER_KEY_ENCRYPTION_SECRET` must never change without a re-encryption plan.
 - Qdrant Free clusters suspend when idle; Supabase Free projects pause after a week of low activity.

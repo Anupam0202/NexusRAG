@@ -10,7 +10,7 @@
 - Fresh databases come from `supabase/baseline/001_v6_zero_cost_baseline.sql` plus migrations 026 onward; numbered 001–025 do not replay. Hosted projects record different version numbers, so match migrations by name.
 - `next` is pinned because the OpenNext adapter must support Next's manifest format; after changing either, build the Worker and check that an unknown path returns 404.
 - `NEXT_PUBLIC_*` values are baked in at build time; a build without them deploys a broken app.
-- `gemini-2.5-flash`, the current hard-coded default, shuts down on 2026-12-01; switch to `gemini-3.6-flash` via `GEMINI_MODEL` (NX-06).
+- Gemini model policy (D24): generation `gemini-3.5-flash-lite` → `gemini-3.1-flash-lite` → `gemini-flash-latest` with fallback on model-unavailable errors; embeddings pinned to `gemini-embedding-001` (768) per index generation. `gemini-2.5-flash` shuts down on 2026-12-01.
 - Embeddings are `gemini-embedding-001` at 768 dimensions; changing model or dimension needs a new Qdrant collection and a re-index. The Python backend's embeddings are a different space and must never share a collection.
 - `GEMINI_USER_KEY_ENCRYPTION_SECRET` must never change without a re-encryption plan.
 - Qdrant Free clusters suspend when idle; Supabase Free projects pause after a week of low activity.

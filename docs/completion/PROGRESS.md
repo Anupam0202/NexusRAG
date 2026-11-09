@@ -58,14 +58,16 @@ Last updated: 2026-11-09 — NX-10 and NX-09/NX-01 fixed on PR #12 (verified at 
 - The owner adds two keys under the NexusRAG environment's Network secrets (environment menu → Edit): Qdrant
   (host `fc0c77d2-d9fd-4648-8459-09fa74372f16.eu-west-2-0.aws.cloud.qdrant.io`, header `api-key`) and Gemini
   (host `generativelanguage.googleapis.com`, header `x-goog-api-key`). The secure form cannot save either.
-- Owner decisions D1–D22 are open with recommended defaults (`MASTER_PROMPT.md`, Part 2, section I); D19 and
-  D23 are decided. D18 (production `GEMINI_MODEL` stopgap) is feasible: the live gateway reads the variable.
+- Decided 2026-11-09: D24 Gemini model policy (`gemini-3.5-flash-lite` → `gemini-3.1-flash-lite` →
+  `gemini-flash-latest`, automatic fallback, daily and weekly availability checks; embeddings pinned to
+  `gemini-embedding-001`), and D25: the owner delegated product and technical decisions; the exceptions are in
+  `MASTER_PROMPT.md`, Part 1, section 9. Other defaults in section I now count as decided.
 
 ## Next steps (exact commands)
 1. Check PR #12 CI on `5a28cd2`: dependency review should pass; the runtime-image job now builds the frontend
    image, so its vulnerability scan (and the Python backend image, decision D4) is the likely next blocker.
-2. NX-06: confirm Gemini 3 thinking configuration (`thinkingBudget` vs `thinkingLevel`) in Google's docs, centralize
-   defaults on `gemini-3.6-flash`, and test live once the owner adds the Gemini key.
+2. NX-06: implement the D24 model policy (Tier 0 item 1); test live once the owner adds the Gemini key, first
+   whether `gemini-3.5-flash-lite` accepts the live production request (`thinkingBudget: 0`) before 2026-12-01.
 3. Candidate preview (normal development work): apply the three missing migrations to rehearsal, then deploy the
    current gateway and frontend with wrangler and the saved Cloudflare token; check `/health` reports the SHA and
    `/research`, `/radar`, `/evidence-api` return 200 live.
