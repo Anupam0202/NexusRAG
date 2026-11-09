@@ -203,7 +203,10 @@ The state on 2026-11-08, in brief (details in Part 2):
 - Nothing after 9 October is deployed. The candidate preview (`nexusrag-v6-candidate-frontend` and `-gateway`)
   runs 8–9 October code against the rehearsal Supabase project and crashes with Error 1101 on any path its build
   does not know. The app production users reach is the "shared Preview" pair (`nexusrag-v6-frontend-preview` →
-  `nexusrag-v6-preview-gateway`), a 25 September build wired to the production Supabase project. The
+  `nexusrag-v6-preview-gateway`), running gateway version #52 and frontend version #29 from 23 September, wired
+  to the production Supabase project. A 25 September deploy that pointed at rehearsal was rolled back within four
+  minutes, and Cloudflare's script `settings` endpoint still shows that inactive version's bindings, so always read
+  the active deployment's version (`.../deployments`, then `.../versions/<id>`). The
   production-named Workers in the workflows (`nexusrag-v6-gateway`, `nexusrag-v6-frontend`) have never been
   deployed.
 - Production Supabase (`fcjaomiceajcdownarel`) has 35 applied migrations (latest `20260926195204`) and is
@@ -234,12 +237,17 @@ workflow that records a `Preview` deployment runs on pushes to `main` or `releas
   `api.cloudflare.com`, the `*.nexusrag-evidence-preview.workers.dev` hosts you test, and the Qdrant cluster
   host. Package registries are normally allowed. When the environment blocks you and the reason is unclear, read
   its documentation with `read_documentation`.
-- Credentials come only through `request_credential`, which injects them at the proxy so you never see them. You
-  need three: a Qdrant API key (host `fc0c77d2-d9fd-4648-8459-09fa74372f16.eu-west-2-0.aws.cloud.qdrant.io`, header `api-key`, no prefix); a Cloudflare
-  API token with Workers Scripts edit, Queues edit and account read scopes, able to manage Worker secrets (host
-  `api.cloudflare.com`, Bearer); and a test Gemini key (host `generativelanguage.googleapis.com`, header
-  `x-goog-api-key`). Call Qdrant on port 443: on 2026-11-09 the sandbox proxy blocked port 6333, and the cluster
-  answers on 443.
+- This work runs in the personal **NexusRAG** cloud environment (created 2026-11-09). Its network is limited to
+  Gemini, Cloudflare, the Qdrant host, both Supabase projects, the four workers.dev apps, Google Fonts, OpenNext
+  and Cloudflare docs and GitHub, plus package registries and MCP servers; request any other exact host with
+  `update_environment`.
+- Credentials never pass through chat. The secure form (`request_credential`) only saves `Authorization: Bearer`
+  keys for hosts of at most 64 characters: the Cloudflare API token (host `api.cloudflare.com`) was saved that way
+  on 2026-11-09 and works for account-scoped calls. The owner adds the other two under the NexusRAG environment's
+  **Network secrets** (environment menu in the session title bar → Edit): the Qdrant key (host
+  `fc0c77d2-d9fd-4648-8459-09fa74372f16.eu-west-2-0.aws.cloud.qdrant.io`, header `api-key`) and a test Gemini key
+  (host `generativelanguage.googleapis.com`, header `x-goog-api-key`). A new session picks them up. Call Qdrant on
+  port 443: the sandbox proxy blocked port 6333 on 2026-11-09, and the cluster answers on 443.
 - CLIs such as wrangler need a token value to start. Give them a dummy value (for example
   `CLOUDFLARE_API_TOKEN=dummy`) and the proxy substitutes the real credential. Set `CLOUDFLARE_ACCOUNT_ID` to
   the account ID in Part 2, section C.
@@ -545,14 +553,14 @@ document.
 | Supabase rehearsal | `nexusrag-zero-cost-rehearsal`, ref `ukgjygzfhyvnrsecdcuu`, us-east-1, ACTIVE_HEALTHY | On 2026-11-09: 42 applied migrations (latest `20261025091432`); 2 auth users (last sign-in 2026-10-29); no Storage objects; 60 public tables and 180 public functions; security advisors: four `research_*` tables with RLS but no policies, and leaked-password protection off; health advisors clean; Site URL points at the candidate frontend; two stale PR3 redirect URLs in its allow-list |
 | Supabase organization | "anupam0202's projects", managed through the Vercel Marketplace integration | Do not remove that integration: it administers the organization. The Free plan allows 2 active projects, and both are used |
 | Cloudflare account | `84e80d9629e0a6e6e5b31dbe85146acf`; workers.dev subdomain `nexusrag-evidence-preview` | No zone or custom domain; R2 not enabled; no KV, D1, Hyperdrive, Vectorize, Durable Objects or Workflows |
-| Production app (shared Preview) | `nexusrag-v6-frontend-preview` (script tag `14bdda3c2b3c49e083e73faf2ac12dd1`) → `nexusrag-v6-preview-gateway` (tag `55783d36cb0c4a9b99a5da1417a3d4da`) | 25 September build; bound to production Supabase; `/health` says `READY` without probing; its cron runs against production |
-| Candidate preview | `nexusrag-v6-candidate-frontend` (tag `4acd2bd63bc94cf6b166927a3fbb0238`) → `nexusrag-v6-candidate-gateway` (tag `ec883faae0954c86bd324c5cb825c618`) | Frontend `2fbc5c9`, gateway `46bb14f`; rehearsal Supabase; Qdrant collection `nexusrag-v6-candidate`; queue `nexusrag-v6-candidate-ingestion` and its DLQ |
+| Production app (shared Preview) | `nexusrag-v6-frontend-preview` (script tag `14bdda3c2b3c49e083e73faf2ac12dd1`) → `nexusrag-v6-preview-gateway` (tag `55783d36cb0c4a9b99a5da1417a3d4da`) | Active versions on 2026-11-09: gateway #52 `cd25c30b-6003-4df6-be85-4683bd2a610a` and frontend #29 `dbae2b54-3200-46ae-a3cd-0b0cac27a898`, both from 23 September (the 25 September versions #53/#30 were rolled back). The frontend is built against production Supabase. The gateway binds production Supabase, queue `nexusrag-v6-preview-ingestion` and cron `*/5 * * * *`; `QDRANT_COLLECTION` is unset, so it uses the compiled default `nexusrag-v6-preview`; secrets are `GOOGLE_API_KEY`, `QDRANT_URL`, `QDRANT_API_KEY`, `SUPABASE_SECRET_KEY` and `SUPABASE_SERVICE_ROLE_KEY`, with no `GEMINI_USER_KEY_ENCRYPTION_SECRET`. Its code reads `GEMINI_MODEL` and `GEMINI_EMBEDDING_MODEL`, defaults to `gemini-2.5-flash` and sends `thinkingBudget: 0`. `/health` says READY without probing. Production has 0 stored BYOK keys |
+| Candidate preview | `nexusrag-v6-candidate-frontend` (tag `4acd2bd63bc94cf6b166927a3fbb0238`) → `nexusrag-v6-candidate-gateway` (tag `ec883faae0954c86bd324c5cb825c618`) | Frontend `2fbc5c9`, gateway `46bb14f`; rehearsal Supabase; Qdrant collection `nexusrag-v6-candidate`; queue `nexusrag-v6-candidate-ingestion` and its DLQ; cron `*/5 * * * *`; secrets include `GEMINI_USER_KEY_ENCRYPTION_SECRET` |
 | PR3 pair | `nexusrag-v6-pr3-frontend` (tag `fa772d2b527f41dabf513beaf85b1d21`), `nexusrag-v6-pr3-gateway` (tag `cf5b233c01a44096b1cc8b1761c5775c`) | Quarantined 2026-10-09: workers.dev URLs disabled, cron removed, queue consumer detached; deletion candidates |
 | Production-named Workers | `nexusrag-v6-gateway`, `nexusrag-v6-frontend`; queues `nexusrag-v6-ingestion` and `nexusrag-v6-ingestion-dlq` | Never deployed; `production-deploy.yml` creates them on its first run |
-| Queues | Six existed in October | List them with wrangler before acting on any |
+| Queues | Six on 2026-11-09: `nexusrag-v6-preview-ingestion` and its DLQ (consumer: production gateway), `nexusrag-v6-candidate-ingestion` and its DLQ (consumer: candidate gateway), `nexusrag-v6-pr3-ingestion` and its DLQ (no consumer) | Check backlog before deleting the PR3 pair |
 | Qdrant | Account `d452b0e1-7cfe-4466-b3ce-fac96d4e0ca7`; cluster `fc0c77d2-d9fd-4648-8459-09fa74372f16` (Free; v1.19.1 in October) at `https://fc0c77d2-d9fd-4648-8459-09fa74372f16.eu-west-2-0.aws.cloud.qdrant.io` (AWS eu-west-2) | On 2026-11-09 it existed (403 without a key; made-up IDs get no answer); running or suspended unknown. In October: a legacy collection with 17 points and four v6 collections (candidate, preview, production, PR3) with 0 points; no aliases |
 
-Re-checked live on 2026-11-09: the same six Workers, unchanged since October; R2 still not enabled; no KV or D1; the production gateway's `/health` says READY without probing; the candidate gateway reports source `46bb14f`; `nexusrag-v6-gateway` does not exist (Cloudflare 1042). The production frontend serves `/chat`, `/documents` and `/settings` and returns 404 for unknown paths; the candidate frontend returns 500 for `/research`, `/radar`, `/evidence-api` and unknown paths (NX-01).
+Re-checked live on 2026-11-09: the same six Workers, unchanged since October; R2 still not enabled; no KV or D1; the production gateway's `/health` says READY without probing; the candidate gateway reports source `46bb14f`; `nexusrag-v6-gateway` does not exist (Cloudflare 1042). The production frontend serves `/chat`, `/documents` and `/settings` and returns 404 for unknown paths; the candidate frontend returns 500 for `/research`, `/radar`, `/evidence-api` and unknown paths (NX-01). Production Supabase's only traffic is the production gateway's cron polling `ingestion_jobs` every five minutes. Rehearsal also sees a signed-in browser session polling about every 70 seconds (about 1,260 auth checks a day, with hourly token refreshes), most likely a tab left open on the candidate app.
 
 Live URLs: `https://nexusrag-v6-frontend-preview.nexusrag-evidence-preview.workers.dev` (the production app) and
 `https://nexusrag-v6-preview-gateway.nexusrag-evidence-preview.workers.dev`;
@@ -564,7 +572,7 @@ Live URLs: `https://nexusrag-v6-frontend-preview.nexusrag-evidence-preview.worke
 | ID | Priority | Tier | Problem | Where to look | Fix |
 |---|---|---|---|---|---|
 | NX-01 | Critical | 0/1 | Candidate returns Error 1101 for any non-prerendered path, including `/research`, `/radar`, `/evidence-api` (those routes do not exist in the deployed build) | `docs/implementation/RUNTIME_MANIFEST_008.md`; commit `0c5d712`; `frontend/src/e2e/worker-routing.spec.ts` | Deploy current source with a patched, adapter-compatible Next; test unknown path → 404 on the built Worker |
-| NX-02 | Critical | 1 | Both live apps run stale code (candidate 8–9 Oct; production pair 25 Sep) | `/health`; Worker modification dates | Deploy verified heads to preview; release to production with approval |
+| NX-02 | Critical | 1 | Both live apps run stale code (candidate 8–9 Oct; production gateway #52 and frontend #29 from 23 Sep, after a 25 Sep deploy was rolled back) | `/health`; active deployments via the Cloudflare API | Deploy verified heads to preview; release to production with approval |
 | NX-03 | Critical | 1 | Documents show Ready but cannot be answered. Confirmed 2026-11-09: production's 7 legacy documents (June–July) have chunk rows but no version rows, and the v6 gateway answers only from ready versions | `preview-worker.js:640-649`; `worker-lifecycle.js:70-71,144-152`; `worker-pipeline.js:13,57` | Migrate or re-ingest legacy documents into versions (owner OK for production data); Ready = a published version whose chunk rows equal its Qdrant points; a re-index path |
 | NX-04 | Critical | 1 | A named-document summary pulled in another document (cover letter vs résumé) | Fixed in source by `4696a51` (`document-summary-scope.js`); not deployed | Verify on preview; ambiguous requests ask which document |
 | NX-05 | Critical | 1 | Answers from the wrong workspace or a stale selection (reported) | `preview-worker.js:206-265`; `worker-pipeline.js:100-111,171-177`; `frontend/src/lib/api-context.ts:9-16` | Two-user, two-tab test on preview; fix any leak at the source |
@@ -580,7 +588,7 @@ Live URLs: `https://nexusrag-v6-frontend-preview.nexusrag-evidence-preview.worke
 | NX-15 | High | 2/3 | Procurement and passport lookups return 501; 065 WIP is client and SQL only | `preview-worker.js:772,1178` | Finish end to end or hide (D10, D11) |
 | NX-16 | High | 1/2 | UI calls `/api/v1/auth/me`, workspace delete and retention run, which the gateway lacks | `frontend/src/lib/api.ts:361,367,437`; `preview-worker.js:904`; `settings/privacy/page.tsx:348,442` | Implement (Tier 2) or hide now (Tier 1) |
 | NX-17 | High | 2 | CALCULATION has no run mode; other modes show "not implemented"; review states not actionable | `research-run.ts:54`; `ResearchRuns.tsx:121`; `research-obligations.js:112` | Add the run mode on the existing calculation code; actionable review |
-| NX-18 | High | 4 | New Workers with a different encryption secret would break every stored production key | `user-gemini-key.js:24-28`; `production-deploy.yml:105-110` | Count active keys; release into existing Worker names (D8) or confirm the secret |
+| NX-18 | Medium | 4 | New Workers with a different encryption secret would break stored keys. On 2026-11-09 production had 0 stored keys and its live gateway has no encryption secret, so today the risk covers only rehearsal and the candidate | `user-gemini-key.js:24-28`; `production-deploy.yml:105-110` | Set one secret for production when BYOK first ships there; never rotate it without re-encryption |
 | NX-19 | High | 2/4 | Grants and advisors never checked on real Supabase roles for the newer schema | CI uses plain PostgreSQL without Supabase default privileges | `get_advisors` and a grants query after each migration batch |
 | NX-20 | Medium | 4 (pull forward if needed) | Keyword search scores only 200 rows in JavaScript | `preview-worker.js:651` | Postgres full-text search or Qdrant sparse vectors |
 | NX-21 | Medium | 1 | Simulated streaming | `preview-worker.js:1022` | Stream from `streamGenerateContent` with a final citation check |
@@ -863,7 +871,7 @@ missing `20261025093226_finding_evidence_packages`, `20261026123000_radar_suppli
 | D5 | Workers Free or Paid ($5/month) | Free during development; Paid before inviting real users if Workers Logs show CPU or subrequest errors |
 | D6 | Rehearsal Supabase project | Keep as permanent staging |
 | D7 | Test accounts | Two synthetic users on the rehearsal project only (password or magic-link sign-in enabled there only) for automated tests; the owner checks Google sign-in by hand; production stays Google-only |
-| D8 | Production Worker names | First release into the existing shared Preview names (keeps the users' URL, OAuth settings, Worker secrets and the BYOK encryption key): point `apps/gateway/wrangler.production.jsonc`, `frontend/wrangler.production.jsonc` and `production-deploy.yml` at those names, and set `QDRANT_COLLECTION` explicitly; rename or add a custom domain later |
+| D8 | Production Worker names | First release into the existing shared Preview names (keeps the users' URL, OAuth redirect settings, the queue and existing secrets; production has no stored BYOK keys, so set a new `GEMINI_USER_KEY_ENCRYPTION_SECRET` once at that release): point `apps/gateway/wrangler.production.jsonc`, `frontend/wrangler.production.jsonc` and `production-deploy.yml` at those names, and set `QDRANT_COLLECTION` explicitly; rename or add a custom domain later |
 | D9 | Document size limit | 10 MB at the gateway for now; keep the 25 MB bucket limit as a ceiling |
 | D10 | Niche products | Tier 3, behind feature flags and out of navigation until each passes; the owner orders them |
 | D11 | 065 procurement WIP (preserved as `docs/completion/patches/065-procurement-evidence-wip.patch`) | If Procurement stays in scope, apply it when you build Procurement and merge it only when it works end to end; otherwise delete the patch in the docs cleanup |
@@ -873,7 +881,7 @@ missing `20261025093226_finding_evidence_packages`, `20261026123000_radar_suppli
 | D15 | Keep-alive calls for Qdrant (and Supabase if needed) | Yes: one light daily request from the existing cron |
 | D16 | Legacy production data (8 users, ~7 documents) | Keep; offer re-indexing; never delete without explicit approval |
 | D17 | Production release timing | Right after Tier 1 is verified on preview, and before 1 December if the Gemini shutdown is confirmed |
-| D18 | Stopgap `GEMINI_MODEL` on the live production gateway | If its deployed code honours the variable and the release will miss 1 December, set it (a production change, so confirm first) |
+| D18 | Stopgap `GEMINI_MODEL` on the live production gateway | Its live code (version #52) reads `GEMINI_MODEL` and sends `thinkingBudget: 0`. If the release will miss 1 December, test `gemini-3.6-flash` with that request shape, then set the variable through the Workers settings API so secrets are kept (a production change: confirm with the owner first) |
 | D19 | Deleting `NexusRAG-Recovery` | Done by the owner on 2026-11-09 |
 | D20 | GitHub settings realignment (environments, secret names, rulesets, required checks) | Yes, exactly as proposed in the lean-pipeline pull request; applied by the owner or with explicit authorization |
 | D21 | Dropping unused database objects | Yes, after the Tier 3 scope is fixed: rehearsal first, then production with a backup and confirmation |
