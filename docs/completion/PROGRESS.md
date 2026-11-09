@@ -1,5 +1,5 @@
 # NexusRAG completion progress
-Last updated: 2026-11-09 — environment and Cloudflare access set up; live inventory corrected; no application code changed yet
+Last updated: 2026-11-09 — NX-10 and NX-09/NX-01 fixed on PR #12 (verified at level 2); Gemini and Qdrant keys pending
 
 ## Current state
 - main: `85b14f1`; working branch: `codex/runtime-manifest-008` (draft PR #12, owner-approved for direct
@@ -34,7 +34,9 @@ Last updated: 2026-11-09 — environment and Cloudflare access set up; live inve
   3 fail (runtime images, dependency review, required summary) and 2 deploy jobs are skipped — unchanged.
 
 ## Tiers
-- Tier 0: [ ] Gemini defaults and live test (NX-06, before 2026-12-01) [ ] CI green (NX-09, NX-10, summary)
+- Tier 0: [ ] Gemini defaults and live test (NX-06, before 2026-12-01) [x] NX-10 frontend Docker type-check
+  [x] NX-09 audit gate and NX-01 Worker crash (built Worker verified; deploy pending) [ ] CI green (runtime image
+  scans and summary still to confirm)
   [ ] replayable migrations (NX-11) [ ] deploy workflows (NX-12, NX-13) [ ] PR #12 description rewritten and
   handed over [ ] Qdrant running state and collections (NX-07) [x] Recovery salvage (NX-43)
   [x] Cloudflare inventory with the API token
@@ -48,7 +50,9 @@ Last updated: 2026-11-09 — environment and Cloudflare access set up; live inve
 |---|---|---|---|---|
 | 2026-11-09 | Recovery salvage; owner deleted `NexusRAG-Recovery` | — | n/a | `MASTER_PROMPT.md`, Part 2 F2 |
 | 2026-11-09 | Plan, progress log, `CLAUDE.md` and the 065 patch saved to the branch | #12 | n/a (documents) | `763c288` |
-| 2026-11-09 | NexusRAG environment created; Cloudflare token saved; live Cloudflare inventory | #12 | n/a (read-only) | this commit |
+| 2026-11-09 | NexusRAG environment created; Cloudflare token saved; live Cloudflare inventory | #12 | n/a (read-only) | `4410c35` |
+| 2026-11-09 | NX-10: production builds type-check app code only (`tsconfig.build.json`) | #12 | 2 (frontend-only `next build`) | `41eb758` |
+| 2026-11-09 | NX-09/NX-01: next 16.4.5 + @opennextjs/cloudflare 1.20.16, vite 8.3.6, undici/zod/glob patched; assets `html_handling: none` | #12 | 2 (audit gate 0; lint, tsc, 731 tests, cf:build; local Worker: real routes 200, unknown 404; 14 routing tests) | `5a28cd2` |
 
 ## Blockers and owner decisions
 - The owner adds two keys under the NexusRAG environment's Network secrets (environment menu → Edit): Qdrant
@@ -58,9 +62,11 @@ Last updated: 2026-11-09 — environment and Cloudflare access set up; live inve
   D23 are decided. D18 (production `GEMINI_MODEL` stopgap) is feasible: the live gateway reads the variable.
 
 ## Next steps (exact commands)
-1. Once the keys are added: `curl -sS -H 'api-key: x' "https://fc0c77d2-d9fd-4648-8459-09fa74372f16.eu-west-2-0.aws.cloud.qdrant.io/collections"`
-   and `curl -sS -H 'x-goog-api-key: x' "https://generativelanguage.googleapis.com/v1beta/models?pageSize=1000"`.
-2. Fix NX-10: exclude test files from the frontend production type-check; reproduce with a `frontend/`-only build.
-3. Fix NX-09: upgrade `next` and the flagged packages; build the OpenNext Worker and check that an unknown path
-   returns 404 and `/research` returns 200.
-4. NX-06: centralize Gemini defaults on `gemini-3.6-flash`; test generation, embedding and PDF extraction live.
+1. Check PR #12 CI on `5a28cd2`: dependency review should pass; the runtime-image job now builds the frontend
+   image, so its vulnerability scan (and the Python backend image, decision D4) is the likely next blocker.
+2. NX-06: confirm Gemini 3 thinking configuration (`thinkingBudget` vs `thinkingLevel`) in Google's docs, centralize
+   defaults on `gemini-3.6-flash`, and test live once the owner adds the Gemini key.
+3. Candidate preview (normal development work): apply the three missing migrations to rehearsal, then deploy the
+   current gateway and frontend with wrangler and the saved Cloudflare token; check `/health` reports the SHA and
+   `/research`, `/radar`, `/evidence-api` return 200 live.
+4. Once the Qdrant key is added: `curl -sS -H 'api-key: x' "https://fc0c77d2-d9fd-4648-8459-09fa74372f16.eu-west-2-0.aws.cloud.qdrant.io/collections"`.
