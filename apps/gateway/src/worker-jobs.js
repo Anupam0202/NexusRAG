@@ -1,6 +1,7 @@
 import { chunkText, indexChunks, MAX_DOCUMENT_CHUNKS, MAX_INDEX_BATCH_CHUNKS, sha256 } from "./worker-pipeline.js";
 import { deleteQdrantGeneration, extractFileText, verifyQdrantGeneration } from "./worker-lifecycle.js";
 import { loadUserGeminiKey } from "./user-gemini-key.js";
+import { embeddingModel } from "./gemini-models.js";
 import { processResearchMessage, sweepResearchRuns } from "./research-executor.js";
 
 const iso = () => new Date().toISOString();
@@ -171,7 +172,7 @@ async function processIngestionMessage(env, message) {
       })));
       const stored = await rpc(env, "workbench_store_extracted_chunks", {
         ...extractionIdentity,
-        p_space: env.GEMINI_EMBEDDING_MODEL || "gemini-embedding-001",
+        p_space: embeddingModel(env),
         p_index: generation,
         p_manifest: extractionManifest,
         p_total_chunks: totalChunks,
@@ -211,7 +212,7 @@ async function processIngestionMessage(env, message) {
     const staged = await rpc(env, "workbench_stage_chunk_batch", {
       p_job: job.id, p_workspace: job.workspace_id, p_owner: claimResult.owner,
       p_generation: claimResult.generation, p_version: job.version_id, p_epoch: Number(job.lifecycle_epoch),
-      p_space: env.GEMINI_EMBEDDING_MODEL || "gemini-embedding-001", p_index: generation,
+      p_space: embeddingModel(env), p_index: generation,
       p_manifest: extractionManifest, p_total_chunks: totalChunks, p_offset: offset, p_chunks: stagedChunks,
     });
     if (Number(staged?.count) < offset + batch.length) throw err("INGESTION_FAILED", "Staged batch was not durably recorded.", true);

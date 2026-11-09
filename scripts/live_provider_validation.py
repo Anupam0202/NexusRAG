@@ -16,6 +16,11 @@ import sys
 import uuid
 from urllib import error, parse, request
 
+if __package__:
+    from .gemini_model_policy import generation_models, thinking_config
+else:
+    from gemini_model_policy import generation_models, thinking_config
+
 
 class ProviderHttpError(RuntimeError):
     def __init__(self, status: int, retry_after: str | None = None) -> None:
@@ -218,7 +223,11 @@ def validate_qdrant() -> dict:
 
 def validate_gemini() -> dict:
     api_key = _required("GOOGLE_API_KEY")
-    model = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash").strip()
+    # Probe the primary model with the exact request shape the gateway sends (D24).
+    model = generation_models(os.environ.get("GEMINI_MODEL"))[0]
+    generation_config = {"temperature": 0, "maxOutputTokens": 128, "candidateCount": 1}
+    if thinking_config(model):
+        generation_config["thinkingConfig"] = thinking_config(model)
     url = (
         f"https://generativelanguage.googleapis.com/v1beta/models/"
         f"{parse.quote(model, safe='.-_')}:generateContent"
@@ -242,12 +251,7 @@ def validate_gemini() -> dict:
                         ],
                     }
                 ],
-                "generationConfig": {
-                    "temperature": 0,
-                    "maxOutputTokens": 128,
-                    "candidateCount": 1,
-                    "thinkingConfig": {"thinkingBudget": 0},
-                },
+                "generationConfig": generation_config,
             },
         )
     except ProviderHttpError as exc:

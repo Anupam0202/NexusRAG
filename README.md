@@ -117,7 +117,7 @@ Customer evidence and business records remain authoritative in Supabase. Qdrant 
 
 | Layer | Technology |
 |-------|-----------|
-| **LLM** | Google Gemini failover chain (`gemini-2.5-flash` primary by default, fast 2.5/2.0 fallbacks) |
+| **LLM** | Google Gemini with automatic fallback when a model is retired (`gemini-3.5-flash-lite` → `gemini-3.1-flash-lite` → `gemini-flash-latest`) |
 | **Embeddings** | Sentence Transformers (all-MiniLM-L6-v2) |
 | **Re-ranker** | Cross-encoder (ms-marco-MiniLM-L-6-v2) |
 | **OCR** | Gemini Vision + Google Cloud Vision |
@@ -312,8 +312,8 @@ NexusRAG/
 | `SUPABASE_JWT_SECRET` / `SUPABASE_JWKS_URL` | empty | Token verification config; hosted Supabase projects can use the JWKS URL |
 | `SUPABASE_STORAGE_BUCKET` | `documents` | Supabase Storage bucket for uploaded source files |
 | `ENABLE_ANONYMOUS_DEMO` | `false` | Enables local anonymous mode only when explicitly set to `true` |
-| `LLM_MODEL_NAME` | `gemini-2.5-flash` | Primary LLM model |
-| `LLM_FALLBACK_MODELS` | `gemini-2.5-flash-lite,gemini-2.0-flash,gemini-2.0-flash-lite` | Comma-separated fallback chain |
+| `LLM_MODEL_NAME` | `gemini-3.5-flash-lite` | Primary LLM model |
+| `LLM_FALLBACK_MODELS` | `gemini-3.1-flash-lite,gemini-flash-latest` | Comma-separated fallback chain |
 | `EMBEDDING_MODEL` | `all-MiniLM-L6-v2` | Sentence transformer model |
 | `CHUNK_SIZE` | `1000` | Target characters per chunk |
 | `CHUNK_OVERLAP` | `200` | Overlap between chunks |
@@ -453,9 +453,11 @@ Question → Input Sanitization → Semantic Cache Check
 
 ### Model Failover Chain
 ```
-gemini-2.5-flash → gemini-2.5-flash-lite → gemini-2.0-flash → gemini-2.0-flash-lite
+gemini-3.5-flash-lite → gemini-3.1-flash-lite → gemini-flash-latest
 ```
 Each model is tried in order. Provider-level retries are disabled so quota or model-availability failures move to the next candidate quickly instead of delaying the chat stream.
+
+The Cloudflare gateway uses the same chain (`apps/gateway/src/gemini-models.js`; override it with a comma-separated `GEMINI_MODEL`). It moves to the next model only when Google reports the model as unavailable or retired, remembers the working model for a day, and checks Google's model list once a day; `/health` reports the models in use. A weekly GitHub Actions check (`Gemini Model Check`) fails if a configured model disappears. Embeddings stay pinned to `gemini-embedding-001` (768 dimensions), because a different embedding model needs a re-index.
 
 ---
 

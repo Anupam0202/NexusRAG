@@ -42,7 +42,7 @@ function localAppFixture() {
     QDRANT_COLLECTION: "nexusrag-e2e",
     GOOGLE_API_KEY: "synthetic-gemini-only",
     GEMINI_EMBEDDING_MODEL: "gemini-embedding-001",
-    GEMINI_MODEL: "gemini-2.5-flash",
+    GEMINI_MODEL: "gemini-3.5-flash-lite",
     FRONTEND_ORIGIN: "https://app.invalid",
     INGESTION_QUEUE: queue,
   };

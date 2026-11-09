@@ -43,7 +43,7 @@ vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 import SettingsPage from "./page";
 
 const settings = {
-  llm_model_name: "gemini-2.5-flash",
+  llm_model_name: "gemini-3.5-flash-lite",
   llm_temperature: 0.1,
   retrieval_top_k: 8,
   enable_reranking: false,
@@ -75,7 +75,7 @@ describe("SettingsPage", () => {
     expect(screen.getByRole("slider", { name: "Context Window" })).toBeDisabled();
     expect(screen.getByRole("switch", { name: /Re-ranking/i })).toBeDisabled();
     expect(screen.getByText(/prior chat messages are not sent to Gemini/i)).toBeVisible();
-    expect(screen.getByText("gemini-2.5-flash")).toBeVisible();
+    expect(screen.getByText("gemini-3.5-flash-lite")).toBeVisible();
   });
 
   it("saves only supported, bounded settings through the workspace API", async () => {

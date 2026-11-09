@@ -1,5 +1,5 @@
 # NexusRAG completion progress
-Last updated: 2026-11-09 — NX-10 and NX-09/NX-01 fixed on PR #12 (verified at level 2); Gemini and Qdrant keys pending
+Last updated: 2026-11-09 — NX-06 Gemini model policy implemented (level 2); D4 image gate green in CI; Gemini and Qdrant keys pending
 
 ## Current state
 - main: `85b14f1`; working branch: `codex/runtime-manifest-008` (draft PR #12, owner-approved for direct
@@ -10,7 +10,7 @@ Last updated: 2026-11-09 — NX-10 and NX-09/NX-01 fixed on PR #12 (verified at 
   `/research`, `/radar`, `/evidence-api` and unknown paths return 500 (NX-01)
 - Production: `nexusrag-v6-frontend-preview` v29 → `nexusrag-v6-preview-gateway` v52, both from 23 September
   (a 25 September deploy was rolled back), on production Supabase and the default collection `nexusrag-v6-preview`;
-  the gateway reads `GEMINI_MODEL` and defaults to `gemini-2.5-flash`
+  the live gateway still defaults to `gemini-2.5-flash` with `thinkingBudget: 0` until the NX-06 code is deployed
 - Qdrant: cluster `fc0c77d2-d9fd-4648-8459-09fa74372f16` (AWS eu-west-2) exists; running state and collections
   unknown until the owner adds the API key
 
@@ -34,9 +34,10 @@ Last updated: 2026-11-09 — NX-10 and NX-09/NX-01 fixed on PR #12 (verified at 
   3 fail (runtime images, dependency review, required summary) and 2 deploy jobs are skipped — unchanged.
 
 ## Tiers
-- Tier 0: [ ] Gemini defaults and live test (NX-06, before 2026-12-01) [x] NX-10 frontend Docker type-check
-  [x] NX-09 audit gate and NX-01 Worker crash (built Worker verified; deploy pending) [ ] CI green (runtime image
-  scans and summary still to confirm)
+- Tier 0: [~] Gemini model policy (NX-06): implemented and tested offline; live test and production release
+  pending (before 2026-12-01) [x] NX-10 frontend Docker type-check [x] NX-09 audit gate and NX-01 Worker crash
+  (built Worker verified; deploy pending) [~] CI green: runtime images pass since D4 (`51e73ce`); frontend job and
+  required summary to confirm
   [ ] replayable migrations (NX-11) [ ] deploy workflows (NX-12, NX-13) [ ] PR #12 description rewritten and
   handed over [ ] Qdrant running state and collections (NX-07) [x] Recovery salvage (NX-43)
   [x] Cloudflare inventory with the API token
@@ -53,6 +54,8 @@ Last updated: 2026-11-09 — NX-10 and NX-09/NX-01 fixed on PR #12 (verified at 
 | 2026-11-09 | NexusRAG environment created; Cloudflare token saved; live Cloudflare inventory | #12 | n/a (read-only) | `4410c35` |
 | 2026-11-09 | NX-10: production builds type-check app code only (`tsconfig.build.json`) | #12 | 2 (frontend-only `next build`) | `41eb758` |
 | 2026-11-09 | NX-09/NX-01: next 16.4.5 + @opennextjs/cloudflare 1.20.16, vite 8.3.6, undici/zod/glob patched; assets `html_handling: none` | #12 | 2 (audit gate 0; lint, tsc, 731 tests, cf:build; local Worker: real routes 200, unknown 404; 14 routing tests) | `5a28cd2` |
+| 2026-11-09 | D4: the legacy Python backend image is built and scanned only when `include_backend` is set; the frontend image scan still gates CI | #12 | CI (runtime-images job green) | `51e73ce` |
+| 2026-11-09 | NX-06: Gemini model policy D24 — fallback chain with retirement detection, per-model thinking settings, `/health` models, daily cron check, weekly `Gemini Model Check` workflow, live probe on the primary model, deploys set the models explicitly; Python backend and README moved off retired models | #12 | 2 (879 gateway tests incl. 13 new; 161 script tests, only the sandbox-only IPv6 test fails; backend 64 + 664; wrangler dry-run) | next commit |
 
 ## Blockers and owner decisions
 - The owner adds two keys under the NexusRAG environment's Network secrets (environment menu → Edit): Qdrant
@@ -64,10 +67,14 @@ Last updated: 2026-11-09 — NX-10 and NX-09/NX-01 fixed on PR #12 (verified at 
   `MASTER_PROMPT.md`, Part 1, section 9. Other defaults in section I now count as decided.
 
 ## Next steps (exact commands)
-1. Check PR #12 CI on `5a28cd2`: dependency review should pass; the runtime-image job now builds the frontend
-   image, so its vulnerability scan (and the Python backend image, decision D4) is the likely next blocker.
-2. NX-06: implement the D24 model policy (Tier 0 item 1); test live once the owner adds the Gemini key, first
-   whether `gemini-3.5-flash-lite` accepts the live production request (`thinkingBudget: 0`) before 2026-12-01.
+1. NX-06 live test once the owner adds the Gemini key: `python3 scripts/check_gemini_models.py`, then
+   `LIVE_EXTERNAL_VALIDATION=true PROVIDER_UNDER_TEST=gemini python3 scripts/live_provider_validation.py`, then
+   check whether `gemini-3.5-flash-lite` accepts the old production request (`thinkingBudget: 0`). If it does not,
+   production chat breaks on 2026-12-01 unless the NX-06 gateway is released first (delegated, D25).
+2. NX-12/NX-13: fix the deploy workflows. Found 2026-11-09: production `/health` is checked for
+   `status == "READY"` but the gateway reports `CONFIGURED`, so that step can never pass; the workflow sets
+   `RELEASE_SHA` while the gateway reads `SOURCE_COMMIT`; secrets are installed after the deploy; and the config
+   deploys `nexusrag-v6-gateway`, not the `*-preview` Workers that serve production today.
 3. Candidate preview (normal development work): apply the three missing migrations to rehearsal, then deploy the
    current gateway and frontend with wrangler and the saved Cloudflare token; check `/health` reports the SHA and
    `/research`, `/radar`, `/evidence-api` return 200 live.

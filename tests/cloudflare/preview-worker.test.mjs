@@ -74,7 +74,7 @@ test("workspace settings are authenticated, tenant-scoped, secret-free, and use 
     }), configured);
     const body = await response.json();
     assert.equal(response.status, 200);
-    assert.equal(body.llm_model_name, "gemini-2.5-flash");
+    assert.equal(body.llm_model_name, "gemini-3.5-flash-lite");
     assert.equal(body.embedding_model, "gemini-embedding-001");
     assert.equal(body.retrieval_top_k, 10);
     assert.equal(body.hybrid_search_alpha, 0.6);

@@ -42,6 +42,8 @@ jobs:
       INGESTION_QUEUE: nexusrag-v6-ingestion
       INGESTION_DLQ: nexusrag-v6-ingestion-dlq
       QDRANT_COLLECTION: nexusrag-v6-production
+      GEMINI_MODEL: ${{ vars.GEMINI_MODEL }}
+      GEMINI_EMBEDDING_MODEL: ${{ vars.GEMINI_EMBEDDING_MODEL }}
     steps:
       - uses: actions/checkout@v5
         with:
@@ -90,6 +92,15 @@ jobs:
               npx --yes wrangler@4.148.0 queues create "$queue" --message-retention-period-secs 86400
             fi
           done
+      - name: Resolve Gemini model policy
+        # --keep-vars would otherwise keep a stale model on the Worker; always deploy the resolved policy (D24).
+        run: |
+          set -euo pipefail
+          policy="$(node --input-type=module -e 'const m = await import("./apps/gateway/src/gemini-models.js"); console.log(JSON.stringify({ generation: m.generationModels(process.env).join(","), embedding: m.embeddingModel(process.env) }))')"
+          {
+            echo "GEMINI_MODEL=$(jq -er .generation <<<"$policy")"
+            echo "GEMINI_EMBEDDING_MODEL=$(jq -er .embedding <<<"$policy")"
+          } >> "$GITHUB_ENV"
       - name: Deploy gateway
         run: |
           npx --yes wrangler@4.148.0 deploy \
@@ -100,6 +111,8 @@ jobs:
             --var "QDRANT_COLLECTION:$QDRANT_COLLECTION" \
             --var "FRONTEND_ORIGIN:$FRONTEND_ORIGIN" \
             --var "RUNTIME_SERVICE_NAME:$GATEWAY_WORKER" \
+            --var "GEMINI_MODEL:$GEMINI_MODEL" \
+            --var "GEMINI_EMBEDDING_MODEL:$GEMINI_EMBEDDING_MODEL" \
             --var "RELEASE_SHA:$RELEASE_SHA"
       - name: Install production secrets
         run: |

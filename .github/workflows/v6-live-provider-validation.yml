@@ -38,7 +38,8 @@ jobs:
       QDRANT_API_KEY: ${{ secrets.QDRANT_API_KEY }}
       QDRANT_COLLECTION_PREFIX: ${{ vars.QDRANT_COLLECTION_PREFIX || 'nexusrag-ci' }}
       GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
-      GEMINI_MODEL: gemini-2.5-flash
+      # Empty means the gateway's default model policy (D24); set the GEMINI_MODEL variable to override.
+      GEMINI_MODEL: ${{ vars.GEMINI_MODEL }}
       VALIDATION_REPORT: artifacts/live-provider-${{ matrix.provider }}-validation.json
     steps:
       - uses: actions/checkout@v5

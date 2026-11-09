@@ -42,6 +42,8 @@ jobs:
       GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
       QDRANT_URL: ${{ secrets.QDRANT_URL }}
       QDRANT_API_KEY: ${{ secrets.QDRANT_API_KEY }}
+      GEMINI_MODEL: ${{ vars.GEMINI_MODEL }}
+      GEMINI_EMBEDDING_MODEL: ${{ vars.GEMINI_EMBEDDING_MODEL }}
     steps:
       - uses: actions/checkout@v5
         with:
@@ -131,6 +133,15 @@ jobs:
               npx --yes wrangler@4.148.0 queues create "$queue" --message-retention-period-secs 86400
             fi
           done
+      - name: Resolve Gemini model policy
+        # --keep-vars would otherwise keep a stale model on the Worker; always deploy the resolved policy (D24).
+        run: |
+          set -euo pipefail
+          policy="$(node --input-type=module -e 'const m = await import("./apps/gateway/src/gemini-models.js"); console.log(JSON.stringify({ generation: m.generationModels(process.env).join(","), embedding: m.embeddingModel(process.env) }))')"
+          {
+            echo "GEMINI_MODEL=$(jq -er .generation <<<"$policy")"
+            echo "GEMINI_EMBEDDING_MODEL=$(jq -er .embedding <<<"$policy")"
+          } >> "$GITHUB_ENV"
       - name: Deploy authenticated gateway
         run: |
           npx --yes wrangler@4.148.0 deploy \
@@ -141,6 +152,8 @@ jobs:
             --var "QDRANT_COLLECTION:$QDRANT_COLLECTION" \
             --var "FRONTEND_ORIGIN:$FRONTEND_ORIGIN" \
             --var "RUNTIME_SERVICE_NAME:$GATEWAY_WORKER" \
+            --var "GEMINI_MODEL:$GEMINI_MODEL" \
+            --var "GEMINI_EMBEDDING_MODEL:$GEMINI_EMBEDDING_MODEL" \
             --var "SOURCE_COMMIT:$EXPECTED_SOURCE_SHA"
       - name: Install Supabase service credential as a Worker secret
         run: printf '%s' "$SUPABASE_SERVICE_ROLE_KEY" | npx --yes wrangler@4.148.0 secret put SUPABASE_SERVICE_ROLE_KEY --name "$GATEWAY_WORKER"
@@ -161,7 +174,7 @@ jobs:
             if [ "$attempt" -eq 5 ]; then exit 1; fi
             sleep $((attempt * 2))
           done
-          printf '%s' "$health" | jq -e --arg service "$GATEWAY_WORKER" --arg sha "$EXPECTED_SOURCE_SHA" '.source_commit == $sha and .service == $service and .status == "CONFIGURED" and .readiness == "NOT_PROBED" and .authenticated_api == true and .paid_fallback == false and .providers.gemini == "CONFIGURED" and .providers.qdrant == "CONFIGURED"'
+          printf '%s' "$health" | jq -e --arg service "$GATEWAY_WORKER" --arg sha "$EXPECTED_SOURCE_SHA" --arg models "$GEMINI_MODEL" --arg embedding "$GEMINI_EMBEDDING_MODEL" '.source_commit == $sha and .service == $service and (.gemini_models.generation as $active | $models | split(",") | index($active) != null) and .gemini_models.embedding == $embedding and .status == "CONFIGURED" and .readiness == "NOT_PROBED" and .authenticated_api == true and .paid_fallback == false and .providers.gemini == "CONFIGURED" and .providers.qdrant == "CONFIGURED"'
           for attempt in 1 2 3 4 5; do
             if code="$(curl --silent --show-error --connect-timeout 10 --max-time 30 --output /dev/null --write-out '%{http_code}' "$GATEWAY_ORIGIN/api/v2/capabilities")" && [ "$code" = "401" ]; then break; fi
             if [ "$attempt" -eq 5 ]; then echo 'Unauthenticated gateway did not fail closed.' >&2; exit 1; fi

@@ -74,11 +74,11 @@ class Settings(BaseSettings):
         description="Google AI API key (required for Gemini models)",
     )
     llm_model_name: str = Field(
-        default="gemini-2.5-flash",
-        description="Primary LLM model identifier",
+        default="gemini-3.5-flash-lite",
+        description="Primary LLM model identifier (model policy D24)",
     )
     llm_fallback_models: str = Field(
-        default="gemini-2.5-flash-lite,gemini-2.0-flash,gemini-2.0-flash-lite",
+        default="gemini-3.1-flash-lite,gemini-flash-latest",
         description="Comma-separated fallback model names",
     )
     llm_temperature: float = Field(default=0.1, ge=0.0, le=2.0)

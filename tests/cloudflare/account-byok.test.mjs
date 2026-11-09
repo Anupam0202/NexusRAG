@@ -33,7 +33,7 @@ test("account Gemini key is validated, encrypted at rest, masked on read, and de
     if (url.hostname === "generativelanguage.googleapis.com") {
       assert.equal(url.searchParams.get("key"), null, "the provider key must not appear in the URL");
       assert.equal(new Headers(init.headers).get("x-goog-api-key"), rawKey);
-      return json({ models: [{ name: "models/gemini-2.5-flash" }] });
+      return json({ models: [{ name: "models/gemini-3.5-flash-lite" }] });
     }
     throw new Error(`Unexpected network call: ${url.href}`);
   });

@@ -1,4 +1,5 @@
 import { geminiCall, metered } from "./quota.js";
+import { EMBEDDING_DIMENSIONS, embeddingModel, isModelUnavailable, thinkingConfigFor, withGenerationModel } from "./gemini-models.js";
 
 const MAX_WORKER_UPLOAD_BYTES = 10_000_000;
 const SUPPORTED_WORKER_MIME = new Set([
@@ -6,8 +7,6 @@ const SUPPORTED_WORKER_MIME = new Set([
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "application/zip",
   "image/png", "image/jpeg", "image/webp", "image/tiff",
 ]);
-const EMBEDDING_MODEL = "gemini-embedding-001";
-const GENERATION_MODEL = "gemini-2.5-flash";
 const QDRANT_COLLECTION = "nexusrag-v6-preview";
 const MAX_INDEX_BATCH_CHUNKS = 3;
 const MAX_DOCUMENT_CHUNKS = 400;
@@ -70,7 +69,10 @@ async function providerJson(url, init, timeout = 18_000) {
   const response = await fetch(url, { ...init, signal });
   if (!response.ok) {
     const code = response.status === 429 ? "PROVIDER_QUOTA_EXHAUSTED" : "PROVIDER_UNAVAILABLE";
-    throw pipelineError(code, "A required zero-cost provider is unavailable.", response.status === 429 ? 429 : 503, true);
+    // A retired or unsupported Gemini model lets the caller try the next candidate (D24).
+    const gemini = String(url).includes("generativelanguage.googleapis.com");
+    const modelUnavailable = gemini && isModelUnavailable(response.status, await response.text().catch(() => ""));
+    throw Object.assign(pipelineError(code, "A required zero-cost provider is unavailable.", response.status === 429 ? 429 : 503, true), { providerStatus: response.status, modelUnavailable });
   }
   return response.json();
 }
@@ -81,14 +83,14 @@ async function embedText(env, text, taskType, context) {
   if (context?.dataClassification !== "non_sensitive") {
     throw pipelineError("RIGHTS_BLOCKED", "Gemini may process only explicitly attested non-sensitive data.", 403);
   }
-  const model = env.GEMINI_EMBEDDING_MODEL || EMBEDDING_MODEL;
+  const model = embeddingModel(env);
   const result = await geminiCall(env, { ...context, provider: "gemini" }, { requests: 1, embedding_tokens: new TextEncoder().encode(text).length }, () => providerJson(
     `https:${"//"}generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:embedContent`,
     {
       method: "POST",
       signal: context?.signal,
       headers: { "content-type": "application/json", "x-goog-api-key": apiKey },
-      body: JSON.stringify({ model: `models/${model}`, content: { parts: [{ text }] }, taskType, outputDimensionality: 768 }),
+      body: JSON.stringify({ model: `models/${model}`, content: { parts: [{ text }] }, taskType, outputDimensionality: EMBEDDING_DIMENSIONS }),
     },
   ));
   const vector = result?.embedding?.values;
@@ -177,7 +179,7 @@ async function searchChunkVariants(env,{queries,workspaceId,documentIds,versionI
     throw pipelineError("INVALID_SCOPE","Choose between one and eight bounded retrieval queries.");
   if(queries.length===1)return [await searchChunks(env,{question:queries[0],workspaceId,documentIds,versionIds,indexGenerations,limit,dataClassification,actorId,userApiKey,credentialMode,signal})];
   if(dataClassification!=="non_sensitive")throw pipelineError("RIGHTS_BLOCKED","Only non-sensitive questions may be searched.",403);
-  const apiKey=userApiKey||env.GOOGLE_API_KEY,model=env.GEMINI_EMBEDDING_MODEL||EMBEDDING_MODEL;
+  const apiKey=userApiKey||env.GOOGLE_API_KEY,model=embeddingModel(env);
   if(!apiKey)throw pipelineError("CONFIGURATION_ERROR","Gemini embedding is not configured.",503);
   const filter=qdrantFilter(workspaceId,documentIds,versionIds,indexGenerations);
   return metered(env,{workspaceId,provider:"qdrant",priority:"interactive"},{requests:2},async()=>{
@@ -186,7 +188,7 @@ async function searchChunkVariants(env,{queries,workspaceId,documentIds,versionI
       {requests:queries.length,embedding_tokens:queries.reduce((n,q)=>n+new TextEncoder().encode(q).length,0)},()=>providerJson(
         `https:${"//"}generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:batchEmbedContents`,
         {method:"POST",signal,headers:{"content-type":"application/json","x-goog-api-key":apiKey},body:JSON.stringify({requests:queries.map(text=>({model:`models/${model}`,
-          content:{parts:[{text}]},taskType:"RETRIEVAL_QUERY",outputDimensionality:768}))})}));
+          content:{parts:[{text}]},taskType:"RETRIEVAL_QUERY",outputDimensionality:EMBEDDING_DIMENSIONS}))})}));
     const vectors=embedded?.embeddings?.map(item=>item?.values);
     if(!Array.isArray(vectors)||vectors.length!==queries.length||vectors.some(v=>!Array.isArray(v)||v.length<8||v.length!==vectors[0].length||v.some(n=>!Number.isFinite(n))))
       throw pipelineError("PROVIDER_INVALID_RESPONSE","The embedding batch did not confirm every query.",503);
@@ -212,17 +214,21 @@ async function generateAnswer(env, prompt, context) {
   if (context?.dataClassification !== "non_sensitive") {
     throw pipelineError("RIGHTS_BLOCKED", "Gemini may process only explicitly attested non-sensitive data.", 403);
   }
-  const model = env.GEMINI_MODEL || GENERATION_MODEL;
   const requestedTemperature = Number(context?.temperature ?? 0);
   const temperature = Number.isFinite(requestedTemperature)
     ? Math.max(0, Math.min(1, requestedTemperature))
     : 0;
   const outputTokens=context?.outputTokens===4096?4096:1024;
-  const result = await geminiCall(env, { ...context, provider: "gemini" }, { requests: 1, input_tokens: new TextEncoder().encode(prompt).length, output_tokens: outputTokens }, () => providerJson(
-    `https:${"//"}generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
-    { method: "POST", signal: context?.signal, headers: { "content-type": "application/json", "x-goog-api-key": apiKey }, body: JSON.stringify({ contents: [{ role: "user", parts: [{ text: prompt }] }], generationConfig: { temperature, maxOutputTokens: outputTokens, candidateCount: 1, thinkingConfig: { thinkingBudget: 0 } } }) },
-    25_000,
-  ));
+  let model;
+  const result = await withGenerationModel(env, (candidate) => {
+    model = candidate;
+    const thinkingConfig = thinkingConfigFor(candidate);
+    return geminiCall(env, { ...context, provider: "gemini" }, { requests: 1, input_tokens: new TextEncoder().encode(prompt).length, output_tokens: outputTokens }, () => providerJson(
+      `https:${"//"}generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(candidate)}:generateContent`,
+      { method: "POST", signal: context?.signal, headers: { "content-type": "application/json", "x-goog-api-key": apiKey }, body: JSON.stringify({ contents: [{ role: "user", parts: [{ text: prompt }] }], generationConfig: { temperature, maxOutputTokens: outputTokens, candidateCount: 1, ...(thinkingConfig ? { thinkingConfig } : {}) } }) },
+      25_000,
+    ));
+  });
   if (context?.requireComplete && (result?.candidates?.length !== 1 || result.candidates[0].finishReason !== "STOP"))
     throw pipelineError("PROVIDER_INCOMPLETE", "The provider did not confirm a complete answer. No answer was committed.", 503);
   const answer = (result?.candidates || []).flatMap((candidate) => candidate?.content?.parts || []).map((part) => part?.text || "").join("").trim();

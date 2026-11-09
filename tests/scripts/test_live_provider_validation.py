@@ -51,10 +51,27 @@ class GeminiValidationContractTests(unittest.TestCase):
         self.assertEqual(body["generationConfig"]["maxOutputTokens"], 128)
         self.assertEqual(body["generationConfig"]["candidateCount"], 1)
         self.assertEqual(body["generationConfig"]["temperature"], 0)
-        self.assertEqual(body["generationConfig"]["thinkingConfig"]["thinkingBudget"], 0)
+        self.assertIn("/models/gemini-3.5-flash-lite:generateContent", url)
+        self.assertNotIn("thinkingConfig", body["generationConfig"])
+        self.assertEqual(report["model"], "gemini-3.5-flash-lite")
         self.assertEqual(report["state"], "READY")
         self.assertFalse(report["customer_data_sent"])
         self.assertFalse(report["paid_fallback"])
+
+    def test_probe_uses_the_primary_model_and_its_thinking_setting(self):
+        result = {"candidates": [{"content": {"parts": [{"text": "NEXUSRAG_GEMINI_OK"}]}}]}
+        for configured, model, thinking in [
+            ("gemini-2.5-flash", "gemini-2.5-flash", {"thinkingBudget": 0}),
+            ("gemini-3.6-flash, gemini-3.1-flash-lite", "gemini-3.6-flash", {"thinkingLevel": "low"}),
+            ("not a model", "gemini-3.5-flash-lite", None),
+        ]:
+            with self.subTest(configured=configured), mock.patch.dict(
+                os.environ, {"GOOGLE_API_KEY": "synthetic-google-key", "GEMINI_MODEL": configured}, clear=True
+            ), mock.patch.object(validation, "_json_request", return_value=(200, result)) as request:
+                report = validation.validate_gemini()
+                self.assertIn(f"/models/{model}:generateContent", request.call_args.args[1])
+                self.assertEqual(request.call_args.kwargs["body"]["generationConfig"].get("thinkingConfig"), thinking)
+                self.assertEqual(report["model"], model)
 
     def test_quota_exhaustion_fails_closed_without_paid_fallback(self):
         with mock.patch.dict(

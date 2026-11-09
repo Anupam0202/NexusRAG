@@ -71,7 +71,7 @@ describe("BillingOrUsagePage", () => {
       total_documents: 0,
       total_chunks: 0,
       api_key_configured: true,
-      llm_model_name: "gemini-2.5-flash",
+      llm_model_name: "gemini-3.5-flash-lite",
       embedding_model: "lightweight",
       cache: {},
       settings: {

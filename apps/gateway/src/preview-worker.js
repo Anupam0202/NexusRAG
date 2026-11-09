@@ -9,6 +9,7 @@ import {
   validateWorkerFile,
 } from "./worker-pipeline.js";
 import { deleteQdrantDocument, hybridFuse } from "./worker-lifecycle.js";
+import { activeGenerationModel, checkGeminiModels, embeddingModel, isDailyModelCheckWindow } from "./gemini-models.js";
 import { handleQueue, sweepJobs } from "./worker-jobs.js";
 import { candidateChunkIds, rehydrateEvidence } from "./retrieval-authority.js";
 import { assessAnswer } from "./answer-evidence.js";
@@ -218,7 +219,7 @@ async function readWorkspaceSettings(env, workspaceId) {
   const row = rows?.[0] || SETTINGS_DEFAULTS;
   return {
     // These values describe the actual Worker runtime; provider secrets are never returned.
-    llm_model_name: env.GEMINI_MODEL || "gemini-2.5-flash",
+    llm_model_name: activeGenerationModel(env),
     llm_temperature: persistedSetting(row, "llm_temperature", { min: 0, max: 1 }),
     retrieval_top_k: persistedSetting(row, "retrieval_top_k", { min: 1, max: 12, integer: true }),
     enable_reranking: false,
@@ -229,7 +230,7 @@ async function readWorkspaceSettings(env, workspaceId) {
     chunk_overlap: 240,
     enable_semantic_chunking: false,
     enable_contextual_enrichment: false,
-    embedding_model: env.GEMINI_EMBEDDING_MODEL || "gemini-embedding-001",
+    embedding_model: embeddingModel(env),
     updated_at: row.updated_at || null,
   };
 }
@@ -728,7 +729,7 @@ async function handle(request, env = {}) {
     return json(request, env, null, 204, { "access-control-allow-methods": "GET,HEAD,POST,PATCH,DELETE,OPTIONS", "access-control-allow-headers": "Authorization,Content-Type,Idempotency-Key,X-Nexus-Workspace-Id,X-Workspace-ID", "access-control-max-age": "600" });
   }
   if (url.pathname === "/" || url.pathname === "/health") {
-    return json(request, env, { service: env.RUNTIME_SERVICE_NAME || "nexusrag-v6-preview-gateway", profile: "ZERO_COST_LOW_TRAFFIC", source_commit: /^[a-f0-9]{40}$/.test(env.SOURCE_COMMIT || "") ? env.SOURCE_COMMIT : null, status: configured(env) ? "CONFIGURED" : "DEGRADED", readiness: "NOT_PROBED", authenticated_api: configured(env), production_verified: false, authorities: { business_records: "supabase", vectors: "qdrant" }, providers: { qdrant: env.QDRANT_URL && env.QDRANT_API_KEY ? "CONFIGURED" : "BLOCKED", gemini: env.GOOGLE_API_KEY ? "CONFIGURED" : "BLOCKED" }, paid_fallback: false });
+    return json(request, env, { service: env.RUNTIME_SERVICE_NAME || "nexusrag-v6-preview-gateway", profile: "ZERO_COST_LOW_TRAFFIC", gemini_models: { generation: activeGenerationModel(env), embedding: embeddingModel(env) }, source_commit: /^[a-f0-9]{40}$/.test(env.SOURCE_COMMIT || "") ? env.SOURCE_COMMIT : null, status: configured(env) ? "CONFIGURED" : "DEGRADED", readiness: "NOT_PROBED", authenticated_api: configured(env), production_verified: false, authorities: { business_records: "supabase", vectors: "qdrant" }, providers: { qdrant: env.QDRANT_URL && env.QDRANT_API_KEY ? "CONFIGURED" : "BLOCKED", gemini: env.GOOGLE_API_KEY ? "CONFIGURED" : "BLOCKED" }, paid_fallback: false });
   }
   if (!configured(env)) return fail(request, env, "CONFIGURATION_ERROR", "The authenticated gateway is not configured.", 503);
   try {
@@ -923,8 +924,8 @@ async function handle(request, env = {}) {
       return json(request, env, {
         total_documents: documents, total_chunks: chunks, total_queries: queries, queries_today: queriesToday,
         avg_response_time: 0, avg_confidence: 0, cache_hits: 0, cache_misses: 0, cache_entries: 0,
-        llm_model_name: env.GEMINI_MODEL || "gemini-2.5-flash",
-        embedding_model: env.GEMINI_EMBEDDING_MODEL || "gemini-embedding-001",
+        llm_model_name: activeGenerationModel(env),
+        embedding_model: embeddingModel(env),
         measurement_states: { avg_response_time: "NOT_MEASURED", avg_confidence: "NOT_MEASURED", cache: "DISABLED" },
       });
     }
@@ -1087,8 +1088,8 @@ async function handle(request, env = {}) {
         total_documents: totalDocuments,
         total_chunks: totalChunks,
         api_key_configured: Boolean(env.GOOGLE_API_KEY),
-        llm_model_name: env.GEMINI_MODEL || "gemini-2.5-flash",
-        embedding_model: env.GEMINI_EMBEDDING_MODEL || "gemini-embedding-001",
+        llm_model_name: activeGenerationModel(env),
+        embedding_model: embeddingModel(env),
         cache: { enabled: false },
         settings: {
           anonymous_demo_enabled: false,
@@ -1188,6 +1189,6 @@ async function handle(request, env = {}) {
   }
 }
 async function queue(batch,env){return handleQueue(batch,env)}
-async function scheduled(_event,env,ctx){ctx.waitUntil(sweepJobs(env))}
+async function scheduled(event,env,ctx){ctx.waitUntil(sweepJobs(env));if(isDailyModelCheckWindow(event?.scheduledTime))ctx.waitUntil(checkGeminiModels(env).catch(()=>undefined))}
 export { allowRequest, handle, queue, scheduled, storageDelete };
 export default { fetch: handle, queue, scheduled };

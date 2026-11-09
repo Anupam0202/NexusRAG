@@ -125,7 +125,7 @@ test("usage page handles signed-out and quota fallback states", async ({ page })
         cache_hits: 0,
         cache_misses: 0,
         cache_entries: 0,
-        llm_model_name: "gemini-2.5-flash",
+        llm_model_name: "gemini-3.5-flash-lite",
         embedding_model: "test",
         llm_total_tokens: 0,
         usage_tokens_today: 0,

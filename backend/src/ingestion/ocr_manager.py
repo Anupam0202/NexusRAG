@@ -149,11 +149,11 @@ class GeminiVisionOCR:
 
     @staticmethod
     def _configured_models() -> list[str]:
+        # Model policy D24; the Cloudflare gateway's gemini-models.js holds the same chain.
         defaults = [
-            "gemini-2.5-flash",
-            "gemini-2.5-flash-lite",
-            "gemini-2.0-flash",
-            "gemini-2.0-flash-lite",
+            "gemini-3.5-flash-lite",
+            "gemini-3.1-flash-lite",
+            "gemini-flash-latest",
         ]
         try:
             from config.settings import get_settings
@@ -163,10 +163,10 @@ class GeminiVisionOCR:
         except Exception:
             fallback_raw = os.environ.get(
                 "LLM_FALLBACK_MODELS",
-                "gemini-2.5-flash-lite,gemini-2.0-flash,gemini-2.0-flash-lite",
+                "gemini-3.1-flash-lite,gemini-flash-latest",
             )
             configured = [
-                os.environ.get("LLM_MODEL_NAME", "gemini-2.5-flash"),
+                os.environ.get("LLM_MODEL_NAME", "gemini-3.5-flash-lite"),
                 *fallback_raw.split(","),
             ]
 
