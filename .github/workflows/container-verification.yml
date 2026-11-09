@@ -1,7 +1,17 @@
 name: Self-managed container verification
 on:
   workflow_call:
+    inputs:
+      include_backend:
+        description: Also build, test and scan the optional Python backend image (a local research tool that is never deployed)
+        type: boolean
+        default: false
   workflow_dispatch:
+    inputs:
+      include_backend:
+        description: Also build, test and scan the optional Python backend image (a local research tool that is never deployed)
+        type: boolean
+        default: false
 permissions:
   contents: read
 concurrency:
@@ -26,12 +36,15 @@ jobs:
           python-version: "3.13"
       - name: Build and inspect real runtime images, neural model and dependencies
         id: images
+        env:
+          INCLUDE_BACKEND: ${{ inputs.include_backend && 'true' || 'false' }}
         run: bash scripts/containers/verify-runtime.sh
       - name: Require unsuppressed, uncached image scan configuration
         run: |
           printf 'ignore: []\n' > /tmp/nexusrag-grype.yml
       - name: Scan actual backend OS and application packages
         id: backend_scan
+        if: ${{ inputs.include_backend }}
         uses: anchore/scan-action@27805bf3b4e84b4a5c980df22ed233c00390a439 # v7.4.2, immutable release
         with:
           image: ${{ steps.images.outputs.backend_image }}
@@ -59,7 +72,7 @@ jobs:
           output-file: /tmp/nexusrag-frontend-grype.json
       - name: Summarize actual image vulnerability evidence
         if: always()
-        run: python3 scripts/containers/report-image-scans.py
+        run: python3 scripts/containers/report-image-scans.py --images "${{ inputs.include_backend && 'backend,frontend' || 'frontend' }}"
       - name: Record acceptance boundary
         if: always()
         env:

@@ -139,6 +139,10 @@ class ContainerVerificationTests(unittest.TestCase):
         self.assertEqual(workflow.count('only-fixed: false'), 2)
         self.assertEqual(workflow.count('cache-db: false'), 2)
         self.assertNotIn('continue-on-error', workflow)
+        # D4: the never-deployed Python backend image is opt-in; the frontend image is always required.
+        self.assertEqual(workflow.count('include_backend:'), 2)
+        self.assertIn('default: false', workflow)
+        self.assertIn('if: ${{ inputs.include_backend }}', workflow)
         self.assertIn('ignore: []', workflow)
         foundation = (ROOT / '.github/workflows/v6-foundation-ci.yml').read_text()
         self.assertIn('uses: ./.github/workflows/container-verification.yml', foundation)

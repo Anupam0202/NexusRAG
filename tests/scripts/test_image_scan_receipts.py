@@ -10,18 +10,38 @@ SCRIPT = Path(__file__).resolve().parents[2] / 'scripts/containers/report-image-
 
 
 class ImageReceiptTests(unittest.TestCase):
-    def run_report(self, reports):
+    def run_report(self, reports, images=None):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
             for name, content in reports.items():
                 (root / f'nexusrag-{name}-grype.json').write_text(json.dumps(content))
             env = {key: value for key, value in os.environ.items() if key != 'GITHUB_STEP_SUMMARY'}
-            return subprocess.run([sys.executable, str(SCRIPT), '--report-dir', folder], text=True, capture_output=True, env=env)
+            args = [sys.executable, str(SCRIPT), '--report-dir', folder]
+            if images is not None:
+                args += ['--images', images]
+            return subprocess.run(args, text=True, capture_output=True, env=env)
 
     def report(self, severity=None):
         return {'descriptor': {'name': 'grype', 'version': 'synthetic-fixture'},
                 'source': {'type': 'image', 'target': {'imageID': 'synthetic-local-image'}},
                 'matches': [] if not severity else [{'vulnerability': {'id': 'SYNTHETIC-TEST', 'severity': severity}, 'artifact': {'name': 'synthetic-package', 'version': '1'}}]}
+
+    def test_frontend_only_scope_needs_no_backend_receipt(self):
+        result = self.run_report({'frontend': self.report()}, images='frontend')
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertNotIn('backend', result.stdout)
+
+    def test_frontend_only_scope_still_fails_on_frontend_findings(self):
+        result = self.run_report({'frontend': self.report('High')}, images='frontend')
+        self.assertNotEqual(result.returncode, 0)
+
+    def test_frontend_only_scope_still_requires_the_frontend_receipt(self):
+        result = self.run_report({'backend': self.report()}, images='frontend')
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('frontend: SCAN_RESULT_UNAVAILABLE', result.stdout)
+
+    def test_unknown_image_scope_is_rejected(self):
+        self.assertNotEqual(self.run_report({'frontend': self.report()}, images='database').returncode, 0)
 
     def test_missing_scan_never_turns_green(self):
         result = self.run_report({'backend': self.report()})

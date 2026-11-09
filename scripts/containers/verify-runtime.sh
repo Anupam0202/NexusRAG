@@ -8,6 +8,8 @@ WORK=$(mktemp -d)
 BACKEND="nexusrag-backend-check:${SHA:0:12}"
 FRONTEND="nexusrag-frontend-check:${SHA:0:12}"
 CHECK="nexusrag-backend-tests:${SHA:0:12}"
+# The Python backend is an optional local research tool (D4); build it only on request.
+INCLUDE_BACKEND="${INCLUDE_BACKEND:-false}"
 if [[ -n "${GITHUB_OUTPUT:-}" ]]; then
   printf 'backend_image=%s\nfrontend_image=%s\n' "$BACKEND" "$FRONTEND" >> "$GITHUB_OUTPUT"
 fi
@@ -22,7 +24,7 @@ cleanup() {
 }
 trap cleanup EXIT
 
-docker build --build-arg SOURCE_COMMIT="$SHA" -t "$BACKEND" backend
+if [[ "$INCLUDE_BACKEND" == true ]]; then docker build --build-arg SOURCE_COMMIT="$SHA" -t "$BACKEND" backend; fi
 docker build --build-arg SOURCE_COMMIT="$SHA" \
   --build-arg NEXT_PUBLIC_API_URL=http://localhost:8000 \
   --build-arg NEXT_PUBLIC_SITE_URL=http://localhost:3000 \
@@ -30,7 +32,9 @@ docker build --build-arg SOURCE_COMMIT="$SHA" \
   --build-arg NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=synthetic-public-browser-test-key \
   -t "$FRONTEND" frontend
 
-for image in "$BACKEND" "$FRONTEND"; do
+images=("$FRONTEND")
+if [[ "$INCLUDE_BACKEND" == true ]]; then images=("$BACKEND" "$FRONTEND"); fi
+for image in "${images[@]}"; do
   user=$(docker inspect --format '{{.Config.User}}' "$image")
   [[ -n "$user" && "$user" != root && "$user" != 0 ]]
   [[ "$(docker inspect --format '{{index .Config.Labels "org.opencontainers.image.revision"}}' "$image")" = "$SHA" ]]
@@ -42,6 +46,10 @@ for image in "$BACKEND" "$FRONTEND"; do
   docker inspect --format 'image={{.Id}} source={{index .Config.Labels "org.opencontainers.image.revision"}} user={{.Config.User}} bytes={{.Size}}' "$image"
 done
 
+docker run --rm --network none --entrypoint node "$FRONTEND" -e 'const fs=require("fs");for(const path of ["/usr/local/lib/node_modules/npm","/usr/local/lib/node_modules/corepack","/usr/local/bin/yarn","/bin/busybox","/bin/sh"]){if(fs.existsSync(path))throw Error("Unused runtime tooling remains: "+path)}'
+docker run --rm --network none --entrypoint node "$FRONTEND" -e 'const fs=require("fs");if(process.getuid()!==1000)throw Error("Unexpected runtime identity");if((fs.statSync("/tmp").mode&0o7777)!==0o1777)throw Error("Invalid temporary directory");fs.writeFileSync("/tmp/runtime-fixture","synthetic");fs.unlinkSync("/tmp/runtime-fixture");const inventory=fs.readFileSync("/lib/apk/db/installed","utf8");if(!inventory.includes("P:alpine-baselayout-data\n")||!inventory.includes("P:musl\n"))throw Error("Runtime package inventory lost");if(/\nP:(busybox|busybox-binsh|alpine-baselayout)\n/.test("\n"+inventory))throw Error("Shell dependency retained");if(!fs.existsSync("/etc/ssl/certs/ca-certificates.crt"))throw Error("CA bundle missing");console.log("REAL_FRONTEND_IDENTITY_FILESYSTEM_AND_PACKAGE_INVENTORY_PASSED")'
+
+if [[ "$INCLUDE_BACKEND" == true ]]; then
 # Retain complete installed native-package provenance alongside the image scan.
 docker run --rm -i --network none --entrypoint python "$BACKEND" - < scripts/containers/report-os-runtime.py
 docker run --rm -i --network none --entrypoint python "$BACKEND" - < scripts/containers/verify-python-runtime.py
@@ -86,9 +94,6 @@ with fitz.open(stream=raw, filetype='pdf') as parsed:
     assert cv2.Canny(image, 50, 150).size > 0
 print('REAL_NATIVE_PDF_IMAGE_FIXTURES_PASSED')
 PYFIXTURE
-
-docker run --rm --network none --entrypoint node "$FRONTEND" -e 'const fs=require("fs");for(const path of ["/usr/local/lib/node_modules/npm","/usr/local/lib/node_modules/corepack","/usr/local/bin/yarn","/bin/busybox","/bin/sh"]){if(fs.existsSync(path))throw Error("Unused runtime tooling remains: "+path)}'
-docker run --rm --network none --entrypoint node "$FRONTEND" -e 'const fs=require("fs");if(process.getuid()!==1000)throw Error("Unexpected runtime identity");if((fs.statSync("/tmp").mode&0o7777)!==0o1777)throw Error("Invalid temporary directory");fs.writeFileSync("/tmp/runtime-fixture","synthetic");fs.unlinkSync("/tmp/runtime-fixture");const inventory=fs.readFileSync("/lib/apk/db/installed","utf8");if(!inventory.includes("P:alpine-baselayout-data\n")||!inventory.includes("P:musl\n"))throw Error("Runtime package inventory lost");if(/\nP:(busybox|busybox-binsh|alpine-baselayout)\n/.test("\n"+inventory))throw Error("Shell dependency retained");if(!fs.existsSync("/etc/ssl/certs/ca-certificates.crt"))throw Error("CA bundle missing");console.log("REAL_FRONTEND_IDENTITY_FILESYSTEM_AND_PACKAGE_INVENTORY_PASSED")'
 
 # Repository-contract tests also inspect migrations/configuration outside backend.
 # Give the derived image the exact tracked source, without expanding production
@@ -160,6 +165,7 @@ h=json.load(open(sys.argv[1])); assert h['probe']=='liveness' and h['readiness']
 assert 'total_chunks' not in h
 print('BACKEND_NONDEFAULT_PORT_LIVENESS_PASSED')
 PY
+fi
 frontend_container=$(docker run -d --network none "$FRONTEND")
 ready=false
 for attempt in $(seq 1 30); do
@@ -168,4 +174,4 @@ for attempt in $(seq 1 30); do
 done
 if [[ "$ready" != true ]]; then docker logs "$frontend_container"; exit 1; fi
 docker exec "$frontend_container" node -e 'const fs=require("fs");let found=new Set();function walk(dir){for(const item of fs.readdirSync(dir,{withFileTypes:true})){const path=dir+"/"+item.name;if(item.isDirectory())walk(path);else if(item.isFile()){const text=fs.readFileSync(path,"utf8");for(const marker of ["supabase.invalid","localhost:8000"])if(text.includes(marker))found.add(marker)}}}walk("/app/.next/static");if(found.size!==2)throw Error("Compiled public configuration missing")'
-printf '\nCONTAINER_RUNTIME_VERIFIED source=%s (synthetic/offline only; no provider or commercial-rights approval)\n' "$SHA"
+printf '\nCONTAINER_RUNTIME_VERIFIED source=%s backend=%s (synthetic/offline only; no provider or commercial-rights approval)\n' "$SHA" "$INCLUDE_BACKEND"
