@@ -7,10 +7,12 @@
 - Gemini models still served: `GOOGLE_API_KEY=... python3 scripts/check_gemini_models.py`
 - Frontend: `cd frontend && npm ci --ignore-scripts && npm run lint && npx tsc --noEmit && npm test && npm run build && npm run cf:build`
 - Database replay: install PostgreSQL 17 + pgvector as in `.github/workflows/v6-database-rehearsal.yml`, then `bash tests/postgres/local-rehearsal.sh`
+- Hosted migration status: `python3 scripts/migration_status.py status --applied <list_migrations JSON>`; with a database URL, `apply --snapshot-label <label>` snapshots, applies and records pending files
 
 ## Facts the code does not make obvious
 - The real gateway is `apps/gateway/src/preview-worker.js`, also used in production; `apps/gateway/src/index.ts` is an unused stub.
 - Fresh databases come from `supabase/baseline/001_v6_zero_cost_baseline.sql` plus migrations 026 onward; numbered 001–025 do not replay. Hosted projects record different version numbers, so match migrations by name.
+- A new migration file must also be added to `tests/postgres/local-rehearsal.sh` and the `cp` list in `v6-database-rehearsal.yml`; `tests/scripts/test_migration_status.py` fails otherwise. Every public table needs row security and at least one policy (`security-assertions.sql`).
 - `next` is pinned because the OpenNext adapter must support Next's manifest format; after changing either, build the Worker and check that an unknown path returns 404.
 - `NEXT_PUBLIC_*` values are baked in at build time; a build without them deploys a broken app.
 - Gemini model policy (D24): generation `gemini-3.5-flash-lite` → `gemini-3.1-flash-lite` → `gemini-flash-latest` with fallback on model-unavailable errors; embeddings pinned to `gemini-embedding-001` (768) per index generation. `gemini-2.5-flash` shuts down on 2026-12-01.

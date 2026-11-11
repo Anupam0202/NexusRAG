@@ -62,4 +62,12 @@ DO $$ DECLARE denied boolean := false; BEGIN
  IF NOT denied THEN RAISE EXCEPTION 'anon role unexpectedly executed the service-only RPC'; END IF;
 END $$;
 RESET ROLE;
+-- Every public table states its browser boundary: row security on and at least one policy.
+DO $$ DECLARE missing text; BEGIN
+ SELECT string_agg(c.relname, ', ' ORDER BY c.relname) INTO missing
+   FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+  WHERE n.nspname = 'public' AND c.relkind = 'r'
+    AND (NOT c.relrowsecurity OR NOT EXISTS (SELECT 1 FROM pg_policy p WHERE p.polrelid = c.oid));
+ IF missing IS NOT NULL THEN RAISE EXCEPTION 'public tables without row security and a policy: %', missing; END IF;
+END $$;
 SELECT 'schema_grants_role_denial_pass';

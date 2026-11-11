@@ -55,6 +55,7 @@ PSQL=(psql -X -v ON_ERROR_STOP=1 -d "$PGDATABASE")
 "${PSQL[@]}" -f "$ROOT/supabase/migrations/20261025093226_finding_evidence_packages.sql"
 "${PSQL[@]}" -f "$ROOT/supabase/migrations/20261026123000_radar_supplied_snapshots.sql"
 "${PSQL[@]}" -f "$ROOT/supabase/migrations/20261027153000_obligation_evidence_serving.sql"
+"${PSQL[@]}" -f "$ROOT/supabase/migrations/20261111213000_explicit_deny_service_only_tables.sql"
 "${PSQL[@]}" -f "$TESTS/fixtures.sql"
 "${PSQL[@]}" -f "$TESTS/research-plan-assertions.sql"
 "${PSQL[@]}" -f "$TESTS/research-passport-subject-assertions.sql"
@@ -141,4 +142,6 @@ NEXUS_DISPOSABLE_SQL=1 node "$TESTS/obligation-evidence-integration.mjs"
 # findings and quota rows. Keep rollback-only assertions and native mode-inventory
 # consumers ahead of it so their documented fixture preconditions remain intact.
 NEXUS_DISPOSABLE_SQL=1 node "$TESTS/finding-package-integration.mjs"
+# Uses its own database: proves the hosted migration tool (snapshot, ordered apply, history, rollback).
+bash "$TESTS/migration-tool-integration.sh"
 echo 'LOCAL_POSTGRES_REHEARSAL_PASS (not a hosted Supabase verification)'
