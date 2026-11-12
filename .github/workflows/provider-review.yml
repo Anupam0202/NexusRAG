@@ -1,0 +1,61 @@
+name: Provider Review
+# Records that the operator has read the current terms of Google Gemini, Qdrant Cloud and Supabase, which the
+# service needs before it may process any document (valid for 365 days), or shows when the reviews lapse.
+# Run it by hand after reading the terms; nothing here runs on a schedule or on push.
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: Deployment to update
+        required: true
+        type: choice
+        options: [candidate, production]
+      action:
+        description: Show the current reviews, or record a new one
+        required: true
+        default: status
+        type: choice
+        options: [status, record]
+      reviewer_email:
+        description: Your confirmed account in that deployment (needed for record)
+        required: false
+        type: string
+      i_have_read_the_terms:
+        description: I have read the current terms of all three providers (needed for record)
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: provider-review-${{ inputs.target }}
+  cancel-in-progress: false
+
+jobs:
+  review:
+    name: Provider review (${{ inputs.target }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment: ${{ inputs.target == 'production' && 'Production' || 'NexusRAG-Candidate-Preview' }}
+    env:
+      SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      REVIEW_ACTION: ${{ inputs.action }}
+      REVIEWER_EMAIL: ${{ inputs.reviewer_email }}
+      TERMS_READ: ${{ inputs.i_have_read_the_terms }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.13"}
+      - name: Show or record the provider reviews
+        run: |
+          set -euo pipefail
+          if [ "$REVIEW_ACTION" = record ]; then
+            test "$TERMS_READ" = true || { echo "::error::Tick the box to confirm you have read the terms."; exit 1; }
+            python3 scripts/provider_review.py record --reviewer-email "$REVIEWER_EMAIL" --i-have-read-the-terms
+          else
+            python3 scripts/provider_review.py status
+          fi

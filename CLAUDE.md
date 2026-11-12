@@ -8,6 +8,8 @@
 - Frontend: `cd frontend && npm ci --ignore-scripts && npm run lint && npx tsc --noEmit && npm test && npm run build && npm run cf:build`
 - Database replay: install PostgreSQL 17 + pgvector as in `.github/workflows/v6-database-rehearsal.yml`, then `bash tests/postgres/local-rehearsal.sh`
 - Release a Worker (deploy, smoke test, automatic rollback): `python3 scripts/release.py gateway|frontend --target candidate|production --sha <commit>`; `plan` prints a target. Runbooks: `docs/DEPLOYMENT_FREE.md`, `docs/DEPLOYMENT_PRODUCTION.md`
+- Provider reviews (needed before any document can be processed): `SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... python3 scripts/provider_review.py status|record`, or the Provider Review workflow
+- Live two-account journey test on the preview: `python3 scripts/preview_smoke.py` (environment variables in its docstring)
 - Hosted migration status: `python3 scripts/migration_status.py status --applied <list_migrations JSON>`; with a database URL, `apply --snapshot-label <label>` snapshots, applies and records pending files
 
 ## Facts the code does not make obvious
@@ -21,6 +23,10 @@
 - Embeddings are `gemini-embedding-001` at 768 dimensions; changing model or dimension needs a new Qdrant collection and a re-index. The Python backend's embeddings are a different space and must never share a collection.
 - `GEMINI_USER_KEY_ENCRYPTION_SECRET` must never change without a re-encryption plan.
 - Qdrant Free clusters suspend when idle; Supabase Free projects pause after a week of low activity.
+- Processing needs three records, all created without SQL: the operator's provider review (365 days), the workspace owner's approval of Gemini processing (until the terms change), and budget rows (created from `provider_budget_defaults`, reset daily). The gateway reports which one is missing (`PROVIDER_REVIEW_REQUIRED`, `WORKSPACE_APPROVAL_REQUIRED`).
+- Database functions run as the service role on hosted Supabase, which cannot read `auth` tables; functions that need them must be `security definer` (`hosted-privilege-assertions.sql` enforces this). Assertions that run as the database owner cannot see such failures.
+- A Gemini key on a prepaid project with no credit answers HTTP 402 (since March 2026); the app reports `PROVIDER_CREDIT_EXHAUSTED`.
+- In vitest, `beforeEach(() => mock.mockReset())` returns the mock, which vitest then calls as a cleanup hook; use a block body.
 - The Workers named `*-preview` serve production; the `*-candidate-*` Workers are the preview. `scripts/release.py` holds both targets and refuses to mix their resources.
 - From a Claude cloud session the gateway can be released with the saved Cloudflare token (`CLOUDFLARE_API_TOKEN=proxy-injected`), but the frontend cannot: its asset upload sends a short-lived upload token in the header the proxy overwrites. Deploy the frontend with the Cloudflare Preview Deploy workflow.
 - Tests must not depend on the wall clock: pass `now` explicitly (a fixed date in a test broke the suite a day later).
