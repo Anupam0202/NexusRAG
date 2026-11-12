@@ -458,7 +458,7 @@
       "apps/gateway/wrangler.pr3-preview.jsonc"
     ],
     "recovery_source": "b87b88ad9bb653f5ed8a04eaee63f7f73966f0c0",
-    "recreation_guard": "scripts/preview_target.py",
+    "recreation_guard": "scripts/release.py",
     "live_resources_removed": [],
     "validation": {
       "script_tests": 44,

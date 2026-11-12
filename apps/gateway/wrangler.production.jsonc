@@ -1,8 +1,9 @@
 {
-  "name": "nexusrag-v6-gateway",
+  "name": "nexusrag-v6-preview-gateway",
   "main": "src/preview-worker.js",
   "compatibility_date": "2026-09-20",
   "workers_dev": true,
+  "preview_urls": false,
   "observability": {
     "enabled": true,
     "redact_query_string": true,
@@ -12,16 +13,16 @@
     "producers": [
       {
         "binding": "INGESTION_QUEUE",
-        "queue": "nexusrag-v6-ingestion"
+        "queue": "nexusrag-v6-preview-ingestion"
       }
     ],
     "consumers": [
       {
-        "queue": "nexusrag-v6-ingestion",
+        "queue": "nexusrag-v6-preview-ingestion",
         "max_batch_size": 1,
         "max_batch_timeout": 5,
         "max_retries": 3,
-        "dead_letter_queue": "nexusrag-v6-ingestion-dlq",
+        "dead_letter_queue": "nexusrag-v6-preview-ingestion-dlq",
         "max_concurrency": 1
       }
     ]

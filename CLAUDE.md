@@ -7,6 +7,7 @@
 - Gemini models still served: `GOOGLE_API_KEY=... python3 scripts/check_gemini_models.py`
 - Frontend: `cd frontend && npm ci --ignore-scripts && npm run lint && npx tsc --noEmit && npm test && npm run build && npm run cf:build`
 - Database replay: install PostgreSQL 17 + pgvector as in `.github/workflows/v6-database-rehearsal.yml`, then `bash tests/postgres/local-rehearsal.sh`
+- Release a Worker (deploy, smoke test, automatic rollback): `python3 scripts/release.py gateway|frontend --target candidate|production --sha <commit>`; `plan` prints a target. Runbooks: `docs/DEPLOYMENT_FREE.md`, `docs/DEPLOYMENT_PRODUCTION.md`
 - Hosted migration status: `python3 scripts/migration_status.py status --applied <list_migrations JSON>`; with a database URL, `apply --snapshot-label <label>` snapshots, applies and records pending files
 
 ## Facts the code does not make obvious
@@ -20,7 +21,9 @@
 - Embeddings are `gemini-embedding-001` at 768 dimensions; changing model or dimension needs a new Qdrant collection and a re-index. The Python backend's embeddings are a different space and must never share a collection.
 - `GEMINI_USER_KEY_ENCRYPTION_SECRET` must never change without a re-encryption plan.
 - Qdrant Free clusters suspend when idle; Supabase Free projects pause after a week of low activity.
-- The Workers named `*-preview` serve production; the `*-candidate-*` Workers are the preview.
+- The Workers named `*-preview` serve production; the `*-candidate-*` Workers are the preview. `scripts/release.py` holds both targets and refuses to mix their resources.
+- From a Claude cloud session the gateway can be released with the saved Cloudflare token (`CLOUDFLARE_API_TOKEN=proxy-injected`), but the frontend cannot: its asset upload sends a short-lived upload token in the header the proxy overwrites. Deploy the frontend with the Cloudflare Preview Deploy workflow.
+- Tests must not depend on the wall clock: pass `now` explicitly (a fixed date in a test broke the suite a day later).
 - `NexusRAG-Recovery` was deleted on 2026-11-09; never reference it.
 - The plan is `docs/completion/MASTER_PROMPT.md`; progress is in `docs/completion/PROGRESS.md`.
 

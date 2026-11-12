@@ -36,9 +36,9 @@ function rememberedIndex(models, now = Date.now()) {
 }
 
 /** The generation model this isolate currently uses: the first candidate unless a retirement moved it on. */
-export function activeGenerationModel(env) {
+export function activeGenerationModel(env, now = Date.now()) {
   const models = generationModels(env);
-  return models[rememberedIndex(models)];
+  return models[rememberedIndex(models, now)];
 }
 
 /**

@@ -1,21 +1,24 @@
 # NexusRAG completion progress
-Last updated: 2026-11-11 — Qdrant cluster stopped serving (owner must reactivate); rehearsal database migrated to head; CI green on `6b30a50`
+Last updated: 2026-11-12 — deploy workflows rewritten around `scripts/release.py`; candidate gateway live on `1c65c73`; Qdrant serving again; Gemini and Qdrant keys still not in the sandbox
 
 ## Current state
 - main: `85b14f1`; working branch: `codex/runtime-manifest-008` (draft PR #12, owner-approved for direct
   commits on 2026-11-09); open PRs: #12
 - Plan: `docs/completion/MASTER_PROMPT.md`; repository notes: `CLAUDE.md`
 - Cloud environment: personal `NexusRAG` (limited network; see the master prompt, section 5)
-- Candidate preview: frontend `2fbc5c9`, gateway `46bb14f` (rehearsal database, collection `nexusrag-v6-candidate`).
-  `/research`, `/radar`, `/evidence-api` and unknown paths return 500 (NX-01)
+- Candidate preview: gateway `1c65c73` (released 2026-11-11 with `scripts/release.py`; `/health` reports the
+  commit and `gemini-3.5-flash-lite` / `gemini-embedding-001`); frontend still the old build `2fbc5c9`, whose
+  `/research`, `/radar`, `/evidence-api` and unknown paths return 500 (NX-01) until the new build is deployed
+  through the preview workflow (a cloud session cannot upload frontend assets)
 - Production: `nexusrag-v6-frontend-preview` v29 → `nexusrag-v6-preview-gateway` v52, both from 23 September
   (a 25 September deploy was rolled back), on production Supabase and the default collection `nexusrag-v6-preview`;
   the live gateway still defaults to `gemini-2.5-flash` with `thinkingBudget: 0` until the NX-06 code is deployed
 - Qdrant: cluster `fc0c77d2-d9fd-4648-8459-09fa74372f16` (AWS eu-west-2) **stopped serving between 2026-11-09 and
   2026-11-11**: its address answered 403 without a key on 9 November and now answers 503 (from outside) or resets
   the TLS handshake (from the sandbox); status.qdrant.io shows no incident. Qdrant suspends free clusters after
-  1 week unused and deletes them after 4 weeks unless reactivated. Search and chat cannot work anywhere until
-  the owner reactivates it in the Qdrant Cloud console. Collections and point counts are still unknown.
+  1 week unused and deletes them after 4 weeks unless reactivated. **On 2026-11-12 it answers 403 again**, so it
+  is serving (reactivated or restarted). Collections and point counts are still unknown without the key; the
+  daily keep-alive (D15) is still to be built.
 
 ## Live check, 2026-11-09 (read-only)
 - Gemini (aistudio.google.com/docs deprecations, models and pricing pages): `gemini-2.5-flash` and
@@ -46,8 +49,8 @@ Last updated: 2026-11-11 — Qdrant cluster stopped serving (owner must reactiva
   (built Worker verified; deploy pending) [x] CI green on `6b30a50`: all 12 checks pass, including the required
   summary (the two deploy jobs are skipped by design)
   [x] replayable migrations (NX-11): fresh build proven in CI and locally; harness and workflow lists are tested
-  against the forward chain; 065 stays out [~] deploy workflows (NX-12, NX-13): migration tool done, workflow
-  rewrite next [ ] PR #12 description rewritten and handed over [~] Qdrant (NX-07): state known — not serving;
+  against the forward chain; 065 stays out [x] deploy workflows (NX-12, NX-13): rewritten; the candidate gateway
+  was released with the new script; the workflows themselves run for the first time when dispatched [ ] PR #12 description rewritten and handed over [~] Qdrant (NX-07): state known — not serving;
   collections unknown [x] Recovery salvage (NX-43) [x] Cloudflare inventory with the API token
 - Tier 1: not started
 - Tier 2: not started
@@ -64,17 +67,22 @@ Last updated: 2026-11-11 — Qdrant cluster stopped serving (owner must reactiva
 | 2026-11-09 | NX-09/NX-01: next 16.4.5 + @opennextjs/cloudflare 1.20.16, vite 8.3.6, undici/zod/glob patched; assets `html_handling: none` | #12 | 2 (audit gate 0; lint, tsc, 731 tests, cf:build; local Worker: real routes 200, unknown 404; 14 routing tests) | `5a28cd2` |
 | 2026-11-09 | D4: the legacy Python backend image is built and scanned only when `include_backend` is set; the frontend image scan still gates CI | #12 | CI (runtime-images job green) | `51e73ce` |
 | 2026-11-09 | NX-06: Gemini model policy D24 — fallback chain with retirement detection, per-model thinking settings, `/health` models, daily cron check, weekly `Gemini Model Check` workflow, live probe on the primary model, deploys set the models explicitly; Python backend and README moved off retired models | #12 | 2 (879 gateway tests incl. 13 new; 161 script tests, only the sandbox-only IPv6 test fails; backend 64 + 664; wrangler dry-run); CI green | `6b30a50` |
-| 2026-11-11 | NX-11/NX-12: `scripts/migration_status.py` (name-based status; `apply` snapshots every public table, applies pending files one transaction each, records history) with a real-database test in the rehearsal harness; guard test ties the harness and workflow lists to the forward chain; every public table now has an explicit policy (new migration + invariant) | #12 | 3 (full local replay on PostgreSQL 16 incl. the tool test; schema identical whether applied in file order or hosted order; applied to the hosted rehearsal project) | this commit |
+| 2026-11-11 | NX-11/NX-12: `scripts/migration_status.py` (name-based status; `apply` snapshots every public table, applies pending files one transaction each, records history) with a real-database test in the rehearsal harness; guard test ties the harness and workflow lists to the forward chain; every public table now has an explicit policy (new migration + invariant) | #12 | 3 (full local replay on PostgreSQL 16 incl. the tool test; schema identical whether applied in file order or hosted order; applied to the hosted rehearsal project) | `1c65c73` |
+| 2026-11-12 | NX-12/NX-13: `scripts/release.py` (deploy, smoke test, automatic rollback; targets bound to their own Workers, queue, collection and Supabase project); production workflow is manual-only, applies migrations after a snapshot, ships secrets with the gateway version, restores both Workers on failure, and no longer waits for ledger closure; preview workflow deploys any branch on request; production configs point at the Workers that serve production (D8); versioned preview URLs disabled; deployment docs rewritten | #12 | 4 for the gateway path (candidate gateway released and smoke-tested live); 1 for the workflows (187 script tests) | this commit |
+| 2026-11-12 | Fixed a clock-dependent gateway test from `6b30a50` that failed from 2026-11-10 onward | #12 | 1 (879 tests, also with the clock shifted ±200 days) | this commit |
 
 ## Blockers and owner decisions
 - **Urgent — Qdrant:** reactivate cluster `fc0c77d2-d9fd-4648-8459-09fa74372f16` in the Qdrant Cloud console
   (free clusters are deleted after 4 weeks suspended). If it has already been deleted, say so: the index is
   rebuilt from the chunks stored in Supabase (a re-index), and a new cluster URL and key go into the Worker
   secrets and GitHub environments.
-- **Rehearsal cleanup waiting for the owner's confirmation:** the Supabase connector asks before destructive
-  SQL and its question timed out on 2026-11-11. Still to drop on rehearsal `ukgjygzfhyvnrsecdcuu`, both created
-  by this work and holding only copies of repository migration files: table `public.migration_upload_tmp`
-  (insert-only with a token) and schema `nexus_tmp_migrate` (one function, no grants).
+- Rehearsal cleanup done 2026-11-12 (owner confirmed): the temporary upload table and runner schema are
+  dropped; 49 migrations, 70 tables, every table has a policy.
+- **Owner, before the first production release:** add `SUPABASE_DB_URL` and
+  `GEMINI_USER_KEY_ENCRYPTION_SECRET` to the GitHub `Production` environment (the live production gateway has
+  no encryption secret today); the full list is in `docs/DEPLOYMENT_PRODUCTION.md`.
+- **Owner, optional:** allow feature branches in the `NexusRAG-Candidate-Preview` environment's deployment
+  branch rule if a preview run from this branch is rejected.
 - The owner adds two keys under the NexusRAG environment's Network secrets (environment menu → Edit): Qdrant
   (host `fc0c77d2-d9fd-4648-8459-09fa74372f16.eu-west-2-0.aws.cloud.qdrant.io`, header `api-key`) and Gemini
   (host `generativelanguage.googleapis.com`, header `x-goog-api-key`). The secure form cannot save either.

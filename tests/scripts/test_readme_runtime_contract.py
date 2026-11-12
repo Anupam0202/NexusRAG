@@ -28,10 +28,11 @@ class ReadmeRuntimeContractTests(unittest.TestCase):
 
     def test_deployment_is_not_described_as_automatic(self):
         section = self.readme.split("## Deployment\n", 1)[1].split("## Project Structure", 1)[0]
+        self.assertIn("Nothing deploys automatically", section)
         self.assertIn("opt-in", section)
-        self.assertIn("main-only", section)
         self.assertIn("NexusRAG-Candidate-Preview", section)
         self.assertIn("not production acceptance", section)
+        self.assertIn("rolls back automatically on failure", section)
 
     def test_oauth_provider_configuration_is_a_table_row(self):
         section = self.readme.split("### Frontend Environment", 1)[1].split("## API Reference", 1)[0]

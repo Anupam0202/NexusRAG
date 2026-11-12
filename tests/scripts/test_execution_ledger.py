@@ -78,14 +78,13 @@ class ExecutionLedgerTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             MODULE.validate(self.ledger)
 
-    def test_both_production_components_check_closure_before_provider_or_deploy(self):
+    def test_production_release_no_longer_waits_for_ledger_closure(self):
+        # Owner decision of 2026-11-09 (D25, NX-12): the ledger stays as a planning record, and the release
+        # is gated by migrations, smoke tests and rollback instead.
         workflow = (ROOT / ".github/workflows/production-deploy.yml").read_text()
-        self.assertEqual(workflow.count("scripts/check_execution_ledger.py --require-closure"), 2)
-        for component in workflow.split("Require complete evidence-backed execution closure")[1:]:
-            self.assertIn("--require-closure", component)
-        self.assertLess(
-            workflow.index("--require-closure"), workflow.index("Validate production configuration")
-        )
+        self.assertNotIn("check_execution_ledger.py", workflow)
+        self.assertIn("migration_status.py apply --snapshot-label", workflow)
+        self.assertIn("scripts/release.py gateway --target production", workflow)
 
 
 if __name__ == "__main__":

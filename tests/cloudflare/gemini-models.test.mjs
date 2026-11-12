@@ -119,7 +119,9 @@ test("fallback moves to the next candidate only for unavailable models and remem
   assert.deepEqual(tried, ["gemini-3.5-flash-lite", "gemini-3.1-flash-lite"]);
   assert.equal(warn.mock.callCount(), 1);
   assert.deepEqual(JSON.parse(warn.mock.calls[0].arguments[0]), { event: "gemini_model_fallback", from: "gemini-3.5-flash-lite", to: "gemini-3.1-flash-lite" });
-  assert.equal(activeGenerationModel({}), "gemini-3.1-flash-lite");
+  // Every clock reading is passed in, so the test does not depend on the day it runs.
+  assert.equal(activeGenerationModel({}, now + 60_000), "gemini-3.1-flash-lite");
+  assert.equal(activeGenerationModel({}, now + 25 * 60 * 60 * 1000), "gemini-3.5-flash-lite");
 
   tried.length = 0;
   await withGenerationModel({}, async (model) => { tried.push(model); return model; }, now + 60_000);

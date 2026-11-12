@@ -205,13 +205,20 @@ docker compose up --build
 
 ## Deployment
 
-Candidate deployment is **opt-in**, **main-only**, and uses the protected GitHub
-`NexusRAG-Candidate-Preview` environment through
-`.github/workflows/cloudflare-preview-deploy.yml`. Ordinary PR publication does
-not deploy. The workflow checks the isolated rehearsal target; it must not replace
-shared preview or production services. Successful deployment is not production acceptance.
+Nothing deploys automatically. Both deployments are **opt-in** manual workflow runs:
 
-Build the candidate locally without publishing it:
+- **Candidate preview** — `.github/workflows/cloudflare-preview-deploy.yml` deploys any branch of this
+  repository to dedicated preview Workers on the rehearsal Supabase project, using the GitHub
+  `NexusRAG-Candidate-Preview` environment. A successful preview is not production acceptance.
+- **Production** — `.github/workflows/production-deploy.yml` releases the current `main` commit: it snapshots
+  the database, applies pending migrations, deploys the gateway and then the frontend, smoke-tests each and
+  rolls back automatically on failure.
+
+Both use `scripts/release.py`, which binds each target to its own Workers, queue, Qdrant collection and
+Supabase project. See `docs/DEPLOYMENT_FREE.md` (preview) and `docs/DEPLOYMENT_PRODUCTION.md` (release and
+rollback runbook).
+
+Build the frontend Worker locally without publishing it:
 
 ```bash
 cd frontend
@@ -219,7 +226,7 @@ npm ci --ignore-scripts
 npm run cf:build
 ```
 
-Required public configuration points the frontend at the Cloudflare gateway and the connected Supabase project. Provider credentials remain protected secrets. See `docs/DEPLOYMENT_FREE.md` and `docs/DEPLOYMENT_PRODUCTION.md` for the exact environment contract and promotion gates.
+Public configuration (`NEXT_PUBLIC_*`) is baked in at build time and points the frontend at the gateway and the Supabase project. Provider credentials stay in protected secrets.
 
 Vercel and Render configuration files have been removed. There is no automatic fallback to those platforms.
 

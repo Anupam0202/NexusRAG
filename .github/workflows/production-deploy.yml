@@ -1,4 +1,9 @@
 name: Production Deploy
+# Releases the current main commit to production, on request only. Order: snapshot and apply pending
+# migrations, deploy the gateway together with its secrets, then build and deploy the frontend. Each Worker
+# is smoke-tested and rolled back automatically if the smoke test fails, and a failed frontend release also
+# restores the gateway. Database migrations are forward-only; the snapshot schema is the way back.
+# Runbook: docs/DEPLOYMENT_PRODUCTION.md.
 
 on:
   workflow_dispatch:
@@ -7,10 +12,6 @@ on:
         description: Exact main commit to deploy
         required: true
         type: string
-  push:
-    branches: [main]
-    paths:
-      - .github/workflows/production-deploy.yml
 
 permissions:
   contents: read
@@ -21,215 +22,150 @@ concurrency:
 
 jobs:
   gateway:
-    if: ${{ github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[deploy-production]') }}
     name: Deploy production gateway
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     environment: Production
+    outputs:
+      previous_version: ${{ steps.release.outputs.previous_version }}
     env:
-      RELEASE_SHA: ${{ inputs.release_sha || github.sha }}
+      RELEASE_SHA: ${{ inputs.release_sha }}
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
       SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL }}
       SUPABASE_PUBLISHABLE_KEY: ${{ vars.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
       GEMINI_USER_KEY_ENCRYPTION_SECRET: ${{ secrets.GEMINI_USER_KEY_ENCRYPTION_SECRET }}
       GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
       QDRANT_URL: ${{ secrets.QDRANT_URL }}
       QDRANT_API_KEY: ${{ secrets.QDRANT_API_KEY }}
-      GATEWAY_WORKER: nexusrag-v6-gateway
-      FRONTEND_WORKER: nexusrag-v6-frontend
-      INGESTION_QUEUE: nexusrag-v6-ingestion
-      INGESTION_DLQ: nexusrag-v6-ingestion-dlq
-      QDRANT_COLLECTION: nexusrag-v6-production
+      # Empty means the gateway's default model policy (D24); set these variables to override.
       GEMINI_MODEL: ${{ vars.GEMINI_MODEL }}
       GEMINI_EMBEDDING_MODEL: ${{ vars.GEMINI_EMBEDDING_MODEL }}
     steps:
       - uses: actions/checkout@v5
         with:
-          ref: ${{ inputs.release_sha || github.sha }}
-      - name: Verify exact protected-main source
+          ref: ${{ inputs.release_sha }}
+      - name: Verify the release is the current main commit
         run: |
           set -euo pipefail
           git fetch origin main --depth=1
           actual="$(git rev-parse HEAD)"
-          main="$(git rev-parse origin/main)"
-          test "$actual" = "$RELEASE_SHA"
-          test "$actual" = "$main" || { echo "::error::Production deploys only the current main commit."; exit 1; }
-      - name: Require complete evidence-backed execution closure
-        working-directory: .
-        run: python3 scripts/check_execution_ledger.py --require-closure
+          test "$actual" = "$RELEASE_SHA" || { echo "::error::Checked out $actual, expected $RELEASE_SHA."; exit 1; }
+          test "$actual" = "$(git rev-parse origin/main)" || { echo "::error::Production deploys only the current main commit."; exit 1; }
       - uses: actions/setup-node@v5
         with: {node-version: "24"}
-      - name: Validate production configuration
+      - name: Check required configuration
         run: |
           set -euo pipefail
-          for name in CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID SUPABASE_URL SUPABASE_PUBLISHABLE_KEY SUPABASE_SERVICE_ROLE_KEY GEMINI_USER_KEY_ENCRYPTION_SECRET GOOGLE_API_KEY QDRANT_URL QDRANT_API_KEY; do
-            test -n "${!name:-}" || { echo "::error::$name is missing from Production"; exit 1; }
+          for name in CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID SUPABASE_URL SUPABASE_PUBLISHABLE_KEY SUPABASE_SERVICE_ROLE_KEY SUPABASE_DB_URL GEMINI_USER_KEY_ENCRYPTION_SECRET GOOGLE_API_KEY QDRANT_URL QDRANT_API_KEY; do
+            test -n "${!name:-}" || { echo "::error::$name is missing from the Production environment"; exit 1; }
           done
-          test "$SUPABASE_URL" = "https://fcjaomiceajcdownarel.supabase.co"
-          python3 -c 'import base64,os; assert len(base64.b64decode(os.environ["GEMINI_USER_KEY_ENCRYPTION_SECRET"],validate=True))==32'
-          jq -e --arg worker "$GATEWAY_WORKER" --arg queue "$INGESTION_QUEUE" --arg dlq "$INGESTION_DLQ" \
-            '.name == $worker and .queues.producers[0].queue == $queue and .queues.consumers[0].queue == $queue and .queues.consumers[0].dead_letter_queue == $dlq' \
-            apps/gateway/wrangler.production.jsonc
-          curl --fail --silent --show-error --output /dev/null -H "apikey: $SUPABASE_PUBLISHABLE_KEY" "$SUPABASE_URL/auth/v1/settings"
-          code="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' \
-            -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
+          python3 -c 'import base64,os; assert len(base64.b64decode(os.environ["GEMINI_USER_KEY_ENCRYPTION_SECRET"],validate=True))==32, "encryption secret must be base64-encoded 32-byte key material"'
+          python3 scripts/release.py plan --target production
+          code="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' --connect-timeout 10 --max-time 30 \
+            --config <(printf 'header = "apikey: %s"\nheader = "Authorization: Bearer %s"\n' "$SUPABASE_SERVICE_ROLE_KEY" "$SUPABASE_SERVICE_ROLE_KEY") \
             "$SUPABASE_URL/auth/v1/admin/users?per_page=1")"
-          test "$code" = "200"
-          response="$(curl --fail --silent --show-error -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
-            "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/subdomain")"
-          subdomain="$(jq -er '.result.subdomain' <<<"$response")"
-          {
-            echo "GATEWAY_ORIGIN=https://${GATEWAY_WORKER}.${subdomain}.workers.dev"
-            echo "FRONTEND_ORIGIN=https://${FRONTEND_WORKER}.${subdomain}.workers.dev"
-          } >> "$GITHUB_ENV"
-      - name: Ensure bounded free-tier queues
+          test "$code" = "200" || { echo "::error::The service credential does not authenticate against the production project."; exit 1; }
+      - name: Snapshot and apply pending migrations
         run: |
           set -euo pipefail
-          for queue in "$INGESTION_QUEUE" "$INGESTION_DLQ"; do
-            if ! npx --yes wrangler@4.148.0 queues info "$queue" >/dev/null 2>&1; then
-              npx --yes wrangler@4.148.0 queues create "$queue" --message-retention-period-secs 86400
-            fi
-          done
-      - name: Resolve Gemini model policy
-        # --keep-vars would otherwise keep a stale model on the Worker; always deploy the resolved policy (D24).
+          command -v psql >/dev/null || { sudo apt-get update && sudo apt-get install -y postgresql-client; }
+          # Copies every public table into a backup schema first, then applies each pending file in its own
+          # transaction. A failing file rolls back and stops the release before any Worker changes.
+          python3 scripts/migration_status.py apply --snapshot-label "$(date -u +%Y%m%d%H%M%S)_${RELEASE_SHA:0:7}"
+      - name: Deploy the gateway, smoke-test and roll back on failure
+        id: release
         run: |
           set -euo pipefail
-          policy="$(node --input-type=module -e 'const m = await import("./apps/gateway/src/gemini-models.js"); console.log(JSON.stringify({ generation: m.generationModels(process.env).join(","), embedding: m.embeddingModel(process.env) }))')"
-          {
-            echo "GEMINI_MODEL=$(jq -er .generation <<<"$policy")"
-            echo "GEMINI_EMBEDDING_MODEL=$(jq -er .embedding <<<"$policy")"
-          } >> "$GITHUB_ENV"
-      - name: Deploy gateway
-        run: |
-          npx --yes wrangler@4.148.0 deploy \
-            --config apps/gateway/wrangler.production.jsonc \
-            --keep-vars \
-            --var "SUPABASE_URL:$SUPABASE_URL" \
-            --var "SUPABASE_PUBLISHABLE_KEY:$SUPABASE_PUBLISHABLE_KEY" \
-            --var "QDRANT_COLLECTION:$QDRANT_COLLECTION" \
-            --var "FRONTEND_ORIGIN:$FRONTEND_ORIGIN" \
-            --var "RUNTIME_SERVICE_NAME:$GATEWAY_WORKER" \
-            --var "GEMINI_MODEL:$GEMINI_MODEL" \
-            --var "GEMINI_EMBEDDING_MODEL:$GEMINI_EMBEDDING_MODEL" \
-            --var "RELEASE_SHA:$RELEASE_SHA"
-      - name: Install production secrets
-        run: |
-          set -euo pipefail
-          printf '%s' "$SUPABASE_SERVICE_ROLE_KEY" | npx --yes wrangler@4.148.0 secret put SUPABASE_SERVICE_ROLE_KEY --name "$GATEWAY_WORKER"
-          printf '%s' "$GEMINI_USER_KEY_ENCRYPTION_SECRET" | npx --yes wrangler@4.148.0 secret put GEMINI_USER_KEY_ENCRYPTION_SECRET --name "$GATEWAY_WORKER"
-          printf '%s' "$GOOGLE_API_KEY" | npx --yes wrangler@4.148.0 secret put GOOGLE_API_KEY --name "$GATEWAY_WORKER"
-          printf '%s' "$QDRANT_URL" | npx --yes wrangler@4.148.0 secret put QDRANT_URL --name "$GATEWAY_WORKER"
-          printf '%s' "$QDRANT_API_KEY" | npx --yes wrangler@4.148.0 secret put QDRANT_API_KEY --name "$GATEWAY_WORKER"
-      - name: Verify production gateway
-        run: |
-          set -euo pipefail
-          for attempt in 1 2 3 4 5; do
-            health="$(curl --fail --silent --show-error --connect-timeout 10 --max-time 30 "$GATEWAY_ORIGIN/health")" && break
-            test "$attempt" -lt 5
-            sleep $((attempt * 2))
-          done
-          printf '%s' "$health" | jq -e --arg service "$GATEWAY_WORKER" \
-            '.service == $service and .status == "READY" and .authenticated_api == true and .paid_fallback == false and .providers.gemini == "CONFIGURED" and .providers.qdrant == "CONFIGURED"'
-          code="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' "$GATEWAY_ORIGIN/api/v2/capabilities")"
-          test "$code" = "401"
+          umask 077
+          secrets_file="$RUNNER_TEMP/gateway-secrets.json"
+          trap 'rm -f "$secrets_file"' EXIT
+          # Secrets ship with the new version, so new code never takes traffic without them.
+          jq -n '{SUPABASE_SERVICE_ROLE_KEY: env.SUPABASE_SERVICE_ROLE_KEY, GEMINI_USER_KEY_ENCRYPTION_SECRET: env.GEMINI_USER_KEY_ENCRYPTION_SECRET, GOOGLE_API_KEY: env.GOOGLE_API_KEY, QDRANT_URL: env.QDRANT_URL, QDRANT_API_KEY: env.QDRANT_API_KEY}' >"$secrets_file"
+          python3 scripts/release.py gateway --target production --sha "$RELEASE_SHA" --secrets-file "$secrets_file"
 
   frontend:
     name: Deploy production frontend
     needs: gateway
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 30
     environment: Production
     env:
-      RELEASE_SHA: ${{ inputs.release_sha || github.sha }}
+      RELEASE_SHA: ${{ inputs.release_sha }}
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
       NEXT_PUBLIC_SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL }}
       NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ vars.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
       NEXT_PUBLIC_OAUTH_PROVIDERS: ${{ vars.NEXT_PUBLIC_OAUTH_PROVIDERS }}
-      GATEWAY_WORKER: nexusrag-v6-gateway
-      FRONTEND_WORKER: nexusrag-v6-frontend
     defaults:
       run:
         working-directory: frontend
     steps:
       - uses: actions/checkout@v5
         with:
-          ref: ${{ inputs.release_sha || github.sha }}
-      - name: Verify exact protected-main source
+          ref: ${{ inputs.release_sha }}
+      - name: Verify the release is the current main commit
         working-directory: .
         run: |
           set -euo pipefail
           git fetch origin main --depth=1
           actual="$(git rev-parse HEAD)"
-          main="$(git rev-parse origin/main)"
           test "$actual" = "$RELEASE_SHA"
-          test "$actual" = "$main"
-      - name: Require complete evidence-backed execution closure
-        working-directory: .
-        run: python3 scripts/check_execution_ledger.py --require-closure
+          test "$actual" = "$(git rev-parse origin/main)"
       - uses: actions/setup-node@v5
         with:
           node-version: "24"
           cache: npm
           cache-dependency-path: frontend/package-lock.json
-      - name: Resolve canonical production origins
+      - name: Resolve public build settings
         working-directory: .
         run: |
           set -euo pipefail
-          response="$(curl --fail --silent --show-error -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
-            "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/subdomain")"
-          subdomain="$(jq -er '.result.subdomain' <<<"$response")"
-          {
-            echo "NEXT_PUBLIC_API_URL=https://${GATEWAY_WORKER}.${subdomain}.workers.dev"
-            echo "NEXT_PUBLIC_SITE_URL=https://${FRONTEND_WORKER}.${subdomain}.workers.dev"
-          } >> "$GITHUB_ENV"
-      - name: Validate public configuration
-        run: |
-          set -euo pipefail
-          test "$NEXT_PUBLIC_SUPABASE_URL" = "https://fcjaomiceajcdownarel.supabase.co"
-          test -n "$NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"
-          test -n "$NEXT_PUBLIC_OAUTH_PROVIDERS"
-          grep -Eq "\"name\"[[:space:]]*:[[:space:]]*\"${FRONTEND_WORKER}\"" wrangler.production.jsonc
-          grep -Eq "\"service\"[[:space:]]*:[[:space:]]*\"${FRONTEND_WORKER}\"" wrangler.production.jsonc
+          test -n "${NEXT_PUBLIC_OAUTH_PROVIDERS:-}" || { echo "::error::NEXT_PUBLIC_OAUTH_PROVIDERS is missing from the Production environment"; exit 1; }
+          # Fails unless the build uses the production Supabase project; prints the public URLs.
+          python3 scripts/release.py env --target production >>"$GITHUB_ENV"
       - run: npm ci --ignore-scripts
       - run: npm run lint
       - run: npm test
+      - name: Record public build identity
+        run: SOURCE_COMMIT="$RELEASE_SHA" node scripts/write-build-info.mjs
       - run: npm run cf:build
-      - run: npm run cf:deploy -- --config wrangler.production.jsonc
-      - name: Verify production frontend and gateway
+      - name: Deploy the frontend, smoke-test and roll back on failure
+        id: release
         working-directory: .
-        run: |
-          set -euo pipefail
-          probe() {
-            for attempt in 1 2 3 4 5; do
-              output="$(curl --fail --silent --show-error --location --connect-timeout 10 --max-time 30 "$1")" && {
-                printf '%s' "$output" | grep -q "$2"
-                return 0
-              }
-              sleep $((attempt * 2))
-            done
-            return 1
-          }
-          probe "$NEXT_PUBLIC_SITE_URL/" "NexusRAG"
-          probe "$NEXT_PUBLIC_SITE_URL/evidence-os" "Evidence"
-          probe "$NEXT_PUBLIC_API_URL/health" "ZERO_COST_LOW_TRAFFIC"
+        run: python3 scripts/release.py frontend --target production --sha "$RELEASE_SHA"
       - name: Production browser smoke
         run: |
           npx playwright install --with-deps chromium
           npm run test:visual:prepare
           E2E_BASE_URL="$NEXT_PUBLIC_SITE_URL" E2E_OAUTH_PROVIDERS="$NEXT_PUBLIC_OAUTH_PROVIDERS" \
             npx playwright test src/e2e/public-smoke.spec.ts src/e2e/visual-regression.spec.ts \
-              --project=chromium --project=mobile-chrome
-      - name: Publish deployment summary
+              --project=chromium --project=mobile-chrome --trace off
+      - name: Roll the frontend back if a later check failed
+        if: ${{ failure() && steps.release.outcome == 'success' && steps.release.outputs.previous_version != '' }}
         working-directory: .
-        run: |
-          {
-            echo "## NexusRAG production"
-            echo
-            echo "- Frontend: $NEXT_PUBLIC_SITE_URL"
-            echo "- Gateway: $NEXT_PUBLIC_API_URL"
-            echo "- Commit: \`$RELEASE_SHA\`"
-            echo "- Environment: \`Production\`"
-          } >> "$GITHUB_STEP_SUMMARY"
+        env:
+          PREVIOUS_VERSION: ${{ steps.release.outputs.previous_version }}
+        run: python3 scripts/release.py rollback --target production --component frontend --version "$PREVIOUS_VERSION"
+
+  restore-gateway:
+    name: Restore the gateway after a failed frontend release
+    needs: [gateway, frontend]
+    if: ${{ always() && needs.gateway.result == 'success' && needs.frontend.result != 'success' && needs.gateway.outputs.previous_version != '' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: Production
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+      PREVIOUS_VERSION: ${{ needs.gateway.outputs.previous_version }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.release_sha }}
+      - uses: actions/setup-node@v5
+        with: {node-version: "24"}
+      - name: Roll the gateway back to the version that served before this release
+        run: python3 scripts/release.py rollback --target production --component gateway --version "$PREVIOUS_VERSION"
