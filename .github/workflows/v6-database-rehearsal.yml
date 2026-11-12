@@ -198,6 +198,7 @@ jobs:
           cp "$GITHUB_WORKSPACE/supabase/migrations/20261026123000_radar_supplied_snapshots.sql" "$source_dir/supabase/migrations/"
           cp "$GITHUB_WORKSPACE/supabase/migrations/20261027153000_obligation_evidence_serving.sql" "$source_dir/supabase/migrations/"
           cp "$GITHUB_WORKSPACE/supabase/migrations/20261111213000_explicit_deny_service_only_tables.sql" "$source_dir/supabase/migrations/"
+          cp "$GITHUB_WORKSPACE/supabase/migrations/20261112053000_workspace_creation_owner_rights.sql" "$source_dir/supabase/migrations/"
           mkdir -p "$source_dir/scripts"
           cp "$GITHUB_WORKSPACE/scripts/migration_status.py" "$source_dir/scripts/"
           chmod -R a+rX "$source_dir"
@@ -243,6 +244,7 @@ jobs:
             phase pass_marker_validation
             grep -F 'GATEWAY_PRIVATE_TURN_AUTHORITY_PASS' "$log"
             grep -F 'MIGRATION_TOOL_REAL_SQL_PASS' "$log"
+            grep -F 'HOSTED_PRIVILEGE_SQL_PASS' "$log"
             grep -F 'GATEWAY_PRIVATE_TURN_CONCURRENT_AUTHORITY_PASS' "$log"
             grep -F 'BACKEND_PRIVATE_TURN_AUTHORITY_PASS' "$log"
             grep -F 'BACKEND_PRIVATE_TURN_CONCURRENT_AUTHORITY_PASS' "$log"
