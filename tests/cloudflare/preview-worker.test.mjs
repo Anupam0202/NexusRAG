@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import worker, { allowRequest, handle, storageDelete } from "../../apps/gateway/src/preview-worker.js";
+import { resetIndexProbeMemory } from "../../apps/gateway/src/search-index.js";
 
 const request = (path = "/health", init = {}) => new Request(`https://preview.invalid${path}`, init);
 const configured = {
@@ -268,6 +269,7 @@ test("storage deletion rejects an unrelated 400 verification response", async ()
 
 test("authenticated system status reports real data-API reachability without leaking provider secrets", async () => {
   const originalFetch = globalThis.fetch;
+  resetIndexProbeMemory();
   globalThis.fetch = async (url, init = {}) => {
     const target = String(url);
     if (target.endsWith("/auth/v1/user")) {
@@ -277,6 +279,11 @@ test("authenticated system status reports real data-API reachability without lea
     if (target.includes("/rest/v1/workspaces?select=id&limit=1")) {
       return new Response("[]", { status: 200, headers: { "content-type": "application/json" } });
     }
+    // The search index is asked too: one read of the collection, with the service's key.
+    if (target === "https://qdrant.invalid/collections/nexusrag-v6-preview") {
+      assert.equal(init.headers["api-key"], "synthetic-qdrant-secret");
+      return new Response(JSON.stringify({ result: { status: "green", points_count: 0 } }), { status: 200, headers: { "content-type": "application/json" } });
+    }
     throw new Error(`Unexpected status probe: ${target}`);
   };
   try {
@@ -284,8 +291,9 @@ test("authenticated system status reports real data-API reachability without lea
     const body = await response.json();
     assert.equal(response.status, 200);
     assert.equal(body.status, "READY");
-    assert.equal(body.readiness, "NOT_PROBED");
-    assert.deepEqual(body.dependency_status, { supabase_data_api: "REACHABLE", qdrant: "CONFIGURED_NOT_PROBED", gemini: "CONFIGURED_NOT_PROBED" });
+    assert.equal(body.readiness, "READY");
+    // The database and the index were asked; Gemini was not, and the report says so.
+    assert.deepEqual(body.dependency_status, { supabase_data_api: "REACHABLE", qdrant: "READY", gemini: "CONFIGURED_NOT_PROBED" });
     assert.equal(body.settings.supabase_configured, true);
     assert.equal(body.settings.supabase_auth_configured, true);
     assert.equal(body.settings.supabase_data_api_reachable, true);

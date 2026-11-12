@@ -1,5 +1,6 @@
 import { geminiCall, metered } from "./quota.js";
 import { EMBEDDING_DIMENSIONS, embeddingModel, isModelUnavailable, thinkingConfigFor, withGenerationModel } from "./gemini-models.js";
+import { indexEndpoint, indexFailure, indexFetch, indexStateFor } from "./search-index.js";
 
 const MAX_WORKER_UPLOAD_BYTES = 10_000_000;
 const SUPPORTED_WORKER_MIME = new Set([
@@ -7,7 +8,6 @@ const SUPPORTED_WORKER_MIME = new Set([
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "application/zip",
   "image/png", "image/jpeg", "image/webp", "image/tiff",
 ]);
-const QDRANT_COLLECTION = "nexusrag-v6-preview";
 const MAX_INDEX_BATCH_CHUNKS = 3;
 const MAX_DOCUMENT_CHUNKS = 400;
 
@@ -66,28 +66,34 @@ async function providerJson(url, init, timeout = 18_000) {
   const timeoutSignal = AbortSignal.timeout(timeout);
   const signal = init.signal ? AbortSignal.any([init.signal, timeoutSignal]) : timeoutSignal;
   signal.throwIfAborted();
-  const response = await fetch(url, { ...init, signal });
+  let response;
+  try {
+    response = await fetch(url, { ...init, signal });
+  } catch (error) {
+    // A caller that cancelled its own request gets its abort back; anything else means no answer came.
+    if (init.signal?.aborted) throw error;
+    throw providerFailure(url, 0, "");
+  }
   if (!response.ok) throw providerFailure(url, response.status, await response.text().catch(() => ""));
   return response.json();
 }
 
-// Says which provider failed and what a person can do about it. Provider response text is used only to
-// classify the failure; it is never returned or logged.
+// Says which provider failed and what a person can do about it. `status` 0 means no answer came at all.
+// Provider response text is used only to classify the failure; it is never returned or logged.
 function providerFailure(url, status, detail) {
-  const gemini = String(url).includes("generativelanguage.googleapis.com");
-  const name = gemini ? "Gemini" : "The search index";
+  if (!String(url).includes("generativelanguage.googleapis.com")) return indexFailure(indexStateFor(status), status);
   // A retired or unsupported Gemini model lets the caller try the next candidate (D24).
-  const modelUnavailable = gemini && isModelUnavailable(status, detail);
+  const modelUnavailable = isModelUnavailable(status, detail);
   const failure = status === 429
-    ? pipelineError("PROVIDER_QUOTA_EXHAUSTED", `${name} is rate limited or out of quota. Try again in a few minutes.`, 429, true)
-    : gemini && status === 402
+    ? pipelineError("PROVIDER_QUOTA_EXHAUSTED", "Gemini is rate limited or out of quota. Try again in a few minutes.", 429, true)
+    : status === 402
       // Since March 2026 Google answers 402 when a prepaid Gemini project has no credit left.
       ? pipelineError("PROVIDER_CREDIT_EXHAUSTED", "Gemini refused the request because the API key's project has no prepaid credit left. Add your own Gemini API key in Settings, or add credit to your key's project in Google AI Studio.", 402, false)
     : modelUnavailable
       ? pipelineError("PROVIDER_UNAVAILABLE", "The configured Gemini model is not available.", 503, true)
-      : gemini && (status === 401 || status === 403 || /api[ _-]?key|API_KEY_INVALID/i.test(detail))
+      : status === 401 || status === 403 || /api[ _-]?key|API_KEY_INVALID/i.test(detail)
         ? pipelineError("PROVIDER_KEY_REJECTED", "Gemini rejected the API key. If you added your own key, check it in Settings; it must be a valid Gemini API key from Google AI Studio.", 502, false)
-        : pipelineError("PROVIDER_UNAVAILABLE", `${name} is unavailable right now (HTTP ${status}). Try again shortly.`, 503, true);
+        : pipelineError("PROVIDER_UNAVAILABLE", status ? `Gemini is unavailable right now (HTTP ${status}). Try again shortly.` : "Gemini did not answer in time. Try again shortly.", 503, true);
   return Object.assign(failure, { providerStatus: status, modelUnavailable });
 }
 
@@ -129,19 +135,18 @@ function qdrantFilter(workspaceId, documentIds = [], versionIds = [], indexGener
 }
 
 async function ensureQdrant(env, vectorSize, allowCreate = false, signal) {
-  if (!env.QDRANT_URL || !env.QDRANT_API_KEY) throw pipelineError("CONFIGURATION_ERROR", "Qdrant is not configured.", 503);
-  const base = `${env.QDRANT_URL.replace(/\/$/, "")}/collections/${encodeURIComponent(env.QDRANT_COLLECTION || QDRANT_COLLECTION)}`;
-  const headers = { "content-type": "application/json", "api-key": env.QDRANT_API_KEY };
-  const current = await fetch(base, { headers, signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(8_000)]) : AbortSignal.timeout(8_000) });
+  const { base, headers } = indexEndpoint(env);
+  const current = await indexFetch(base, { headers, signal });
   if (current.status === 404) {
-    if (!allowCreate) throw pipelineError("PROVIDER_UNAVAILABLE", "The retrieval index is unavailable.", 503, true);
+    // Indexing creates a missing collection; a search against one has nothing to search.
+    if (!allowCreate) throw indexFailure("EMPTY", 404);
     await providerJson(base, { method: "PUT", headers, body: JSON.stringify({ vectors: { size: vectorSize, distance: "Cosine" } }) });
   } else if (!current.ok) {
-    throw pipelineError("PROVIDER_UNAVAILABLE", "Qdrant collection lookup failed.", 503, true);
+    throw indexFailure(indexStateFor(current.status), current.status);
   }
   if (allowCreate) for (const field_name of ["workspace_id", "document_id", "version_id", "index_generation"]) {
-    const response = await fetch(`${base}/index?wait=true`, { method: "PUT", headers, body: JSON.stringify({ field_name, field_schema: "keyword" }), signal: AbortSignal.timeout(8_000) });
-    if (!response.ok && response.status !== 409) throw pipelineError("PROVIDER_UNAVAILABLE", "Qdrant index setup failed.", 503, true);
+    const response = await indexFetch(`${base}/index?wait=true`, { method: "PUT", headers, body: JSON.stringify({ field_name, field_schema: "keyword" }) });
+    if (!response.ok && response.status !== 409) throw indexFailure(indexStateFor(response.status), response.status);
   }
   return { base, headers };
 }

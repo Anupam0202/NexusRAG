@@ -4,13 +4,17 @@ The candidate preview and production use the same code path, from GitHub Actions
 
   python3 scripts/release.py plan     --target candidate
   python3 scripts/release.py env      --target candidate                     # public build settings
-  python3 scripts/release.py gateway  --target candidate --sha <commit> [--secrets-file FILE]
+  python3 scripts/release.py gateway  --target candidate --sha <commit> [--secrets-file FILE] [--allow-index-down]
   python3 scripts/release.py frontend --target candidate --sha <commit>     # after `npm run cf:build`
   python3 scripts/release.py rollback --target candidate --component gateway --version <version-id>
 
 Environment: CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID; for the gateway also SUPABASE_URL and
 SUPABASE_PUBLISHABLE_KEY. WRANGLER overrides the wrangler command (default: the pinned npx version).
 A target can only ever bind its own Supabase project, Workers, queues and Qdrant collection.
+
+The gateway smoke test also asks the new version's `/ready` endpoint, so a release whose gateway cannot use
+its database or its search index is rolled back. `--allow-index-down` accepts one case only: a search index
+that does not answer (for example a suspended free cluster that is being reactivated).
 """
 from __future__ import annotations
 
@@ -239,6 +243,50 @@ def gateway_failures(origin: str, target: dict, sha: str, models: tuple[str, ...
     return failures
 
 
+DATABASE_PROBLEMS = {
+    "KEY_REJECTED": "the database refused the gateway's service role key (SUPABASE_SERVICE_ROLE_KEY)",
+    "SCHEMA_MISSING": "the database has no NexusRAG schema; apply the migrations first",
+    "NOT_CONFIGURED": "SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY is missing on the Worker",
+}
+INDEX_PROBLEMS = {
+    "KEY_REJECTED": "the search index refused the gateway's key (QDRANT_API_KEY)",
+    "NOT_CONFIGURED": "QDRANT_URL or QDRANT_API_KEY is missing on the Worker",
+}
+
+
+def readiness_check(origin: str, target: dict, allow_index_down: bool = False) -> tuple[list[str], list[str]]:
+    """What the released gateway reached with its own credentials: (failures, notes for the summary)."""
+    status, body = fetch(f"{origin}/ready")
+    try:
+        answer = json.loads(body) if status in (200, 503) else None
+    except ValueError:
+        answer = None
+    dependencies = answer.get("dependencies") if isinstance(answer, dict) else None
+    if not isinstance(dependencies, dict):
+        return [f"/ready returned HTTP {status} without a readiness report"], []
+    failures, notes = [], []
+    database = (dependencies.get("database") or {}).get("state")
+    if database != "REACHABLE":
+        failures.append(DATABASE_PROBLEMS.get(database, f"the database did not answer the gateway ({database})"))
+    index = dependencies.get("search_index") or {}
+    state, collection = index.get("state"), index.get("collection")
+    if collection != target["qdrant_collection"]:
+        failures.append(f"the gateway uses the collection {collection!r}, expected {target['qdrant_collection']!r}")
+    if state == "READY":
+        holds = {True: "holds indexed documents", False: "is empty"}.get(index.get("populated"), "answered")
+        notes.append(f"Search index: ready; `{collection}` {holds}")
+    elif state == "EMPTY":
+        notes.append(f"Search index: reachable; `{collection}` will be created by the first upload")
+    elif state in INDEX_PROBLEMS:
+        failures.append(INDEX_PROBLEMS[state])
+    elif allow_index_down:
+        notes.append(f"Search index: did not answer ({state}); released anyway because --allow-index-down was given")
+    else:
+        failures.append(f"the search index did not answer the gateway ({state}); if the cluster was suspended, "
+                        "reactivate it in Qdrant Cloud and release again, or pass --allow-index-down")
+    return failures, notes
+
+
 def frontend_failures(site: str, sha: str) -> list[str]:
     failures = []
     status, body = fetch(f"{site}/")
@@ -276,20 +324,22 @@ def report(lines: list[str]) -> None:
             handle.write(text + "\n")
 
 
-def finish(component: str, name: str, worker: str, origin: str, sha: str, previous: str | None, failures: list[str]) -> int:
+def finish(component: str, name: str, worker: str, origin: str, sha: str, previous: str | None, failures: list[str],
+           notes: tuple[str, ...] | list[str] = ()) -> int:
     if os.environ.get("GITHUB_OUTPUT"):
         with Path(os.environ["GITHUB_OUTPUT"]).open("a", encoding="utf-8") as handle:
             handle.write(f"previous_version={previous or ''}\n")
     if not failures:
         report([f"## {component} released to {name}", "", f"- Worker: `{worker}`", f"- URL: {origin}",
-                f"- Commit: `{sha}`", f"- Previous version: `{previous or 'none'}`", "- Smoke test: passed"])
+                f"- Commit: `{sha}`", f"- Previous version: `{previous or 'none'}`", "- Smoke test: passed",
+                *[f"- {note}" for note in notes]])
         return 0
     outcome = rollback(worker, previous, f"smoke test failed for {sha[:12]}")
     report([f"## {component} release to {name} failed", "", *[f"- {failure}" for failure in failures], f"- Result: {outcome}"])
     return 1
 
 
-def release_gateway(name: str, sha: str, secrets_file: str | None) -> int:
+def release_gateway(name: str, sha: str, secrets_file: str | None, allow_index_down: bool = False) -> int:
     target = TARGETS[name]
     env = require_env("CLOUDFLARE_API_TOKEN", "CLOUDFLARE_ACCOUNT_ID", "SUPABASE_URL", "SUPABASE_PUBLISHABLE_KEY")
     if env["SUPABASE_URL"] != supabase_url(target):
@@ -319,8 +369,15 @@ def release_gateway(name: str, sha: str, secrets_file: str | None) -> int:
         # Secrets ship with the new version, so the new code never takes traffic without them.
         arguments += ["--secrets-file", secrets_file]
     wrangler(*arguments)
-    failures = until_clean(lambda: gateway_failures(urls["gateway"], target, sha, models, embedding))
-    return finish("Gateway", name, target["gateway_worker"], urls["gateway"], sha, previous, failures)
+    notes: list[str] = []
+
+    def smoke() -> list[str]:
+        failures = gateway_failures(urls["gateway"], target, sha, models, embedding)
+        unreachable, notes[:] = readiness_check(urls["gateway"], target, allow_index_down)
+        return failures + unreachable
+
+    failures = until_clean(smoke)
+    return finish("Gateway", name, target["gateway_worker"], urls["gateway"], sha, previous, failures, notes)
 
 
 def release_frontend(name: str, sha: str) -> int:
@@ -382,6 +439,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--component", choices=["gateway", "frontend"], help="Worker to roll back")
     parser.add_argument("--version", help="Worker version ID to roll back to")
     parser.add_argument("--secrets-file", help="JSON or .env file of Worker secrets to ship with the gateway version")
+    parser.add_argument("--allow-index-down", action="store_true",
+                        help="release the gateway even though its search index does not answer")
     args = parser.parse_args(argv)
     try:
         validate_targets()
@@ -396,7 +455,7 @@ def main(argv: list[str] | None = None) -> int:
         if not SHA.fullmatch(args.sha or ""):
             raise ReleaseError("--sha must be a full 40-character commit SHA.")
         if args.command == "gateway":
-            return release_gateway(args.target, args.sha, args.secrets_file)
+            return release_gateway(args.target, args.sha, args.secrets_file, args.allow_index_down)
         return release_frontend(args.target, args.sha)
     except ReleaseError as exc:
         # stderr keeps redirected stdout (for example >>"$GITHUB_ENV") clean; GitHub reads annotations from both.

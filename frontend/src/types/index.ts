@@ -449,6 +449,8 @@ export interface SystemCapabilities {
 
 export interface SystemStatusResponse {
   readiness?: string;
+  /** What the gateway reached when asked: the database and the search index are probed, Gemini is not. */
+  dependency_status?: { supabase_data_api?: string; qdrant?: string; gemini?: string };
   service: string;
   status: string;
   version: string;

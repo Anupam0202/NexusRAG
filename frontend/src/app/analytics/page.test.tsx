@@ -155,6 +155,23 @@ describe("AnalyticsPage", () => {
     expect(screen.getByText("Audit trail could not be loaded. Refresh to retry.")).toBeInTheDocument();
   });
 
+  it("shows what the gateway reached, and warns when the search index is not answering", async () => {
+    getAnalytics.mockResolvedValue({ total_documents: 1, total_chunks: 8, total_queries: 2,
+      avg_response_time: 0, avg_confidence: 0, cache_hits: 0, cache_misses: 0 });
+    healthCheck.mockResolvedValue({ status: "CONFIGURED", readiness: "NOT_PROBED" });
+    getAuditEvents.mockResolvedValue({ events: [], storage: "supabase" });
+    getSystemStatus.mockResolvedValue({ status: "DEGRADED", readiness: "DEGRADED", settings: {}, capabilities: {},
+      dependency_status: { supabase_data_api: "REACHABLE", qdrant: "NOT_ANSWERING", gemini: "CONFIGURED_NOT_PROBED" } });
+    const { unmount } = render(<AnalyticsPage />);
+    expect(await screen.findByText("The search index is not answering. It may be restarting or paused; your documents are safe")).toBeInTheDocument();
+    unmount();
+
+    getSystemStatus.mockResolvedValue({ status: "READY", readiness: "READY", settings: {}, capabilities: {},
+      dependency_status: { supabase_data_api: "REACHABLE", qdrant: "READY", gemini: "CONFIGURED_NOT_PROBED" } });
+    render(<AnalyticsPage />);
+    expect(await screen.findByText("Database and search index reachable — Gemini is checked when it is used")).toBeInTheDocument();
+  });
+
 
   it("removes rendered private audit records on identity change before replacement loads", async () => {
     getAuditEvents.mockResolvedValueOnce({ events: [{ action: "private.workspace.a", workspace_id: "workspace-a", metadata: {} }], storage: "supabase" });

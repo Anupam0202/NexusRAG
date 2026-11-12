@@ -22,7 +22,8 @@
 - The model chain lives only in `apps/gateway/src/gemini-models.js`; `scripts/gemini_model_policy.py` and the deploy workflows read it from there. Keep the Python backend's defaults in step by hand.
 - Embeddings are `gemini-embedding-001` at 768 dimensions; changing model or dimension needs a new Qdrant collection and a re-index. The Python backend's embeddings are a different space and must never share a collection.
 - `GEMINI_USER_KEY_ENCRYPTION_SECRET` must never change without a re-encryption plan.
-- Qdrant Free clusters suspend when idle; Supabase Free projects pause after a week of low activity.
+- Qdrant Free clusters suspend when idle; Supabase Free projects pause after a week of low activity. The gateway's first cron run of each day probes the index (`search-index.js`), which keeps it awake.
+- `/health` is static and calls nothing; `/ready` probes the database and the search index and is what releases check. A suspended cluster and a restarting one look the same, so the state is `NOT_ANSWERING`.
 - Processing needs three records, all created without SQL: the operator's provider review (365 days), the workspace owner's approval of Gemini processing (until the terms change), and budget rows (created from `provider_budget_defaults`, reset daily). The gateway reports which one is missing (`PROVIDER_REVIEW_REQUIRED`, `WORKSPACE_APPROVAL_REQUIRED`).
 - Database functions run as the service role on hosted Supabase, which cannot read `auth` tables; functions that need them must be `security definer` (`hosted-privilege-assertions.sql` enforces this). Assertions that run as the database owner cannot see such failures.
 - A Gemini key on a prepaid project with no credit answers HTTP 402 (since March 2026); the app reports `PROVIDER_CREDIT_EXHAUSTED`.

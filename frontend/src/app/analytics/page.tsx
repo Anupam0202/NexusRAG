@@ -4,12 +4,13 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { getAnalytics, getAuditEvents, getSystemStatus, healthCheck } from "@/lib/api";
 import { AuthRequiredState } from "@/components/auth/AuthRequiredState";
 import { useStore } from "@/hooks/useStore";
+import { dependencyLine } from "@/lib/system-status";
 import { useWorkspaceApiAccess } from "@/hooks/useAuthGate";
 import type { AnalyticsSummary, AuditEvent, SystemStatusResponse } from "@/types";
 import { motion } from "framer-motion";
 import {
   RefreshCw, BarChart3, FileText, Database,
-  Clock, Target, Activity, CheckCircle2, XCircle,
+  Clock, Target, Activity, AlertTriangle, CheckCircle2, XCircle,
   Zap, Brain, TrendingUp, MessageSquare,
   HardDrive, Cpu, ShieldCheck, Gauge,
 } from "lucide-react";
@@ -109,7 +110,7 @@ function WorkspaceAnalytics() {
   };
 
   const apiResponding = Boolean(systemStatus || health) && !error;
-  const dependenciesReady = systemStatus?.readiness === "READY";
+  const dependencies = dependencyLine(systemStatus);
   const capabilities = systemStatus?.capabilities;
   const settings = systemStatus?.settings;
   const memoryConstrained =
@@ -223,10 +224,10 @@ function WorkspaceAnalytics() {
               <span className="opacity-90">⏳ Checking…</span>
             ) : apiResponding ? (
               <>
-                <CheckCircle2 size={16} className="text-green-200" />
-                <span className="opacity-90">
-                  {dependenciesReady ? "Dependencies verified ready" : "API responding — dependency readiness is not verified"}
-                </span>
+                {dependencies.tone === "warning"
+                  ? <AlertTriangle size={16} className="text-amber-200" />
+                  : <CheckCircle2 size={16} className="text-green-200" />}
+                <span className="opacity-90">{dependencies.text}</span>
               </>
             ) : (
               <>

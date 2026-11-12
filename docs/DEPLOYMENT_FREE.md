@@ -30,6 +30,10 @@ Existing Worker secrets are kept. The frontend is deployed the same way after
 python3 scripts/release.py frontend --target candidate --sha "$(git rev-parse HEAD)"
 ```
 
+The release checks `/health` and `/ready` on the new version and rolls back when either fails; `/ready` shows
+whether the gateway reached its database and its search index. Add `--allow-index-down` to release while the
+index does not answer.
+
 Free-tier limits to remember: Qdrant suspends a free cluster after a week without use and deletes it after
-four weeks; Supabase pauses a free project after a week of low activity; Cloudflare Queues keep messages for
-24 hours.
+four weeks (the gateway's daily cron run asks the index one question, which counts as use); Supabase pauses a
+free project after a week of low activity; Cloudflare Queues keep messages for 24 hours.

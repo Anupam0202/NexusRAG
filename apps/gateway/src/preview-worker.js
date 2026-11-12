@@ -10,6 +10,8 @@ import {
 } from "./worker-pipeline.js";
 import { deleteQdrantDocument, hybridFuse } from "./worker-lifecycle.js";
 import { activeGenerationModel, checkGeminiModels, embeddingModel, isDailyModelCheckWindow } from "./gemini-models.js";
+import { checkReadiness } from "./readiness.js";
+import { indexUsable, keepIndexAwake, probeIndex } from "./search-index.js";
 import { handleQueue, sweepJobs } from "./worker-jobs.js";
 import { candidateChunkIds, rehydrateEvidence } from "./retrieval-authority.js";
 import { assessAnswer } from "./answer-evidence.js";
@@ -735,6 +737,11 @@ async function handle(request, env = {}) {
   if (url.pathname === "/" || url.pathname === "/health") {
     return json(request, env, { service: env.RUNTIME_SERVICE_NAME || "nexusrag-v6-preview-gateway", profile: "ZERO_COST_LOW_TRAFFIC", gemini_models: { generation: activeGenerationModel(env), embedding: embeddingModel(env) }, source_commit: /^[a-f0-9]{40}$/.test(env.SOURCE_COMMIT || "") ? env.SOURCE_COMMIT : null, status: configured(env) ? "CONFIGURED" : "DEGRADED", readiness: "NOT_PROBED", authenticated_api: configured(env), production_verified: false, authorities: { business_records: "supabase", vectors: "qdrant" }, providers: { qdrant: env.QDRANT_URL && env.QDRANT_API_KEY ? "CONFIGURED" : "BLOCKED", gemini: env.GOOGLE_API_KEY ? "CONFIGURED" : "BLOCKED" }, paid_fallback: false });
   }
+  if (url.pathname === "/ready" && (request.method === "GET" || request.method === "HEAD")) {
+    // Unlike /health, this asks the database and the search index, and says only what they answered.
+    const report = await checkReadiness(env);
+    return json(request, env, { service: env.RUNTIME_SERVICE_NAME || "nexusrag-v6-preview-gateway", source_commit: /^[a-f0-9]{40}$/.test(env.SOURCE_COMMIT || "") ? env.SOURCE_COMMIT : null, ...report }, report.readiness === "READY" ? 200 : 503);
+  }
   if (!configured(env)) return fail(request, env, "CONFIGURATION_ERROR", "The authenticated gateway is not configured.", 503);
   try {
     const user = await authenticate(request, env);
@@ -1057,6 +1064,8 @@ async function handle(request, env = {}) {
     }
 
     if (url.pathname === "/api/v1/status" && (request.method === "GET" || request.method === "HEAD")) {
+      // Asked alongside the database; it never throws and reuses an answer less than a minute old.
+      const indexProbe = probeIndex(env, { maxAgeMs: 60_000 });
       let supabaseDataApiReachable = false;
       let totalDocuments = 0;
       let totalChunks = 0;
@@ -1079,13 +1088,16 @@ async function handle(request, env = {}) {
         totalChunks = 0;
       }
       const qdrantConfigured = Boolean(env.QDRANT_URL && env.QDRANT_API_KEY);
+      const index = await indexProbe;
+      // The database and the search index were asked; Gemini is not, because no free call shows its quota.
+      const reached = supabaseDataApiReachable && indexUsable(index.state);
       return json(request, env, {
         service: "NexusRAG Cloudflare Gateway",
-        status: supabaseDataApiReachable ? "READY" : "DEGRADED",
-        readiness: "NOT_PROBED",
+        status: reached ? "READY" : "DEGRADED",
+        readiness: reached ? "READY" : "DEGRADED",
         dependency_status: {
           supabase_data_api: supabaseDataApiReachable ? "REACHABLE" : "UNAVAILABLE",
-          qdrant: qdrantConfigured ? "CONFIGURED_NOT_PROBED" : "NOT_CONFIGURED",
+          qdrant: index.state,
           gemini: env.GOOGLE_API_KEY ? "CONFIGURED_NOT_PROBED" : "NOT_CONFIGURED",
         },
         version: "v6-preview",
@@ -1193,6 +1205,9 @@ async function handle(request, env = {}) {
   }
 }
 async function queue(batch,env){return handleQueue(batch,env)}
-async function scheduled(event,env,ctx){ctx.waitUntil(sweepJobs(env));if(isDailyModelCheckWindow(event?.scheduledTime))ctx.waitUntil(checkGeminiModels(env).catch(()=>undefined))}
+// Once a day: which Gemini models are still served, and one question to the search index, which also keeps
+// a free cluster from being suspended for inactivity.
+const dailyChecks=env=>Promise.all([checkGeminiModels(env).catch(()=>undefined),keepIndexAwake(env).catch(()=>undefined)]);
+async function scheduled(event,env,ctx){ctx.waitUntil(sweepJobs(env));if(isDailyModelCheckWindow(event?.scheduledTime))ctx.waitUntil(dailyChecks(env))}
 export { allowRequest, handle, queue, scheduled, storageDelete };
 export default { fetch: handle, queue, scheduled };

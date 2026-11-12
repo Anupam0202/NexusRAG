@@ -39,14 +39,31 @@ def rewrite_json(path: Path, change) -> None:
     path.write_text(json.dumps(config))
 
 
-def healthy_gateway(sha=SHA, model="gemini-3.5-flash-lite", capabilities=401):
+def ready_report(database="REACHABLE", index="READY", populated=True, collection="nexusrag-v6-candidate"):
+    """What the gateway's /ready endpoint answers after probing its database and search index."""
+    usable = database == "REACHABLE" and index in ("READY", "EMPTY")
+    return {"readiness": "READY" if usable else "DEGRADED", "dependencies": {
+        "database": {"state": database, "http_status": 200},
+        "search_index": {"state": index, "collection": collection, "populated": populated, "http_status": 200},
+    }}
+
+
+def healthy_gateway(sha=SHA, model="gemini-3.5-flash-lite", capabilities=401, ready=None):
     health = {
         "service": "nexusrag-v6-candidate-gateway", "source_commit": sha, "status": "CONFIGURED",
         "authenticated_api": True, "paid_fallback": False,
         "providers": {"qdrant": "CONFIGURED", "gemini": "CONFIGURED"},
         "gemini_models": {"generation": model, "embedding": "gemini-embedding-001"},
     }
-    return lambda url: (200, json.dumps(health)) if url.endswith("/health") else (capabilities, "")
+    report = ready_report() if ready is None else ready
+
+    def fetch(url):
+        if url.endswith("/health"):
+            return 200, json.dumps(health)
+        if url.endswith("/ready"):
+            return (200 if report["readiness"] == "READY" else 503), json.dumps(report)
+        return capabilities, ""
+    return fetch
 
 
 def healthy_frontend(sha=SHA, unknown=404, research=200):
@@ -150,6 +167,54 @@ class SmokeTests(unittest.TestCase):
         self.assertIn("/health returned HTTP 500", self.gateway(lambda url: (500, "error")))
         self.assertIn("/health returned HTTP 0", self.gateway(lambda url: (0, "URLError")))
 
+    def readiness(self, report, status=None, allow_index_down=False):
+        code = status if status is not None else (200 if report.get("readiness") == "READY" else 503)
+        with mock.patch.object(release, "fetch", side_effect=lambda url: (code, json.dumps(report))) as fetch:
+            result = release.readiness_check(GATEWAY, self.target, allow_index_down)
+        fetch.assert_called_once_with(f"{GATEWAY}/ready")
+        return result
+
+    def test_a_ready_gateway_passes_and_reports_whether_its_index_holds_documents(self):
+        failures, notes = self.readiness(ready_report())
+        self.assertEqual(failures, [])
+        self.assertEqual(notes, ["Search index: ready; `nexusrag-v6-candidate` holds indexed documents"])
+        # An index that answers but holds nothing is worth knowing about: it may have been reset.
+        self.assertEqual(self.readiness(ready_report(populated=False))[1], ["Search index: ready; `nexusrag-v6-candidate` is empty"])
+        # A new environment has no collection until the first upload creates it.
+        failures, notes = self.readiness(ready_report(index="EMPTY", populated=None))
+        self.assertEqual(failures, [])
+        self.assertIn("created by the first upload", " ".join(notes))
+
+    def test_a_gateway_that_cannot_use_a_dependency_is_named(self):
+        cases = [
+            (ready_report(database="KEY_REJECTED"), "SUPABASE_SERVICE_ROLE_KEY"),
+            (ready_report(database="SCHEMA_MISSING"), "migrations"),
+            (ready_report(database="NOT_CONFIGURED"), "SUPABASE_URL"),
+            (ready_report(database="UNAVAILABLE"), "database did not answer"),
+            (ready_report(index="KEY_REJECTED"), "QDRANT_API_KEY"),
+            (ready_report(index="NOT_CONFIGURED"), "QDRANT_URL"),
+            (ready_report(index="NOT_ANSWERING"), "reactivate it in Qdrant Cloud"),
+            (ready_report(index="RATE_LIMITED"), "RATE_LIMITED"),
+            (ready_report(collection="nexusrag-v6-preview"), "expected 'nexusrag-v6-candidate'"),
+        ]
+        for report, expected in cases:
+            with self.subTest(expected=expected):
+                failures, _ = self.readiness(report)
+                self.assertIn(expected, " ".join(failures))
+        # A gateway older than /ready asks for a login; a dead one does not answer at all.
+        self.assertEqual(self.readiness({"error": {"code": "AUTH_REQUIRED"}}, status=401)[0], ["/ready returned HTTP 401 without a readiness report"])
+        self.assertEqual(self.readiness({}, status=0)[0], ["/ready returned HTTP 0 without a readiness report"])
+        self.assertEqual(self.readiness({"readiness": "READY"}, status=200)[0], ["/ready returned HTTP 200 without a readiness report"])
+
+    def test_only_an_index_that_does_not_answer_can_be_waived(self):
+        failures, notes = self.readiness(ready_report(index="NOT_ANSWERING"), allow_index_down=True)
+        self.assertEqual(failures, [])
+        self.assertIn("did not answer", " ".join(notes))
+        for report in (ready_report(index="KEY_REJECTED"), ready_report(index="NOT_CONFIGURED"),
+                       ready_report(database="UNAVAILABLE"), ready_report(collection="nexusrag-v6-preview")):
+            with self.subTest(report=report):
+                self.assertTrue(self.readiness(report, allow_index_down=True)[0])
+
     def test_frontend_checks_identity_real_routes_and_unknown_paths(self):
         def run(fetch):
             with mock.patch.object(release, "fetch", side_effect=fetch):
@@ -174,7 +239,7 @@ class ReleaseFlowTests(unittest.TestCase):
         "SUPABASE_URL": "https://ukgjygzfhyvnrsecdcuu.supabase.co", "SUPABASE_PUBLISHABLE_KEY": "sb_publishable_synthetic",
     }
 
-    def run_gateway(self, fetch, previous=PREVIOUS, extra_env=None, secrets=True):
+    def run_gateway(self, fetch, previous=PREVIOUS, extra_env=None, secrets=True, arguments=()):
         with tempfile.TemporaryDirectory() as folder:
             output = Path(folder) / "output"
             secrets_file = Path(folder) / "secrets.json"
@@ -188,7 +253,7 @@ class ReleaseFlowTests(unittest.TestCase):
                  mock.patch.object(release, "fetch", side_effect=fetch), \
                  mock.patch.object(release.time, "sleep"), \
                  mock.patch("sys.stdout", io.StringIO()) as out, mock.patch("sys.stderr", out):
-                code = release.main(["gateway", "--target", "candidate", "--sha", SHA,
+                code = release.main(["gateway", "--target", "candidate", "--sha", SHA, *arguments,
                                      *(["--secrets-file", str(secrets_file)] if secrets else [])])
             written = output.read_text() if output.exists() else ""
         return code, out.getvalue(), wrangler, written
@@ -209,8 +274,24 @@ class ReleaseFlowTests(unittest.TestCase):
         self.assertEqual(variables["SUPABASE_URL"], "https://ukgjygzfhyvnrsecdcuu.supabase.co")
         self.assertFalse([call for call in wrangler.call_args_list if call.args[0] == "rollback"])
         self.assertIn("Smoke test: passed", printed)
+        self.assertIn("Search index: ready; `nexusrag-v6-candidate` holds indexed documents", printed)
         self.assertEqual(written, f"previous_version={PREVIOUS}\n")
         self.assertNotIn("synthetic-token", printed)
+
+    def test_a_gateway_that_cannot_reach_its_index_is_rolled_back_unless_that_is_accepted(self):
+        code, printed, wrangler, _ = self.run_gateway(healthy_gateway(ready=ready_report(index="KEY_REJECTED")))
+        self.assertEqual(code, 1)
+        self.assertTrue([call for call in wrangler.call_args_list if call.args[0] == "rollback"])
+        self.assertIn("QDRANT_API_KEY", printed)
+
+        asleep = healthy_gateway(ready=ready_report(index="NOT_ANSWERING"))
+        code, printed, wrangler, _ = self.run_gateway(asleep)
+        self.assertEqual(code, 1)
+        self.assertIn("reactivate it in Qdrant Cloud", printed)
+        code, printed, wrangler, _ = self.run_gateway(asleep, arguments=["--allow-index-down"])
+        self.assertEqual(code, 0)
+        self.assertFalse([call for call in wrangler.call_args_list if call.args[0] == "rollback"])
+        self.assertIn("released anyway because --allow-index-down was given", printed)
 
     def test_a_failed_smoke_test_rolls_back_to_the_previous_version(self):
         code, printed, wrangler, _ = self.run_gateway(healthy_gateway(sha="b" * 40))

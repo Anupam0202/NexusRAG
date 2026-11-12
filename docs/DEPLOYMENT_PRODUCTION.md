@@ -33,8 +33,9 @@ The workflow then:
 2. Copies every `public` table into a new schema `backup_<timestamp>_<sha>` and applies pending migrations, one
    transaction per file (`scripts/migration_status.py`). A failing migration rolls back and stops the release
    before any Worker changes.
-3. Deploys the gateway together with its secrets, then checks `/health` (commit, models, providers) and that an
-   unauthenticated API call is refused. If a check fails, it restores the previous gateway version.
+3. Deploys the gateway together with its secrets, then checks `/health` (commit, models, providers), that an
+   unauthenticated API call is refused, and `/ready`: the new version must reach its database and its search
+   index with its own credentials. If a check fails, it restores the previous gateway version.
 4. Builds and deploys the frontend, then checks the home page, the build identity, `/research`, `/radar`,
    `/evidence-api` and that an unknown path returns 404, followed by the browser smoke tests. If any of these
    fail, it restores the previous frontend version and then the previous gateway version.
@@ -75,6 +76,17 @@ Version IDs are in each run's summary ("Previous version") and in the Cloudflare
 Deployments. Migrations are forward-only. If an older gateway cannot work with the newer schema, restore the
 affected tables from the `backup_…` schema created by that release; drop old backup schemas once a release has
 been confirmed good.
+
+## The search index
+
+`/ready` on the gateway reports what it reached: the database, and the search index with its collection and
+point count. The gateway asks the index one question in the first cron run of every day, which is also what
+keeps a free Qdrant cluster from being suspended after a week without use.
+
+If the index stops answering, uploads and questions fail with "The search index is not answering" and `/ready`
+answers HTTP 503 with `NOT_ANSWERING`. Reactivate the cluster in the Qdrant Cloud console; nothing is lost while
+it sleeps, but Qdrant deletes a suspended free cluster after four weeks. A release during that time is rolled
+back unless it is run from a terminal with `--allow-index-down`. `KEY_REJECTED` means `QDRANT_API_KEY` is wrong.
 
 ## Model retirements
 

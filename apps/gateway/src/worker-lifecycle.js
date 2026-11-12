@@ -1,6 +1,7 @@
 import { geminiCall, metered } from "./quota.js";
 import { thinkingConfigFor, withGenerationModel } from "./gemini-models.js";
 import { providerFailure } from "./worker-pipeline.js";
+import { indexEndpoint, indexFetch } from "./search-index.js";
 const MAX_EXPANDED_ARCHIVE_BYTES = 20_000_000;
 const MAX_ARCHIVE_ENTRIES = 64;
 const error = (code, message, status = 422, retryable = false) => Object.assign(new Error(message), { code, status, retryable });
@@ -124,13 +125,8 @@ function hybridFuse(question, vectorHits, lexicalRows, limit = 8, alpha = 0.6) {
     .slice(0, Math.max(1, Math.min(limit, 12)));
 }
 function qdrantDeletionFilter(w,d,v=null,g=null){const must=[{key:"workspace_id",match:{value:w}},{key:"document_id",match:{value:d}}];if(v)must.push({key:"version_id",match:{value:v}});if(g)must.push({key:"index_generation",match:{value:g}});return{must}}
-async function boundedQdrantFetch(url, init) {
-  try {
-    return await fetch(url, { ...init, signal: AbortSignal.timeout(8_000) });
-  } catch {
-    throw error("PROVIDER_UNAVAILABLE", "Qdrant request did not complete within its bounded deadline.", 503, true);
-  }
-}
+// Eight seconds at most; an index that does not answer is reported as such (see search-index.js).
+const boundedQdrantFetch = (url, init) => indexFetch(url, init, 8_000);
 async function verifiedQdrantCount(response, failureCode) {
   if (!response.ok) throw error(failureCode, "Qdrant count could not be verified.", 503, true);
   let count;
@@ -140,10 +136,8 @@ async function verifiedQdrantCount(response, failureCode) {
   return count;
 }
 async function del(env,filter,workspaceId,priority="background"){
-  if(!env.QDRANT_URL||!env.QDRANT_API_KEY)throw error("CONFIGURATION_ERROR","Qdrant is not configured.",503);
+  const{base:root,headers}=indexEndpoint(env);
   return metered(env,{workspaceId,provider:"qdrant",priority},{requests:2},async()=>{
-    const root=`${env.QDRANT_URL.replace(/\/$/,"")}/collections/${encodeURIComponent(env.QDRANT_COLLECTION||"nexusrag-v6-preview")}`;
-    const headers={"content-type":"application/json","api-key":env.QDRANT_API_KEY};
     let response=await boundedQdrantFetch(`${root}/points/delete?wait=true`,{method:"POST",headers,body:JSON.stringify({filter})});
     if(!response.ok)throw error("QDRANT_DELETE_FAILED","Qdrant deletion failed.",503,true);
     response=await boundedQdrantFetch(`${root}/points/count`,{method:"POST",headers,body:JSON.stringify({exact:true,filter})});
@@ -156,9 +150,8 @@ async function deleteQdrantGeneration(env,w,d,v,g,priority="background"){return 
 async function verifyQdrantGeneration(env,w,d,v,g,expected,priority="background"){
   if(!Number.isSafeInteger(expected)||expected<1)throw error("INVALID_SCOPE","Expected vector count is invalid.");
   return metered(env,{workspaceId:w,provider:"qdrant",priority},{requests:1},async()=>{
-    if(!env.QDRANT_URL||!env.QDRANT_API_KEY)throw error("CONFIGURATION_ERROR","Qdrant is not configured.",503);
-    const root=`${env.QDRANT_URL.replace(/\/$/,"")}/collections/${encodeURIComponent(env.QDRANT_COLLECTION||"nexusrag-v6-preview")}`;
-    const response=await boundedQdrantFetch(`${root}/points/count`,{method:"POST",headers:{"content-type":"application/json","api-key":env.QDRANT_API_KEY},body:JSON.stringify({exact:true,filter:qdrantDeletionFilter(w,d,v,g)}),signal:AbortSignal.timeout(8_000)});
+    const{base:root,headers}=indexEndpoint(env);
+    const response=await boundedQdrantFetch(`${root}/points/count`,{method:"POST",headers,body:JSON.stringify({exact:true,filter:qdrantDeletionFilter(w,d,v,g)})});
     const count=await verifiedQdrantCount(response,"QDRANT_INDEX_UNVERIFIED");
     if(count!==expected)throw error("QDRANT_INDEX_UNVERIFIED","Indexed vector count does not match the document manifest.",503,true);
     return{verified:true,count};

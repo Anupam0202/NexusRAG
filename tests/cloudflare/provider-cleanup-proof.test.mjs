@@ -46,7 +46,7 @@ test('malformed count JSON cannot create a deletion proof', async t => {
 });
 test('provider timeout is retryable and conservatively settled, never successful', async t => {
   const calls = mock(t, null, { unavailable: true });
-  await assert.rejects(deleteQdrantDocument(env, workspace, workspace), e => e.code === 'PROVIDER_UNAVAILABLE' && e.retryable);
+  await assert.rejects(deleteQdrantDocument(env, workspace, workspace), e => e.code === 'INDEX_NOT_ANSWERING' && e.status === 503 && e.retryable);
   assert.equal(JSON.parse(calls.at(-1).init.body).p_provider_called, true);
 });
 test('publication count rejects coercible values instead of asserting readiness', async t => {
