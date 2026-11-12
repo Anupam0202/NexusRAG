@@ -36,7 +36,18 @@ jobs:
           sudo apt-get install -y postgresql-common ca-certificates
           sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
           sudo apt-get update
-          sudo apt-get install -y postgresql-17 postgresql-17-pgvector
+          sudo apt-get install -y postgresql-17
+          if ! sudo apt-get install -y postgresql-17-pgvector; then
+            # On PostgreSQL release days the packaged pgvector can require a server build that is not
+            # published yet. Build the pinned release from source instead of failing a required check.
+            echo "::warning::The packaged pgvector does not match the available PostgreSQL 17 build; building pgvector v0.8.7 from source."
+            sudo apt-get install -y postgresql-server-dev-17 build-essential git
+            git clone --depth 1 --branch v0.8.7 https://github.com/pgvector/pgvector.git "$RUNNER_TEMP/pgvector"
+            test "$(git -C "$RUNNER_TEMP/pgvector" rev-parse HEAD)" = "f37c13f68b57d2c3472b2214fbcff699d6d34876"
+            make -C "$RUNNER_TEMP/pgvector" OPTFLAGS="" PG_CONFIG=/usr/lib/postgresql/17/bin/pg_config
+            sudo make -C "$RUNNER_TEMP/pgvector" install PG_CONFIG=/usr/lib/postgresql/17/bin/pg_config
+          fi
+          test -f /usr/share/postgresql/17/extension/vector.control
       - name: Install locked functional package processors and local Worker harness
         working-directory: frontend
         run: npm ci --ignore-scripts --no-audit --no-fund
