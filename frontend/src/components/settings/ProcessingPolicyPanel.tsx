@@ -51,8 +51,8 @@ export function ProcessingPolicyPanel({ context }: { context: ApiRequestContext 
       : !policy ? <p role="status" className="mt-3 text-sm">Loading processing policy…</p>
       : <div className="mt-3 space-y-3 text-sm">
         <p>Owner approval: <strong>{policy.state === "APPROVED" ? "Current for reviewed terms" : "Not currently valid"}</strong>. This is not provider availability or permission to send sensitive data.</p>
-        <p className="text-xs">Operator rights review: {policy.operator_rights_current ? "Current" : "Missing, stale or blocked"}. Owner reviews expire after 30 days and must be renewed when terms change.</p>
-        {policy.approval_expires_at && <p className="text-xs">Review expiry: {new Date(policy.approval_expires_at).toLocaleString()}.</p>}
+        <p className="text-xs">Operator rights review: {policy.operator_rights_current ? "Current" : "Missing, stale or blocked"}. Your approval lasts until the reviewed terms change or you revoke it.</p>
+        {policy.approval_expires_at && <p className="text-xs">The operator review of these terms is valid until {new Date(policy.approval_expires_at).toLocaleDateString()}.</p>}
         {policy.terms_hash && <p className="break-all text-xs">Operator-reviewed snapshot hash: <code>{policy.terms_hash}</code>. The decision is bound to this snapshot; the linked live page may subsequently change.</p>}
         {termsUrl && <a href={termsUrl} target="_blank" rel="noopener noreferrer" className="inline-block text-brand-600 underline">Read official Gemini terms</a>}
         {policy.owner_can_manage ? <div className="space-y-3">

@@ -8,6 +8,7 @@ import {
 } from "@/components/documents/UploadZone";
 import { DocumentList } from "@/components/documents/DocumentList";
 import { DocumentDetailPanel } from "@/components/documents/DocumentDetailPanel";
+import { ProcessingApprovalNotice } from "@/components/settings/ProcessingApprovalNotice";
 import { useStore } from "@/hooks/useStore";
 import { useDocuments } from "@/hooks/useDocuments";
 import { getSystemStatus } from "@/lib/api";
@@ -77,6 +78,9 @@ function WorkspaceDocuments() {
   return (
     <div className="h-full overflow-y-auto">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6 sm:space-y-8">
+        {authMode === "authenticated" && workspaceId && userId && (
+          <ProcessingApprovalNotice context={{ workspaceId, expectedUserId: userId }} />
+        )}
         {/* Upload */}
         <UploadZone
           onUpload={upload}

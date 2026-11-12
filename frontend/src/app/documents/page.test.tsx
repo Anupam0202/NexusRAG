@@ -2,7 +2,7 @@ import { act, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useStore } from "@/hooks/useStore";
 const { status, access } = vi.hoisted(() => ({ status: vi.fn(), access: { authMode: "authenticated", canAccessWorkspaceApi: true } }));
-vi.mock("@/lib/api", () => ({ getSystemStatus: status }));
+vi.mock("@/lib/api", () => ({ getSystemStatus: status, getProcessingPolicy: () => new Promise(() => undefined) }));
 vi.mock("@/hooks/useDocuments", () => ({ useDocuments: () => ({ ...access, documents: [], loading: false, uploading: false, error: null, upload: vi.fn(), remove: vi.fn(), reindex: vi.fn(), refresh: vi.fn(), canMutate: false }) }));
 vi.mock("@/components/documents/UploadZone", () => ({ DEFAULT_UPLOAD_LIMITS: { maxUploadMb: 10, maxUploadBytes: 10_000_000 }, UploadZone: ({ limits }: { limits: { maxUploadBytes: number } }) => <p>Upload bound: {limits.maxUploadBytes}</p> }));
 vi.mock("@/components/documents/DocumentList", () => ({ DocumentList: () => <p>Document list fixture</p> }));
