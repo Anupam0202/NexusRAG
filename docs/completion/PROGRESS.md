@@ -1,111 +1,123 @@
 # NexusRAG completion progress
-Last updated: 2026-11-12 — deploy workflows rewritten around `scripts/release.py`; candidate gateway live on `1c65c73`; Qdrant serving again; Gemini and Qdrant keys still not in the sandbox
+Last updated: 2026-11-12 — Tier 1 in progress: the preview gateway runs the branch head and passes every live
+check up to ingestion, which stops because the shared Gemini key has no prepaid credit (owner action)
 
 ## Current state
 - main: `85b14f1`; working branch: `codex/runtime-manifest-008` (draft PR #12, owner-approved for direct
   commits on 2026-11-09); open PRs: #12
 - Plan: `docs/completion/MASTER_PROMPT.md`; repository notes: `CLAUDE.md`
-- Cloud environment: personal `NexusRAG` (limited network; see the master prompt, section 5)
-- Candidate preview: gateway `1c65c73` (released 2026-11-11 with `scripts/release.py`; `/health` reports the
-  commit and `gemini-3.5-flash-lite` / `gemini-embedding-001`); frontend still the old build `2fbc5c9`, whose
-  `/research`, `/radar`, `/evidence-api` and unknown paths return 500 (NX-01) until the new build is deployed
-  through the preview workflow (a cloud session cannot upload frontend assets)
-- Production: `nexusrag-v6-frontend-preview` v29 → `nexusrag-v6-preview-gateway` v52, both from 23 September
-  (a 25 September deploy was rolled back), on production Supabase and the default collection `nexusrag-v6-preview`;
-  the live gateway still defaults to `gemini-2.5-flash` with `thinkingBudget: 0` until the NX-06 code is deployed
-- Qdrant: cluster `fc0c77d2-d9fd-4648-8459-09fa74372f16` (AWS eu-west-2) **stopped serving between 2026-11-09 and
-  2026-11-11**: its address answered 403 without a key on 9 November and now answers 503 (from outside) or resets
-  the TLS handshake (from the sandbox); status.qdrant.io shows no incident. Qdrant suspends free clusters after
-  1 week unused and deletes them after 4 weeks unless reactivated. **On 2026-11-12 it answers 403 again**, so it
-  is serving (reactivated or restarted). Collections and point counts are still unknown without the key; the
-  daily keep-alive (D15) is still to be built.
+- Candidate preview: gateway `3396cb0`, released 2026-11-12 with `scripts/release.py` (smoke test passed;
+  `/health` reports the commit and `gemini-3.5-flash-lite` / `gemini-embedding-001`). Frontend is still the old
+  build `2fbc5c9`, whose `/research`, `/radar`, `/evidence-api` and unknown paths return 500 (NX-01): a cloud
+  session cannot upload frontend assets, and the preview workflow rejects this branch (environment branch rule).
+- Rehearsal Supabase (`ukgjygzfhyvnrsecdcuu`): 51 migrations applied, 0 pending. Provider reviews recorded for
+  Gemini, Qdrant and Supabase Storage (staging attestation by test account A, valid to 2027-11-12). Two test
+  accounts (`nexus-e2e-a@nexusrag.test`, `nexus-e2e-b@nexusrag.test`), each with an approved workspace.
+- Production: `nexusrag-v6-frontend-preview` v29 → `nexusrag-v6-preview-gateway` v52, both from 23 September,
+  on Supabase `fcjaomiceajcdownarel` (35 migrations applied, 38 pending from 035 onward) and collection
+  `nexusrag-v6-preview`. The live gateway still defaults to `gemini-2.5-flash` with `thinkingBudget: 0`, has no
+  `GEMINI_USER_KEY_ENCRYPTION_SECRET`, and nothing has been changed there.
+- Gemini: the candidate Worker's shared key answers **HTTP 402** (its Google project is prepaid and has no
+  credit; Google enforces this since March 2026). Every ingestion and every chat on the shared key fails.
+- Qdrant: cluster `fc0c77d2-d9fd-4648-8459-09fa74372f16` (AWS eu-west-2) stopped serving between 9 and 11
+  November and serves again since 12 November (403 without a key). Free clusters are suspended after 1 week
+  unused and deleted after 4 weeks. Collections and point counts are unknown without the key; the daily
+  keep-alive (D15) is not built yet.
 
-## Live check, 2026-11-09 (read-only)
-- Gemini (aistudio.google.com/docs deprecations, models and pricing pages): `gemini-2.5-flash` and
-  `gemini-2.5-pro` shut down on 2026-12-01 (calls then reroute to `gemini-3.5-flash-lite` and
-  `gemini-3.8-flash`); `gemini-2.0-*` shut down on 2026-06-01; `gemini-embedding-001` is supported until
-  2028-05-14. Stable: `gemini-3.6-flash`, `gemini-3.5-flash-lite`, `gemini-3.1-flash-lite`; `gemini-3.8-flash`
-  is new. All have a free tier.
-- Supabase production (`fcjaomiceajcdownarel`): ACTIVE_HEALTHY; 35 applied migrations (latest
-  `20260926195204`); 8 users, none signed in since 2026-09-22; 7 legacy documents with chunks but no version
-  rows (NX-03) and 1 document stuck in `deleting` (NX-27); 0 stored BYOK keys; security advisors: only
-  leaked-password protection off; health advisors clean; only traffic is the production gateway's cron.
-- Supabase rehearsal (`ukgjygzfhyvnrsecdcuu`): ACTIVE_HEALTHY; 42 applied migrations (latest
-  `20261025091432`); 2 users; 4 `research_*` tables with RLS but no policies; a signed-in browser session polls
-  it every ~70 seconds (probably a tab left open on the candidate app).
-  **Update 2026-11-11:** the name-based status tool showed six pending files, not three: 040, 041 and 042 had
-  never been applied either. All six were applied (checksums verified in the database against the repository
-  files), then `20261111213000_explicit_deny_service_only_tables`; 49 applied, 0 pending; the security advisor
-  now reports only leaked-password protection (an Auth setting) and the temporary objects below.
-- Cloudflare (API token): six Workers unchanged since October; six queues (production, candidate and PR3, each
-  with a DLQ; the PR3 queue has no consumer); both live gateways run a `*/5` cron; R2 not enabled; no KV or D1.
-  The script `settings` endpoint shows the rolled-back version's bindings; read active versions instead.
-- GitHub: PR #12 draft, merge blocked by branch protection; after the docs commit `763c288`, 9 checks pass,
-  3 fail (runtime images, dependency review, required summary) and 2 deploy jobs are skipped — unchanged.
+## Inventory (read-only, 2026-11-09, updated where noted)
+- Gemini: `gemini-2.5-flash` and `gemini-2.5-pro` shut down on 2026-12-01 (calls reroute to
+  `gemini-3.5-flash-lite` and `gemini-3.8-flash`); `gemini-embedding-001` is supported until 2028-05-14.
+- Supabase production: ACTIVE_HEALTHY; 8 users, none signed in since 2026-09-22; 7 legacy documents with chunks
+  but no version rows (NX-03) and 1 stuck in `deleting` (NX-27); 0 stored BYOK keys; advisors: only
+  leaked-password protection off.
+- Supabase rehearsal: ACTIVE_HEALTHY; 71 tables, each with row security and a policy; advisors: only
+  leaked-password protection (an Auth setting).
+- Cloudflare: six Workers; six queues (production, candidate and PR3, each with a DLQ; the PR3 queue has no
+  consumer); both live gateways run a `*/5` cron; no R2, KV or D1. Workers subdomain `nexusrag-evidence-preview`.
+- GitHub: PR #12 is a draft; merging is blocked by draft status and by the ruleset's provider checks, which need
+  a trusted push (D2) and working provider keys.
 
 ## Tiers
-- Tier 0: [~] Gemini model policy (NX-06): implemented and tested offline; live test and production release
-  pending (before 2026-12-01) [x] NX-10 frontend Docker type-check [x] NX-09 audit gate and NX-01 Worker crash
-  (built Worker verified; deploy pending) [x] CI green on `6b30a50`: all 12 checks pass, including the required
-  summary (the two deploy jobs are skipped by design)
-  [x] replayable migrations (NX-11): fresh build proven in CI and locally; harness and workflow lists are tested
-  against the forward chain; 065 stays out [x] deploy workflows (NX-12, NX-13): rewritten; the candidate gateway
-  was released with the new script; the workflows themselves run for the first time when dispatched [ ] PR #12 description rewritten and handed over [~] Qdrant (NX-07): state known — not serving;
-  collections unknown [x] Recovery salvage (NX-43) [x] Cloudflare inventory with the API token
-- Tier 1: not started
-- Tier 2: not started
-- Tier 3: not started
-- Tier 4: not started
+- Tier 0: [~] 1 Gemini model policy (NX-06): built, tested offline, live on the preview gateway; the live calls
+  with a key are pending [x] 2 CI green [x] 3 fresh database from the repository (NX-11) [x] 4 deploy workflows
+  (NX-12, NX-13); the gateway path is proven live, the workflows run when first dispatched [x] 5 PR #12
+  description rewritten [~] 6 inventories: Qdrant collections need the key (NX-07) [x] 7 Recovery salvage
+- Tier 1: [x] workspace creation on hosted Supabase [x] provider approval and budgets work without SQL
+  [x] specific provider errors: key rejected, quota, credit used up, outage, model unavailable (NX-14, gateway
+  side) [x] two-account live journey script [ ] ingestion → answer → delete on the preview (blocked: Gemini 402)
+  [ ] frontend preview deploy (blocked: environment branch rule) [ ] NX-03 Ready only when answerable
+  [ ] NX-21 real streaming [ ] NX-04, NX-05 verified live [ ] NX-16 missing endpoints [ ] owner walkthrough
+- Tier 2, Tier 3, Tier 4: not started (Tier 4's keep-alive and typed index state are next, because of NX-07)
 
 ## Done log
-| Date | Item | PR | Verified at level | Link |
-|---|---|---|---|---|
-| 2026-11-09 | Recovery salvage; owner deleted `NexusRAG-Recovery` | — | n/a | `MASTER_PROMPT.md`, Part 2 F2 |
-| 2026-11-09 | Plan, progress log, `CLAUDE.md` and the 065 patch saved to the branch | #12 | n/a (documents) | `763c288` |
-| 2026-11-09 | NexusRAG environment created; Cloudflare token saved; live Cloudflare inventory | #12 | n/a (read-only) | `4410c35` |
-| 2026-11-09 | NX-10: production builds type-check app code only (`tsconfig.build.json`) | #12 | 2 (frontend-only `next build`) | `41eb758` |
-| 2026-11-09 | NX-09/NX-01: next 16.4.5 + @opennextjs/cloudflare 1.20.16, vite 8.3.6, undici/zod/glob patched; assets `html_handling: none` | #12 | 2 (audit gate 0; lint, tsc, 731 tests, cf:build; local Worker: real routes 200, unknown 404; 14 routing tests) | `5a28cd2` |
-| 2026-11-09 | D4: the legacy Python backend image is built and scanned only when `include_backend` is set; the frontend image scan still gates CI | #12 | CI (runtime-images job green) | `51e73ce` |
-| 2026-11-09 | NX-06: Gemini model policy D24 — fallback chain with retirement detection, per-model thinking settings, `/health` models, daily cron check, weekly `Gemini Model Check` workflow, live probe on the primary model, deploys set the models explicitly; Python backend and README moved off retired models | #12 | 2 (879 gateway tests incl. 13 new; 161 script tests, only the sandbox-only IPv6 test fails; backend 64 + 664; wrangler dry-run); CI green | `6b30a50` |
-| 2026-11-11 | NX-11/NX-12: `scripts/migration_status.py` (name-based status; `apply` snapshots every public table, applies pending files one transaction each, records history) with a real-database test in the rehearsal harness; guard test ties the harness and workflow lists to the forward chain; every public table now has an explicit policy (new migration + invariant) | #12 | 3 (full local replay on PostgreSQL 16 incl. the tool test; schema identical whether applied in file order or hosted order; applied to the hosted rehearsal project) | `1c65c73` |
-| 2026-11-12 | NX-12/NX-13: `scripts/release.py` (deploy, smoke test, automatic rollback; targets bound to their own Workers, queue, collection and Supabase project); production workflow is manual-only, applies migrations after a snapshot, ships secrets with the gateway version, restores both Workers on failure, and no longer waits for ledger closure; preview workflow deploys any branch on request; production configs point at the Workers that serve production (D8); versioned preview URLs disabled; deployment docs rewritten | #12 | 4 for the gateway path (candidate gateway released and smoke-tested live); 1 for the workflows (187 script tests) | this commit |
-| 2026-11-12 | Fixed a clock-dependent gateway test from `6b30a50` that failed from 2026-11-10 onward | #12 | 1 (879 tests, also with the clock shifted ±200 days) | this commit |
+| Date | Item | Verified at level | Commit |
+|---|---|---|---|
+| 2026-11-09 | Recovery salvage; plan, progress log, `CLAUDE.md`; NexusRAG cloud environment; Cloudflare inventory | n/a | `763c288`, `4410c35` |
+| 2026-11-09 | NX-10 Docker type-check; NX-09 audit gate and NX-01 Worker crash (next 16.4.5, OpenNext 1.20.16) | 2 (built Worker: real routes 200, unknown path 404) | `41eb758`, `5a28cd2` |
+| 2026-11-09 | D4: legacy backend image built and scanned only on request | CI | `51e73ce` |
+| 2026-11-09 | NX-06: model policy D24 (fallback chain, retirement detection, thinking settings, `/health`, daily and weekly checks) | 2; 4 for `/health` | `6b30a50` |
+| 2026-11-11 | NX-11/NX-12: `scripts/migration_status.py` (name-based status, snapshot, apply, record) with a real-database test; a policy on every public table | 3 (local replay; applied to rehearsal) | `1c65c73` |
+| 2026-11-12 | NX-12/NX-13: `scripts/release.py` (deploy, smoke test, automatic rollback); production workflow manual-only with snapshot, migrations, secrets shipped with the version, restore on failure; preview workflow from any branch | 4 for the gateway (five live releases); 1 for the workflows | `f55db81` |
+| 2026-11-12 | Found live: workspace creation failed on hosted Supabase (`permission denied for table users`). Fixed; new assertions run as the service role and fail if a non-definer function reads `auth` tables | 4 (workspace created through the preview) | `4a2a6a3` |
+| 2026-11-12 | Found live: no document could be processed anywhere, because provider approvals and budget rows had to be inserted by hand and expired after 30 days. Now: an operator review per provider (365 days), the workspace owner's approval of Gemini (until the terms change), budgets created from defaults and reset daily, and a named reason for every denial | 4 (approval, reservation and settlement through the preview) | `8de9765` |
+| 2026-11-12 | Provider failures name the provider and the fix; a Gemini key on a prepaid project without credit reports `PROVIDER_CREDIT_EXHAUSTED`; a document whose ingestion fails for good is marked failed | 4 (the preview returns the message) | `0980174`, `83bf73e` |
+| 2026-11-12 | Documents page shows when the workspace still needs processing approval | 1 (frontend tests, lint, type-check) | `80ed357` |
+| 2026-11-12 | Provider Review workflow and `scripts/provider_review.py` (status, record) | 1; the RPCs at 4 | `67d3020` |
+| 2026-11-12 | CI: build pgvector from a pinned tag when the packaged one cannot install (PostgreSQL release day) | CI | `3396cb0` |
+
+Live journey on the preview, 2026-11-12, gateway `3396cb0` (`python3 scripts/preview_smoke.py`): 11 of 12
+checks pass — sign-in for both accounts, separate workspaces, processing policy, upload accepted (202). The
+twelfth, "ingestion completes", fails with the gateway's own explanation: "Gemini refused the request because
+the API key's project has no prepaid credit left."
 
 ## Blockers and owner decisions
-- **Urgent — Qdrant:** reactivate cluster `fc0c77d2-d9fd-4648-8459-09fa74372f16` in the Qdrant Cloud console
-  (free clusters are deleted after 4 weeks suspended). If it has already been deleted, say so: the index is
-  rebuilt from the chunks stored in Supabase (a re-index), and a new cluster URL and key go into the Worker
-  secrets and GitHub environments.
-- Rehearsal cleanup done 2026-11-12 (owner confirmed): the temporary upload table and runner schema are
-  dropped; 49 migrations, 70 tables, every table has a policy.
-- **Owner, before the first production release:** add `SUPABASE_DB_URL` and
-  `GEMINI_USER_KEY_ENCRYPTION_SECRET` to the GitHub `Production` environment (the live production gateway has
-  no encryption secret today); the full list is in `docs/DEPLOYMENT_PRODUCTION.md`.
-- **Owner, optional:** allow feature branches in the `NexusRAG-Candidate-Preview` environment's deployment
-  branch rule if a preview run from this branch is rejected.
-- The owner adds two keys under the NexusRAG environment's Network secrets (environment menu → Edit): Qdrant
-  (host `fc0c77d2-d9fd-4648-8459-09fa74372f16.eu-west-2-0.aws.cloud.qdrant.io`, header `api-key`) and Gemini
-  (host `generativelanguage.googleapis.com`, header `x-goog-api-key`). The secure form cannot save either.
-- Decided 2026-11-09: D24 Gemini model policy (`gemini-3.5-flash-lite` → `gemini-3.1-flash-lite` →
-  `gemini-flash-latest`, automatic fallback, daily and weekly availability checks; embeddings pinned to
-  `gemini-embedding-001`), and D25: the owner delegated product and technical decisions; the exceptions are in
-  `MASTER_PROMPT.md`, Part 1, section 9. Other defaults in section I now count as decided.
+Owner actions, most urgent first (none can be done from a cloud session):
+1. **Gemini key.** Replace the shared key with one that works: create a key in Google AI Studio in a project
+   without prepaid billing (free tier), or add credit to the current project. Put it in the candidate Worker
+   secret `GOOGLE_API_KEY` and the GitHub environments' `GOOGLE_API_KEY`. Until then nothing that uses the
+   shared key can be verified live.
+2. **Preview deploys from this branch.** In GitHub → Settings → Environments → `NexusRAG-Candidate-Preview`,
+   allow `codex/runtime-manifest-008` (or all branches) under deployment branches. The frontend preview cannot
+   be deployed any other way.
+3. **Keys for this cloud environment** (environment menu → Edit → Network secrets): Gemini (host
+   `generativelanguage.googleapis.com`, header `x-goog-api-key`) and Qdrant (host
+   `fc0c77d2-d9fd-4648-8459-09fa74372f16.eu-west-2-0.aws.cloud.qdrant.io`, header `api-key`).
+4. **Before the first production release:** add `SUPABASE_DB_URL` and `GEMINI_USER_KEY_ENCRYPTION_SECRET` to the
+   GitHub `Production` environment (list in `docs/DEPLOYMENT_PRODUCTION.md`). After the release, run the Provider
+   Review workflow with `record`, then approve processing in each workspace.
+5. **Merge PR #12** when ready; the ruleset's provider checks need a trusted push (D2) and item 1.
+
+Decisions (D25 delegates product and technical decisions; exceptions in `MASTER_PROMPT.md`, section 9):
+- D24 Gemini model policy: `gemini-3.5-flash-lite` → `gemini-3.1-flash-lite` → `gemini-flash-latest`;
+  embeddings pinned to `gemini-embedding-001`.
+- 2026-11-12: Qdrant and Supabase Storage are infrastructure and need only the operator's review; Gemini also
+  needs the workspace owner's approval. Reason: the owner chooses whether their documents go to a model
+  provider, not which database the service runs on.
+- 2026-11-12: approvals no longer lapse after 30 days. Reason: every workspace silently stopped working a month
+  after sign-up. They end when the terms change, on revocation, or when the approver stops being an owner.
+- 2026-11-12: default daily budgets live in `provider_budget_defaults` (sized to the free tiers).
+- 2026-11-12: the rehearsal project's provider reviews are a staging attestation by a test account; production
+  needs the owner's own review (item 4).
 
 ## Next steps (exact commands)
-1. NX-06 live test once the owner adds the Gemini key: `python3 scripts/check_gemini_models.py`, then
+1. Preview gateway release (works from a cloud session):
+   `CLOUDFLARE_API_TOKEN=proxy-injected CLOUDFLARE_ACCOUNT_ID=84e80d9629e0a6e6e5b31dbe85146acf
+   SUPABASE_URL=https://ukgjygzfhyvnrsecdcuu.supabase.co SUPABASE_PUBLISHABLE_KEY=<rehearsal publishable key>
+   WRANGLER="$PWD/frontend/node_modules/.bin/wrangler" python3 scripts/release.py gateway --target candidate
+   --sha "$(git rev-parse HEAD)"`
+2. Live journey: reset the test accounts' trial counters on rehearsal (`update public.nexus_account_usage set
+   lifetime_documents = 0, free_chat_queries = 0 where user_id in (<the two test users>)`), then
+   `python3 scripts/preview_smoke.py --report <file>` with the variables in its docstring.
+3. Once a Gemini key works: `python3 scripts/check_gemini_models.py`, then
    `LIVE_EXTERNAL_VALIDATION=true PROVIDER_UNDER_TEST=gemini python3 scripts/live_provider_validation.py`, then
-   check whether `gemini-3.5-flash-lite` accepts the old production request (`thinkingBudget: 0`). If it does not,
-   production chat breaks on 2026-12-01 unless the NX-06 gateway is released first (delegated, D25).
-2. NX-12/NX-13: fix the deploy workflows. Found 2026-11-09: production `/health` is checked for
-   `status == "READY"` but the gateway reports `CONFIGURED`, so that step can never pass; the workflow sets
-   `RELEASE_SHA` while the gateway reads `SOURCE_COMMIT`; secrets are installed after the deploy; and the config
-   deploys `nexusrag-v6-gateway`, not the `*-preview` Workers that serve production today.
-3. Candidate preview (normal development work): rehearsal is at head, so deploy the current gateway and
-   frontend with wrangler and the saved Cloudflare token; check `/health` reports the SHA and the models, and
-   `/research`, `/radar`, `/evidence-api` return 200 live.
-4. Once Qdrant is reactivated and its key is added: `curl -sS -H 'api-key: x' "https://fc0c77d2-d9fd-4648-8459-09fa74372f16.eu-west-2-0.aws.cloud.qdrant.io/collections"`.
-5. Migration status of a hosted project: save `list_migrations` output to a file, then
-   `python3 scripts/migration_status.py status --applied <file>`. Production on 2026-11-11: legacy base, 36 files
-   pending (035 onward). Applying them belongs to the production release, after a snapshot.
-6. PR #12 merge is blocked by draft status and the ruleset's provider checks, which need a trusted push (D2)
-   and a working Qdrant cluster.
+   test whether `gemini-3.5-flash-lite` accepts `thinkingBudget: 0`. If it does not, production chat breaks on
+   2026-12-01 unless this gateway is released first (delegated, D25).
+4. Once the Qdrant key is added: `GET /collections` and `GET /cluster` on the cluster address; record
+   collections, point counts, vector size and payload indexes here.
+5. Frontend preview: Actions → Cloudflare Preview Deploy → Run workflow on this branch with "deploy candidate
+   preview" ticked; then check `/research`, `/radar`, `/evidence-api` return 200 and an unknown path 404.
+6. Build next, none of which needs the keys: Qdrant daily keep-alive and a typed "index asleep" state (D15,
+   NX-07, NX-23); Ready only when answerable (NX-03); real streaming (NX-21); hide or implement the controls
+   that call missing endpoints (NX-16).
+7. Hosted migration status: save `list_migrations` output to a file, then
+   `python3 scripts/migration_status.py status --applied <file>`.
