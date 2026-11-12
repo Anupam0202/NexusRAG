@@ -228,16 +228,23 @@ test("answers fall back from a retired model, send per-model thinking settings a
   assert.deepEqual(legacy.calls.gemini[0].body.generationConfig.thinkingConfig, { thinkingBudget: 0 });
 });
 
-test("key, quota and server errors never switch models", async (t) => {
-  for (const [status, message, code] of [
-    [400, "API key not valid. Please pass a valid API key.", "PROVIDER_UNAVAILABLE"],
-    [429, "Resource has been exhausted (e.g. check quota).", "PROVIDER_QUOTA_EXHAUSTED"],
-    [500, "Internal error encountered.", "PROVIDER_UNAVAILABLE"],
+test("key, quota and server errors never switch models and say what went wrong", async (t) => {
+  for (const [status, message, code, shown] of [
+    [400, "API key not valid. Please pass a valid API key.", "PROVIDER_KEY_REJECTED", /Gemini rejected the API key/],
+    [403, "Method doesn't allow unregistered callers (callers without established identity).", "PROVIDER_KEY_REJECTED", /check it in Settings/],
+    [429, "Resource has been exhausted (e.g. check quota).", "PROVIDER_QUOTA_EXHAUSTED", /Gemini is rate limited or out of quota/],
+    [500, "Internal error encountered.", "PROVIDER_UNAVAILABLE", /Gemini is unavailable right now \(HTTP 500\)/],
   ]) {
     resetGeminiModelMemory();
     const provider = providerFetch(() => json({ error: { code: status, message } }, status));
     t.mock.method(globalThis, "fetch", provider.fetch);
-    await assert.rejects(generateAnswer(env, "question", context), (error) => error.code === code && error.modelUnavailable === false);
+    await assert.rejects(generateAnswer(env, "question", context), (error) => {
+      assert.equal(error.code, code);
+      assert.equal(error.modelUnavailable, false);
+      assert.match(error.message, shown);
+      assert.doesNotMatch(error.message, new RegExp(message.slice(0, 20)), "provider text is never passed on");
+      return true;
+    });
     assert.equal(provider.calls.gemini.length, 1, `HTTP ${status} must not try another model`);
     assert.equal(activeGenerationModel({}), "gemini-3.5-flash-lite");
   }

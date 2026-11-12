@@ -116,6 +116,20 @@ class Smoke:
                    status == 200 and current.get("role") == "owner" and current.get("user_id") == account.user_id, f"HTTP {status}")
         account.workspace = current["workspace_id"]
 
+    def approve_processing(self, account: Account) -> None:
+        """The owner allows Gemini to process this workspace's non-sensitive documents (once per terms version)."""
+        status, policy = account.api("GET", "/api/v1/privacy/processing-policy")
+        self.check(f"account {account.label} can read its processing policy",
+                   status == 200 and policy.get("operator_rights_current") is True and policy.get("owner_can_manage") is True,
+                   f"HTTP {status} {json.dumps(policy)[:200] if status != 200 or not policy.get('operator_rights_current') else ''}")
+        if policy["state"] == "APPROVED":
+            return
+        status, approved = account.api("PATCH", "/api/v1/privacy/processing-policy", body={
+            "operation": "approve", "terms_hash": policy["terms_hash"], "policy_version": policy["policy_version"],
+            "acknowledged_non_sensitive_only": True})
+        self.check(f"account {account.label} approves Gemini processing as workspace owner",
+                   status == 200 and approved.get("state") == "APPROVED", f"HTTP {status} {json.dumps(approved)[:200] if status != 200 else ''}")
+
     def ask(self, account: Account, question: str, **scope):
         return account.api("POST", "/api/v1/chat", body={"question": question, "non_sensitive_attested": True, **scope}, idempotent=True)
 
@@ -133,6 +147,8 @@ class Smoke:
         self.ensure_workspace(a)
         self.ensure_workspace(b)
         self.check("the two accounts have different workspaces", a.workspace != b.workspace)
+        self.approve_processing(a)
+        self.approve_processing(b)
 
         text = (
             "NexusRAG smoke-test policy.\n\n"

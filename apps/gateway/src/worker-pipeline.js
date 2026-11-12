@@ -67,14 +67,25 @@ async function providerJson(url, init, timeout = 18_000) {
   const signal = init.signal ? AbortSignal.any([init.signal, timeoutSignal]) : timeoutSignal;
   signal.throwIfAborted();
   const response = await fetch(url, { ...init, signal });
-  if (!response.ok) {
-    const code = response.status === 429 ? "PROVIDER_QUOTA_EXHAUSTED" : "PROVIDER_UNAVAILABLE";
-    // A retired or unsupported Gemini model lets the caller try the next candidate (D24).
-    const gemini = String(url).includes("generativelanguage.googleapis.com");
-    const modelUnavailable = gemini && isModelUnavailable(response.status, await response.text().catch(() => ""));
-    throw Object.assign(pipelineError(code, "A required zero-cost provider is unavailable.", response.status === 429 ? 429 : 503, true), { providerStatus: response.status, modelUnavailable });
-  }
+  if (!response.ok) throw providerFailure(url, response.status, await response.text().catch(() => ""));
   return response.json();
+}
+
+// Says which provider failed and what a person can do about it. Provider response text is used only to
+// classify the failure; it is never returned or logged.
+function providerFailure(url, status, detail) {
+  const gemini = String(url).includes("generativelanguage.googleapis.com");
+  const name = gemini ? "Gemini" : "The search index";
+  // A retired or unsupported Gemini model lets the caller try the next candidate (D24).
+  const modelUnavailable = gemini && isModelUnavailable(status, detail);
+  const failure = status === 429
+    ? pipelineError("PROVIDER_QUOTA_EXHAUSTED", `${name} is rate limited or out of quota. Try again in a few minutes.`, 429, true)
+    : modelUnavailable
+      ? pipelineError("PROVIDER_UNAVAILABLE", "The configured Gemini model is not available.", 503, true)
+      : gemini && (status === 401 || status === 403 || /api[ _-]?key|API_KEY_INVALID/i.test(detail))
+        ? pipelineError("PROVIDER_KEY_REJECTED", "Gemini rejected the API key. If you added your own key, check it in Settings; it must be a valid Gemini API key from Google AI Studio.", 502, false)
+        : pipelineError("PROVIDER_UNAVAILABLE", `${name} is unavailable right now (HTTP ${status}). Try again shortly.`, 503, true);
+  return Object.assign(failure, { providerStatus: status, modelUnavailable });
 }
 
 async function embedText(env, text, taskType, context) {
