@@ -266,6 +266,10 @@ async function processIngestionMessage(env, message) {
     if (!retry) await db(env, `document_versions?id=eq.${job.version_id}&publication_state=neq.ready`, {
       method: "PATCH", body: JSON.stringify({ publication_state: "failed", failure_code: error.code || "INGESTION_FAILED" }),
     }).catch(() => null);
+    // A document that never had a usable version must not stay "pending" for ever.
+    if (!retry) await db(env, `documents?id=eq.${job.document_id}&workspace_id=eq.${job.workspace_id}&active_version_id=is.null&status=in.(queued,processing)`, {
+      method: "PATCH", body: JSON.stringify({ status: "failed" }),
+    }).catch(() => null);
     error.retryable = retry;
     throw error;
   }

@@ -56,6 +56,7 @@ function localAppFixture() {
   const restQueries = [];
   const generationTemperatures = [];
   let expectedGeminiApiKey = null;
+  let processingGate = { state: "READY" };
   let onGenerate = null;
   let generatedAnswer = "The evidence describes a 30-day retention policy. [S1]";
   const matchesFilter = (point, filter) => (filter?.must || []).every((condition) => {
@@ -180,6 +181,7 @@ function localAppFixture() {
           return json([{ workspace_id: body.p_workspace, session_id: body.p_session,
             state: "COMMITTED", revision: body.p_revision + 1, messages_written: 2 }]);
         }
+        if (rpc === "nexus_processing_gate") return json(processingGate);
         if (rpc === "nexus_admit_account_operation") {
           const operationKey = `${body.p_user}:${body.p_operation}:${body.p_idempotency_key}`;
           if (accountOperations.has(operationKey)) return json({ state: "READY", replayed: true, credential_mode: "platform_trial" });
@@ -269,7 +271,7 @@ function localAppFixture() {
     }
     throw new Error(`Unexpected synthetic network request: ${method} ${url.href}`);
   };
-  return { env, user, member, setGeneratedAnswer(value) { generatedAnswer = value; }, setOnGenerate(callback) { onGenerate = callback; }, source, expectedChunks, docs, versions, jobs, chunks, extractionManifests, extractionChunks, objects, points, sessions, messages, outbound, auditEvents, deletionReceipts, deletionTargets, events, queue, accountUsage, userKeys, qdrantQueryLimits, qdrantQueryFilters, restQueries, generationTemperatures, fetch, setExpectedGeminiApiKey(value) { expectedGeminiApiKey = value; }, get deletionOperation() { return deletionOperation; }, get embeddingCalls() { return embeddingCalls; }, get generationCalls() { return generationCalls; } };
+  return { env, user, member, setGeneratedAnswer(value) { generatedAnswer = value; }, setOnGenerate(callback) { onGenerate = callback; }, source, expectedChunks, docs, versions, jobs, chunks, extractionManifests, extractionChunks, objects, points, sessions, messages, outbound, auditEvents, deletionReceipts, deletionTargets, events, queue, accountUsage, userKeys, qdrantQueryLimits, qdrantQueryFilters, restQueries, generationTemperatures, fetch, setExpectedGeminiApiKey(value) { expectedGeminiApiKey = value; }, setProcessingGate(value) { processingGate = value; }, get deletionOperation() { return deletionOperation; }, get embeddingCalls() { return embeddingCalls; }, get generationCalls() { return generationCalls; } };
 }
 
 // Independently model the small PostgREST subset used by filtered chat. These
@@ -389,6 +391,40 @@ test("upload without non-sensitive attestation is denied before storage and data
   assert.equal(fixture.embeddingCalls, 0);
   assert.equal(fixture.generationCalls, 0);
 });
+
+for (const [reason, status, pattern] of [
+  ["WORKSPACE_APPROVAL_REQUIRED", 403, /workspace owner needs to approve Google Gemini processing/],
+  ["PROVIDER_REVIEW_REQUIRED", 503, /service operator has not recorded a current review/],
+])
+  test(`a workspace blocked by ${reason} is told why before its trial is used, storage is written or a provider is called`, async (t) => {
+    const fixture = localAppFixture();
+    fixture.setProcessingGate({ state: "RIGHTS_BLOCKED", reason });
+    t.mock.method(globalThis, "fetch", fixture.fetch);
+    const form = new FormData();
+    form.set("file", new File([fixture.source], "policy.txt", { type: "text/plain" }));
+    form.set("data_classification", "non_sensitive");
+    form.set("non_sensitive_attested", "true");
+    const headers = { authorization: "Bearer synthetic-oauth-token", "x-nexus-workspace-id": workspace };
+    const upload = await handle(new Request("https://gateway.invalid/api/v1/documents/upload", {
+      method: "POST", headers: { ...headers, "idempotency-key": crypto.randomUUID() }, body: form }), fixture.env);
+    const uploadBody = await upload.json();
+    assert.equal(upload.status, status);
+    assert.equal(uploadBody.error.code, reason);
+    assert.match(uploadBody.error.message, pattern);
+    const chat = await handle(new Request("https://gateway.invalid/api/v1/chat", {
+      method: "POST", headers: { ...headers, "content-type": "application/json", "idempotency-key": crypto.randomUUID() },
+      body: JSON.stringify({ question: "What is the retention period?", non_sensitive_attested: true }) }), fixture.env);
+    const chatBody = await chat.json();
+    assert.equal(chat.status, status);
+    assert.equal(chatBody.error.code, reason);
+    assert.equal(fixture.accountUsage.free_chat_queries, 0, "a blocked chat must not use a free query");
+    assert.equal(fixture.accountUsage.lifetime_documents, 0, "a blocked upload must not use the free document");
+    assert.equal(fixture.objects.size, 0);
+    assert.equal(fixture.docs.size, 0);
+    assert.equal(fixture.queue.sent.length, 0);
+    assert.equal(fixture.embeddingCalls + fixture.generationCalls, 0);
+    assert.equal(fixture.messages.length, 0);
+  });
 
 test("chat without non-sensitive prompt attestation is denied before persistence", async (t) => {
   const fixture = localAppFixture();

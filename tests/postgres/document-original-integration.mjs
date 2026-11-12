@@ -18,10 +18,14 @@ function sqlAsync(statement,values={}) {return new Promise((resolve,reject)=>{
   const child=execFile("psql",args(values),{encoding:"utf8"},(error,out)=>{if(error)reject(error);else try{resolve(JSON.parse(out.trim()));}catch(error){reject(error);}});
   child.stdin.end(`set request.jwt.claim.role='service_role';\n${statement}`);
 });}
-sql(`insert into public.provider_registry(id,display_name,authority,documentation_url,terms_url,status)
- values('supabase_storage','Synthetic original-transfer provider','Disposable fixture only','https://example.invalid/docs','https://example.invalid/terms','APPROVED');
- insert into public.workspace_provider_policies(workspace_id,provider_id,status,allowed_actions,rights_hash,reviewed_by,reviewed_at)
- values(:'ws','supabase_storage','APPROVED',array['original_download'],repeat('d',64),:'actor',now());
+sql(`insert into public.provider_registry(id,display_name,authority,documentation_url,terms_url,status,requires_workspace_approval)
+ values('supabase_storage','Synthetic original-transfer provider','Disposable fixture only','https://example.invalid/docs','https://example.invalid/terms','APPROVED',false)
+ on conflict(id)do update set display_name=excluded.display_name,status=excluded.status,requires_workspace_approval=false;
+ insert into public.provider_terms_snapshots(provider_id,revision,checked_at,content_hash,retrieval_method,terms,materiality,approved_by)
+ values('supabase_storage',1,now(),repeat('d',64),'STATIC_HTML','{"fixture":"synthetic only"}','RIGHTS_REVIEW',:'actor');
+ update public.provider_registry set review_owner=:'actor',terms_hash=repeat('d',64),
+  terms_checked_at=(select checked_at from public.provider_terms_snapshots where provider_id='supabase_storage' and revision=1)
+  where id='supabase_storage';
  insert into public.resource_budgets(scope_key,workspace_id,provider_id,dimension,hard_limit,window_kind,reset_at,state)
  select scope,workspace_id,'supabase_storage',dimension,case when dimension='requests' then 20 else :'bytes'::bigint*10 end,'daily',now()+interval '1 day','READY'
  from(values('global',null::uuid),('workspace:'||:'ws',:'ws'::uuid))scopes(scope,workspace_id)

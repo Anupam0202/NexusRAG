@@ -26,7 +26,7 @@ import { SETTINGS_DEFAULTS, persistedSetting } from "./runtime-options.js";
 import { handleWorkbench, listFindings } from "./workbench.js";
 import { handleInvitations } from "./workspace-invitations.js";
 import { readBoundedJsonObject } from "./request-body.js";
-import { metered } from "./quota.js";
+import { metered, requireProcessingApproved } from "./quota.js";
 import originalTransfer from "../../../frontend/src/lib/document-original-policy.json" with { type: "json" };
 import { runFixtureEvaluation } from "./fixture-evaluation.js";
 import { normalizeRetrievalFilters, documentFilterQuery, chunkFilterQuery, hasChunkFilters, matchesDocumentFilters, matchesChunkFilters } from "./retrieval-filters.js";
@@ -525,6 +525,9 @@ async function uploadDocument(request,env,user,workspace,member){
   const filename=safeFilename(file.name),bytes=new Uint8Array(await file.arrayBuffer()),hash=await sha256(bytes);
   const dup=await serviceRequest(env,`documents?workspace_id=eq.${workspace}&uploaded_by=eq.${user.id}&sha256=eq.${hash}&lifecycle_state=eq.active&select=*&limit=1`);
   if(dup?.[0])return{success:true,message:`${dup[0].filename} already uploaded`,document:documentView(dup[0]),duplicate:true};
+  // Refuse before the free-trial document is counted if this workspace cannot be processed yet.
+  admissionKey(request);
+  await requireProcessingApproved(env,workspace);
   const admission=await accountAdmission(request,env,user,"document");
   const documentId=crypto.randomUUID(),versionId=crypto.randomUUID(),generation=crypto.randomUUID(),jobId=crypto.randomUUID(),key=`${workspace}/${documentId}/${versionId}/${filename}`,declaredAt=new Date().toISOString();
   await storageWrite(env,key,file);
@@ -656,6 +659,7 @@ async function chat(request, env, user, workspace, member) {
   // admission. The later transaction rechecks authority and fences this revision.
   const turnContext = await privateTurnRequest(request, env, workspace, sessionId,
     "read_gateway_private_turn_context", {});
+  await requireProcessingApproved(env, workspace);
   const admission=await accountAdmission(request,env,user,"chat");
   const vectorHits = activeVersionIds.length && (!chunkScoped || chunkIds.length) ? await searchChunks(env, { workspaceId: workspace, question,
     documentIds: activeDocumentIds, versionIds: activeVersionIds,

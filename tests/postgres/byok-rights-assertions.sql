@@ -27,8 +27,14 @@ begin
  if public.nexus_authorize_byok_processing(w,a,'non_sensitive')->>'state'<>'RIGHTS_BLOCKED' then raise exception 'Foreign-owner review admitted'; end if;
  r:=public.v6_reserve_many(w,'gemini','{"requests":1}'::jsonb,'platform-foreign-owner-review','interactive','gemini_non_sensitive','non_sensitive');
  if r->>'state'<>'RIGHTS_BLOCKED' then raise exception 'Platform processing bypassed workspace-owner review'; end if;
- update public.workspace_provider_policies set reviewed_by=a,reviewed_at=now()-interval '31 days' where workspace_id=w and provider_id='gemini';
- if public.nexus_authorize_byok_processing(w,a,'non_sensitive')->>'state'<>'RIGHTS_BLOCKED' then raise exception 'Stale privacy review admitted'; end if;
+ update public.workspace_provider_policies set reviewed_by=a,reviewed_at=now()-interval '300 days' where workspace_id=w and provider_id='gemini';
+ if public.nexus_authorize_byok_processing(w,a,'non_sensitive')->>'state'<>'READY' then raise exception 'Owner approval expired without a terms change'; end if;
+ update public.provider_registry set terms_checked_at=now()-interval '366 days' where id='gemini';
+ update public.provider_terms_snapshots set checked_at=(select terms_checked_at from public.provider_registry where id='gemini') where provider_id='gemini';
+ r:=public.nexus_authorize_byok_processing(w,a,'non_sensitive');
+ if r->>'state'<>'RIGHTS_BLOCKED' or r->>'reason'<>'PROVIDER_REVIEW_REQUIRED' then raise exception 'Lapsed operator review admitted: %',r; end if;
+ update public.provider_registry set terms_checked_at=now() where id='gemini';
+ update public.provider_terms_snapshots set checked_at=(select terms_checked_at from public.provider_registry where id='gemini') where provider_id='gemini';
  update public.workspace_provider_policies set reviewed_at=now()+interval '1 hour' where workspace_id=w and provider_id='gemini';
  if public.nexus_authorize_byok_processing(w,a,'non_sensitive')->>'state'<>'RIGHTS_BLOCKED' then raise exception 'Future privacy review admitted'; end if;
  update public.workspace_provider_policies set reviewed_at=now(),prohibited_actions=array['gemini_non_sensitive'] where workspace_id=w and provider_id='gemini';

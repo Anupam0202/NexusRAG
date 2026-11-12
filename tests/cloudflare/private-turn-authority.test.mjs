@@ -31,6 +31,7 @@ async function run(t, { read = context(), write = receipt(), readStatus = 200, w
       assert.equal(init.signal.aborted, false);
       return new Response(rawWrite ? write : JSON.stringify(write), { status: writeStatus });
     }
+    if (path.endsWith("nexus_processing_gate")) return Response.json({ state: "READY" });
     if (path.endsWith("nexus_admit_account_operation")) return Response.json({ state: "READY", credential_mode: "platform_trial", used: 1, limit: 5 });
     if (path.endsWith("audit_events")) return Response.json([]);
     throw Error("Unfenced direct table access is forbidden in this fixture");

@@ -21,6 +21,7 @@ async function run(fields, idempotencyKey = key) {
     if (url.pathname === "/auth/v1/user") return Response.json({ id: user });
     if (url.pathname === "/rest/v1/workspace_members") return Response.json([{ role: "owner", workspace_id: workspace, user_id: user }]);
     if (url.pathname === "/rest/v1/workspace_settings" || url.pathname === "/rest/v1/documents") return Response.json([]);
+    if (url.pathname === "/rest/v1/rpc/nexus_processing_gate") return Response.json({ state: "READY" });
     if (url.pathname === "/rest/v1/rpc/nexus_admit_account_operation")
       return Response.json({ state: "READY", credential_mode: "platform_trial", used: 1, limit: 5 });
     if (url.pathname === "/rest/v1/rpc/read_gateway_private_turn_context")
