@@ -80,6 +80,9 @@ function providerFailure(url, status, detail) {
   const modelUnavailable = gemini && isModelUnavailable(status, detail);
   const failure = status === 429
     ? pipelineError("PROVIDER_QUOTA_EXHAUSTED", `${name} is rate limited or out of quota. Try again in a few minutes.`, 429, true)
+    : gemini && status === 402
+      // Since March 2026 Google answers 402 when a prepaid Gemini project has no credit left.
+      ? pipelineError("PROVIDER_CREDIT_EXHAUSTED", "Gemini refused the request because the API key's project has no prepaid credit left. Add your own Gemini API key in Settings, or add credit to your key's project in Google AI Studio.", 402, false)
     : modelUnavailable
       ? pipelineError("PROVIDER_UNAVAILABLE", "The configured Gemini model is not available.", 503, true)
       : gemini && (status === 401 || status === 403 || /api[ _-]?key|API_KEY_INVALID/i.test(detail))
@@ -257,6 +260,7 @@ export {
   groundedPrompt,
   indexChunks,
   pipelineError,
+  providerFailure,
   qdrantFilter,
   safeFilename,
   searchChunks,

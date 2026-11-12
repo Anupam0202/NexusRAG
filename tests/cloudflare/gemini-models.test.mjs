@@ -232,6 +232,7 @@ test("key, quota and server errors never switch models and say what went wrong",
   for (const [status, message, code, shown] of [
     [400, "API key not valid. Please pass a valid API key.", "PROVIDER_KEY_REJECTED", /Gemini rejected the API key/],
     [403, "Method doesn't allow unregistered callers (callers without established identity).", "PROVIDER_KEY_REJECTED", /check it in Settings/],
+    [402, "Your prepayment credits are depleted. Please go to AI Studio to manage your project and billing.", "PROVIDER_CREDIT_EXHAUSTED", /no prepaid credit left\. Add your own Gemini API key in Settings/],
     [429, "Resource has been exhausted (e.g. check quota).", "PROVIDER_QUOTA_EXHAUSTED", /Gemini is rate limited or out of quota/],
     [500, "Internal error encountered.", "PROVIDER_UNAVAILABLE", /Gemini is unavailable right now \(HTTP 500\)/],
   ]) {
