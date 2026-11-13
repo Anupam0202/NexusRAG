@@ -18,6 +18,9 @@
 --   * nexus_claim_document_purges hands unfinished deletions to the gateway's cron, with a growing delay
 --     between attempts.
 --   * A document that is the stored page of a Radar snapshot is refused before anything is marked.
+--   * A document from before versions existed keeps its file at documents.storage_path only. The tombstone now
+--     records that file for erasure as well, and deletions already open get the same target here, so no
+--     original is left behind in Storage.
 
 begin;
 
@@ -55,6 +58,13 @@ begin
   insert into public.deletion_targets (workspace_id, operation_id, kind, resource_id, bucket, object_key)
     select p_workspace, operation, 'original', id, original_bucket, original_key
       from public.document_versions where workspace_id = p_workspace and document_id = p_document;
+  -- A document from before versions existed has its file only here.
+  insert into public.deletion_targets (workspace_id, operation_id, kind, resource_id, bucket, object_key)
+    select p_workspace, operation, 'original', d.id, d.storage_bucket, d.storage_path
+      from public.documents d
+     where d.workspace_id = p_workspace and d.id = p_document and d.storage_path is not null
+       and not exists (select 1 from public.document_versions v
+                        where v.workspace_id = p_workspace and v.document_id = p_document and v.original_key = d.storage_path);
   insert into public.deletion_targets (workspace_id, operation_id, kind, resource_id, inventory)
     select p_workspace, operation, 'version_index', id,
            jsonb_build_object('index_generation', index_generation, 'embedding_space_id', embedding_space_id)
@@ -68,6 +78,15 @@ begin
   return operation;
 end
 $fn$;
+
+-- Deletions begun before this migration never recorded the file of a document from before versions existed.
+insert into public.deletion_targets (workspace_id, operation_id, kind, resource_id, bucket, object_key)
+select o.workspace_id, o.id, 'original', d.id, d.storage_bucket, d.storage_path
+  from public.deletion_operations o
+  join public.documents d on d.workspace_id = o.workspace_id and d.id = o.resource_id and d.lifecycle_state = 'deleting'
+ where o.state <> 'verified' and d.storage_path is not null
+   and not exists (select 1 from public.deletion_targets t
+                    where t.operation_id = o.id and t.kind = 'original' and t.object_key = d.storage_path);
 
 -- Closes the document's unfinished processing jobs and returns the time until which one of them may still be
 -- writing to the search index, or null when nothing can be. The tombstone has already taken every job's

@@ -23,8 +23,16 @@ insert into public.document_versions(id,workspace_id,document_id,original_bucket
 select ('de200000-0000-4000-8000-0000000000' || right(id::text, 2))::uuid, workspace_id, id, 'documents',
        workspace_id || '/' || id || '/original.txt', repeat('d', 64), 64, now(), 'test', 'test', 1, 'ready', 'generation-1'
   from public.documents where id::text like 'de100000-0000-4000-8000-0000000000%';
-update public.documents d set active_version_id = v.id
+update public.documents d set active_version_id = v.id, storage_path = v.original_key
   from public.document_versions v where v.document_id = d.id and d.id::text like 'de100000-0000-4000-8000-0000000000%';
+-- A document from before versions existed: its file is known only by documents.storage_path, and its chunks
+-- have no version.
+insert into public.documents(id,workspace_id,uploaded_by,filename,original_filename,status,chunk_count,storage_path)
+values ('de100000-0000-4000-8000-000000000071','11111111-1111-4111-8111-111111111111','22222222-2222-4222-8222-222222222222',
+        'legacy.pdf','legacy.pdf','ready',2,'legacy/11111111-1111-4111-8111-111111111111/legacy.pdf');
+insert into public.document_chunks(id,workspace_id,document_id,chunk_index,content)
+values (gen_random_uuid(),'11111111-1111-4111-8111-111111111111','de100000-0000-4000-8000-000000000071',0,'Legacy passage one'),
+       (gen_random_uuid(),'11111111-1111-4111-8111-111111111111','de100000-0000-4000-8000-000000000071',1,'Legacy passage two');
 insert into public.document_chunks(id,workspace_id,document_id,version_id,chunk_index,content,original_text,original_content_hash,page_number,location,embedding_space_id)
 select gen_random_uuid(), v.workspace_id, v.document_id, v.id, n, passage, passage, encode(sha256(convert_to(passage, 'UTF8')), 'hex'), 1,
        '{"page":1}', 'synthetic-space'
@@ -124,6 +132,8 @@ begin
 
   -- 2. Marking hides the document; nothing is removed or receipted yet.
   op := public.tombstone_document(w, doc, a);
+  if (select count(*) from public.deletion_targets where operation_id = op and kind = 'original') <> 1 then
+    raise exception 'the original of an uploaded document was listed more than once'; end if;
   if (select lifecycle_state from public.documents where id = doc) <> 'deleting' then raise exception 'document not marked'; end if;
   if public.nexus_begin_document_purge(wb, doc, op)->>'state' <> 'NOT_FOUND'
      or public.nexus_purge_document(wb, doc, op)->>'state' <> 'NOT_FOUND'
@@ -248,9 +258,32 @@ begin
     raise exception 'an invalid limit was accepted';
   exception when raise_exception then if sqlerrm <> 'NR:INVALID_SCOPE' then raise; end if; end;
 end $$;
+
+-- 10. A document from before versions existed: its file is erased too, and its version-less chunks go.
+do $$
+declare
+  w constant uuid := '11111111-1111-4111-8111-111111111111';
+  a constant uuid := '22222222-2222-4222-8222-222222222222';
+  legacy constant uuid := 'de100000-0000-4000-8000-000000000071';
+  op uuid; r jsonb;
+begin
+  op := public.tombstone_document(w, legacy, a);
+  if (select string_agg(kind || '=' || coalesce(object_key, ''), ',' order by kind) from public.deletion_targets
+       where operation_id = op and kind in ('original','version_index')) <> 'original=legacy/11111111-1111-4111-8111-111111111111/legacy.pdf' then
+    raise exception 'the stored file of an old document was not listed for erasure'; end if;
+  if public.nexus_begin_document_purge(w, legacy, op)->>'state' <> 'READY' then raise exception 'old document not ready to purge'; end if;
+  r := public.nexus_purge_document(w, legacy, op);
+  if r->>'reason' <> 'REMOTE_TARGETS_PENDING' then raise exception 'rows removed while the old file was still stored: %', r; end if;
+  update public.deletion_targets set verified_at = clock_timestamp() where operation_id = op and kind = 'original';
+  r := public.nexus_purge_document(w, legacy, op);
+  if r->>'state' <> 'VERIFIED' or (r->'removed'->>'chunks')::int <> 2 or (r->'removed'->>'versions')::int <> 0 then
+    raise exception 'old document not purged: %', r; end if;
+  if exists (select 1 from public.documents where id = legacy) or exists (select 1 from public.document_chunks where document_id = legacy) then
+    raise exception 'rows of the old document remain'; end if;
+end $$;
 reset role;
 
--- 10. A deletion begun before Radar pages were refused stays blocked, with the reason on record.
+-- 11. A deletion begun before Radar pages were refused stays blocked, with the reason on record.
 set local session_replication_role = replica;
 insert into public.radar_snapshots(id,workspace_id,source_id,revision,document_id,version_id,document_original_hash,document_original_bytes,
   selection_hash,normalized_hash,chunk_ids,selections,selected_utf8_bytes,stored_chunk_count,comparison_complete,captured_at,actor_id,
@@ -287,7 +320,7 @@ begin
 end $$;
 reset role;
 
--- 11. Browser roles can use none of it.
+-- 12. Browser roles can use none of it.
 do $$
 declare name text;
 begin
