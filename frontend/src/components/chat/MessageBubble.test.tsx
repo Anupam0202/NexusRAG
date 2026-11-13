@@ -19,6 +19,14 @@ describe("safeHref", () => {
 });
 
 describe("MessageBubble", () => {
+  it("renders HTML and script in an answer as text, never as markup (NX-28)", () => {
+    const { container } = render(<MessageBubble message={{ id: "hostile", role: "assistant",
+      content: "Evidence <img src=x onerror=\"alert(1)\"> <script>alert(2)</script> [open](javascript:alert(3)) <iframe src=\"https://example.invalid\"></iframe>" }} />);
+    expect(container.querySelector("img, script, iframe")).toBeNull();
+    for (const link of container.querySelectorAll("a")) expect(link.getAttribute("href") ?? "").not.toMatch(/^javascript:/i);
+    expect(container.textContent).toContain("Evidence");
+  });
+
   it("preserves citation markers and code whitespace without inventing calibrated confidence", () => {
     render(<MessageBubble message={{ id: "proof", role: "assistant",
       content: "Review [Source 1, Page 4] and [S1].\n\n```text\nalpha  beta\n    indented\n```",
