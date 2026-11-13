@@ -47,6 +47,7 @@ export default function LoginPage() {
   const [formError, setFormError] = useState<string | null>(null);
   const [nextPath, setNextPath] = useState("/documents");
   const [signupIntent, setSignupIntent] = useState(false);
+  const [accountDeleted, setAccountDeleted] = useState(false);
   const [routeReady, setRouteReady] = useState(false);
   const supabaseReady = hasPublicSupabaseConfig();
   const enabledProviders = getEnabledOAuthProviders();
@@ -54,6 +55,7 @@ export default function LoginPage() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const signup = params.get("intent") === "signup";
+    setAccountDeleted(params.get("account") === "deleted");
     setSignupIntent(signup);
     setNextPath(
       sanitizeAuthNextPath(params.get("next"), signup ? "/onboarding" : "/documents")
@@ -107,6 +109,12 @@ export default function LoginPage() {
             </p>
           </div>
         </div>
+
+        {accountDeleted ? (
+          <div role="status" className="mb-4 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] px-4 py-3 text-sm">
+            Your account was deleted. Anything still being erased finishes on its own within minutes.
+          </div>
+        ) : null}
 
         {!supabaseReady ? (
           <div className="mb-4 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-200">

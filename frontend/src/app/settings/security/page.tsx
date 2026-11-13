@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Github, Loader2, LogOut, ShieldCheck, ShieldEllipsis } from "lucide-react";
 import { toast } from "sonner";
 import { AuthRequiredState } from "@/components/auth/AuthRequiredState";
+import { DeleteAccountSection } from "@/components/settings/DeleteAccountSection";
 import { GoogleMark } from "@/components/auth/GoogleMark";
 import { useStore } from "@/hooks/useStore";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
@@ -206,6 +207,8 @@ function AccountSecurity() {
             </button>
           </div>
         </section>
+
+        <DeleteAccountSection />
       </div>
     </div>
   );

@@ -14,6 +14,7 @@ import { activeGenerationModel, checkGeminiModels, embeddingModel, isDailyModelC
 import { checkReadiness } from "./readiness.js";
 import { finishDocumentDeletion, sweepDeletions } from "./document-deletion.js";
 import { runDueRetention, runRetentionNow, setRetention } from "./retention.js";
+import { DELETE_ACCOUNT_CONFIRMATION, deleteAccount, removeSignIn, sweepAccountDeletions } from "./account-deletion.js";
 import { DELETE_WORKSPACE_CONFIRMATION, beginWorkspaceDeletion, finishWorkspaceDeletion, removeWorkspaceIndexEntries,
   removeWorkspaceOriginals, sweepWorkspaceDeletions, workspaceDeletionReceipt } from "./workspace-deletion.js";
 import { indexUsable, keepIndexAwake, probeIndex } from "./search-index.js";
@@ -586,6 +587,7 @@ async function reindexDocument(request,env,user,workspace,member,documentId){req
 const deletionTools = { db: serviceRequest, removeOriginal: storageDelete };
 const workspaceDeletionTools = { db: serviceRequest, removeIndexEntries: (env, workspace) => removeWorkspaceIndexEntries(env, workspace),
   removeOriginals: (env, workspace, keys) => removeWorkspaceOriginals(env, workspace, keys) };
+const accountDeletionTools = { ...workspaceDeletionTools, removeSignIn: (env, userId) => removeSignIn(env, userId) };
 // Marks the document (which hides it at once) and removes what is still stored. When the removal cannot
 // finish in this request, the answer says so and the cron finishes it; see document-deletion.js.
 async function deleteDocument(request, env, user, workspace, member, documentId) {
@@ -897,6 +899,14 @@ async function handle(request, env = {}) {
     }
 
     if (url.pathname === "/api/v1/workspaces" && request.method === "POST") return json(request, env, await createWorkspace(request, env, user), 201);
+    // Deleting one's own account: what it owns goes, its sign-in last; the cron finishes what cannot finish here.
+    if (url.pathname === "/api/v1/account/delete" && request.method === "POST") {
+      const body = await readJsonBody(request);
+      if (body?.confirmation !== DELETE_ACCOUNT_CONFIRMATION)
+        return fail(request, env, "INVALID_SCOPE", `Type ${DELETE_ACCOUNT_CONFIRMATION} to confirm.`, 422);
+      const receipt = await deleteAccount(env, user.id, accountDeletionTools);
+      return json(request, env, receipt, receipt.state === "DELETED" ? 200 : 202);
+    }
     if (url.pathname === "/api/v1/workspaces" && (request.method === "GET" || request.method === "HEAD")) {
       const limitText = url.searchParams.get("limit") ?? "50";
       const limit = Number(limitText), after = url.searchParams.get("after");
@@ -1316,8 +1326,8 @@ async function queue(batch,env){return handleQueue(batch,env)}
 // Once a day: which Gemini models are still served, and one question to the search index, which also keeps
 // a free cluster from being suspended for inactivity.
 const dailyChecks=env=>Promise.all([checkGeminiModels(env).catch(()=>undefined),keepIndexAwake(env).catch(()=>undefined)]);
-// Every run also finishes document and workspace deletions that could not complete when they were requested, and
-// carries out one workspace's retention run when one is due.
-async function scheduled(event,env,ctx){ctx.waitUntil(sweepJobs(env));ctx.waitUntil(sweepDeletions(env,deletionTools));ctx.waitUntil(sweepWorkspaceDeletions(env,workspaceDeletionTools));ctx.waitUntil(runDueRetention(env,{db:serviceRequest}));if(isDailyModelCheckWindow(event?.scheduledTime))ctx.waitUntil(dailyChecks(env))}
+// Every run also finishes document, workspace and account deletions that could not complete when they were
+// requested, and carries out one workspace's retention run when one is due.
+async function scheduled(event,env,ctx){ctx.waitUntil(sweepJobs(env));ctx.waitUntil(sweepDeletions(env,deletionTools));ctx.waitUntil(sweepWorkspaceDeletions(env,workspaceDeletionTools));ctx.waitUntil(sweepAccountDeletions(env,accountDeletionTools));ctx.waitUntil(runDueRetention(env,{db:serviceRequest}));if(isDailyModelCheckWindow(event?.scheduledTime))ctx.waitUntil(dailyChecks(env))}
 export { allowRequest, handle, queue, scheduled, storageDelete };
 export default { fetch: handle, queue, scheduled };

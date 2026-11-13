@@ -61,6 +61,7 @@ PSQL=(psql -X -v ON_ERROR_STOP=1 -d "$PGDATABASE")
 "${PSQL[@]}" -f "$ROOT/supabase/migrations/20261113090000_complete_document_deletion.sql"
 "${PSQL[@]}" -f "$ROOT/supabase/migrations/20261113150000_retention_runs.sql"
 "${PSQL[@]}" -f "$ROOT/supabase/migrations/20261113190000_workspace_deletion.sql"
+"${PSQL[@]}" -f "$ROOT/supabase/migrations/20261113210000_account_deletion.sql"
 "${PSQL[@]}" -f "$TESTS/fixtures.sql"
 "${PSQL[@]}" -f "$TESTS/research-plan-assertions.sql"
 "${PSQL[@]}" -f "$TESTS/research-passport-subject-assertions.sql"
@@ -149,6 +150,7 @@ NEXUS_DISPOSABLE_SQL=1 node "$TESTS/radar-snapshot-integration.mjs"
 NEXUS_DISPOSABLE_SQL=1 node "$TESTS/obligation-evidence-integration.mjs"
 # Deletes the main fixture workspace, with everything the files above left in it, and rolls back.
 "${PSQL[@]}" -f "$TESTS/workspace-deletion-assertions.sql"
+"${PSQL[@]}" -f "$TESTS/account-deletion-assertions.sql"
 # This concurrent package fixture commits shared-actor admissions, membership,
 # findings and quota rows. Keep rollback-only assertions and native mode-inventory
 # consumers ahead of it so their documented fixture preconditions remain intact.

@@ -2,7 +2,7 @@
 DO $$ DECLARE n int; BEGIN
  SELECT count(*) INTO n FROM pg_class c JOIN pg_namespace s ON s.oid=c.relnamespace
  WHERE s.nspname='public' AND c.relkind='r' AND c.relrowsecurity;
- IF n<>71 THEN RAISE EXCEPTION 'expected 71 RLS tables including provider budget defaults, immutable research drafts, calculations, source quantities, research executions, finding evidence packages, supplied Radar snapshots and Obligation Evidence serving, found %',n; END IF;
+ IF n<>72 THEN RAISE EXCEPTION 'expected 72 RLS tables including provider budget defaults, immutable research drafts, calculations, source quantities, research executions, finding evidence packages, supplied Radar snapshots, Obligation Evidence serving and account deletion records, found %',n; END IF;
  IF (SELECT count(*) FROM pg_class c JOIN pg_namespace s ON s.oid=c.relnamespace
      WHERE s.nspname='public' AND c.relkind='r' AND c.relrowsecurity
        AND c.relname IN ('finding_export_rights','finding_packages'))<>2 THEN

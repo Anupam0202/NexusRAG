@@ -4,7 +4,7 @@ const getApiHeaders = vi.hoisted(() => vi.fn(async () => ({ Authorization: "Bear
 vi.mock("@/lib/api-context", () => ({ getApiHeaders }));
 vi.mock("@/lib/backend-url", () => ({ buildBackendUrl: (path: string) => `https://gateway.invalid${path}` }));
 
-import { clearSession, deleteCurrentWorkspace, deleteDocument, runRetention } from "./api";
+import { clearSession, deleteAccount, deleteCurrentWorkspace, deleteDocument, runRetention } from "./api";
 import { deleteDocumentsBestEffort } from "./workspace-controls";
 
 const context = { workspaceId: "workspace-a", expectedUserId: "user-a" };
@@ -114,6 +114,27 @@ describe("confirmed cleanup responses", () => {
   it("accepts bounded confirmed retention counts without erasing the workspace", async () => {
     respond(retention);
     await expect(runRetention(context)).resolves.toEqual(retention);
+  });
+
+  it.each([
+    null, {}, { account_deleted: false, state: "DELETED", workspaces_deleted: 0, message: "m" },
+    { account_deleted: true, state: "MAYBE", workspaces_deleted: 0, message: "m" },
+    { account_deleted: true, state: "DELETED", workspaces_deleted: -1, message: "m" },
+    { account_deleted: true, state: "DELETED", workspaces_deleted: 0 },
+  ])("does not report an unconfirmed account deletion as done %j", async body => {
+    respond(body);
+    await expect(deleteAccount(context)).rejects.toMatchObject({ code: "CLEANUP_UNCONFIRMED" });
+  });
+
+  it("accepts a deleted account, and one whose erasure is still finishing", async () => {
+    for (const state of ["DELETED", "PENDING"] as const) {
+      const receipt = { account_deleted: true, state, workspaces_deleted: 1, removed: {}, message: "m" };
+      const fetch = respond(receipt);
+      await expect(deleteAccount(context)).resolves.toEqual(receipt);
+      const [url, init] = fetch.mock.calls[0];
+      expect(String(url)).toBe("https://gateway.invalid/api/v1/account/delete");
+      expect(JSON.parse(String(init?.body))).toEqual({ confirmation: "DELETE MY ACCOUNT" });
+    }
   });
 
   it("does not retry an ambiguous mutation automatically", async () => {

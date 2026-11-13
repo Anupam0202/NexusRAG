@@ -33,6 +33,7 @@ import type {
   WorkspaceLifecycleResponse,
   WorkspaceSummary,
   RetentionRunReceipt,
+  AccountDeletionReceipt,
 } from "@/types";
 import { getApiHeaders } from "@/lib/api-context";
 import { buildBackendUrl } from "@/lib/backend-url";
@@ -453,6 +454,21 @@ export async function runRetention(context: ApiRequestContext = {}): Promise<Ret
   const receipt = await request<unknown>("/api/v1/privacy/retention/run", { method: "POST" }, context);
   if (!isRetentionReceipt(receipt)) throw unconfirmedCleanup("Retention cleanup");
   return receipt;
+}
+
+export const DELETE_ACCOUNT_CONFIRMATION = "DELETE MY ACCOUNT";
+
+export async function deleteAccount(context: ApiRequestContext = {}): Promise<AccountDeletionReceipt> {
+  const receipt = await request<unknown>("/api/v1/account/delete", {
+    method: "POST",
+    body: JSON.stringify({ confirmation: DELETE_ACCOUNT_CONFIRMATION }),
+  }, context);
+  const value = receipt as Partial<AccountDeletionReceipt> | null;
+  if (!value || value.account_deleted !== true || (value.state !== "DELETED" && value.state !== "PENDING")
+    || typeof value.message !== "string" || !Number.isSafeInteger(value.workspaces_deleted) || Number(value.workspaces_deleted) < 0) {
+    throw unconfirmedCleanup("Account deletion");
+  }
+  return value as AccountDeletionReceipt;
 }
 
 export async function deleteCurrentWorkspace(context: ApiRequestContext = {}): Promise<WorkspaceLifecycleResponse> {

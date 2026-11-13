@@ -118,6 +118,13 @@ describe("LoginPage", () => {
     resolveRequest({ error: null });
   });
 
+  it("says the account was deleted when it arrives from an account deletion", async () => {
+    window.history.replaceState({}, "", "/auth/login?account=deleted");
+    render(<LoginPage />);
+    expect(await screen.findByRole("status")).toHaveTextContent("Your account was deleted.");
+    window.history.replaceState({}, "", "/auth/login");
+  });
+
   it("sanitizes unsafe requested destinations", async () => {
     window.history.replaceState(
       {},

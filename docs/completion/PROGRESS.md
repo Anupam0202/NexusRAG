@@ -11,7 +11,8 @@ built (NX-16 done offline); the live journey still stops at ingestion on the sha
   build `2fbc5c9`, whose `/research`, `/radar`, `/evidence-api` and unknown paths return 500 (NX-01): a cloud
   session cannot upload frontend assets, and the preview workflow rejects this branch (environment branch rule).
 - Rehearsal Supabase (`ukgjygzfhyvnrsecdcuu`): 53 migrations applied (document deletion and retention on
-  2026-11-13); pending: `20261113190000_workspace_deletion`. No document is left in `deleting`. Advisors: only
+  2026-11-13); pending: `20261113190000_workspace_deletion` (its apply waits for the owner to answer the Supabase
+  connector's confirmation) and `20261113210000_account_deletion`. No document is left in `deleting`. Advisors: only
   leaked-password protection (an Auth setting). Test account A has used its trial upload and B its trial upload;
   reset both before the next journey. Provider reviews recorded for
   Gemini, Qdrant and Supabase Storage (staging attestation by test account A, valid to 2027-11-12). Two test
@@ -78,6 +79,8 @@ built (NX-16 done offline); the live journey still stops at ingestion on the sha
 | 2026-11-13 | NX-21: real streaming from `streamGenerateContent`; the final event carries the checked and saved answer; errors before the first token keep their HTTP status | 1 (6 end-to-end tests on the real pipeline); 4 for the no-evidence path | `e50a239` |
 | 2026-11-13 | NX-28 part: security headers on every page, file and error (Worker and `_headers`), checked on the built Worker; hostile-markdown test | 2 | `5262bff` |
 | 2026-11-13 | NX-16 retention runs: owners and administrators set a number of days; every day (and on "Run now") documents uploaded before the cutoff go through the normal deletion, chat messages and research results from before it are removed, and conversations unused since are removed or closed; saved findings, what they cite and Radar pages stay. Turning it on asks for a second click that names the cutoff date | 3 (local replay with new assertions; 926 gateway and 776 frontend tests); 4 on 13 November (below) | `f589e7b` |
+| 2026-11-13 | NX-27 account deletion (security settings, typed confirmation): owned workspaces go through workspace deletion; in other workspaces private conversations and unshared findings are removed and uploaded documents and shared findings go to that workspace's owner; memberships and invitations go; then Supabase Auth removes the sign-in, profile, keys and usage. Each status check repeats the cleanup, so a workspace created meanwhile is deleted too. Found: the membership trigger and RESTRICT keys made every used account undeletable, even from the dashboard | 3 (assertions incl. an Auth-style user delete on fixtures-only and populated databases, 85 markers; 945 gateway and 797 frontend tests) | this commit |
+| 2026-11-13 | Firefox logged "Acquiring an exclusive Navigator LockManager lock ... immediately failed" on every page (new Firefox reports the Supabase client's handled lock error as unhandled); a lock wrapper reports it outside the browser's callback | 1 (unit tests; CI's Firefox suite checks it) | the commit before |
 | 2026-11-13 | NX-30, NX-40: navigation follows the core journey; products in development are switched off by `NEXT_PUBLIC_FEATURES` (D10); plain overview page without placeholder statuses; error screens with a retry; plain wording; publishable key name first. Playwright 1.60 → 1.63 so CI and this container use the same Chromium; visual baselines regenerated | 2 (built app: 48 public smoke and 4 visual tests, Radar and Evidence API browser suites; 783 unit tests) | this commit |
 | 2026-11-13 | NX-16 workspace deletion: the owner types DELETE WORKSPACE; the workspace disappears for every member at once; jobs stop; its search index entries (by workspace filter, counted and verified) and stored originals (known keys, then anything left in its folder) are removed with receipts; one database function then removes every row of every table that has a `workspace_id`, checks that nothing is left and writes the last receipt; the cron finishes what a request could not. Members keep their accounts, Gemini keys and trial usage | 3 (assertions on a fixtures-only database and on the fully populated replay; 938 gateway and 777 frontend tests) | this commit |
 
@@ -136,10 +139,12 @@ Decisions (D25 delegates product and technical decisions; exceptions in `MASTER_
   needs the owner's own review (item 4).
 
 ## Next steps (exact commands)
-0. Apply `supabase/migrations/20261113190000_workspace_deletion.sql` to rehearsal (without its outer
-   `begin`/`commit`), check `get_advisors`, release the gateway from a clean checkout of the commit (step 1), then
-   as test account A create a throwaway workspace, give it a conversation, delete it with the typed confirmation,
-   and check that `deletion_operations` shows it verified with three receipts and that no table holds its rows.
+0. When the owner approves the Supabase connector's confirmation: apply `20261113190000_workspace_deletion.sql`, then
+   `20261113210000_account_deletion.sql`, to rehearsal (without their outer `begin`/`commit`), check `get_advisors`,
+   release the gateway from a clean checkout of the commit (step 1), then as test account A create a throwaway
+   workspace, give it a conversation, delete it with the typed confirmation, and check that `deletion_operations`
+   shows it verified with three receipts and that no table holds its rows. Account deletion: check it with a third,
+   throwaway test account only (never A or B).
 1. Preview gateway release (works from a cloud session). Release from a clean checkout of the commit
    (`git worktree add --detach <dir> <sha>`): the script deploys whatever is in the working directory.
    `CLOUDFLARE_API_TOKEN=proxy-injected CLOUDFLARE_ACCOUNT_ID=84e80d9629e0a6e6e5b31dbe85146acf

@@ -293,6 +293,14 @@ export interface PrivacySettingsResponse {
   next_retention_at?: string | null;
 }
 
+/** The answer to deleting one's own account. PENDING: the account can no longer be used; what it owned is still being erased. */
+export interface AccountDeletionReceipt {
+  account_deleted: true;
+  state: "DELETED" | "PENDING";
+  workspaces_deleted: number;
+  message: string;
+}
+
 /** One retention run: what it removed, and whether more is left for the next run. */
 export interface RetentionRunReceipt {
   workspace_deleted: false;
