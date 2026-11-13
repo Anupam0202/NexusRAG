@@ -6,16 +6,16 @@ finishes (found broken live); the live journey still stops at ingestion on the s
 - main: `85b14f1`; working branch: `codex/runtime-manifest-008` (draft PR #12, owner-approved for direct
   commits on 2026-11-09); open PRs: #12
 - Plan: `docs/completion/MASTER_PROMPT.md`; repository notes: `CLAUDE.md`
-- Candidate preview: gateway `4864133`, released 2026-11-12 with `scripts/release.py` (smoke test and `/ready`
-  passed: database reachable, search index ready, collection `nexusrag-v6-candidate` exists and is empty).
-  Commits `845642f`–`9c1fef2` are not released yet: the deletion migration must reach rehearsal first, and the
-  Supabase connector was unavailable (503) on 13 November. Frontend is still the old
+- Candidate preview: gateway `5262bff`, released 2026-11-13 (smoke test and `/ready` passed: database reachable,
+  search index ready, collection `nexusrag-v6-candidate` empty). Released before its deletion migration, because
+  the Supabase connector was unavailable (503) all of 13 November: deletes answer "still being erased" until the
+  migration is applied, then the cron finishes them. Frontend is still the old
   build `2fbc5c9`, whose `/research`, `/radar`, `/evidence-api` and unknown paths return 500 (NX-01): a cloud
   session cannot upload frontend assets, and the preview workflow rejects this branch (environment branch rule).
 - Rehearsal Supabase (`ukgjygzfhyvnrsecdcuu`): 51 migrations applied, 1 pending
-  (`20261113090000_complete_document_deletion`). Four test documents have been stuck in `deleting` since the
-  12 November smoke runs (the bug fixed in `845642f`); the cron finishes them once the migration and gateway
-  are released. Provider reviews recorded for
+  (`20261113090000_complete_document_deletion`). Five test documents wait in `deleting` (four from the
+  12 November smoke runs, one from the 13 November live check); the cron finishes them once the migration is
+  applied. Test account A has used its trial upload and B its trial upload; reset both before the next journey. Provider reviews recorded for
   Gemini, Qdrant and Supabase Storage (staging attestation by test account A, valid to 2027-11-12). Two test
   accounts (`nexus-e2e-a@nexusrag.test`, `nexus-e2e-b@nexusrag.test`), each with an approved workspace.
 - Production: `nexusrag-v6-frontend-preview` v29 → `nexusrag-v6-preview-gateway` v52, both from 23 September,
@@ -49,9 +49,9 @@ finishes (found broken live); the live journey still stops at ingestion on the s
 - Tier 1: [x] workspace creation on hosted Supabase [x] provider approval and budgets work without SQL
   [x] specific provider errors and the key prompt (NX-14; live check needs a key) [x] two-account live journey
   script [x] document deletion finishes (NX-47) [x] NX-03 Ready only when answerable [x] NX-16 no control calls
-  a missing endpoint [ ] ingestion → answer → delete on the preview (blocked: Gemini 402) [ ] frontend preview
-  deploy (blocked: environment branch rule) [ ] NX-21 real streaming [ ] NX-04, NX-05 verified live [ ] owner
-  walkthrough
+  a missing endpoint [x] NX-21 real streaming (live for the no-evidence path) [ ] ingestion → answer → delete on
+  the preview (blocked: Gemini 402) [ ] frontend preview deploy (blocked: environment branch rule) [ ] NX-04,
+  NX-05 verified live [ ] owner walkthrough
 - Tier 4 pulled forward because of NX-07: [x] Qdrant keep-alive, `/ready` and typed index errors (D15, NX-23)
 - Tier 2, Tier 3: not started
 
@@ -75,6 +75,13 @@ finishes (found broken live); the live journey still stops at ingestion on the s
 | 2026-11-13 | NX-16: retention and workspace deletion shown only when the gateway supports them; unused `/api/v1/auth/me` client removed; offline probe of all 66 paths the app calls | 1 | `387d791` |
 | 2026-11-13 | NX-03: `ready` only with a published version; legacy documents show "Upload again"; re-uploading a held file explains failed, unsearchable or still-erasing copies | 1 | `a638075` |
 | 2026-11-13 | NX-14 app side: provider errors shown as sent; key prompt on a rejected or out-of-credit key; key forms use the server's bounds | 1 | `9c1fef2` |
+| 2026-11-13 | NX-21: real streaming from `streamGenerateContent`; the final event carries the checked and saved answer; errors before the first token keep their HTTP status | 1 (6 end-to-end tests on the real pipeline); 4 for the no-evidence path | `e50a239` |
+| 2026-11-13 | NX-28 part: security headers on every page, file and error (Worker and `_headers`), checked on the built Worker; hostile-markdown test | 2 | `5262bff` |
+
+Live checks on the preview, 2026-11-13, gateway `5262bff` (account B): a streamed question returns
+`text/event-stream` with a `done` event; a document whose processing fails is listed as `error` with Gemini's
+credit message; re-uploading it answers 409 `DUPLICATE_FAILED` with what to do; deleting it hides it at once and
+answers 202 "still being erased" (the migration is not applied yet).
 
 Live journey on the preview, 2026-11-12, gateway `3396cb0` (`python3 scripts/preview_smoke.py`): 11 of 12
 checks pass — sign-in for both accounts, separate workspaces, processing policy, upload accepted (202). The
@@ -130,7 +137,7 @@ Decisions (D25 delegates product and technical decisions; exceptions in `MASTER_
    collections, point counts, vector size and payload indexes here.
 5. Frontend preview: Actions → Cloudflare Preview Deploy → Run workflow on this branch with "deploy candidate
    preview" ticked; then check `/research`, `/radar`, `/evidence-api` return 200 and an unknown path 404.
-6. Build next, none of which needs the keys: real streaming (NX-21); then Tier 4 hardening that needs no
-   provider (local JWT verification NX-25, security headers NX-28).
+6. Build next, none of which needs the keys: workspace deletion and retention runs in the gateway (NX-16, Tier 2);
+   account deletion cleanup (NX-27); a nonce-based script policy (rest of NX-28).
 7. Hosted migration status: save `list_migrations` output to a file, then
    `python3 scripts/migration_status.py status --applied <file>`.
