@@ -4,7 +4,8 @@
 
 // ── Documents ────────────────────────────────────────────────
 
-export type DocumentStatus = "pending" | "processing" | "ready" | "error";
+/** "ready" means the document can be answered from; "needs_upload" is a document from before versions existed. */
+export type DocumentStatus = "pending" | "processing" | "ready" | "error" | "needs_upload";
 
 export interface DocumentMetadata {
   document_id: string;

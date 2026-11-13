@@ -5,6 +5,7 @@ import type { DocumentMetadata } from "@/types";
 import { motion, useReducedMotion } from "framer-motion";
 import { ExternalLink, Eye, RefreshCw, Trash2, FileText } from "lucide-react";
 import { cn, formatBytes, fileIcon } from "@/lib/utils";
+import { documentStatusExplanation, documentStatusLabel } from "@/lib/document-status";
 
 interface Props {
   documents: DocumentMetadata[];
@@ -88,13 +89,15 @@ export function DocumentList({
                     {doc.file_size_bytes > 0 && ` - ${formatBytes(doc.file_size_bytes)}`}
                   </p>
                 </div>
-                <span className={cn(
+                <span title={documentStatusExplanation(doc.status) ?? undefined} className={cn(
                   "hidden rounded-full px-2 py-0.5 text-[10px] font-bold uppercase sm:inline-block",
                   doc.status === "ready"
                     ? "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300"
-                    : "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700"
+                    : doc.status === "error" || doc.status === "needs_upload"
+                      ? "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300"
+                      : "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700"
                 )}>
-                  {doc.status}
+                  {documentStatusLabel(doc.status)}
                 </span>
                 <span className="hidden rounded-lg p-2 text-[var(--text-muted)] sm:inline-flex">
                   <Eye size={15} />

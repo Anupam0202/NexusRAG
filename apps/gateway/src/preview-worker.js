@@ -321,6 +321,15 @@ async function storageDelete(env, key) {
   if (!missing) throw Object.assign(new Error("Private original deletion could not be verified."), { status: 503, code: "STORAGE_DELETE_UNVERIFIED", retryable: true });
 }
 
+// What a person can do with a document (NX-03). "ready" only when a published version can be answered from:
+// a document from before versions existed has text but nothing the gateway searches, so it must be uploaded
+// again.
+function documentStatus(row) {
+  if (row.status === "queued") return "pending";
+  if (row.status === "failed") return "error";
+  if (row.status === "ready" && !row.active_version_id) return "needs_upload";
+  return row.status;
+}
 function documentView(row) {
   return {
     document_id: row.id,
@@ -329,7 +338,7 @@ function documentView(row) {
     file_size_bytes: Number(row.file_size_bytes || 0),
     page_count: Number(row.page_count || 0),
     chunk_count: Number(row.chunk_count || 0),
-    status: row.status === "queued" ? "pending" : row.status,
+    status: documentStatus(row),
     created_at: row.created_at,
     processing_time_seconds: 0,
     extraction_method: "cloudflare-worker-text-v1",
@@ -526,8 +535,17 @@ async function uploadDocument(request,env,user,workspace,member){
   if(form.get("data_classification")!=="non_sensitive"||form.get("non_sensitive_attested")!=="true")
     throw Object.assign(new Error("Upload blocked: explicitly attest that the document is non-sensitive; sensitive or unclassified documents are not accepted."),{status:403,code:"RIGHTS_BLOCKED"});
   const filename=safeFilename(file.name),bytes=new Uint8Array(await file.arrayBuffer()),hash=await sha256(bytes);
-  const dup=await serviceRequest(env,`documents?workspace_id=eq.${workspace}&uploaded_by=eq.${user.id}&sha256=eq.${hash}&lifecycle_state=eq.active&select=*&limit=1`);
-  if(dup?.[0])return{success:true,message:`${dup[0].filename} already uploaded`,document:documentView(dup[0]),duplicate:true};
+  // A workspace holds one document per file (documents_workspace_sha_active_idx), whoever uploaded it and
+  // until its deletion has finished, so the earlier copy decides what happens.
+  const dup=(await serviceRequest(env,`documents?workspace_id=eq.${workspace}&sha256=eq.${hash}&status=neq.deleted&select=*&limit=1`))?.[0];
+  if(dup){
+    const refuse=(code,message)=>Object.assign(new Error(message),{status:409,code});
+    if(dup.lifecycle_state!=="active")throw refuse("DOCUMENT_BEING_ERASED",`An earlier copy of ${dup.filename} is still being erased. Try again in a few minutes.`);
+    const state=documentStatus(dup);
+    if(state==="error")throw refuse("DUPLICATE_FAILED",`${dup.filename} was uploaded before and its processing failed. Retry it from its page in Documents, or delete it and upload it again.`);
+    if(state==="needs_upload")throw refuse("DUPLICATE_NEEDS_UPLOAD",`An earlier copy of ${dup.filename} was added before the current version and cannot be searched. Delete it, then upload the file again.`);
+    return{success:true,message:`${dup.filename} already uploaded`,document:documentView(dup),duplicate:true};
+  }
   // Refuse before the free-trial document is counted if this workspace cannot be processed yet.
   admissionKey(request);
   await requireProcessingApproved(env,workspace);

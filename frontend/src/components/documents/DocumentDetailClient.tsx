@@ -36,6 +36,7 @@ import { useWorkspaceApiAccess } from "@/hooks/useAuthGate";
 import type { DocumentMetadata, IngestionJobStatusResponse } from "@/types";
 import { STATIC_DOCUMENT_ROUTE_ID } from "@/lib/document-route";
 import { navigateStatic } from "@/lib/static-navigation";
+import { documentStatusExplanation, documentStatusLabel } from "@/lib/document-status";
 import { toast } from "sonner";
 
 type LoadState = "loading" | "ready" | "not_found" | "error";
@@ -64,7 +65,7 @@ function documentStatusTone(status?: DocumentMetadata["status"]) {
   if (status === "ready") {
     return "border-green-200 bg-green-50 text-green-700 dark:border-green-900/60 dark:bg-green-900/20 dark:text-green-300";
   }
-  if (status === "error") {
+  if (status === "error" || status === "needs_upload") {
     return "border-red-200 bg-red-50 text-red-700 dark:border-red-900/60 dark:bg-red-900/20 dark:text-red-300";
   }
   return "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/60 dark:bg-amber-900/20 dark:text-amber-300";
@@ -428,7 +429,7 @@ function WorkspaceDocumentDetail() {
                 )}
               >
                 {document.status === "ready" && <CheckCircle2 size={12} />}
-                {document.status}
+                {documentStatusLabel(document.status)}
               </span>
               {job && (
                 <span
@@ -443,6 +444,9 @@ function WorkspaceDocumentDetail() {
               )}
             </div>
           </div>
+          {documentStatusExplanation(document.status) && (
+            <p className="mt-3 text-sm text-red-700 dark:text-red-300">{documentStatusExplanation(document.status)}</p>
+          )}
 
           <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {metadata.map((item) => {

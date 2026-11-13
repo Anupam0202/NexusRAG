@@ -17,6 +17,15 @@ describe("document library role controls", () => {
     }
     expect(onDelete).not.toHaveBeenCalled(); expect(onReindex).not.toHaveBeenCalled();
   });
+  it("names each state in plain words and marks documents that cannot be answered from", () => {
+    const states = [["ready", "Ready"], ["pending", "Waiting"], ["processing", "Processing"], ["error", "Failed"], ["needs_upload", "Upload again"]] as const;
+    render(<DocumentList documents={states.map(([status], index) => ({ ...fixture, document_id: `doc-${index}`, filename: `doc-${index}.txt`, status }))}
+      loading={false} canMutate onSelect={vi.fn()} onDelete={vi.fn()} onReindex={vi.fn()} onRefresh={vi.fn()} />);
+    for (const [, label] of states) expect(screen.getByText(label)).toBeInTheDocument();
+    expect(screen.getByText("Upload again")).toHaveAttribute("title", expect.stringMatching(/cannot be searched\. Delete it, then upload the file again\./));
+    expect(screen.getByText("Failed")).toHaveAttribute("title", expect.stringMatching(/Processing this document failed/));
+    expect(screen.getByText("Ready")).not.toHaveAttribute("title");
+  });
   it("wires authorized mutation controls to their exact document", () => {
     const onDelete = vi.fn(), onReindex = vi.fn();
     render(<DocumentList documents={[fixture]} loading={false} canMutate onSelect={vi.fn()}
