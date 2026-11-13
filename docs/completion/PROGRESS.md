@@ -1,21 +1,19 @@
 # NexusRAG completion progress
-Last updated: 2026-11-13 — Tier 1 code items done; document deletion finishes (found broken live); retention
-runs built (NX-16, Tier 2); the live journey still stops at ingestion on the shared Gemini key's HTTP 402
+Last updated: 2026-11-13 — document deletion and retention verified live on the preview; workspace deletion
+built (NX-16 done offline); the live journey still stops at ingestion on the shared Gemini key's HTTP 402
 
 ## Current state
 - main: `85b14f1`; working branch: `codex/runtime-manifest-008` (draft PR #12, owner-approved for direct
   commits on 2026-11-09); open PRs: #12
 - Plan: `docs/completion/MASTER_PROMPT.md`; repository notes: `CLAUDE.md`
-- Candidate preview: gateway `5262bff`, released 2026-11-13 (smoke test and `/ready` passed: database reachable,
-  search index ready, collection `nexusrag-v6-candidate` empty). Released before its deletion migration, because
-  the Supabase connector was unavailable (503) all of 13 November: deletes answer "still being erased" until the
-  migration is applied, then the cron finishes them. Frontend is still the old
+- Candidate preview: gateway `f589e7b` (version `cb022eae`), released 2026-11-13 19:46 UTC (smoke test and `/ready`
+  passed: database reachable, search index ready, collection `nexusrag-v6-candidate` empty). Frontend is still the old
   build `2fbc5c9`, whose `/research`, `/radar`, `/evidence-api` and unknown paths return 500 (NX-01): a cloud
   session cannot upload frontend assets, and the preview workflow rejects this branch (environment branch rule).
-- Rehearsal Supabase (`ukgjygzfhyvnrsecdcuu`): 51 migrations applied, 2 pending
-  (`20261113090000_complete_document_deletion`, `20261113150000_retention_runs`). Five test documents wait in `deleting` (four from the
-  12 November smoke runs, one from the 13 November live check); the cron finishes them once the migration is
-  applied. Test account A has used its trial upload and B its trial upload; reset both before the next journey. Provider reviews recorded for
+- Rehearsal Supabase (`ukgjygzfhyvnrsecdcuu`): 53 migrations applied (document deletion and retention on
+  2026-11-13); pending: `20261113190000_workspace_deletion`. No document is left in `deleting`. Advisors: only
+  leaked-password protection (an Auth setting). Test account A has used its trial upload and B its trial upload;
+  reset both before the next journey. Provider reviews recorded for
   Gemini, Qdrant and Supabase Storage (staging attestation by test account A, valid to 2027-11-12). Two test
   accounts (`nexus-e2e-a@nexusrag.test`, `nexus-e2e-b@nexusrag.test`), each with an approved workspace.
 - Production: `nexusrag-v6-frontend-preview` v29 → `nexusrag-v6-preview-gateway` v52, both from 23 September,
@@ -53,8 +51,8 @@ runs built (NX-16, Tier 2); the live journey still stops at ingestion on the sha
   the preview (blocked: Gemini 402) [ ] frontend preview deploy (blocked: environment branch rule) [ ] NX-04,
   NX-05 verified live [ ] owner walkthrough
 - Tier 4 pulled forward because of NX-07: [x] Qdrant keep-alive, `/ready` and typed index errors (D15, NX-23)
-- Tier 2: [x] retention runs, scheduled and on demand (NX-16; live after the migration) [ ] workspace deletion
-  [ ] the rest of Tier 2
+- Tier 2: [x] retention runs, scheduled and on demand (NX-16; verified live) [x] workspace deletion (NX-16; live
+  after its migration) [ ] the rest of Tier 2
 - Tier 3: not started
 
 ## Done log
@@ -79,7 +77,16 @@ runs built (NX-16, Tier 2); the live journey still stops at ingestion on the sha
 | 2026-11-13 | NX-14 app side: provider errors shown as sent; key prompt on a rejected or out-of-credit key; key forms use the server's bounds | 1 | `9c1fef2` |
 | 2026-11-13 | NX-21: real streaming from `streamGenerateContent`; the final event carries the checked and saved answer; errors before the first token keep their HTTP status | 1 (6 end-to-end tests on the real pipeline); 4 for the no-evidence path | `e50a239` |
 | 2026-11-13 | NX-28 part: security headers on every page, file and error (Worker and `_headers`), checked on the built Worker; hostile-markdown test | 2 | `5262bff` |
-| 2026-11-13 | NX-16 retention runs: owners and administrators set a number of days; every day (and on "Run now") documents uploaded before the cutoff go through the normal deletion, chat messages and research results from before it are removed, and conversations unused since are removed or closed; saved findings, what they cite and Radar pages stay. Turning it on asks for a second click that names the cutoff date | 3 (local replay with new assertions; 926 gateway and 776 frontend tests) | this commit |
+| 2026-11-13 | NX-16 retention runs: owners and administrators set a number of days; every day (and on "Run now") documents uploaded before the cutoff go through the normal deletion, chat messages and research results from before it are removed, and conversations unused since are removed or closed; saved findings, what they cite and Radar pages stay. Turning it on asks for a second click that names the cutoff date | 3 (local replay with new assertions; 926 gateway and 776 frontend tests); 4 on 13 November (below) | `f589e7b` |
+| 2026-11-13 | NX-16 workspace deletion: the owner types DELETE WORKSPACE; the workspace disappears for every member at once; jobs stop; its search index entries (by workspace filter, counted and verified) and stored originals (known keys, then anything left in its folder) are removed with receipts; one database function then removes every row of every table that has a `workspace_id`, checks that nothing is left and writes the last receipt; the cron finishes what a request could not. Members keep their accounts, Gemini keys and trial usage | 3 (assertions on a fixtures-only database and on the fully populated replay; 938 gateway and 777 frontend tests) | this commit |
+
+Live checks on the preview, 2026-11-13 evening: with the deletion migration applied (19:40 UTC), the cron finished
+the three test documents stuck in `deleting` (19:45 and 19:50; all five cleanup targets verified, five receipts
+each: Qdrant, Supabase Storage and three database ones; rows gone). Gateway `f589e7b`, account A: privacy settings
+report retention as supported; turning it on with 1 day made a run due at once; "Run now" removed a test document
+uploaded three days earlier (erased by the cron at 19:50 with three receipts; it had no stored file or index
+entries), two three-day-old messages and the old conversation title, and moved the next run to the next day;
+turning it off kept the day count; the three changes are in the audit trail.
 
 Live checks on the preview, 2026-11-13, gateway `5262bff` (account B): a streamed question returns
 `text/event-stream` with a `done` event; a document whose processing fails is listed as `error` with Gemini's
@@ -128,12 +135,12 @@ Decisions (D25 delegates product and technical decisions; exceptions in `MASTER_
   needs the owner's own review (item 4).
 
 ## Next steps (exact commands)
-0. When the Supabase connector answers again: apply `supabase/migrations/20261113090000_complete_document_deletion.sql`
-   and then `20261113150000_retention_runs.sql` to rehearsal (without their outer `begin`/`commit`), check
-   `get_advisors`, then release the gateway (step 1). Within five minutes the cron should finish the stuck test
-   documents; check `deletion_operations`. Then, as test account A, turn retention on with 1 day in a test
-   workspace, run it, and check the receipt and that only content older than a day went.
-1. Preview gateway release (works from a cloud session):
+0. Apply `supabase/migrations/20261113190000_workspace_deletion.sql` to rehearsal (without its outer
+   `begin`/`commit`), check `get_advisors`, release the gateway from a clean checkout of the commit (step 1), then
+   as test account A create a throwaway workspace, give it a conversation, delete it with the typed confirmation,
+   and check that `deletion_operations` shows it verified with three receipts and that no table holds its rows.
+1. Preview gateway release (works from a cloud session). Release from a clean checkout of the commit
+   (`git worktree add --detach <dir> <sha>`): the script deploys whatever is in the working directory.
    `CLOUDFLARE_API_TOKEN=proxy-injected CLOUDFLARE_ACCOUNT_ID=84e80d9629e0a6e6e5b31dbe85146acf
    SUPABASE_URL=https://ukgjygzfhyvnrsecdcuu.supabase.co SUPABASE_PUBLISHABLE_KEY=<rehearsal publishable key>
    WRANGLER="$PWD/frontend/node_modules/.bin/wrangler" python3 scripts/release.py gateway --target candidate
@@ -149,7 +156,7 @@ Decisions (D25 delegates product and technical decisions; exceptions in `MASTER_
    collections, point counts, vector size and payload indexes here.
 5. Frontend preview: Actions → Cloudflare Preview Deploy → Run workflow on this branch with "deploy candidate
    preview" ticked; then check `/research`, `/radar`, `/evidence-api` return 200 and an unknown path 404.
-6. Build next, none of which needs the keys: workspace deletion in the gateway (NX-16, Tier 2); account deletion
-   cleanup (NX-27); a nonce-based script policy (rest of NX-28).
+6. Build next, none of which needs the keys: account deletion cleanup and a Postgres/Storage/Qdrant
+   reconciliation job (NX-27); a nonce-based script policy (rest of NX-28); the CALCULATION run mode (NX-17).
 7. Hosted migration status: save `list_migrations` output to a file, then
    `python3 scripts/migration_status.py status --applied <file>`.

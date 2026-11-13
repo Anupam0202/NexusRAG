@@ -159,7 +159,7 @@ test("the privacy page is told retention can be changed and run", async (t) => {
   t.mock.method(globalThis, "fetch", gateway("viewer").fetch);
   const body = await (await call("/api/v1/privacy/settings")).json();
   assert.deepEqual(body, { retention_enabled: true, retention_days: 30, last_retention_at: null, next_retention_at: "2026-11-14T00:00:00+00:00",
-    retention_mutation_supported: true, workspace_deletion_supported: false });
+    retention_mutation_supported: true, workspace_deletion_supported: true });
 });
 
 test("only an owner or administrator changes or runs retention", async (t) => {
@@ -186,7 +186,7 @@ test("an administrator saves the schedule and runs it, and both are audited", as
   const saved = await call("/api/v1/privacy/settings", "PATCH", { retention_enabled: true, retention_days: 14 });
   assert.equal(saved.status, 200);
   assert.deepEqual(await saved.json(), { retention_enabled: true, retention_days: 14, last_retention_at: null, next_retention_at: "2026-11-13T12:00:00+00:00",
-    retention_mutation_supported: true, workspace_deletion_supported: false });
+    retention_mutation_supported: true, workspace_deletion_supported: true });
   const run = await call("/api/v1/privacy/retention/run", "POST");
   assert.equal(run.status, 200);
   const receipt = await run.json();

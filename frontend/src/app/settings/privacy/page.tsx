@@ -465,8 +465,9 @@ function PrivacyWorkbench() {
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-semibold text-red-900 dark:text-red-100">Delete workspace</p>
                 <p className="mt-1 text-xs leading-5 text-red-800 dark:text-red-200">
-                  Permanently removes private originals, vectors, chats, usage, settings, and memberships.
-                  Cleanup must finish before the workspace database row is removed.
+                  Deletes this workspace for every member at once, with everything in it: documents and their
+                  stored files, search entries, conversations, research, findings, Radar sources, settings, usage
+                  records and memberships. Members keep their own accounts and Gemini keys. This cannot be undone.
                 </p>
                 {workspaceDataReady && canDeleteWorkspace ? (
                   <form

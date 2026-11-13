@@ -86,6 +86,14 @@ describe("confirmed cleanup responses", () => {
     await expect(deleteCurrentWorkspace(context)).resolves.toEqual(receipt);
   });
 
+  it("accepts a workspace that is gone for everyone while its stored data is still being erased", async () => {
+    // What the gateway answers (202) when the search index or file storage could not finish in the request.
+    const receipt = { workspace_deleted: true, state: "PENDING", operation_id: "op", documents_deleted: 0, chat_sessions_deleted: 0,
+      local_chunks_deleted: 0, qdrant_chunks_deleted: 0, receipts: 0, failures: [], message: "still being erased" };
+    respond(receipt);
+    await expect(deleteCurrentWorkspace(context)).resolves.toEqual(receipt);
+  });
+
   const retention = {
     workspace_deleted: false, cutoff: "2026-10-14T12:00:00+00:00", documents_deleted: 2, documents_pending_erasure: 2,
     documents_kept_for_radar: 0, chat_messages_deleted: 14, chat_sessions_deleted: 1, chat_titles_cleared: 1,

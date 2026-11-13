@@ -313,6 +313,9 @@ export interface RetentionRunReceipt {
 
 export interface WorkspaceLifecycleResponse {
   workspace_deleted: boolean;
+  /** PENDING: gone for every member already; its stored data is still being erased in the background. */
+  state?: "DELETED" | "PENDING";
+  message?: string;
   documents_deleted: number;
   chat_sessions_deleted: number;
   local_chunks_deleted: number;

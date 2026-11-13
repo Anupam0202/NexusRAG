@@ -14,6 +14,8 @@ import { activeGenerationModel, checkGeminiModels, embeddingModel, isDailyModelC
 import { checkReadiness } from "./readiness.js";
 import { finishDocumentDeletion, sweepDeletions } from "./document-deletion.js";
 import { runDueRetention, runRetentionNow, setRetention } from "./retention.js";
+import { DELETE_WORKSPACE_CONFIRMATION, beginWorkspaceDeletion, finishWorkspaceDeletion, removeWorkspaceIndexEntries,
+  removeWorkspaceOriginals, sweepWorkspaceDeletions, workspaceDeletionReceipt } from "./workspace-deletion.js";
 import { indexUsable, keepIndexAwake, probeIndex } from "./search-index.js";
 import { handleQueue, sweepJobs } from "./worker-jobs.js";
 import { candidateChunkIds, rehydrateEvidence } from "./retrieval-authority.js";
@@ -582,6 +584,8 @@ async function cancelExistingJob(env,workspace,jobId,member){requireCapability(m
 async function reindexDocument(request,env,user,workspace,member,documentId){requireCapability(member,"research:run");const document=await loadBoundDocument(env,workspace,documentId),v=await serviceRequest(env,`document_versions?workspace_id=eq.${workspace}&id=eq.${document.active_version_id}&select=*&limit=1`);if(!v?.[0])throw Object.assign(new Error("Active version unavailable."),{status:409,code:"VERSION_UNAVAILABLE"});const source=v[0];if(source.data_classification!=="non_sensitive"||!source.classification_declared_by||!source.classification_declared_at)throw Object.assign(new Error("Reindex blocked: only explicitly attested non-sensitive versions may be processed."),{status:403,code:"RIGHTS_BLOCKED"});const versionId=crypto.randomUUID(),generation=crypto.randomUUID(),jobId=crypto.randomUUID();await serviceRequest(env,"document_versions",{method:"POST",body:JSON.stringify([{id:versionId,workspace_id:workspace,document_id:documentId,original_bucket:source.original_bucket,original_key:source.original_key,original_hash:source.original_hash,original_bytes:source.original_bytes,original_verified_at:source.original_verified_at,parser_version:"pending",chunker_version:"worker-char-v1",embedding_space_id:embeddingModel(env),index_generation:generation,extraction_manifest:{},lifecycle_epoch:Number(document.lifecycle_epoch||1),publication_state:"staged",data_classification:source.data_classification,classification_declared_by:source.classification_declared_by,classification_declared_at:source.classification_declared_at}])});const jobs=await serviceRequest(env,"ingestion_jobs",{method:"POST",body:JSON.stringify([{id:jobId,workspace_id:workspace,document_id:documentId,version_id:versionId,status:"queued",progress:0,stage:"queued",attempts:0,available_at:new Date().toISOString(),lifecycle_epoch:Number(document.lifecycle_epoch||1),payload:{filename:document.filename,operation:"reindex",supersedes_version_id:source.id},kind:"ingestion"}])});await enqueueJob(env,jobs[0]);return jobView(jobs[0],document);}
 
 const deletionTools = { db: serviceRequest, removeOriginal: storageDelete };
+const workspaceDeletionTools = { db: serviceRequest, removeIndexEntries: (env, workspace) => removeWorkspaceIndexEntries(env, workspace),
+  removeOriginals: (env, workspace, keys) => removeWorkspaceOriginals(env, workspace, keys) };
 // Marks the document (which hides it at once) and removes what is still stored. When the removal cannot
 // finish in this request, the answer says so and the cron finishes it; see document-deletion.js.
 async function deleteDocument(request, env, user, workspace, member, documentId) {
@@ -984,7 +988,7 @@ async function handle(request, env = {}) {
     }
     if (url.pathname === "/api/v1/privacy/settings" && ["GET", "HEAD", "PATCH"].includes(request.method)) {
       const id = workspaceId(request); const member = await membership(env, user.id, id);
-      const flags = { retention_mutation_supported: true, workspace_deletion_supported: false };
+      const flags = { retention_mutation_supported: true, workspace_deletion_supported: true };
       if (request.method === "PATCH") {
         if (!["owner", "admin"].includes(member.role)) return fail(request, env, "FORBIDDEN", "Only a workspace owner or administrator can change retention.", 403);
         const saved = await setRetention(env, { workspace: id, actor: user.id, body: await readJsonBody(request) }, { db: serviceRequest });
@@ -995,6 +999,23 @@ async function handle(request, env = {}) {
       return json(request, env, {
         ...(rows[0] || { retention_enabled: false, retention_days: 0, last_retention_at: null, next_retention_at: null }), ...flags,
       });
+    }
+    // Deleting the workspace: hidden from every member at once, then erased; what cannot finish here, the cron finishes.
+    if (url.pathname === "/api/v1/workspaces/current/delete" && request.method === "POST") {
+      const id = workspaceId(request); const member = await membership(env, user.id, id);
+      if (member.role !== "owner") return fail(request, env, "FORBIDDEN", "Only the workspace owner can delete the workspace.", 403);
+      const body = await readJsonBody(request);
+      if (body?.confirmation !== DELETE_WORKSPACE_CONFIRMATION)
+        return fail(request, env, "INVALID_SCOPE", `Type ${DELETE_WORKSPACE_CONFIRMATION} to confirm.`, 422);
+      const operationId = await beginWorkspaceDeletion(env, { workspace: id, actor: user.id }, { db: serviceRequest });
+      let outcome;
+      try {
+        outcome = await finishWorkspaceDeletion(env, { workspace: id, operationId }, workspaceDeletionTools);
+      } catch (error) {
+        outcome = { state: "WAITING", reason: error?.code || "DELETE_PARTIAL_FAILURE" };
+      }
+      const receipt = workspaceDeletionReceipt(outcome, operationId);
+      return json(request, env, receipt, receipt.state === "DELETED" ? 200 : 202);
     }
     if (url.pathname === "/api/v1/privacy/retention/run" && request.method === "POST") {
       const id = workspaceId(request); const member = await membership(env, user.id, id);
@@ -1295,8 +1316,8 @@ async function queue(batch,env){return handleQueue(batch,env)}
 // Once a day: which Gemini models are still served, and one question to the search index, which also keeps
 // a free cluster from being suspended for inactivity.
 const dailyChecks=env=>Promise.all([checkGeminiModels(env).catch(()=>undefined),keepIndexAwake(env).catch(()=>undefined)]);
-// Every run also finishes deletions that could not complete when they were requested, and carries out one
-// workspace's retention run when one is due.
-async function scheduled(event,env,ctx){ctx.waitUntil(sweepJobs(env));ctx.waitUntil(sweepDeletions(env,deletionTools));ctx.waitUntil(runDueRetention(env,{db:serviceRequest}));if(isDailyModelCheckWindow(event?.scheduledTime))ctx.waitUntil(dailyChecks(env))}
+// Every run also finishes document and workspace deletions that could not complete when they were requested, and
+// carries out one workspace's retention run when one is due.
+async function scheduled(event,env,ctx){ctx.waitUntil(sweepJobs(env));ctx.waitUntil(sweepDeletions(env,deletionTools));ctx.waitUntil(sweepWorkspaceDeletions(env,workspaceDeletionTools));ctx.waitUntil(runDueRetention(env,{db:serviceRequest}));if(isDailyModelCheckWindow(event?.scheduledTime))ctx.waitUntil(dailyChecks(env))}
 export { allowRequest, handle, queue, scheduled, storageDelete };
 export default { fetch: handle, queue, scheduled };
