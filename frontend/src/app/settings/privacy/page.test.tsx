@@ -90,10 +90,13 @@ describe("PrivacyPage", () => {
       user_id: "user-1",
     });
     listDocuments.mockResolvedValue({ total: 0, documents: [] });
+    // A gateway that can carry out retention and workspace deletion says so explicitly.
     getPrivacySettings.mockResolvedValue({
       retention_enabled: false,
       retention_days: 30,
       last_retention_at: null,
+      retention_mutation_supported: true,
+      workspace_deletion_supported: true,
     });
   });
 
@@ -103,6 +106,14 @@ describe("PrivacyPage", () => {
     expect(getCurrentWorkspace).not.toHaveBeenCalled(); expect(getPrivacySettings).not.toHaveBeenCalled();
     hydration.loading = false; rerender(<PrivacyPage />);
     await waitFor(() => expect(getCurrentWorkspace).toHaveBeenCalledTimes(1));
+  });
+
+  it("offers no retention or workspace deletion unless the gateway confirms it can carry them out", async () => {
+    getPrivacySettings.mockResolvedValue({ retention_enabled: false, retention_days: 30, last_retention_at: null });
+    render(<PrivacyPage />);
+    expect(await screen.findByText(/Retention configuration and execution are not yet available/)).toBeVisible();
+    expect(screen.queryByLabelText("Confirm workspace deletion")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Run now" })).not.toBeInTheDocument();
   });
 
   it("does not offer mutations the bounded gateway cannot execute", async () => {
@@ -178,8 +189,8 @@ describe("PrivacyPage", () => {
 
   it("displays the durable retention completion timestamp rather than the device clock", async () => {
     const completedAt = "2026-01-02T03:04:05Z";
-    getPrivacySettings.mockResolvedValueOnce({ retention_enabled: true, retention_days: 30, last_retention_at: null })
-      .mockResolvedValueOnce({ retention_enabled: true, retention_days: 30, last_retention_at: completedAt });
+    getPrivacySettings.mockResolvedValueOnce({ retention_enabled: true, retention_days: 30, last_retention_at: null, retention_mutation_supported: true })
+      .mockResolvedValueOnce({ retention_enabled: true, retention_days: 30, last_retention_at: completedAt, retention_mutation_supported: true });
     runRetention.mockResolvedValue({ documents_deleted: 0, failures: [] });
     render(<PrivacyPage />);
     fireEvent.click(await screen.findByRole("button", { name: "Run now" }));
@@ -188,7 +199,7 @@ describe("PrivacyPage", () => {
   });
 
   it("does not invent a retention timestamp when the durable refresh fails", async () => {
-    getPrivacySettings.mockResolvedValueOnce({ retention_enabled: true, retention_days: 30, last_retention_at: null })
+    getPrivacySettings.mockResolvedValueOnce({ retention_enabled: true, retention_days: 30, last_retention_at: null, retention_mutation_supported: true })
       .mockRejectedValueOnce(new Error("Retention status refresh failed"));
     runRetention.mockResolvedValue({ documents_deleted: 0, failures: [] });
     render(<PrivacyPage />);

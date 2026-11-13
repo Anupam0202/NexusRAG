@@ -51,8 +51,9 @@ function PrivacyWorkbench() {
   const [retentionEnabled, setRetentionEnabled] = useState(false);
   const [retentionDays, setRetentionDays] = useState(30);
   const [lastRetentionAt, setLastRetentionAt] = useState<string | null>(null);
-  const [retentionSupported, setRetentionSupported] = useState(true);
-  const [workspaceDeletionSupported, setWorkspaceDeletionSupported] = useState(true);
+  // Offered only when the gateway confirms it can carry them out (NX-16).
+  const [retentionSupported, setRetentionSupported] = useState(false);
+  const [workspaceDeletionSupported, setWorkspaceDeletionSupported] = useState(false);
   const [workspaceDataState, setWorkspaceDataState] = useState<"loading" | "ready" | "error">(
     "loading"
   );
@@ -73,8 +74,8 @@ function PrivacyWorkbench() {
         setRetentionEnabled(privacy.retention_enabled);
         setRetentionDays(privacy.retention_days || 30);
         setLastRetentionAt(privacy.last_retention_at ?? null);
-        setRetentionSupported(privacy.retention_mutation_supported !== false);
-        setWorkspaceDeletionSupported(privacy.workspace_deletion_supported !== false);
+        setRetentionSupported(privacy.retention_mutation_supported === true);
+        setWorkspaceDeletionSupported(privacy.workspace_deletion_supported === true);
         setWorkspaceDataState("ready");
       })
       .catch((error) => {

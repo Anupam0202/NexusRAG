@@ -438,15 +438,6 @@ export async function deleteApiKey(context: ApiRequestContext = {}): Promise<Api
   }, context);
 }
 
-export async function getCurrentUser(): Promise<{
-  id: string;
-  email: string | null;
-  role: string;
-  is_demo: boolean;
-}> {
-  return request("/api/v1/auth/me");
-}
-
 export async function getCurrentWorkspace(context: ApiRequestContext = {}): Promise<{
   workspace_id: string;
   role: "owner" | "admin" | "editor" | "viewer";
