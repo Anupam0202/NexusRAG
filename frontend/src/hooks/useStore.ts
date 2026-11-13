@@ -39,6 +39,8 @@ interface AppState {
   addAssistantMessage: (id: string) => void;
   appendToken: (id: string, token: string) => void;
   finishAssistant: (id: string, meta: {
+    /** The checked answer; replaces whatever was streamed. */
+    content?: string;
     sources?: SourceChunk[];
     queryType?: string;
     confidence?: number;

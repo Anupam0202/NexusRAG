@@ -4,6 +4,7 @@ import { handleQueue } from "../../apps/gateway/src/worker-jobs.js";
 import { handle } from "../../apps/gateway/src/preview-worker.js";
 import { chunkText, sha256 } from "../../apps/gateway/src/worker-pipeline.js";
 import { encryptGeminiKey } from "../../apps/gateway/src/user-gemini-key.js";
+import { resetGeminiModelMemory } from "../../apps/gateway/src/gemini-models.js";
 
 const workspace = "10101010-1010-4010-8010-101010101010";
 const userId = "20202020-2020-4020-8020-202020202020";
@@ -58,6 +59,9 @@ function localAppFixture() {
   let expectedGeminiApiKey = null;
   let processingGate = { state: "READY" };
   let onGenerate = null;
+  // Decides what a streamed generation answers: a Response (an error status), { failAfter } to break the stream
+  // after that many pieces, or nothing for a normal stream of the generated answer.
+  let onStream = null;
   let generatedAnswer = "The evidence describes a 30-day retention policy. [S1]";
   const matchesFilter = (point, filter) => (filter?.must || []).every((condition) => {
     if (condition.has_id) return condition.has_id.includes(point.id);
@@ -299,6 +303,30 @@ function localAppFixture() {
       assert.equal(url.searchParams.get("key"), null, "Gemini API keys must never be placed in provider URLs");
       if (expectedGeminiApiKey) assert.equal(new Headers(init.headers || {}).get("x-goog-api-key"), expectedGeminiApiKey);
       if (url.pathname.endsWith(":embedContent")) { embeddingCalls += 1; return json({ embedding: { values: Array(768).fill(0.01) } }); }
+      if (url.pathname.endsWith(":streamGenerateContent")) {
+        assert.equal(url.searchParams.get("alt"), "sse");
+        outbound.push(body); onGenerate?.(); generationCalls += 1; generationTemperatures.push(body?.generationConfig?.temperature);
+        const model = decodeURIComponent(url.pathname.split("/models/")[1].split(":")[0]);
+        const plan = onStream?.(model);
+        if (plan instanceof Response) return plan;
+        const words = generatedAnswer.split(/(?<= )/);
+        const third = Math.max(1, Math.ceil(words.length / 3));
+        const pieces = [words.slice(0, third), words.slice(third, 2 * third), words.slice(2 * third)].map((part) => part.join("")).filter(Boolean);
+        const encoder = new TextEncoder();
+        let next = 0;
+        // One piece per read, as a network stream delivers them; a break comes after the pieces already sent.
+        const stream = new ReadableStream({
+          pull(controller) {
+            if (plan?.failAfter !== undefined && next >= plan.failAfter) { controller.error(new TypeError("network connection lost")); return; }
+            if (next >= pieces.length) { controller.close(); return; }
+            const text = pieces[next], last = next === pieces.length - 1;
+            next += 1;
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ candidates: [{ content: { parts: [{ text }], role: "model" }, ...(last ? { finishReason: "STOP" } : {}) }],
+              ...(last ? { usageMetadata: { promptTokenCount: 42, candidatesTokenCount: 12 } } : {}) })}\r\n\r\n`));
+          },
+        });
+        return new Response(stream, { status: 200, headers: { "content-type": "text/event-stream" } });
+      }
       if (url.pathname.endsWith(":generateContent")) { outbound.push(body); onGenerate?.(); generationCalls += 1; generationTemperatures.push(body?.generationConfig?.temperature); return json({ candidates: [{ content: { parts: [{ text: generatedAnswer }] } }], usageMetadata: { promptTokenCount: 42, candidatesTokenCount: 12 } }); }
     }
     if (url.hostname === "qdrant.invalid") {
@@ -311,7 +339,7 @@ function localAppFixture() {
     }
     throw new Error(`Unexpected synthetic network request: ${method} ${url.href}`);
   };
-  return { env, user, member, setGeneratedAnswer(value) { generatedAnswer = value; }, setOnGenerate(callback) { onGenerate = callback; }, source, expectedChunks, docs, versions, jobs, chunks, extractionManifests, extractionChunks, objects, points, sessions, messages, outbound, auditEvents, deletionReceipts, deletionTargets, events, queue, accountUsage, userKeys, qdrantQueryLimits, qdrantQueryFilters, restQueries, generationTemperatures, fetch, setExpectedGeminiApiKey(value) { expectedGeminiApiKey = value; }, setProcessingGate(value) { processingGate = value; }, get deletionOperation() { return deletionOperation; }, get embeddingCalls() { return embeddingCalls; }, get generationCalls() { return generationCalls; } };
+  return { env, user, member, setGeneratedAnswer(value) { generatedAnswer = value; }, setOnGenerate(callback) { onGenerate = callback; }, setOnStream(callback) { onStream = callback; }, source, expectedChunks, docs, versions, jobs, chunks, extractionManifests, extractionChunks, objects, points, sessions, messages, outbound, auditEvents, deletionReceipts, deletionTargets, events, queue, accountUsage, userKeys, qdrantQueryLimits, qdrantQueryFilters, restQueries, generationTemperatures, fetch, setExpectedGeminiApiKey(value) { expectedGeminiApiKey = value; }, setProcessingGate(value) { processingGate = value; }, get deletionOperation() { return deletionOperation; }, get embeddingCalls() { return embeddingCalls; }, get generationCalls() { return generationCalls; } };
 }
 
 // Independently model the small PostgREST subset used by filtered chat. These
@@ -809,4 +837,100 @@ test("a poisoned vector response cannot bypass the authoritative filtered chunk 
   const answer = await response.json();
   assert.ok(answer.sources.every(source => source.metadata.chunk_id === chunk.id));
   assert.doesNotMatch(JSON.stringify(fixture.outbound), /POISONED_OUTSIDE_FILTER/);
+});
+
+// Real streaming (NX-21): the answer arrives as Gemini writes it, then as the checked and saved answer.
+function streamRequest(documentId, question = "What is the retention policy?") {
+  return new Request("https://gateway.invalid/api/v1/chat", { method: "POST",
+    headers: { authorization: "Bearer synthetic-oauth-token", "x-nexus-workspace-id": workspace, "content-type": "application/json",
+      "idempotency-key": crypto.randomUUID(), accept: "text/event-stream" },
+    body: JSON.stringify({ question, non_sensitive_attested: true, document_ids: [documentId] }) });
+}
+async function readEvents(response) {
+  return (await response.text()).split("\n\n").filter(Boolean).map((block) => {
+    const lines = block.split("\n");
+    return { event: lines.find((line) => line.startsWith("event: "))?.slice(7), data: JSON.parse(lines.find((line) => line.startsWith("data: ")).slice(6)) };
+  });
+}
+const saved = (fixture) => fixture.messages.filter((message) => message.role === "assistant");
+
+test("a streamed answer arrives as it is written, then as the checked and saved answer", async t => {
+  const { fixture, documentId } = await seededResearchFixture(t);
+  const response = await handle(streamRequest(documentId), fixture.env);
+  assert.equal(response.status, 200);
+  assert.match(response.headers.get("content-type"), /^text\/event-stream/);
+  const events = await readEvents(response);
+  const tokens = events.filter((item) => item.event === "token").map((item) => item.data.content);
+  assert.ok(tokens.length >= 2, "the answer arrives in pieces");
+  assert.equal(tokens.join(""), "The evidence describes a 30-day retention policy. [S1]");
+  const done = events.at(-1);
+  assert.equal(done.event, "done");
+  assert.equal(events.filter((item) => item.event === "done").length, 1);
+  assert.equal(done.data.answer, "The evidence describes a 30-day retention policy. [S1]");
+  assert.equal(done.data.sources.length, 1);
+  assert.equal(done.data.metadata.claim_state, "REVIEW_REQUIRED");
+  assert.ok(Number.isSafeInteger(done.data.metadata.session_revision), "the turn was saved before it was reported done");
+  assert.deepEqual(saved(fixture).map((message) => message.content), [done.data.answer]);
+  assert.equal(fixture.generationCalls, 1);
+});
+
+test("a streamed answer that fails the citation check is replaced in the final event", async t => {
+  const { fixture, documentId } = await seededResearchFixture(t);
+  fixture.setGeneratedAnswer("The retention period is thirty days.");
+  const events = await readEvents(await handle(streamRequest(documentId), fixture.env));
+  assert.equal(events.filter((item) => item.event === "token").map((item) => item.data.content).join(""), "The retention period is thirty days.");
+  const done = events.at(-1);
+  assert.equal(done.event, "done");
+  assert.equal(done.data.answer, "I cannot verify this answer against the available evidence. Please review the sources or refine the question.");
+  assert.equal(done.data.metadata.abstained, true);
+  assert.deepEqual(saved(fixture).map((message) => message.content), [done.data.answer], "only the checked answer is kept");
+});
+
+test("a streamed request that fails before the answer starts gets the usual HTTP error", async t => {
+  const { fixture, documentId } = await seededResearchFixture(t);
+  fixture.setOnStream(() => json({ error: { code: 402, message: "Your prepayment credits are depleted." } }, 402));
+  const response = await handle(streamRequest(documentId), fixture.env);
+  assert.equal(response.status, 402);
+  assert.match(response.headers.get("content-type"), /application\/json/);
+  assert.equal((await response.json()).error.code, "PROVIDER_CREDIT_EXHAUSTED");
+  assert.equal(saved(fixture).length, 0);
+});
+
+test("a retired model is replaced before anything is streamed", async t => {
+  t.after(() => resetGeminiModelMemory());
+  resetGeminiModelMemory();
+  const { fixture, documentId } = await seededResearchFixture(t);
+  fixture.setOnStream((model) => model === "gemini-3.5-flash-lite"
+    ? json({ error: { code: 404, message: "models/gemini-3.5-flash-lite is not found for API version v1beta, or is not supported for generateContent." } }, 404)
+    : undefined);
+  fixture.env.GEMINI_MODEL = "gemini-3.5-flash-lite,gemini-3.1-flash-lite";
+  const events = await readEvents(await handle(streamRequest(documentId), fixture.env));
+  assert.equal(events.filter((item) => item.event === "token").map((item) => item.data.content).join(""), "The evidence describes a 30-day retention policy. [S1]");
+  assert.equal(events.at(-1).data.metadata.model, "gemini-3.1-flash-lite");
+  assert.equal(fixture.generationCalls, 2);
+});
+
+test("a stream that breaks after it started ends with an error event and saves nothing", async t => {
+  const { fixture, documentId } = await seededResearchFixture(t);
+  fixture.setOnStream(() => ({ failAfter: 1 }));
+  const response = await handle(streamRequest(documentId), fixture.env);
+  assert.equal(response.status, 200);
+  const events = await readEvents(response);
+  assert.ok(events.some((item) => item.event === "token"));
+  const last = events.at(-1);
+  assert.equal(last.event, "error");
+  assert.equal(last.data.code, "PROVIDER_UNAVAILABLE");
+  assert.equal(last.data.retryable, true);
+  assert.equal(events.some((item) => item.event === "done"), false);
+  assert.equal(saved(fixture).length, 0);
+});
+
+test("a document deleted while the answer streams is not cited or saved", async t => {
+  const { fixture, documentId } = await seededResearchFixture(t);
+  fixture.setOnGenerate(() => { fixture.docs.get(documentId).lifecycle_state = "deleting"; });
+  const events = await readEvents(await handle(streamRequest(documentId), fixture.env));
+  const last = events.at(-1);
+  assert.equal(last.event, "error");
+  assert.equal(last.data.code, "VERSION_CONFLICT");
+  assert.equal(saved(fixture).length, 0);
 });

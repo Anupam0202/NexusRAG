@@ -1,6 +1,7 @@
 import {
   chunkText,
   generateAnswer,
+  generateAnswerStream,
   groundedPrompt,
   indexChunks,
   safeFilename,
@@ -649,7 +650,9 @@ async function privateTurnRequest(request, env, workspace, sessionId, operation,
   return row;
 }
 
-async function chat(request, env, user, workspace, member) {
+// `stream.onToken`, when given, receives the answer as it is written; the returned result is still the checked
+// and saved answer, which replaces what was streamed if the citation check fails.
+async function chat(request, env, user, workspace, member, stream = null) {
   workspace = workspace.toLowerCase();
   requireCapability(member,"research:run"); const started=Date.now(); const body=await readJsonBody(request); const question=String(body?.question||"").trim(); if(!question||question.length>10000)throw Object.assign(new Error("Question must contain 1 to 10,000 characters."),{status:422,code:"INVALID_SCOPE"});
   if (body.session_id != null && (typeof body.session_id !== "string" || !UUID_PATTERN.test(body.session_id))) {
@@ -699,6 +702,9 @@ async function chat(request, env, user, workspace, member) {
     "read_gateway_private_turn_context", {});
   await requireProcessingApproved(env, workspace);
   const admission=await accountAdmission(request,env,user,"chat");
+  const generate = stream
+    ? (prompt, context) => generateAnswerStream(env, prompt, { ...context, signal: request.signal }, stream.onToken)
+    : (prompt, context) => generateAnswer(env, prompt, context);
   const vectorHits = activeVersionIds.length && (!chunkScoped || chunkIds.length) ? await searchChunks(env, { workspaceId: workspace, question,
     documentIds: activeDocumentIds, versionIds: activeVersionIds,
     indexGenerations: versions.filter(item => activeVersionIds.includes(item.id)).map(item => item.index_generation).filter(Boolean),
@@ -724,7 +730,7 @@ async function chat(request, env, user, workspace, member) {
       original_content_hash: hit.payload.original_content_hash, location: hit.payload.location } })), topK, settings.hybrid_search_alpha);
   requireCapability(await membership(env, user.id, workspace), "research:run");
   const sources=hits.map(hit=>({content:String(hit.payload?.content||""),filename:String(hit.payload?.filename||"document"),page_number:Number(hit.payload?.page_number||0),chunk_index:Number(hit.payload?.chunk_index||0),relevance_score:Number(hit.score||hit.lexical_score||0),document_type:String(hit.payload?.document_type||"text"),metadata:{document_id:hit.payload?.document_id,version_id:hit.payload?.version_id,chunk_id:hit.payload?.chunk_id,hybrid_rrf:hit.rrf,original_content_hash:hit.payload?.original_content_hash,location:hit.payload?.location,authority:"SUPABASE_HASH_VERIFIED"}}));let response;
-  if(!sources.length)response={answer:"I could not find sufficient evidence in the selected non-sensitive workspace documents, so I cannot answer reliably.",sources:[],query_type:"general",confidence:0,response_time_seconds:(Date.now()-started)/1000,metadata:{claim_state:"UNSUPPORTED",abstained:true,session_id:sessionId}};else{const generated=await generateAnswer(env,groundedPrompt(question,hits),{workspaceId:workspace,priority:"interactive",dataClassification:"non_sensitive",actorId:user.id,userApiKey:admission.userApiKey,credentialMode:admission.credentialMode,temperature:settings.llm_temperature});const checked=assessAnswer(generated.answer,sources);const byok=admission.credentialMode==="user_byok";response={answer:checked.answer,sources,query_type:"hybrid",confidence:0,response_time_seconds:(Date.now()-started)/1000,metadata:{claim_state:checked.claim_state,abstained:checked.abstained,validated_citation_ids:checked.citations,citation_required:true,model:generated.model,paid_fallback:false,retrieval:"rrf_dense_lexical",session_id:sessionId,provider_cost_status:"UNKNOWN",provider_cost_owner:byok?"USER_GOOGLE_PROJECT":"CONFIGURED_GOOGLE_PROJECT"}};await serviceRequest(env,"llm_usage_events",{method:"POST",body:JSON.stringify([{workspace_id:workspace,user_id:user.id,provider:"gemini",model:generated.model,operation:byok?"grounded_chat_byok":"grounded_chat_platform",input_tokens:generated.usage.promptTokenCount||null,output_tokens:generated.usage.candidatesTokenCount||null,success:true,cost_microusd:null}])}).catch(()=>null);}
+  if(!sources.length)response={answer:"I could not find sufficient evidence in the selected non-sensitive workspace documents, so I cannot answer reliably.",sources:[],query_type:"general",confidence:0,response_time_seconds:(Date.now()-started)/1000,metadata:{claim_state:"UNSUPPORTED",abstained:true,session_id:sessionId}};else{const generated=await generate(groundedPrompt(question,hits),{workspaceId:workspace,priority:"interactive",dataClassification:"non_sensitive",actorId:user.id,userApiKey:admission.userApiKey,credentialMode:admission.credentialMode,temperature:settings.llm_temperature});const checked=assessAnswer(generated.answer,sources);const byok=admission.credentialMode==="user_byok";response={answer:checked.answer,sources,query_type:"hybrid",confidence:0,response_time_seconds:(Date.now()-started)/1000,metadata:{claim_state:checked.claim_state,abstained:checked.abstained,validated_citation_ids:checked.citations,citation_required:true,model:generated.model,paid_fallback:false,retrieval:"rrf_dense_lexical",session_id:sessionId,provider_cost_status:"UNKNOWN",provider_cost_owner:byok?"USER_GOOGLE_PROJECT":"CONFIGURED_GOOGLE_PROJECT"}};await serviceRequest(env,"llm_usage_events",{method:"POST",body:JSON.stringify([{workspace_id:workspace,user_id:user.id,provider:"gemini",model:generated.model,operation:byok?"grounded_chat_byok":"grounded_chat_platform",input_tokens:generated.usage.promptTokenCount||null,output_tokens:generated.usage.candidatesTokenCount||null,success:true,cost_microusd:null}])}).catch(()=>null);}
   // Revalidate before returning/persisting: a concurrent deletion, replacement,
   // or role revocation must not resurrect previously retrieved private evidence.
   requireCapability(await membership(env, user.id, workspace), "research:run");
@@ -764,6 +770,37 @@ async function chat(request, env, user, workspace, member) {
   const committed = await privateTurnRequest(request, env, workspace, sessionId, "commit_gateway_private_turn", turnPayload);
   response.metadata.session_revision = committed.revision;
   await audit(env,request,user.id,workspace,"research.run","query"); return response;
+}
+/**
+ * Answers a question as server-sent events (NX-21): `token` events carry the answer as Gemini writes it, then
+ * `done` carries the checked and saved answer, or `error` says why it could not be completed. A request that
+ * fails before the first token gets the same HTTP error as a JSON request.
+ */
+async function chatStream(request, env, user, workspace, member) {
+  const encoder = new TextEncoder();
+  const waiting = [];
+  let controller = null, firstToken;
+  const emit = (event, data) => {
+    const bytes = encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+    if (controller) controller.enqueue(bytes); else waiting.push(bytes);
+  };
+  const started = new Promise((resolve) => { firstToken = resolve; });
+  const outcome = chat(request, env, user, workspace, member, { onToken(content) { emit("token", { content }); firstToken(); } });
+  // Rejects, and so fails the request normally, when the answer fails before anything was written.
+  await Promise.race([started, outcome]);
+  const body = new ReadableStream({
+    start(c) {
+      controller = c;
+      for (const bytes of waiting.splice(0)) c.enqueue(bytes);
+      return outcome.then((result) => emit("done", result), (error) => emit("error", {
+        code: error?.code || "INTERNAL_ERROR", message: error?.message || "The answer could not be completed.",
+        status: error?.status || 500, retryable: Boolean(error?.status === 429 || error?.status === 503 || error?.retryable),
+      })).finally(() => c.close());
+    },
+  });
+  const output = headers(request, env);
+  output.set("content-type", "text/event-stream; charset=utf-8");
+  return new Response(body, { status: 200, headers: output });
 }
 async function handle(request, env = {}) {
   const url = new URL(request.url);
@@ -1066,9 +1103,9 @@ async function handle(request, env = {}) {
       }
     }
     if (url.pathname === "/api/v1/chat" && request.method === "POST") {
-      const id=workspaceId(request);const member=await membership(env,user.id,id);const result=await chat(request,env,user,id,member);
-      if((request.headers.get("accept")||"").includes("text/event-stream")){const encoder=new TextEncoder();const stream=new ReadableStream({start(controller){for(const token of result.answer.match(/.{1,96}/gs)||[])controller.enqueue(encoder.encode(`event: token\ndata: ${JSON.stringify({content:token})}\n\n`));controller.enqueue(encoder.encode(`event: sources\ndata: ${JSON.stringify({sources:result.sources})}\n\nevent: done\ndata: ${JSON.stringify({metadata:result.metadata})}\n\n`));controller.close();}});const output=headers(request,env);output.set("content-type","text/event-stream; charset=utf-8");output.set("connection","keep-alive");return new Response(stream,{status:200,headers:output});}
-      return json(request,env,result);
+      const id=workspaceId(request);const member=await membership(env,user.id,id);
+      if((request.headers.get("accept")||"").includes("text/event-stream"))return await chatStream(request,env,user,id,member);
+      return json(request,env,await chat(request,env,user,id,member));
     }
 
     if (url.pathname === "/api/v1/billing/usage" && (request.method === "GET" || request.method === "HEAD")) {
@@ -1158,7 +1195,7 @@ async function handle(request, env = {}) {
           enable_async_ingestion: Boolean(env.INGESTION_QUEUE?.send),
           max_upload_size_mb: 10,
         },
-        capabilities: { streaming: false, hybrid_search: true, semantic_cache: false, reranking: false, semantic_chunking: false, ocr: false },
+        capabilities: { streaming: true, hybrid_search: true, semantic_cache: false, reranking: false, semantic_chunking: false, ocr: false },
         metered_operations: "REVIEW_REQUIRED",
         paid_fallback: false,
         product_readiness: "NOT_VERIFIED",

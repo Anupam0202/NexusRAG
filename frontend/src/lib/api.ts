@@ -153,13 +153,15 @@ async function request<T>(
     if (error && typeof error === "object" && "code" in error && error.code === "AUTH_CONTEXT_CHANGED") throw error;
     throw new Error("Backend connection was interrupted. Please retry after the service is live.");
   }
-  if (!res.ok) {
-    const error = await readErrorMessage(res, `HTTP ${res.status}`);
-    const retry=res.headers.get("Retry-After");
-    const seconds=retry&&/^\d+$/.test(retry)?Number(retry):retry?Math.ceil((Date.parse(retry)-Date.now())/1000):undefined;
-    throw new ApiRequestError(error.message,error.code,res.status,seconds!==undefined&&Number.isSafeInteger(seconds)&&seconds>=0?seconds:undefined);
-  }
+  if (!res.ok) throw await responseError(res);
   return res.json();
+}
+
+async function responseError(res: Response) {
+  const error = await readErrorMessage(res, `HTTP ${res.status}`);
+  const retry=res.headers.get("Retry-After");
+  const seconds=retry&&/^\d+$/.test(retry)?Number(retry):retry?Math.ceil((Date.parse(retry)-Date.now())/1000):undefined;
+  return new ApiRequestError(error.message,error.code,res.status,seconds!==undefined&&Number.isSafeInteger(seconds)&&seconds>=0?seconds:undefined);
 }
 
 // Documents
@@ -296,12 +298,74 @@ export async function downloadDocumentOriginal(documentId: string, versionId: st
 
 // Chat
 
-export async function chatQuery(body: QueryRequest, context: ApiRequestContext = {}): Promise<QueryResponse> {
-  return request("/api/v1/chat", {
-    method: "POST",
-    body: JSON.stringify(body),
-    headers: { "Idempotency-Key": crypto.randomUUID() },
-  }, context);
+/**
+ * Asks a question. With `onToken`, the answer streams (NX-21): each piece goes to `onToken` as it is written,
+ * and the promise resolves with the checked and saved answer, which replaces the streamed text when the
+ * citation check failed. A gateway that answers with JSON instead is accepted as a finished answer.
+ */
+export async function chatQuery(body: QueryRequest, context: ApiRequestContext = {}, onToken?: (token: string) => void): Promise<QueryResponse> {
+  if (!onToken) {
+    return request("/api/v1/chat", {
+      method: "POST",
+      body: JSON.stringify(body),
+      headers: { "Idempotency-Key": crypto.randomUUID() },
+    }, context);
+  }
+  let res: Response;
+  try {
+    const headers = await getApiHeaders({ workspaceId: context.workspaceId, expectedUserId: context.expectedUserId });
+    res = await fetch(buildBackendUrl("/api/v1/chat"), {
+      method: "POST",
+      cache: "no-store",
+      body: JSON.stringify(body),
+      headers: { ...headers, "Idempotency-Key": crypto.randomUUID(), Accept: "text/event-stream" },
+    });
+  } catch (error) {
+    if (error && typeof error === "object" && "code" in error && error.code === "AUTH_CONTEXT_CHANGED") throw error;
+    throw new Error("Backend connection was interrupted. Please retry after the service is live.");
+  }
+  if (!res.ok) throw await responseError(res);
+  if (!(res.headers.get("content-type") || "").includes("text/event-stream") || !res.body) return res.json();
+  return readAnswerStream(res.body, onToken);
+}
+
+// Server-sent events from the gateway: `token` pieces, then `done` (the answer) or `error`.
+async function readAnswerStream(body: ReadableStream<Uint8Array>, onToken: (token: string) => void): Promise<QueryResponse> {
+  const reader = body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  const take = (block: string): QueryResponse | undefined => {
+    const lines = block.split(/\r?\n/);
+    const name = lines.find((line) => line.startsWith("event:"))?.slice(6).trim();
+    const data = lines.filter((line) => line.startsWith("data:")).map((line) => line.slice(5).trimStart()).join("\n");
+    if (!name || !data) return undefined;
+    const payload = JSON.parse(data);
+    if (name === "token" && typeof payload?.content === "string") onToken(payload.content);
+    if (name === "error") {
+      throw new ApiRequestError(typeof payload?.message === "string" ? payload.message : "The answer could not be completed.",
+        typeof payload?.code === "string" ? payload.code : undefined, typeof payload?.status === "number" ? payload.status : undefined);
+    }
+    return name === "done" ? payload as QueryResponse : undefined;
+  };
+  for (;;) {
+    let chunk: ReadableStreamReadResult<Uint8Array>;
+    try {
+      chunk = await reader.read();
+    } catch {
+      throw new Error("Backend connection was interrupted. Please retry after the service is live.");
+    }
+    if (chunk.done) break;
+    buffer += decoder.decode(chunk.value, { stream: true });
+    for (let end = buffer.search(/\r?\n\r?\n/); end !== -1; end = buffer.search(/\r?\n\r?\n/)) {
+      const answer = take(buffer.slice(0, end));
+      buffer = buffer.slice(end).replace(/^\r?\n\r?\n/, "");
+      if (answer) { void reader.cancel().catch(() => {}); return answer; }
+    }
+  }
+  buffer += decoder.decode();
+  const answer = buffer.trim() ? take(buffer) : undefined;
+  if (answer) return answer;
+  throw new ApiRequestError("The answer was interrupted before it was saved. Please ask again.", "STREAM_INTERRUPTED");
 }
 
 export async function clearSession(

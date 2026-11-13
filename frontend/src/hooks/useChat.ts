@@ -77,10 +77,12 @@ export function useChat() {
       return current.authMode === store.authMode && current.authUser?.id === userId && current.workspaceId === workspaceId && current.sessionId === req.session_id;
     };
     try {
-      const response = await chatQuery(req, { workspaceId, expectedUserId: store.authMode === "authenticated" ? userId ?? null : undefined });
+      // The answer streams in as it is written; the final answer is the checked one and replaces it.
+      const response = await chatQuery(req, { workspaceId, expectedUserId: store.authMode === "authenticated" ? userId ?? null : undefined },
+        (token) => { if (isCurrentContext()) store.appendToken(id, token); });
       if (!isCurrentContext()) return;
-      store.appendToken(id, response.answer);
       store.finishAssistant(id, {
+        content: response.answer,
         sources: response.sources,
         queryType: response.query_type,
         confidence: response.confidence,
