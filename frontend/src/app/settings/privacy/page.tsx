@@ -19,7 +19,7 @@ import { useWorkspaceApiAccess } from "@/hooks/useAuthGate";
 import { navigateStatic } from "@/lib/static-navigation";
 import { useStore } from "@/hooks/useStore";
 import { setStoredWorkspaceId } from "@/lib/api-context";
-import { deleteDocumentsBestEffort, normalizeRetentionSchedule } from "@/lib/workspace-controls";
+import { deleteDocumentsBestEffort, normalizeRetentionSchedule, retentionRunSummary } from "@/lib/workspace-controls";
 import { ProcessingPolicyPanel } from "@/components/settings/ProcessingPolicyPanel";
 import type { WorkspaceRole } from "@/types";
 
@@ -51,6 +51,11 @@ function PrivacyWorkbench() {
   const [retentionEnabled, setRetentionEnabled] = useState(false);
   const [retentionDays, setRetentionDays] = useState(30);
   const [lastRetentionAt, setLastRetentionAt] = useState<string | null>(null);
+  const [nextRetentionAt, setNextRetentionAt] = useState<string | null>(null);
+  const [savedRetentionEnabled, setSavedRetentionEnabled] = useState(false);
+  // Turning retention on deletes data within minutes, so saving it takes a second, deliberate click. Holds the
+  // cutoff date the confirmation names.
+  const [confirmRetentionBefore, setConfirmRetentionBefore] = useState<string | null>(null);
   // Offered only when the gateway confirms it can carry them out (NX-16).
   const [retentionSupported, setRetentionSupported] = useState(false);
   const [workspaceDeletionSupported, setWorkspaceDeletionSupported] = useState(false);
@@ -72,8 +77,10 @@ function PrivacyWorkbench() {
         setRole(workspace.role);
         setDocumentCount(documents.total);
         setRetentionEnabled(privacy.retention_enabled);
+        setSavedRetentionEnabled(privacy.retention_enabled);
         setRetentionDays(privacy.retention_days || 30);
         setLastRetentionAt(privacy.last_retention_at ?? null);
+        setNextRetentionAt(privacy.retention_enabled ? privacy.next_retention_at ?? null : null);
         setRetentionSupported(privacy.retention_mutation_supported === true);
         setWorkspaceDeletionSupported(privacy.workspace_deletion_supported === true);
         setWorkspaceDataState("ready");
@@ -176,17 +183,32 @@ function PrivacyWorkbench() {
       ? "Loading secure workspace data..."
       : "Workspace data could not be loaded. Refresh and try again.";
 
-  const saveRetention = async () => {
+  const saveRetention = async (confirmed = false) => {
     if (!canManageRetention || working) return;
+    let payload: ReturnType<typeof normalizeRetentionSchedule>;
+    try {
+      payload = normalizeRetentionSchedule(retentionEnabled, retentionDays);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Choose a valid number of days");
+      return;
+    }
+    if (payload.retention_enabled && !confirmed) {
+      setConfirmRetentionBefore(new Date(Date.now() - payload.retention_days * 86_400_000).toLocaleDateString());
+      return;
+    }
+    setConfirmRetentionBefore(null);
     setWorking("retention");
     try {
-      const payload = normalizeRetentionSchedule(retentionEnabled, retentionDays);
       const saved = await updatePrivacySettings(payload, context);
       if (!alive.current) return;
       setRetentionEnabled(saved.retention_enabled);
+      setSavedRetentionEnabled(saved.retention_enabled);
       setRetentionDays(saved.retention_days || 30);
       setLastRetentionAt(saved.last_retention_at ?? null);
-      toast.success(saved.retention_enabled ? "Retention schedule saved" : "Retention disabled");
+      setNextRetentionAt(saved.retention_enabled ? saved.next_retention_at ?? null : null);
+      toast.success(saved.retention_enabled
+        ? `Retention is on: content older than ${saved.retention_days} days is removed every day, starting within a few minutes.`
+        : "Retention is off. Nothing is removed on a schedule.");
     } catch (error) {
       if (!alive.current) return;
       toast.error(error instanceof Error ? error.message : "Unable to save retention");
@@ -206,11 +228,8 @@ function PrivacyWorkbench() {
       setDocuments(documents.documents);
       setDocumentCount(documents.total);
       setLastRetentionAt(privacy.last_retention_at ?? null);
-      if (result.failures.length) {
-        toast.error(`${result.documents_deleted} documents deleted; ${result.failures.length} failed.`);
-      } else {
-        toast.success(`${result.documents_deleted} expired documents removed`);
-      }
+      setNextRetentionAt(privacy.retention_enabled ? privacy.next_retention_at ?? null : null);
+      toast.success(retentionRunSummary(result));
     } catch (error) {
       if (!alive.current) return;
       toast.error(error instanceof Error ? error.message : "Unable to run retention");
@@ -301,16 +320,20 @@ function PrivacyWorkbench() {
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-semibold">Retention schedule</p>
                 <p className="mt-1 text-xs leading-5 text-[var(--text-muted)]">
-                  Remove documents and chat sessions older than the configured period.
+                  Every day, permanently delete documents uploaded more than the chosen number of days ago, chat
+                  messages and research results older than that, and conversations unused for that long. Saved
+                  findings, what they cite, and Radar pages are kept.
                   {lastRetentionAt ? ` Last run ${new Date(lastRetentionAt).toLocaleString()}.` : ""}
+                  {nextRetentionAt ? ` Next run ${new Date(nextRetentionAt).toLocaleString()}.` : ""}
                 </p>
                 {canManageRetention ? (
+                  <>
                   <div className="mt-3 grid gap-3 sm:grid-cols-[auto_minmax(0,1fr)_auto_auto] sm:items-end">
                     <label className="flex items-center gap-2 py-2 text-sm font-semibold">
                       <input
                         type="checkbox"
                         checked={retentionEnabled}
-                        onChange={(event) => setRetentionEnabled(event.target.checked)}
+                        onChange={(event) => { setRetentionEnabled(event.target.checked); setConfirmRetentionBefore(null); }}
                       />
                       Enabled
                     </label>
@@ -322,7 +345,7 @@ function PrivacyWorkbench() {
                         max={3650}
                         value={retentionDays}
                         disabled={!retentionEnabled}
-                        onChange={(event) => setRetentionDays(Number(event.target.value))}
+                        onChange={(event) => { setRetentionDays(Number(event.target.value)); setConfirmRetentionBefore(null); }}
                         className="mt-1 w-full rounded-lg border border-[var(--border)] bg-[var(--bg-primary)] px-3 py-2 text-sm text-[var(--text-primary)] disabled:opacity-50"
                       />
                     </label>
@@ -338,13 +361,41 @@ function PrivacyWorkbench() {
                     <button
                       type="button"
                       onClick={() => void runRetentionNow()}
-                      disabled={!retentionEnabled || working !== null}
+                      disabled={!savedRetentionEnabled || working !== null}
+                      title={savedRetentionEnabled ? undefined : "Turn retention on and save first"}
                       className="inline-flex items-center justify-center gap-2 rounded-lg bg-brand-600 px-3 py-2 text-sm font-semibold text-white hover:bg-brand-500 disabled:opacity-50"
                     >
                       {working === "retention-run" ? <Loader2 size={15} className="animate-spin" /> : <Play size={15} />}
                       Run now
                     </button>
                   </div>
+                  {confirmRetentionBefore && (
+                    <div role="alert" className="mt-3 rounded-lg border border-red-300 bg-red-50/70 p-3 text-xs leading-5 text-red-900 dark:border-red-900 dark:bg-red-950/20 dark:text-red-200">
+                      <p>
+                        Within a few minutes, documents uploaded before {confirmRetentionBefore} and chat messages
+                        and research results from before then are permanently deleted, and the same happens every
+                        day after. This cannot be undone.
+                      </p>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={() => void saveRetention(true)}
+                          disabled={working !== null}
+                          className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-3 py-1.5 font-semibold text-white hover:bg-red-500 disabled:opacity-50"
+                        >
+                          Delete on this schedule
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setConfirmRetentionBefore(null)}
+                          className="rounded-lg border border-[var(--border)] px-3 py-1.5 font-semibold hover:bg-[var(--bg-hover)]"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                  </>
                 ) : workspaceDataReady ? (
                   <p className="mt-3 text-xs font-semibold text-[var(--text-muted)]">
                     {retentionSupported

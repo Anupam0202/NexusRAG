@@ -293,6 +293,24 @@ export interface PrivacySettingsResponse {
   next_retention_at?: string | null;
 }
 
+/** One retention run: what it removed, and whether more is left for the next run. */
+export interface RetentionRunReceipt {
+  workspace_deleted: false;
+  cutoff: string | null;
+  /** Removed from the workspace at once; their stored copies are erased in the background. */
+  documents_deleted: number;
+  documents_pending_erasure: number;
+  documents_kept_for_radar: number;
+  chat_messages_deleted: number;
+  chat_sessions_deleted: number;
+  chat_titles_cleared: number;
+  workbench_runs_redacted: number;
+  research_runs_deleted: number;
+  runs_kept_for_findings: number;
+  more_remaining: boolean;
+  failures: [];
+}
+
 export interface WorkspaceLifecycleResponse {
   workspace_deleted: boolean;
   documents_deleted: number;

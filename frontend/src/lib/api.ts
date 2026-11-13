@@ -32,6 +32,7 @@ import type {
   WorkspaceMembersResponse,
   WorkspaceLifecycleResponse,
   WorkspaceSummary,
+  RetentionRunReceipt,
 } from "@/types";
 import { getApiHeaders } from "@/lib/api-context";
 import { buildBackendUrl } from "@/lib/backend-url";
@@ -431,9 +432,26 @@ export async function updatePrivacySettings(body: {
   }, context);
 }
 
-export async function runRetention(context: ApiRequestContext = {}): Promise<WorkspaceLifecycleResponse> {
+const RETENTION_COUNTS = [
+  "documents_deleted", "documents_pending_erasure", "documents_kept_for_radar", "chat_messages_deleted",
+  "chat_sessions_deleted", "chat_titles_cleared", "workbench_runs_redacted", "research_runs_deleted", "runs_kept_for_findings",
+] as const;
+
+/** A run is reported as done only when the gateway confirms every count and no failure. */
+export function isRetentionReceipt(value: unknown): value is RetentionRunReceipt {
+  if (!value || typeof value !== "object") return false;
+  const receipt = value as Record<string, unknown>;
+  if (receipt.workspace_deleted !== false || typeof receipt.more_remaining !== "boolean"
+    || !Array.isArray(receipt.failures) || receipt.failures.length !== 0) return false;
+  return RETENTION_COUNTS.every(key => {
+    const count = receipt[key];
+    return typeof count === "number" && Number.isSafeInteger(count) && count >= 0;
+  });
+}
+
+export async function runRetention(context: ApiRequestContext = {}): Promise<RetentionRunReceipt> {
   const receipt = await request<unknown>("/api/v1/privacy/retention/run", { method: "POST" }, context);
-  if (!isConfirmedLifecycleResponse(receipt, false)) throw unconfirmedCleanup("Retention cleanup");
+  if (!isRetentionReceipt(receipt)) throw unconfirmedCleanup("Retention cleanup");
   return receipt;
 }
 

@@ -86,19 +86,26 @@ describe("confirmed cleanup responses", () => {
     await expect(deleteCurrentWorkspace(context)).resolves.toEqual(receipt);
   });
 
+  const retention = {
+    workspace_deleted: false, cutoff: "2026-10-14T12:00:00+00:00", documents_deleted: 2, documents_pending_erasure: 2,
+    documents_kept_for_radar: 0, chat_messages_deleted: 14, chat_sessions_deleted: 1, chat_titles_cleared: 1,
+    workbench_runs_redacted: 0, research_runs_deleted: 0, runs_kept_for_findings: 0, more_remaining: false, failures: [],
+  };
+
   it.each([
-    null, {}, { ...lifecycle, failures: null },
-    { ...lifecycle, failures: [{ document_id: "a", message: "pending" }] },
-    { ...lifecycle, documents_deleted: -1 }, { ...lifecycle, documents_deleted: 1.5 },
-    { ...lifecycle, documents_deleted: "2" }, { ...lifecycle, workspace_deleted: true },
+    null, {}, lifecycle, { ...retention, failures: null },
+    { ...retention, failures: [{ document_id: "a", message: "pending" }] },
+    { ...retention, documents_deleted: -1 }, { ...retention, documents_deleted: 1.5 },
+    { ...retention, documents_deleted: "2" }, { ...retention, workspace_deleted: true },
+    { ...retention, chat_messages_deleted: undefined }, { ...retention, more_remaining: "no" },
   ])("rejects malformed, partial or unexpected retention completion %j", async body => {
     respond(body);
     await expect(runRetention(context)).rejects.toMatchObject({ code: "CLEANUP_UNCONFIRMED" });
   });
 
   it("accepts bounded confirmed retention counts without erasing the workspace", async () => {
-    respond(lifecycle);
-    await expect(runRetention(context)).resolves.toEqual(lifecycle);
+    respond(retention);
+    await expect(runRetention(context)).resolves.toEqual(retention);
   });
 
   it("does not retry an ambiguous mutation automatically", async () => {

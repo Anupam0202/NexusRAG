@@ -13,6 +13,7 @@ import { deleteQdrantDocument, hybridFuse } from "./worker-lifecycle.js";
 import { activeGenerationModel, checkGeminiModels, embeddingModel, isDailyModelCheckWindow } from "./gemini-models.js";
 import { checkReadiness } from "./readiness.js";
 import { finishDocumentDeletion, sweepDeletions } from "./document-deletion.js";
+import { runDueRetention, runRetentionNow, setRetention } from "./retention.js";
 import { indexUsable, keepIndexAwake, probeIndex } from "./search-index.js";
 import { handleQueue, sweepJobs } from "./worker-jobs.js";
 import { candidateChunkIds, rehydrateEvidence } from "./retrieval-authority.js";
@@ -981,13 +982,26 @@ async function handle(request, env = {}) {
         throw error;
       }
     }
-    if (url.pathname === "/api/v1/privacy/settings" && (request.method === "GET" || request.method === "HEAD")) {
-      const id = workspaceId(request); await membership(env, user.id, id);
+    if (url.pathname === "/api/v1/privacy/settings" && ["GET", "HEAD", "PATCH"].includes(request.method)) {
+      const id = workspaceId(request); const member = await membership(env, user.id, id);
+      const flags = { retention_mutation_supported: true, workspace_deletion_supported: false };
+      if (request.method === "PATCH") {
+        if (!["owner", "admin"].includes(member.role)) return fail(request, env, "FORBIDDEN", "Only a workspace owner or administrator can change retention.", 403);
+        const saved = await setRetention(env, { workspace: id, actor: user.id, body: await readJsonBody(request) }, { db: serviceRequest });
+        await audit(env, request, user.id, id, "privacy.retention_update", "workspace_settings");
+        return json(request, env, { ...saved, ...flags });
+      }
       const rows = await serviceRequest(env, `workspace_settings?workspace_id=eq.${id}&select=retention_enabled,retention_days,last_retention_at,next_retention_at&limit=1`);
       return json(request, env, {
-        ...(rows[0] || { retention_enabled: false, retention_days: 0, last_retention_at: null, next_retention_at: null }),
-        retention_mutation_supported: false, workspace_deletion_supported: false,
+        ...(rows[0] || { retention_enabled: false, retention_days: 0, last_retention_at: null, next_retention_at: null }), ...flags,
       });
+    }
+    if (url.pathname === "/api/v1/privacy/retention/run" && request.method === "POST") {
+      const id = workspaceId(request); const member = await membership(env, user.id, id);
+      if (!["owner", "admin"].includes(member.role)) return fail(request, env, "FORBIDDEN", "Only a workspace owner or administrator can run retention.", 403);
+      const receipt = await runRetentionNow(env, { workspace: id, actor: user.id }, { db: serviceRequest });
+      await audit(env, request, user.id, id, "privacy.retention_run", "workspace_settings");
+      return json(request, env, receipt);
     }
     if (url.pathname === "/api/v1/audit" && (request.method === "GET" || request.method === "HEAD")) {
       const id = workspaceId(request); const member = await membership(env, user.id, id);
@@ -1281,7 +1295,8 @@ async function queue(batch,env){return handleQueue(batch,env)}
 // Once a day: which Gemini models are still served, and one question to the search index, which also keeps
 // a free cluster from being suspended for inactivity.
 const dailyChecks=env=>Promise.all([checkGeminiModels(env).catch(()=>undefined),keepIndexAwake(env).catch(()=>undefined)]);
-// Every run also finishes deletions that could not complete when they were requested.
-async function scheduled(event,env,ctx){ctx.waitUntil(sweepJobs(env));ctx.waitUntil(sweepDeletions(env,deletionTools));if(isDailyModelCheckWindow(event?.scheduledTime))ctx.waitUntil(dailyChecks(env))}
+// Every run also finishes deletions that could not complete when they were requested, and carries out one
+// workspace's retention run when one is due.
+async function scheduled(event,env,ctx){ctx.waitUntil(sweepJobs(env));ctx.waitUntil(sweepDeletions(env,deletionTools));ctx.waitUntil(runDueRetention(env,{db:serviceRequest}));if(isDailyModelCheckWindow(event?.scheduledTime))ctx.waitUntil(dailyChecks(env))}
 export { allowRequest, handle, queue, scheduled, storageDelete };
 export default { fetch: handle, queue, scheduled };
