@@ -2,6 +2,7 @@
 
 import { createBrowserClient } from "@supabase/ssr";
 import type { Database } from "@/types/database.generated";
+import { browserLock } from "@/lib/supabase/lock";
 import {
   hasPublicSupabaseConfig,
   requirePublicSupabaseConfig,
@@ -11,5 +12,5 @@ export { hasPublicSupabaseConfig };
 
 export function createSupabaseBrowserClient() {
   const { url, publishableKey } = requirePublicSupabaseConfig();
-  return createBrowserClient<Database>(url, publishableKey);
+  return createBrowserClient<Database>(url, publishableKey, { auth: { lock: browserLock } });
 }
