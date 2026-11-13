@@ -97,6 +97,13 @@ export function useChat() {
         store.setConnectionStatus("online");
         return;
       }
+      // The key itself is the problem: ask for one again and keep the gateway's explanation (NX-14).
+      if (err instanceof ApiRequestError && (err.code === "PROVIDER_KEY_REJECTED" || err.code === "PROVIDER_CREDIT_EXHAUSTED")) {
+        store.setShowApiKeyModal(true);
+        store.setError(id, message);
+        store.setConnectionStatus("online");
+        return;
+      }
       if (err instanceof ApiRequestError && err.code === "BYOK_REQUIRED") {
         store.setIsQuotaBlocked(true);
         store.setShowApiKeyModal(true);
@@ -104,7 +111,9 @@ export function useChat() {
         store.setConnectionStatus("online");
         return;
       }
-      if (/quota|rate.limit|429|resource.exhausted/i.test(message)) {
+      // A coded error carries a specific explanation; only an uncoded one gets the general sentence.
+      const coded = err instanceof ApiRequestError && Boolean(err.code);
+      if (!coded && /quota|rate.limit|429|resource.exhausted/i.test(message)) {
         store.setError(id, "The free-tier limit or workspace budget blocks this request. No paid fallback was used.");
         store.setConnectionStatus("online");
       } else {

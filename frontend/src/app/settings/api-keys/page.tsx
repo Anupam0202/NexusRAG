@@ -14,6 +14,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
+import { geminiKeyProblem } from "@/lib/gemini-key";
 import { deleteApiKey, getApiKeyStatus, setApiKey } from "@/lib/api";
 import { AuthRequiredState } from "@/components/auth/AuthRequiredState";
 import { useWorkspaceApiAccess } from "@/hooks/useAuthGate";
@@ -85,8 +86,9 @@ function AccountApiKeys() {
   const activate = async () => {
     if (!canAccessWorkspaceApi || isWorkspaceLoading) return;
     const trimmed = apiKey.trim();
-    if (trimmed.length < 10) {
-      toast.error("Enter a valid provider key");
+    const problem = geminiKeyProblem(trimmed);
+    if (problem) {
+      toast.error(problem);
       return;
     }
     if (!costConsentAccepted) {
@@ -282,7 +284,7 @@ function AccountApiKeys() {
 
               <button
                 type="submit"
-                disabled={loading || saving || removing || isWorkspaceLoading || apiKey.trim().length < 10 || !costConsentAccepted}
+                disabled={loading || saving || removing || isWorkspaceLoading || geminiKeyProblem(apiKey) !== null || !costConsentAccepted}
                 className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-linear-to-r/srgb from-brand-500 to-purple-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md transition hover:shadow-lg disabled:opacity-60 sm:w-auto"
               >
                 {saving ? <Loader2 size={15} className="animate-spin" /> : <CheckCircle2 size={15} />}

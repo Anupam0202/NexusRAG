@@ -6,6 +6,7 @@ import { setApiKey } from "@/lib/api";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { Key, X, Loader2, CheckCircle2, AlertTriangle, ExternalLink, Sparkles, ShieldAlert } from "lucide-react";
 import { toast } from "sonner";
+import { geminiKeyProblem } from "@/lib/gemini-key";
 
 export function ApiKeyModal() {
   const show = useStore(state => state.showApiKeyModal);
@@ -70,8 +71,9 @@ function AccountApiKeyModal() {
   const handleSubmit = async () => {
     if (!canActivate || loading) return;
     const trimmed = key.trim();
-    if (!trimmed || trimmed.length < 10) {
-      toast.error("Please enter a valid API key");
+    const problem = geminiKeyProblem(trimmed);
+    if (problem) {
+      toast.error(problem);
       return;
     }
     if (!costConsentAccepted) {
@@ -257,7 +259,7 @@ function AccountApiKeyModal() {
                   )}
                   <button
                     onClick={handleSubmit}
-                    disabled={!canActivate || loading || key.trim().length < 10 || !costConsentAccepted}
+                    disabled={!canActivate || loading || geminiKeyProblem(key) !== null || !costConsentAccepted}
                     className={`flex items-center justify-center gap-2 rounded-xl bg-linear-to-r/srgb from-brand-500 to-purple-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 ${isQuotaBlocked ? "w-full" : "flex-1"
                       }`}
                   >
