@@ -1,5 +1,6 @@
 "use client";
 
+import { InDevelopmentNotice } from "@/components/layout/InDevelopmentNotice";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { runSampleEvaluation } from "@/lib/api";
@@ -111,6 +112,7 @@ function WorkspaceEvaluations() {
   return (
     <div className="h-full overflow-y-auto">
       <div className="mx-auto max-w-6xl px-4 py-5 md:px-6 md:py-7 space-y-5">
+        <InDevelopmentNotice feature="evaluations" name="Evaluations" />
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div className="min-w-0">
             <div className="flex items-center gap-2">

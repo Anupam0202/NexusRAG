@@ -308,7 +308,7 @@ function WorkspaceRuntimeSettings() {
 
           <Toggle
             label="Re-ranking"
-            desc={memoryConstrained ? "Locked off on this backend profile" : "Cross-encoder re-scoring"}
+            desc={memoryConstrained ? "Not available on this server" : "Cross-encoder re-scoring"}
             checked={memoryConstrained ? false : draft.enable_reranking ?? settings.enable_reranking}
             disabled={memoryConstrained}
             onChange={(checked) => setDraft((d) => ({ ...d, enable_reranking: checked }))}
@@ -316,7 +316,7 @@ function WorkspaceRuntimeSettings() {
 
           <Toggle
             label="Semantic Chunking"
-            desc={memoryConstrained ? "Locked off on this backend profile" : "Embedding-aware split points for long text"}
+            desc={memoryConstrained ? "Not available on this server" : "Embedding-aware split points for long text"}
             checked={memoryConstrained ? false : draft.enable_semantic_chunking ?? settings.enable_semantic_chunking}
             disabled={memoryConstrained}
             onChange={(checked) => setDraft((d) => ({ ...d, enable_semantic_chunking: checked }))}
@@ -324,7 +324,7 @@ function WorkspaceRuntimeSettings() {
 
           <Toggle
             label="Contextual Enrichment"
-            desc={memoryConstrained ? "Locked off on this backend profile" : "LLM-generated chunk context before embedding"}
+            desc={memoryConstrained ? "Not available on this server" : "LLM-generated chunk context before embedding"}
             checked={memoryConstrained ? false : draft.enable_contextual_enrichment ?? settings.enable_contextual_enrichment}
             disabled={memoryConstrained}
             onChange={(checked) => setDraft((d) => ({ ...d, enable_contextual_enrichment: checked }))}

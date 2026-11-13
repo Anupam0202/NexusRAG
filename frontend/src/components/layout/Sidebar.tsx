@@ -5,24 +5,27 @@ import Link from "@/components/layout/StaticLink";
 import {
   MessageSquare, FileText, BarChart3, Settings, ChevronLeft,
   ChevronRight, Sparkles, Menu, X, ClipboardCheck, Building2,
-  Network, Activity, Code2,
+  Activity, Code2, FileSearch, FileCheck2,
 } from "lucide-react";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { useStore } from "@/hooks/useStore";
 import { useState, useEffect, useRef } from "react";
+import { enabledFeatures, type OptionalFeature } from "@/lib/features";
 
-const NAV = [
-  { href: "/evidence-os", label: "Evidence OS", icon: Network },
-  { href: "/radar", label: "Terms & Quota Radar", icon: Activity },
-  { href: "/evidence-api", label: "Evidence API", icon: Code2 },
+// The core journey first. Products still in development appear only when switched on (see lib/features.ts).
+const NAV: ReadonlyArray<{ href: string; label: string; icon: typeof MessageSquare; feature?: OptionalFeature }> = [
   { href: "/chat", label: "Chat", icon: MessageSquare },
   { href: "/documents", label: "Documents", icon: FileText },
+  { href: "/research", label: "Research", icon: FileSearch },
+  { href: "/findings", label: "Findings", icon: FileCheck2 },
   { href: "/workspaces", label: "Workspaces", icon: Building2 },
+  { href: "/radar", label: "Terms & Quota Radar", icon: Activity, feature: "radar" },
+  { href: "/evidence-api", label: "Evidence API", icon: Code2, feature: "evidence-api" },
   { href: "/analytics", label: "Analytics", icon: BarChart3 },
-  { href: "/evaluations", label: "Evaluations", icon: ClipboardCheck },
+  { href: "/evaluations", label: "Evaluations", icon: ClipboardCheck, feature: "evaluations" },
   { href: "/settings", label: "Settings", icon: Settings },
-] as const;
+];
 
 export function Sidebar() {
   const pathname = usePathname();
@@ -34,6 +37,7 @@ export function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const isCollapsed = collapsed && !mobileOpen;
+  const features = enabledFeatures();
 
   // Close mobile on route change
   useEffect(() => { setMobileOpen(false); }, [pathname]);
@@ -156,7 +160,7 @@ export function Sidebar() {
 
         {/* Navigation */}
         <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-1" role="navigation" aria-label="Main navigation">
-          {NAV.map((item) => {
+          {NAV.filter((item) => !item.feature || features.has(item.feature)).map((item) => {
             const active = pathname === item.href || pathname.startsWith(item.href + "/");
             const Icon = item.icon;
             return (

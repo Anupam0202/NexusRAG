@@ -125,7 +125,7 @@ describe("BillingOrUsagePage", () => {
   it("derives the vector backend label from qdrant status flags", async () => {
     mockUsageResponses({ qdrant_configured: true, enable_qdrant: true });
     render(<BillingOrUsagePage />);
-    await waitFor(() => { expect(screen.getByText("Vector backend")).toBeInTheDocument(); });
+    await waitFor(() => { expect(screen.getByText("Search index")).toBeInTheDocument(); });
     expect(screen.getByText("qdrant")).toBeInTheDocument();
     expect(screen.queryByText("unknown")).not.toBeInTheDocument();
   });
@@ -160,12 +160,12 @@ describe("BillingOrUsagePage", () => {
   it("removes private usage immediately when the account changes", async () => {
     mockUsageResponses();
     const view = render(<BillingOrUsagePage />);
-    await screen.findByText("Durable usage ledger");
+    await screen.findByText("Usage records");
     getAnalytics.mockImplementationOnce(() => new Promise(() => {}));
     act(() => useStore.setState({ authUser: { id: "user-b", email: null } }));
     view.rerender(<BillingOrUsagePage />);
     expect(screen.getByText("Loading usage")).toBeInTheDocument();
-    expect(screen.queryByText("Durable usage ledger")).not.toBeInTheDocument();
+    expect(screen.queryByText("Usage records")).not.toBeInTheDocument();
   });
 
 
@@ -175,7 +175,7 @@ describe("BillingOrUsagePage", () => {
     getSystemStatus.mockResolvedValue({ settings: {}, capabilities: {}, provider_health: [] });
     getApiKeyStatus.mockRejectedValue(new Error("Key lookup unavailable"));
     render(<BillingOrUsagePage />);
-    await screen.findByText("Durable usage ledger");
+    await screen.findByText("Usage records");
     expect(screen.getByText("Usage posture not verified")).toBeInTheDocument();
     expect(screen.getAllByText(/Limit not configured/)).toHaveLength(4);
     expect(screen.getByText("Key status unavailable")).toBeInTheDocument();

@@ -78,7 +78,7 @@ function AccountAuthCallback({ initialCallbackError }: { initialCallbackError: s
       }
 
       if (!hasPublicSupabaseConfig()) {
-        setError("Supabase browser variables are missing from this frontend deployment.");
+        setError("Sign-in is not set up on this site yet. Please tell the site's administrator.");
         return;
       }
 

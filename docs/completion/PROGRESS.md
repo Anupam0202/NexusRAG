@@ -47,7 +47,7 @@ built (NX-16 done offline); the live journey still stops at ingestion on the sha
 - Tier 1: [x] workspace creation on hosted Supabase [x] provider approval and budgets work without SQL
   [x] specific provider errors and the key prompt (NX-14; live check needs a key) [x] two-account live journey
   script [x] document deletion finishes (NX-47) [x] NX-03 Ready only when answerable [x] NX-16 no control calls
-  a missing endpoint [x] NX-21 real streaming (live for the no-evidence path) [ ] ingestion → answer → delete on
+  a missing endpoint [x] NX-21 real streaming (live for the no-evidence path) [x] NX-30 first run and plain wording [ ] ingestion → answer → delete on
   the preview (blocked: Gemini 402) [ ] frontend preview deploy (blocked: environment branch rule) [ ] NX-04,
   NX-05 verified live [ ] owner walkthrough
 - Tier 4 pulled forward because of NX-07: [x] Qdrant keep-alive, `/ready` and typed index errors (D15, NX-23)
@@ -78,6 +78,7 @@ built (NX-16 done offline); the live journey still stops at ingestion on the sha
 | 2026-11-13 | NX-21: real streaming from `streamGenerateContent`; the final event carries the checked and saved answer; errors before the first token keep their HTTP status | 1 (6 end-to-end tests on the real pipeline); 4 for the no-evidence path | `e50a239` |
 | 2026-11-13 | NX-28 part: security headers on every page, file and error (Worker and `_headers`), checked on the built Worker; hostile-markdown test | 2 | `5262bff` |
 | 2026-11-13 | NX-16 retention runs: owners and administrators set a number of days; every day (and on "Run now") documents uploaded before the cutoff go through the normal deletion, chat messages and research results from before it are removed, and conversations unused since are removed or closed; saved findings, what they cite and Radar pages stay. Turning it on asks for a second click that names the cutoff date | 3 (local replay with new assertions; 926 gateway and 776 frontend tests); 4 on 13 November (below) | `f589e7b` |
+| 2026-11-13 | NX-30, NX-40: navigation follows the core journey; products in development are switched off by `NEXT_PUBLIC_FEATURES` (D10); plain overview page without placeholder statuses; error screens with a retry; plain wording; publishable key name first. Playwright 1.60 → 1.63 so CI and this container use the same Chromium; visual baselines regenerated | 2 (built app: 48 public smoke and 4 visual tests, Radar and Evidence API browser suites; 783 unit tests) | this commit |
 | 2026-11-13 | NX-16 workspace deletion: the owner types DELETE WORKSPACE; the workspace disappears for every member at once; jobs stop; its search index entries (by workspace filter, counted and verified) and stored originals (known keys, then anything left in its folder) are removed with receipts; one database function then removes every row of every table that has a `workspace_id`, checks that nothing is left and writes the last receipt; the cron finishes what a request could not. Members keep their accounts, Gemini keys and trial usage | 3 (assertions on a fixtures-only database and on the fully populated replay; 938 gateway and 777 frontend tests) | this commit |
 
 Live checks on the preview, 2026-11-13 evening: with the deletion migration applied (19:40 UTC), the cron finished

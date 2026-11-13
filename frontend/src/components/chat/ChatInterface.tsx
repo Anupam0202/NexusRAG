@@ -199,7 +199,7 @@ function WorkspaceChat() {
         store.clearMessages(); setActiveSources(null); // No durable session exists.
       } else {
         if (error instanceof ApiRequestError && error.code === "CONVERSATION_UNAVAILABLE") setLocalResetSession(sessionId);
-        toast.error(error instanceof Error ? error.message : "Unable to clear durable chat history. Messages were retained.");
+        toast.error(error instanceof Error ? error.message : "The chat could not be cleared. Your messages are unchanged; try again.");
       }
     } finally { if (current()) setClearing(false); }
   };

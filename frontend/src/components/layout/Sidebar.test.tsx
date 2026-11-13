@@ -9,6 +9,26 @@ function fixture() {
   return render(<div><Sidebar /><main aria-label="Application background"><button>Background action</button></main></div>);
 }
 
+describe("Navigation contents", () => {
+  afterEach(() => { delete process.env.NEXT_PUBLIC_FEATURES; });
+
+  it("leads with the core journey and leaves products in development out", () => {
+    useStore.setState({ documents: [] });
+    render(<Sidebar />);
+    const labels = screen.getAllByRole("link").map((link) => link.getAttribute("aria-label"));
+    expect(labels).toEqual(["Chat", "Documents", "Research", "Findings", "Workspaces", "Analytics", "Settings"]);
+  });
+
+  it("shows a product in development once it is switched on", () => {
+    process.env.NEXT_PUBLIC_FEATURES = "radar,evaluations";
+    useStore.setState({ documents: [] });
+    render(<Sidebar />);
+    expect(screen.getByRole("link", { name: "Terms & Quota Radar" })).toHaveAttribute("href", "/radar");
+    expect(screen.getByRole("link", { name: "Evaluations" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Evidence API" })).not.toBeInTheDocument();
+  });
+});
+
 describe("Accessible navigation", () => {
   beforeEach(() => {
     useStore.setState({ documents: [] });

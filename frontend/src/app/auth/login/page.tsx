@@ -110,7 +110,7 @@ export default function LoginPage() {
 
         {!supabaseReady ? (
           <div className="mb-4 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-200">
-            Supabase browser variables are missing from this frontend deployment.
+            Sign-in is not set up on this site yet. Please tell the site&apos;s administrator.
           </div>
         ) : null}
 

@@ -34,7 +34,7 @@
   "devDependencies": {
     "@eslint/js": "^9.39.4",
     "@opennextjs/cloudflare": "^1.20.16",
-    "@playwright/test": "^1.60.0",
+    "@playwright/test": "^1.63.0",
     "@tailwindcss/postcss": "^4.3.3",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
@@ -50,7 +50,7 @@
     "globals": "^17.13.0",
     "jsdom": "^29.1.1",
     "jsonld": "9.0.0",
-    "playwright": "^1.60.0",
+    "playwright": "^1.63.0",
     "postcss": "^8.5.28",
     "tailwindcss": "^4.3.3",
     "typescript": "^5.5.0",

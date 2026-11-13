@@ -1,5 +1,6 @@
 "use client";
 
+import { InDevelopmentNotice } from "@/components/layout/InDevelopmentNotice";
 import {useEffect,useRef,useState} from "react";
 import Link from "@/components/layout/StaticLink";
 import {AuthRequiredState} from "@/components/auth/AuthRequiredState";
@@ -109,6 +110,7 @@ function RadarWorkspace({workspace,user}:{workspace:string;user:string|null}){
     setChange({...change,finding_id:saved.id});setStatus("Source-linked Finding saved. Open Findings for independent revision review and export rights.");
   });
   return <div className="h-full overflow-y-auto px-4 py-6 md:px-8"><div className="mx-auto max-w-6xl space-y-5">
+    <InDevelopmentNotice feature="radar" name="Terms & Quota Radar" />
     <header className="flex flex-wrap items-center justify-between gap-3"><div><h1 className="text-xl font-semibold">Terms &amp; Quota Radar</h1>
       <p className="mt-1 text-sm text-[var(--text-muted)]">Compare selected evidence from supplied snapshots. Official origin is not independently fetched or verified.</p></div>
       <button className={button} disabled={busy} onClick={()=>setReload(value=>value+1)}>Refresh Radar</button></header>

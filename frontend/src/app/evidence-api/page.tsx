@@ -1,4 +1,5 @@
 "use client";
+import { InDevelopmentNotice } from "@/components/layout/InDevelopmentNotice";
 import {useEffect,useRef,useState} from "react";
 import {Code2,RefreshCw} from "lucide-react";
 import Link from "@/components/layout/StaticLink";
@@ -16,6 +17,7 @@ export default function EvidenceApiPage() {
   if(authMode!=="authenticated")return <div className="p-6"><AuthRequiredState authMode={authMode} nextPath="/evidence-api" title="Sign in to inspect obligation evidence"/></div>;
   if(!workspaceId)return <p role="status" className="p-6">Choose a workspace to inspect its shared obligation evidence.</p>;
   return <div role="region" aria-label="Obligation evidence reader" tabIndex={0} className="h-full min-w-0 overflow-y-auto p-4 md:p-8"><div className="mx-auto max-w-6xl space-y-5">
+    <InDevelopmentNotice feature="evidence-api" name="Evidence API" />
     <div className="flex flex-wrap items-start justify-between gap-3"><div><h1 className="flex items-center gap-2 text-2xl font-bold"><Code2/>Evidence API</h1>
       <p className="mt-2 text-sm text-[var(--text-muted)]">Inspect source-backed obligation candidates shared with you, with current review and serving permission.</p></div><Link className={button} href="/findings">Findings & rights review</Link></div>
     <label className="block max-w-sm text-sm">Reader action<select className={field} value={action} onChange={event=>setAction(event.target.value as ServingAction)}><option value="SERVE_API">REST API</option><option value="SERVE_MCP">Custom MCP</option></select></label>

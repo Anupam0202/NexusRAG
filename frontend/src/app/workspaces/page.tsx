@@ -105,7 +105,7 @@ function AccountWorkspaces() {
             </span>
             <div>
               <h2 className="text-lg font-bold">Workspaces</h2>
-              <p className="text-sm text-[var(--text-muted)]">Tenant isolation for documents, chats, and keys</p>
+              <p className="text-sm text-[var(--text-muted)]">Each workspace keeps its own documents, conversations and keys</p>
             </div>
           </div>
           <button

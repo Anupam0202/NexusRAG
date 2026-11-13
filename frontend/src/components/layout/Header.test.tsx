@@ -26,7 +26,7 @@ describe("Header", () => {
     getSystemStatus.mockReset();
     route.value = "/documents";
   });
-  it.each([["/evidence-os", "Evidence OS"], ["/radar", "Terms & Quota Radar"]])("uses the actual %s route title", async (path, title) => {
+  it.each([["/evidence-os", "About NexusRAG"], ["/radar", "Terms & Quota Radar"]])("uses the actual %s route title", async (path, title) => {
     route.value = path;
     getSystemStatus.mockRejectedValue(new Error("Offline fixture"));
     render(<Header />);

@@ -32,7 +32,7 @@ function AccountOnboarding() {
 
     const boot = async () => {
       if (!hasPublicSupabaseConfig()) {
-        setError("Supabase browser variables are missing from this frontend deployment.");
+        setError("Sign-in is not set up on this site yet. Please tell the site's administrator.");
         setLoading(false);
         return;
       }
@@ -120,7 +120,7 @@ function AccountOnboarding() {
           </span>
           <div>
             <h2 className="text-xl font-bold">Create your workspace</h2>
-            <p className="text-sm text-[var(--text-muted)]">Tenant-isolated documents and chat history</p>
+            <p className="text-sm text-[var(--text-muted)]">Documents and conversations, private to the people you invite</p>
           </div>
         </div>
 

@@ -65,7 +65,7 @@ describe("LoginPage", () => {
     expect(screen.getByRole("button", { name: "Continue with GitHub" })).toBeDisabled();
     expect(
       screen.getByText(
-        "Supabase browser variables are missing from this frontend deployment."
+        "Sign-in is not set up on this site yet. Please tell the site's administrator."
       )
     ).toBeVisible();
   });

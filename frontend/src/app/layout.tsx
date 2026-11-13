@@ -18,7 +18,7 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: "NexusRAG Evidence Intelligence OS",
-  description: "Rights-aware evidence workflows with reviewable claims, provenance, quotas, and portable evidence packages.",
+  description: "Ask questions about your documents and get answers with citations you can check, then save and review them as findings.",
   keywords: ["evidence intelligence", "RAG", "provenance", "research", "document intelligence", "NexusRAG"],
   icons: {
     icon: "/favicon.svg",

@@ -399,8 +399,8 @@ function PrivacyWorkbench() {
                 ) : workspaceDataReady ? (
                   <p className="mt-3 text-xs font-semibold text-[var(--text-muted)]">
                     {retentionSupported
-                      ? "Durable retention is available to authenticated workspace owners and administrators."
-                      : "Retention configuration and execution are not yet available on this bounded Worker."}
+                      ? "Only a workspace owner or administrator can change retention."
+                      : "Retention is not available on this server yet."}
                   </p>
                 ) : null}
               </div>
@@ -495,7 +495,7 @@ function PrivacyWorkbench() {
                   <p className="mt-3 text-xs font-semibold text-red-800 dark:text-red-200">
                     {workspaceDeletionSupported
                       ? "Only an authenticated workspace owner can delete the workspace."
-                      : "Workspace erasure is not yet available on this bounded Worker. Individual document deletion remains available."}
+                      : "Deleting a whole workspace is not available on this server yet. You can still delete documents one by one."}
                   </p>
                 ) : null}
               </div>

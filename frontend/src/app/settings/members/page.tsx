@@ -208,7 +208,7 @@ function MembersWorkbench() {
         </button>
         {!managementSupported && (
           <p className="mb-4 rounded-xl border border-[var(--border)] p-4 text-sm text-[var(--text-muted)]">
-            Membership is read-only on this bounded Worker. Adding, changing, and removing members is not yet available.
+            Members can only be viewed on this server for now. Adding, changing and removing members is not available yet.
           </p>
         )}
         {error && (

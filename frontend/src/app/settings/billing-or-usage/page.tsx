@@ -174,7 +174,7 @@ function WorkspaceUsage() {
 
             <div className="grid gap-3 md:grid-cols-3">
               <StatusPanel label="Provider key" value={!keyStatus ? "Key status unavailable" : byokActive ? "Your BYOK configured" : keyStatus.server_key_configured ? "Server key configured" : "No key configured"} />
-              <StatusPanel label="Vector backend" value={vectorBackend} />
+              <StatusPanel label="Search index" value={vectorBackend} />
               <StatusPanel label="Cache hits" value={analytics?.measurement_states?.cache === "DISABLED" ? "Disabled" : displayCount(analytics?.llm_cache_hits ?? analytics?.cache_hits)} />
             </div>
 
@@ -182,10 +182,10 @@ function WorkspaceUsage() {
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
                   <ReceiptText size={16} className="text-brand-500" />
-                  <p className="text-sm font-semibold">Durable usage ledger</p>
+                  <p className="text-sm font-semibold">Usage records</p>
                 </div>
                 <span className="text-xs font-semibold text-[var(--text-muted)]">
-                  {billing?.storage === "supabase" ? "Reconciled in Supabase" : "Runtime only"}
+                  {billing?.storage === "supabase" ? "Saved" : "Not saved"}
                 </span>
               </div>
               <div className="mt-3 grid gap-3 sm:grid-cols-3">

@@ -43,7 +43,7 @@ export function FindingPackages({finding,context,canExport,parentBusy}:{finding:
     <div className="flex flex-wrap items-center justify-between gap-2"><h3 className="font-semibold">Evidence packages</h3>
       <button className={button} disabled={blocked} onClick={()=>void operate(load)}><RefreshCw size={14} className="mr-2 inline"/>Load export rights & packages</button></div>
     {error&&<p role="alert" className="break-words text-sm text-red-600">{error}</p>}
-    {(busy||notice)&&<p role="status" className="break-words text-sm">{busy?"Confirming durable package state…":notice}</p>}
+    {(busy||notice)&&<p role="status" className="break-words text-sm">{busy?"Saving the package…":notice}</p>}
     {!approved&&<p className="text-sm">Independent approval of this exact Finding revision is required.</p>}
     {rights&&<>
       <p className="text-sm">{rights.eligible?"Current source-version rights allow this export.":"Source-version rights are unknown, denied, expired or revoked."}</p>

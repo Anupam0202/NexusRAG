@@ -120,12 +120,12 @@ describe("PrivacyPage", () => {
   it("offers no retention or workspace deletion unless the gateway confirms it can carry them out", async () => {
     getPrivacySettings.mockResolvedValue({ retention_enabled: false, retention_days: 30, last_retention_at: null });
     render(<PrivacyPage />);
-    expect(await screen.findByText(/Retention configuration and execution are not yet available/)).toBeVisible();
+    expect(await screen.findByText(/Retention is not available on this server yet/)).toBeVisible();
     expect(screen.queryByLabelText("Confirm workspace deletion")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Run now" })).not.toBeInTheDocument();
   });
 
-  it("does not offer mutations the bounded gateway cannot execute", async () => {
+  it("does not offer changes the server cannot carry out", async () => {
     getPrivacySettings.mockResolvedValue({
       retention_enabled: false,
       retention_days: 0,
@@ -133,8 +133,8 @@ describe("PrivacyPage", () => {
       workspace_deletion_supported: false,
     });
     render(<PrivacyPage />);
-    expect(await screen.findByText(/Retention configuration and execution are not yet available/)).toBeVisible();
-    expect(await screen.findByText(/Workspace erasure is not yet available/)).toBeVisible();
+    expect(await screen.findByText(/Retention is not available on this server yet/)).toBeVisible();
+    expect(await screen.findByText(/Deleting a whole workspace is not available on this server yet/)).toBeVisible();
     expect(screen.queryByLabelText("Confirm workspace deletion")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Save" })).not.toBeInTheDocument();
     expect(deleteCurrentWorkspace).not.toHaveBeenCalled();

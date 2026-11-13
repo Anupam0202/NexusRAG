@@ -9,7 +9,7 @@ import { getSystemStatus } from "@/lib/api";
 import { AuthMenu } from "@/components/auth/AuthMenu";
 
 const PAGE_TITLES: Record<string, string> = {
-  "/evidence-os": "Evidence OS",
+  "/evidence-os": "About NexusRAG",
   "/findings": "Findings & Reviews",
   "/radar": "Terms & Quota Radar",
   "/evidence-api": "Evidence API",

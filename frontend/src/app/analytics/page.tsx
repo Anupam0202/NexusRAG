@@ -232,7 +232,7 @@ function WorkspaceAnalytics() {
             ) : (
               <>
                 <XCircle size={16} className="text-red-200" />
-                <span className="opacity-90">System unavailable — check backend</span>
+                <span className="opacity-90">The service is not answering. Try again in a minute.</span>
               </>
             )}
           </div>
