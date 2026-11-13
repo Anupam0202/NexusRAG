@@ -1,16 +1,21 @@
 # NexusRAG completion progress
-Last updated: 2026-11-12 — Tier 1 in progress: the preview gateway runs the branch head and passes every live
-check up to ingestion, which stops because the shared Gemini key has no prepaid credit (owner action)
+Last updated: 2026-11-13 — Tier 1 code items done except real streaming (NX-21); document deletion now
+finishes (found broken live); the live journey still stops at ingestion on the shared Gemini key's HTTP 402
 
 ## Current state
 - main: `85b14f1`; working branch: `codex/runtime-manifest-008` (draft PR #12, owner-approved for direct
   commits on 2026-11-09); open PRs: #12
 - Plan: `docs/completion/MASTER_PROMPT.md`; repository notes: `CLAUDE.md`
-- Candidate preview: gateway `3396cb0`, released 2026-11-12 with `scripts/release.py` (smoke test passed;
-  `/health` reports the commit and `gemini-3.5-flash-lite` / `gemini-embedding-001`). Frontend is still the old
+- Candidate preview: gateway `4864133`, released 2026-11-12 with `scripts/release.py` (smoke test and `/ready`
+  passed: database reachable, search index ready, collection `nexusrag-v6-candidate` exists and is empty).
+  Commits `845642f`–`9c1fef2` are not released yet: the deletion migration must reach rehearsal first, and the
+  Supabase connector was unavailable (503) on 13 November. Frontend is still the old
   build `2fbc5c9`, whose `/research`, `/radar`, `/evidence-api` and unknown paths return 500 (NX-01): a cloud
   session cannot upload frontend assets, and the preview workflow rejects this branch (environment branch rule).
-- Rehearsal Supabase (`ukgjygzfhyvnrsecdcuu`): 51 migrations applied, 0 pending. Provider reviews recorded for
+- Rehearsal Supabase (`ukgjygzfhyvnrsecdcuu`): 51 migrations applied, 1 pending
+  (`20261113090000_complete_document_deletion`). Four test documents have been stuck in `deleting` since the
+  12 November smoke runs (the bug fixed in `845642f`); the cron finishes them once the migration and gateway
+  are released. Provider reviews recorded for
   Gemini, Qdrant and Supabase Storage (staging attestation by test account A, valid to 2027-11-12). Two test
   accounts (`nexus-e2e-a@nexusrag.test`, `nexus-e2e-b@nexusrag.test`), each with an approved workspace.
 - Production: `nexusrag-v6-frontend-preview` v29 → `nexusrag-v6-preview-gateway` v52, both from 23 September,
@@ -20,9 +25,8 @@ check up to ingestion, which stops because the shared Gemini key has no prepaid 
 - Gemini: the candidate Worker's shared key answers **HTTP 402** (its Google project is prepaid and has no
   credit; Google enforces this since March 2026). Every ingestion and every chat on the shared key fails.
 - Qdrant: cluster `fc0c77d2-d9fd-4648-8459-09fa74372f16` (AWS eu-west-2) stopped serving between 9 and 11
-  November and serves again since 12 November (403 without a key). Free clusters are suspended after 1 week
-  unused and deleted after 4 weeks. Collections and point counts are unknown without the key; the daily
-  keep-alive (D15) is not built yet.
+  November and serves again since 12 November. The preview gateway reaches it with its own key (`/ready`:
+  READY). The daily keep-alive is live on the preview from `4864133`; production gets it with the release.
 
 ## Inventory (read-only, 2026-11-09, updated where noted)
 - Gemini: `gemini-2.5-flash` and `gemini-2.5-pro` shut down on 2026-12-01 (calls reroute to
@@ -43,11 +47,13 @@ check up to ingestion, which stops because the shared Gemini key has no prepaid 
   (NX-12, NX-13); the gateway path is proven live, the workflows run when first dispatched [x] 5 PR #12
   description rewritten [~] 6 inventories: Qdrant collections need the key (NX-07) [x] 7 Recovery salvage
 - Tier 1: [x] workspace creation on hosted Supabase [x] provider approval and budgets work without SQL
-  [x] specific provider errors: key rejected, quota, credit used up, outage, model unavailable (NX-14, gateway
-  side) [x] two-account live journey script [ ] ingestion → answer → delete on the preview (blocked: Gemini 402)
-  [ ] frontend preview deploy (blocked: environment branch rule) [ ] NX-03 Ready only when answerable
-  [ ] NX-21 real streaming [ ] NX-04, NX-05 verified live [ ] NX-16 missing endpoints [ ] owner walkthrough
-- Tier 2, Tier 3, Tier 4: not started (Tier 4's keep-alive and typed index state are next, because of NX-07)
+  [x] specific provider errors and the key prompt (NX-14; live check needs a key) [x] two-account live journey
+  script [x] document deletion finishes (NX-47) [x] NX-03 Ready only when answerable [x] NX-16 no control calls
+  a missing endpoint [ ] ingestion → answer → delete on the preview (blocked: Gemini 402) [ ] frontend preview
+  deploy (blocked: environment branch rule) [ ] NX-21 real streaming [ ] NX-04, NX-05 verified live [ ] owner
+  walkthrough
+- Tier 4 pulled forward because of NX-07: [x] Qdrant keep-alive, `/ready` and typed index errors (D15, NX-23)
+- Tier 2, Tier 3: not started
 
 ## Done log
 | Date | Item | Verified at level | Commit |
@@ -64,6 +70,11 @@ check up to ingestion, which stops because the shared Gemini key has no prepaid 
 | 2026-11-12 | Documents page shows when the workspace still needs processing approval | 1 (frontend tests, lint, type-check) | `80ed357` |
 | 2026-11-12 | Provider Review workflow and `scripts/provider_review.py` (status, record) | 1; the RPCs at 4 | `67d3020` |
 | 2026-11-12 | CI: build pgvector from a pinned tag when the packaged one cannot install (PostgreSQL release day) | CI | `3396cb0` |
+| 2026-11-12 | Qdrant keep-alive in the daily cron; `/ready` probes database and index; typed index errors (`INDEX_NOT_ANSWERING`, `INDEX_KEY_REJECTED`, `INDEX_EMPTY`); releases roll back when the new gateway cannot use its database or index | 4 (released; `/ready` READY live) | `4864133` |
+| 2026-11-13 | Found live: no document deletion could ever finish (NX-47). Now writers are stopped, index entries and the original are removed and verified, then one database function removes every row, blanks quoted passages and writes its receipts in the same transaction; the cron retries; Radar pages are refused; a legacy document's stored file is erased too | 3 (local replay with new assertions; 909 gateway and 748 frontend tests); live after the migration is applied | `845642f`, `b7c9eda` |
+| 2026-11-13 | NX-16: retention and workspace deletion shown only when the gateway supports them; unused `/api/v1/auth/me` client removed; offline probe of all 66 paths the app calls | 1 | `387d791` |
+| 2026-11-13 | NX-03: `ready` only with a published version; legacy documents show "Upload again"; re-uploading a held file explains failed, unsearchable or still-erasing copies | 1 | `a638075` |
+| 2026-11-13 | NX-14 app side: provider errors shown as sent; key prompt on a rejected or out-of-credit key; key forms use the server's bounds | 1 | `9c1fef2` |
 
 Live journey on the preview, 2026-11-12, gateway `3396cb0` (`python3 scripts/preview_smoke.py`): 11 of 12
 checks pass — sign-in for both accounts, separate workspaces, processing policy, upload accepted (202). The
@@ -100,6 +111,9 @@ Decisions (D25 delegates product and technical decisions; exceptions in `MASTER_
   needs the owner's own review (item 4).
 
 ## Next steps (exact commands)
+0. When the Supabase connector answers again: apply `supabase/migrations/20261113090000_complete_document_deletion.sql`
+   to rehearsal (without its outer `begin`/`commit`), check `get_advisors`, then release the gateway (step 1).
+   Within five minutes the cron should finish the four stuck test documents; check `deletion_operations`.
 1. Preview gateway release (works from a cloud session):
    `CLOUDFLARE_API_TOKEN=proxy-injected CLOUDFLARE_ACCOUNT_ID=84e80d9629e0a6e6e5b31dbe85146acf
    SUPABASE_URL=https://ukgjygzfhyvnrsecdcuu.supabase.co SUPABASE_PUBLISHABLE_KEY=<rehearsal publishable key>
@@ -116,8 +130,7 @@ Decisions (D25 delegates product and technical decisions; exceptions in `MASTER_
    collections, point counts, vector size and payload indexes here.
 5. Frontend preview: Actions → Cloudflare Preview Deploy → Run workflow on this branch with "deploy candidate
    preview" ticked; then check `/research`, `/radar`, `/evidence-api` return 200 and an unknown path 404.
-6. Build next, none of which needs the keys: Qdrant daily keep-alive and a typed "index asleep" state (D15,
-   NX-07, NX-23); Ready only when answerable (NX-03); real streaming (NX-21); hide or implement the controls
-   that call missing endpoints (NX-16).
+6. Build next, none of which needs the keys: real streaming (NX-21); then Tier 4 hardening that needs no
+   provider (local JWT verification NX-25, security headers NX-28).
 7. Hosted migration status: save `list_migrations` output to a file, then
    `python3 scripts/migration_status.py status --applied <file>`.
