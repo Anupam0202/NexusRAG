@@ -83,9 +83,19 @@ describe("deleteDocumentsBestEffort", () => {
 
     await expect(deleteDocumentsBestEffort(["one", "two", "three"], remove)).resolves.toEqual({
       deletedIds: ["one", "three"],
+      pendingIds: [],
       failures: [{ documentId: "two", message: "locked" }],
     });
     expect(remove).toHaveBeenCalledTimes(3);
+  });
+
+  it("keeps documents that are still being erased apart from finished deletions", async () => {
+    const remove = vi.fn(async (documentId: string) => ({ success: true, state: documentId === "two" ? "PENDING" : "DELETED" }));
+    await expect(deleteDocumentsBestEffort(["one", "two"], remove)).resolves.toEqual({
+      deletedIds: ["one"],
+      pendingIds: ["two"],
+      failures: [],
+    });
   });
 });
 

@@ -5,6 +5,8 @@ vi.mock("@/lib/api", async importOriginal => ({ ...await importOriginal<object>(
 vi.mock("next/navigation", () => ({ useParams: () => ({ documentId: "doc-a" }) }));
 vi.mock("@/lib/static-navigation", () => ({ navigateStatic: api.navigate }));
 vi.mock("@/components/documents/DocumentChunksExplorer", () => ({ DocumentChunksExplorer: () => <div>Chunk viewer fixture</div> }));
+vi.mock("sonner", () => ({ toast: { success: vi.fn(), info: vi.fn(), error: vi.fn() } }));
+import { toast } from "sonner";
 import { useStore } from "@/hooks/useStore";
 import DocumentDetail from "./DocumentDetailClient";
 const document = { document_id: "doc-a", filename: "Private synthetic document.txt", status: "ready", file_type: "txt", file_size_bytes: 100, page_count: 1, chunk_count: 1, created_at: "2026-10-01T00:00:00Z", processing_time_seconds: 0, extra: {} };
@@ -21,6 +23,13 @@ describe("document detail authority", () => {
     act(() => useStore.setState({ authUser: { id: "user-b", email: null } }));
     await act(async () => finish({ documents: [document], total: 1 }));
     expect(api.setDocuments).not.toHaveBeenCalled(); expect(screen.queryByText(document.filename)).not.toBeInTheDocument();
+  });
+  it("leaves the page after a deletion, also when the stored copies are still being erased", async () => {
+    api.deleteDocument.mockResolvedValue({ success: true, state: "PENDING", message: "a.pdf is no longer available. Its stored copies are still being erased." });
+    render(<DocumentDetail />); await screen.findByText(document.filename); fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+    await waitFor(() => expect(api.navigate).toHaveBeenCalledWith("/documents"));
+    expect(api.removeDocument).toHaveBeenCalledWith("doc-a");
+    expect(toast.info).toHaveBeenCalledWith("a.pdf is no longer available. Its stored copies are still being erased.");
   });
   it("retains the document and displays incomplete deletion rather than navigating away", async () => {
     api.deleteDocument.mockResolvedValue({ success: false, message: "Derived cleanup remains pending" });

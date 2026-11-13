@@ -36,6 +36,7 @@ import { useWorkspaceApiAccess } from "@/hooks/useAuthGate";
 import type { DocumentMetadata, IngestionJobStatusResponse } from "@/types";
 import { STATIC_DOCUMENT_ROUTE_ID } from "@/lib/document-route";
 import { navigateStatic } from "@/lib/static-navigation";
+import { toast } from "sonner";
 
 type LoadState = "loading" | "ready" | "not_found" | "error";
 
@@ -234,6 +235,7 @@ function WorkspaceDocumentDetail() {
       if (!alive.current) return;
       if (!receipt.success) throw new Error(receipt.message || "Document cleanup is incomplete.");
       removeDocument(document.document_id);
+      if (receipt.state === "PENDING") toast.info(receipt.message); else toast.success(receipt.message);
       navigateStatic("/documents");
     } catch (err: unknown) {
       if (!alive.current) return;

@@ -92,6 +92,8 @@ export interface ChatMessage {
 
 export interface SourceChunk {
   content: string;
+  /** True when the document was deleted afterwards; the passage text has been removed. */
+  deleted?: boolean;
   filename: string;
   page_number: number;
   chunk_index: number;

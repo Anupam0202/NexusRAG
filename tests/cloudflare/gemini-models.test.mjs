@@ -287,6 +287,7 @@ test("health reports the models in use and the cron runs the model check once a 
   const midnight = runs(Date.UTC(2026, 10, 9, 0, 0));
   const later = runs(Date.UTC(2026, 10, 9, 0, 5));
   await Promise.all([...midnight, ...later]);
-  assert.equal(midnight.length, 2, "the first run of the day also checks models");
-  assert.equal(later.length, 1, "other runs only sweep jobs");
+  // Every run sweeps jobs and unfinished deletions; only the first run of the day adds the daily checks.
+  assert.equal(midnight.length, 3, "the first run of the day also checks models");
+  assert.equal(later.length, 2, "other runs only sweep jobs and deletions");
 });

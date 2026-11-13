@@ -30,6 +30,18 @@ describe("MessageBubble", () => {
     expect(screen.getByText(/support for each claim has not been verified/)).toBeInTheDocument();
   });
 
+  it("keeps the citation of a deleted document but shows that its passage was removed", () => {
+    render(<MessageBubble message={{ id: "deleted-source", role: "assistant", content: "Retention is 47 days. [S1] [S2]",
+      sources: [
+        { content: "", deleted: true, filename: "policy.pdf", page_number: 2, chunk_index: 0, relevance_score: 0.4, document_type: "text", metadata: {} },
+        { content: "Backups run on Tuesday.", filename: "runbook.md", page_number: 0, chunk_index: 1, relevance_score: 0.3, document_type: "text", metadata: {} },
+      ] }} />);
+    fireEvent.click(screen.getByRole("button", { name: /2 sources/ }));
+    expect(screen.getByText("policy.pdf")).toBeInTheDocument();
+    expect(screen.getByText("This passage was removed when its document was deleted.")).toBeInTheDocument();
+    expect(screen.getByText("Backups run on Tuesday.")).toBeInTheDocument();
+  });
+
   it("names the expandable source region and excludes invalid measurement badges", () => {
     render(<MessageBubble message={{ id: "sources", role: "assistant", content: "Evidence [S1]",
       responseTime: Infinity, metadata: { source_quote_coverage: 2 },

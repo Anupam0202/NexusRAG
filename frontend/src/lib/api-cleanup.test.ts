@@ -41,6 +41,15 @@ describe("confirmed cleanup responses", () => {
     expect(result.failures[0].message).not.toContain("Private upstream detail");
   });
 
+  it("passes on that a document's stored copies are still being erased", async () => {
+    const receipt = { success: true, state: "PENDING", message: "a.pdf is no longer available. Its stored copies are still being erased." };
+    respond(receipt);
+    await expect(deleteDocument("document-a", context)).resolves.toEqual(receipt);
+    respond(receipt);
+    const result = await deleteDocumentsBestEffort(["document-a"], id => deleteDocument(id, context));
+    expect(result).toEqual({ deletedIds: [], pendingIds: ["document-a"], failures: [] });
+  });
+
   it("accepts an explicit document receipt and keeps actor/workspace binding", async () => {
     const receipt = { success: true, message: "Deleted" };
     const fetch = respond(receipt);

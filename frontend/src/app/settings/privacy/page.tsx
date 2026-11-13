@@ -134,14 +134,17 @@ function PrivacyWorkbench() {
       const remaining = refreshed.documents;
       setDocuments(remaining);
       setDocumentCount(remaining.length);
+      const stillErasing = result.pendingIds.length
+        ? ` ${result.pendingIds.length} more ${result.pendingIds.length === 1 ? "is" : "are"} no longer available and still being erased.`
+        : "";
       if (result.failures.length === 0) {
         setConfirmation("");
         toast.success(
-          `${result.deletedIds.length} document${result.deletedIds.length === 1 ? "" : "s"} deleted`
+          `${result.deletedIds.length} document${result.deletedIds.length === 1 ? "" : "s"} deleted.${stillErasing}`
         );
       } else {
         toast.error(
-          `${result.deletedIds.length} deleted; ${result.failures.length} could not be deleted.`
+          `${result.deletedIds.length} deleted; ${result.failures.length} could not be deleted.${stillErasing}`
         );
       }
     } catch (error) {
@@ -359,7 +362,7 @@ function PrivacyWorkbench() {
                 <p className="text-sm font-semibold text-red-800 dark:text-red-200">Danger zone</p>
                 <p className="mt-1 text-xs leading-5 text-red-700 dark:text-red-300">
                   {workspaceDataReady
-                    ? `Delete all ${documentCount} indexed workspace document${documentCount === 1 ? "" : "s"}. This requests removal through the protected document API. Tombstoning denies retrieval, but deletion is complete only after verified original, derived-data and vector cleanup; pending cleanup is reported as a failure, not a completion receipt.`
+                    ? `Delete all ${documentCount} document${documentCount === 1 ? "" : "s"} in this workspace. Each one disappears from lists and answers at once; its file, its search index entries and its text are then erased, and the passages it supplied to earlier answers are removed. For a document that is still being processed, erasing finishes on its own a few minutes later.`
                     : "Workspace document inventory is loading."}
                 </p>
                 {workspaceDataReady && canDeleteDocuments ? (

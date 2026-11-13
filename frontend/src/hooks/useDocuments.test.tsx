@@ -2,6 +2,8 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const api = vi.hoisted(() => ({ getCurrentWorkspace: vi.fn(), listDocuments: vi.fn(), uploadDocument: vi.fn(), deleteDocument: vi.fn(), reindexDocument: vi.fn(), getIngestionJob: vi.fn() }));
 vi.mock("@/lib/api", async importOriginal => ({ ...await importOriginal<object>(), ...api }));
+vi.mock("sonner", () => ({ toast: { success: vi.fn(), info: vi.fn(), error: vi.fn() } }));
+import { toast } from "sonner";
 import { useStore } from "@/hooks/useStore";
 import { useDocuments } from "./useDocuments";
 const document = { document_id: "doc-a", filename: "fixture.txt", status: "ready" };
@@ -41,6 +43,17 @@ describe("document request account fences", () => {
     act(() => useStore.setState({ authUser: { id: "user-b", email: null } }));
     await act(async () => { finish({ success: true, document, job_id: "job-a", job: { status: "queued" } }); await pending; });
     expect(addDocument).not.toHaveBeenCalled(); expect(api.getIngestionJob).not.toHaveBeenCalled();
+  });
+  it("removes a deleted document and says what was removed, or that its copies are still being erased", async () => {
+    api.deleteDocument.mockResolvedValueOnce({ success: true, state: "DELETED", message: "a.pdf was deleted." });
+    const { result } = renderHook(() => useDocuments()); await waitFor(() => expect(result.current.loading).toBe(false));
+    await act(async () => result.current.remove("doc-a"));
+    expect(removeDocument).toHaveBeenCalledWith("doc-a"); expect(toast.success).toHaveBeenCalledWith("a.pdf was deleted."); expect(result.current.error).toBeNull();
+    api.deleteDocument.mockResolvedValueOnce({ success: true, state: "PENDING", message: "b.pdf is no longer available. Its stored copies are still being erased." });
+    await act(async () => result.current.remove("doc-b"));
+    expect(removeDocument).toHaveBeenLastCalledWith("doc-b");
+    expect(toast.info).toHaveBeenCalledWith("b.pdf is no longer available. Its stored copies are still being erased.");
+    expect(result.current.error).toBeNull();
   });
   it("does not remove documents when the API reports incomplete cleanup", async () => {
     api.deleteDocument.mockResolvedValue({ success: false, message: "Cleanup pending" });

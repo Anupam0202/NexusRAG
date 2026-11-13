@@ -11,6 +11,7 @@ account can see none of it, deletion, and proof that the answer is gone afterwar
 It refuses to run against anything but the candidate gateway. Each account's free trial covers one document
 and five chats on the platform key, so reset the two test accounts' usage on the rehearsal project before a
 rerun (rows in nexus_account_usage and nexus_account_operations for those users), or give them their own keys.
+A run that fails after its upload deletes the document it uploaded, so reruns start clean.
 """
 from __future__ import annotations
 
@@ -26,6 +27,7 @@ import uuid
 
 TIMEOUT = 90
 INGESTION_DEADLINE = 300
+DELETION_DEADLINE = 420  # the gateway's cron finishes a deletion that had to wait, within a few minutes
 
 
 class SmokeFailure(RuntimeError):
@@ -88,6 +90,8 @@ class Smoke:
         self.results: list[dict] = []
         self.marker = f"ZEPHYR-{secrets.token_hex(4).upper()}"
         self.document_id: str | None = None
+        self.owner: Account | None = None
+        self.deleted = False
 
     def check(self, name: str, ok: bool, detail: str = "") -> None:
         self.results.append({"check": name, "ok": bool(ok), "detail": detail})
@@ -130,6 +134,26 @@ class Smoke:
         self.check(f"account {account.label} approves Gemini processing as workspace owner",
                    status == 200 and approved.get("state") == "APPROVED", f"HTTP {status} {json.dumps(approved)[:200] if status != 200 else ''}")
 
+    def delete_document(self) -> tuple[int, dict]:
+        """Deletes the uploaded document and waits while the service reports that copies are still being erased."""
+        started = time.time()
+        while True:
+            status, body = self.owner.api("POST", f"/api/v1/documents/{self.document_id}/delete", idempotent=True)
+            body = body if isinstance(body, dict) else {}
+            pending = status == 202 and body.get("state") == "PENDING"
+            if not pending or time.time() - started > DELETION_DEADLINE:
+                self.deleted = status == 200 and body.get("state") == "DELETED"
+                return status, body
+            print(f"      deletion pending ({body.get('reason')}); asking again in 30 seconds", flush=True)
+            time.sleep(30)
+
+    def clean_up(self) -> None:
+        """After a failed run: remove the uploaded document, so the next run does not find leftovers."""
+        if self.keep_document or self.deleted or not self.document_id or not self.owner:
+            return
+        status, body = self.delete_document()
+        print(f"      clean-up: deleting the test document returned HTTP {status} {body.get('state') or body.get('error', {}).get('code') or ''}", flush=True)
+
     def ask(self, account: Account, question: str, **scope):
         return account.api("POST", "/api/v1/chat", body={"question": question, "non_sensitive_attested": True, **scope}, idempotent=True)
 
@@ -138,12 +162,17 @@ class Smoke:
         self.check("gateway is the candidate preview", status == 200 and isinstance(health, dict) and "candidate" in str(health.get("service")),
                    f"{health.get('service') if isinstance(health, dict) else status}")
         print(f"      commit {health.get('source_commit')}, models {json.dumps(health.get('gemini_models'))}")
+        status, ready = call("GET", f"{self.gateway}/ready")
+        reached = ready.get("dependencies", {}) if isinstance(ready, dict) else {}
+        self.check("the gateway reaches its database and its search index", status == 200 and ready.get("readiness") == "READY",
+                   f"HTTP {status}; database {reached.get('database', {}).get('state')}, search index {reached.get('search_index', {}).get('state')}")
         status, _ = call("GET", f"{self.gateway}/api/v1/workspaces")
         self.check("a request without a login is refused", status == 401, f"HTTP {status}")
         status, _ = call("GET", f"{self.gateway}/api/v1/workspaces", headers={"Authorization": "Bearer not-a-real-token"})
         self.check("a request with a forged token is refused", status == 401, f"HTTP {status}")
 
         a, b = self.sign_in("A"), self.sign_in("B")
+        self.owner = a
         self.ensure_workspace(a)
         self.ensure_workspace(b)
         self.check("the two accounts have different workspaces", a.workspace != b.workspace)
@@ -206,8 +235,9 @@ class Smoke:
         if self.keep_document:
             print("      keeping the document (--keep-document)")
             return
-        status, deleted = a.api("POST", f"/api/v1/documents/{self.document_id}/delete", idempotent=True)
-        self.check("account A deletes the document with provider receipts", status == 200 and deleted.get("success") is True,
+        status, deleted = self.delete_document()
+        self.check("account A deletes the document and every stored copy is verified gone",
+                   status == 200 and deleted.get("success") is True and deleted.get("state") == "DELETED" and int(deleted.get("receipts") or 0) >= 5,
                    f"HTTP {status} {json.dumps(deleted)[:240]}")
         status, listing = a.api("GET", "/api/v1/documents")
         self.check("the document is no longer listed",
@@ -235,6 +265,7 @@ def main(argv: list[str] | None = None) -> int:
         outcome = 0
     except SmokeFailure:
         outcome = 1
+        smoke.clean_up()
     passed = sum(1 for result in smoke.results if result["ok"])
     print(f"\n{'PREVIEW_SMOKE_PASS' if outcome == 0 else 'PREVIEW_SMOKE_FAIL'}: {passed}/{len(smoke.results)} checks passed")
     if args.report:

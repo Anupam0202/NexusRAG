@@ -149,7 +149,11 @@ function localAppFixture() {
         if (method === "GET") return json(deletionOperation ? [deletionOperation] : []);
       }
       if (table === "deletion_targets") {
-        if (method === "GET") return json([...deletionTargets.values()]);
+        if (method === "GET") {
+          const kinds = (url.searchParams.get("kind") || "").match(/^in\.\((.*)\)$/)?.[1].split(",");
+          const pending = url.searchParams.get("verified_at") === "is.null";
+          return json([...deletionTargets.values()].filter((target) => (!kinds || kinds.includes(target.kind)) && (!pending || !target.verified_at)));
+        }
         if (method === "PATCH") { const target = deletionTargets.get(url.searchParams.get("id")?.slice(3)); if (target) Object.assign(target, body); return json(target ? [target] : []); }
       }
       if (table === "deletion_receipts" && method === "POST") { deletionReceipts.push(...body); return json(body, 201); }
@@ -200,11 +204,47 @@ function localAppFixture() {
           const doc = docs.get(body.p_document); assert.ok(doc); doc.lifecycle_state = "deleting";
           deletionOperation = { id: crypto.randomUUID(), workspace_id: workspace, resource_id: doc.id, state: "pending" };
           const version = versions.get(doc.active_version_id);
+          // The same five targets as the real tombstone_document: two the gateway can verify with the
+          // providers, three that only the database can.
           for (const target of [
             { id: crypto.randomUUID(), kind: "version_index", object_key: null },
             { id: crypto.randomUUID(), kind: "original", object_key: version.original_key },
+            { id: crypto.randomUUID(), kind: "chunks", object_key: null },
+            { id: crypto.randomUUID(), kind: "derived_content_review", object_key: null },
+            { id: crypto.randomUUID(), kind: "outstanding_remote_writes", object_key: null },
           ]) deletionTargets.set(target.id, { ...target, workspace_id: workspace, operation_id: deletionOperation.id, verified_at: null, attempts: 0 });
           return json(deletionOperation.id);
+        }
+        if (rpc === "nexus_begin_document_purge") {
+          if (!deletionOperation || deletionOperation.id !== body.p_operation || docs.get(body.p_document)?.lifecycle_state !== "deleting") return json({ state: "NOT_FOUND" });
+          deletionOperation.state = "cleaning";
+          return json({ state: "READY" });
+        }
+        if (rpc === "nexus_purge_document") {
+          const doc = docs.get(body.p_document);
+          if (!deletionOperation || deletionOperation.id !== body.p_operation || doc?.lifecycle_state !== "deleting") return json({ state: "NOT_FOUND" });
+          const remote = [...deletionTargets.values()].filter((target) => ["original", "version_index"].includes(target.kind));
+          if (remote.some((target) => !target.verified_at)) return json({ state: "BLOCKED", reason: "REMOTE_TARGETS_PENDING" });
+          const owned = [...versions.values()].filter((version) => version.document_id === doc.id);
+          const removedChunks = owned.reduce((total, version) => total + (chunks.get(version.id)?.length || 0), 0);
+          for (const version of owned) { chunks.delete(version.id); versions.delete(version.id); }
+          const ownedJobs = [...jobs.values()].filter((job) => job.document_id === doc.id);
+          for (const job of ownedJobs) jobs.delete(job.id);
+          let answers = 0;
+          for (const message of messages) {
+            if (!Array.isArray(message.sources) || !message.sources.some((source) => source?.metadata?.document_id === doc.id)) continue;
+            message.sources = message.sources.map((source) => source?.metadata?.document_id === doc.id ? { ...source, content: "", deleted: true } : source);
+            answers += 1;
+          }
+          docs.delete(doc.id);
+          const verifiedAt = new Date().toISOString();
+          for (const target of deletionTargets.values()) {
+            if (target.verified_at) continue;
+            target.verified_at = verifiedAt;
+            deletionReceipts.push({ workspace_id: workspace, operation_id: deletionOperation.id, target_id: target.id, provider: "supabase", verified_at: verifiedAt });
+          }
+          Object.assign(deletionOperation, { state: "verified", verified_at: verifiedAt });
+          return json({ state: "VERIFIED", receipts: deletionReceipts.length, removed: { chunks: removedChunks, versions: owned.length, processing_jobs: ownedJobs.length, uploads: 0, answers_with_passages_removed: answers, answers_withheld: 0 } });
         }
         if (rpc === "v6_reserve_many") return json({ state: "READY", reservations: Object.entries(body.p_dimensions).map(([dimension, amount]) => ({ id: crypto.randomUUID(), amount, dimension })) });
         if (rpc === "v6_settle_many") return json({ state: body.p_provider_called ? "SETTLED" : "RELEASED" });
@@ -365,12 +405,21 @@ test("synthetic upload → queued ingestion → indexed evidence → grounded ch
   }), fixture.env);
   assert.equal(deletionResponse.status, 200);
   const deletion = await deletionResponse.json();
-  assert.equal(deletion.success, true);
+  assert.deepEqual([deletion.success, deletion.state], [true, "DELETED"]);
+  assert.match(deletion.message, /was deleted\. The passages it supplied to 1 earlier answer were removed as well\.$/);
+  assert.equal(deletion.removed.chunks, fixture.expectedChunks);
   assert.equal(fixture.deletionOperation.state, "verified");
-  assert.equal(fixture.deletionReceipts.length, 2);
+  // The gateway vouches only for what it removed at the providers; the database vouches for its own rows.
+  const receiptsBy = (provider) => fixture.deletionReceipts.filter((receipt) => receipt.provider === provider).length;
+  assert.deepEqual([receiptsBy("qdrant"), receiptsBy("supabase_storage"), receiptsBy("supabase"), fixture.deletionReceipts.length], [1, 1, 3, 5]);
+  assert.equal(deletion.receipts, 5);
   assert.equal(fixture.objects.size, 0, "private original deletion is verified by a subsequent read");
   assert.equal(fixture.points.size, 0, "Qdrant deletion is verified by an exact count");
   assert.equal(fixture.docs.has(doc.id), false, "authoritative document row is removed only after receipts");
+  assert.equal(fixture.versions.size + fixture.chunks.size + fixture.jobs.size, 0, "nothing that belonged to the document remains");
+  const earlier = fixture.messages.find((message) => message.role === "assistant");
+  assert.ok(earlier.content.length > 0, "the earlier answer keeps its own text");
+  assert.ok(earlier.sources.length > 0 && earlier.sources.every((source) => source.content === "" && source.deleted === true), "but not the passages of the deleted document");
   assert.ok(fixture.auditEvents.length >= 2);
   assert.ok(fixture.events.every((event) => ["supabase.invalid", "qdrant.invalid", "generativelanguage.googleapis.com"].includes(event.host)));
 });

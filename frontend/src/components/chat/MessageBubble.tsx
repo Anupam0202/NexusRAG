@@ -6,6 +6,7 @@ import type { UIMessage } from "@/types";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { cn } from "@/lib/utils";
+import { passageText } from "@/lib/sources";
 import { clipboardFailureMessage, writeClipboardText } from "@/lib/clipboard-write";
 import { motion, useReducedMotion } from "framer-motion";
 import {
@@ -211,8 +212,8 @@ export function MessageBubble({ message, onShowSources }: Props) {
                         {src.document_type || "doc"}
                       </span>
                     </div>
-                    <p className="text-xs text-[var(--text-secondary)] font-mono leading-relaxed line-clamp-3">
-                      {src.content}
+                    <p className={cn("text-xs text-[var(--text-secondary)] leading-relaxed line-clamp-3", src.deleted ? "italic" : "font-mono")}>
+                      {passageText(src)}
                     </p>
                   </div>
                 ))}

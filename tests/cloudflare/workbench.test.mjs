@@ -202,21 +202,33 @@ test("document pages expose a cursor and never report a truncated sample as an e
   assert.equal(body.documents.length, 100); assert.equal(body.total_is_exact, false);
   assert.equal(body.next_after, "id-99");
 });
-test("deletion cannot fabricate derived-data and outstanding-write receipts", async t => {
+test("the gateway writes no receipt for cleanup that only the database can verify", async t => {
   const calls = [];
   t.mock.method(globalThis, "fetch", async (input, init = {}) => {
     const url = new URL(input); calls.push({ url, init });
     const response = value => new Response(JSON.stringify(value));
     if (url.pathname === "/auth/v1/user") return response({ id: user });
     if (url.pathname === "/rest/v1/workspace_members") return response([{ role: "owner" }]);
-    if (url.pathname === "/rest/v1/documents") return response([{ id: finding, lifecycle_state: "deleting" }]);
+    if (url.pathname === "/rest/v1/documents") return response([{ id: finding, lifecycle_state: "deleting", filename: "policy.txt" }]);
     if (url.pathname === "/rest/v1/deletion_operations") return response([{ id: policy }]);
+    if (url.pathname === "/rest/v1/rpc/nexus_begin_document_purge") return response({ state: "READY" });
+    // A target the gateway must leave alone, even if a query ever returned it.
     if (url.pathname === "/rest/v1/deletion_targets") return response([{ id: user, kind: "derived_content_review", verified_at: null }]);
-    throw Error("Unexpected cleanup call");
+    if (url.pathname === "/rest/v1/rpc/v6_reserve_many") return response({ state: "READY", reservations: [{ id: policy, amount: 2 }] });
+    if (url.pathname === "/rest/v1/rpc/v6_settle_many") return response({ state: "SETTLED" });
+    if (url.hostname === "qdrant.invalid") return response(url.pathname.endsWith("/points/count") ? { result: { count: 0 } } : { status: "ok" });
+    // The database has not confirmed that the rows are gone.
+    if (url.pathname === "/rest/v1/rpc/nexus_purge_document") return response({ state: "BLOCKED", reason: "REMOTE_TARGETS_PENDING" });
+    if (url.pathname === "/rest/v1/audit_events") return response([]);
+    throw Error(`Unexpected cleanup call ${url.pathname}`);
   });
-  const result = await handle(request(`/api/v1/documents/${finding}/delete`, { method: "POST" }), env);
-  assert.equal(result.status, 409);
-  assert.equal((await result.json()).error.code, "DELETE_REVIEW_REQUIRED");
+  const result = await handle(request(`/api/v1/documents/${finding}/delete`, { method: "POST" }),
+    { ...env, QDRANT_URL: "https://qdrant.invalid", QDRANT_API_KEY: "synthetic-qdrant" });
+  const body = await result.json();
+  assert.equal(result.status, 202);
+  assert.deepEqual([body.success, body.state, body.reason], [true, "PENDING", "REMOTE_TARGETS_PENDING"]);
+  assert.match(body.message, /no longer available/);
+  assert.doesNotMatch(body.message, /was deleted/);
   assert.equal(calls.some(call => call.url.pathname === "/rest/v1/deletion_receipts"), false);
   assert.equal(calls.some(call => call.url.pathname.startsWith("/storage")), false);
 });

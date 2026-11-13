@@ -113,6 +113,12 @@ export class ApiRequestError extends Error {
   }
 }
 
+export interface DocumentDeletionReceipt {
+  success: boolean;
+  message: string;
+  state?: "DELETED" | "PENDING";
+}
+
 function unconfirmedCleanup(action: string) {
   return new ApiRequestError(
     `${action} was not confirmed. Refresh the workspace and inspect its state before retrying.`,
@@ -211,10 +217,14 @@ export async function listDocuments(context: ApiRequestContext = {}): Promise<Do
   throw new Error("Workspace inventory exceeds this bounded view. No documents were silently omitted; use a narrower inventory view.");
 }
 
+/**
+ * Deletes a document. `state` is "PENDING" when the document is already unavailable but its stored copies are
+ * still being erased (for example while a processing step finishes); the service completes that on its own.
+ */
 export async function deleteDocument(
   documentIdentifier: string, context: ApiRequestContext = {}
-): Promise<{ success: boolean; message: string }> {
-  const receipt = await request<{ success: boolean; message: string } | null>(`/api/v1/documents/${encodeURIComponent(documentIdentifier)}/delete`, {
+): Promise<DocumentDeletionReceipt> {
+  const receipt = await request<DocumentDeletionReceipt | null>(`/api/v1/documents/${encodeURIComponent(documentIdentifier)}/delete`, {
     method: "POST",
   }, context);
   if (receipt?.success !== true || typeof receipt.message !== "string") throw unconfirmedCleanup("Document deletion");

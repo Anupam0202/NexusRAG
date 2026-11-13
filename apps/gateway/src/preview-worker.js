@@ -11,6 +11,7 @@ import {
 import { deleteQdrantDocument, hybridFuse } from "./worker-lifecycle.js";
 import { activeGenerationModel, checkGeminiModels, embeddingModel, isDailyModelCheckWindow } from "./gemini-models.js";
 import { checkReadiness } from "./readiness.js";
+import { finishDocumentDeletion, sweepDeletions } from "./document-deletion.js";
 import { indexUsable, keepIndexAwake, probeIndex } from "./search-index.js";
 import { handleQueue, sweepJobs } from "./worker-jobs.js";
 import { candidateChunkIds, rehydrateEvidence } from "./retrieval-authority.js";
@@ -560,29 +561,46 @@ async function cancelExistingJob(env,workspace,jobId,member){requireCapability(m
 
 async function reindexDocument(request,env,user,workspace,member,documentId){requireCapability(member,"research:run");const document=await loadBoundDocument(env,workspace,documentId),v=await serviceRequest(env,`document_versions?workspace_id=eq.${workspace}&id=eq.${document.active_version_id}&select=*&limit=1`);if(!v?.[0])throw Object.assign(new Error("Active version unavailable."),{status:409,code:"VERSION_UNAVAILABLE"});const source=v[0];if(source.data_classification!=="non_sensitive"||!source.classification_declared_by||!source.classification_declared_at)throw Object.assign(new Error("Reindex blocked: only explicitly attested non-sensitive versions may be processed."),{status:403,code:"RIGHTS_BLOCKED"});const versionId=crypto.randomUUID(),generation=crypto.randomUUID(),jobId=crypto.randomUUID();await serviceRequest(env,"document_versions",{method:"POST",body:JSON.stringify([{id:versionId,workspace_id:workspace,document_id:documentId,original_bucket:source.original_bucket,original_key:source.original_key,original_hash:source.original_hash,original_bytes:source.original_bytes,original_verified_at:source.original_verified_at,parser_version:"pending",chunker_version:"worker-char-v1",embedding_space_id:embeddingModel(env),index_generation:generation,extraction_manifest:{},lifecycle_epoch:Number(document.lifecycle_epoch||1),publication_state:"staged",data_classification:source.data_classification,classification_declared_by:source.classification_declared_by,classification_declared_at:source.classification_declared_at}])});const jobs=await serviceRequest(env,"ingestion_jobs",{method:"POST",body:JSON.stringify([{id:jobId,workspace_id:workspace,document_id:documentId,version_id:versionId,status:"queued",progress:0,stage:"queued",attempts:0,available_at:new Date().toISOString(),lifecycle_epoch:Number(document.lifecycle_epoch||1),payload:{filename:document.filename,operation:"reindex",supersedes_version_id:source.id},kind:"ingestion"}])});await enqueueJob(env,jobs[0]);return jobView(jobs[0],document);}
 
+const deletionTools = { db: serviceRequest, removeOriginal: storageDelete };
+// Marks the document (which hides it at once) and removes what is still stored. When the removal cannot
+// finish in this request, the answer says so and the cron finishes it; see document-deletion.js.
 async function deleteDocument(request, env, user, workspace, member, documentId) {
-  requireCapability(member,"research:run"); const document=await loadBoundDocument(env,workspace,documentId); let operationId;
-  if(document.lifecycle_state==="active"){
-    const rpc=await apiFetch(`${env.SUPABASE_URL}/rest/v1/rpc/tombstone_document`,{method:"POST",headers:{apikey:env.SUPABASE_SERVICE_ROLE_KEY,authorization:`Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,"content-type":"application/json"},body:JSON.stringify({p_workspace:workspace,p_document:documentId,p_actor:user.id})});
-    if(!rpc.ok) throw Object.assign(new Error("Document tombstone could not be created."),{status:409,code:"DELETE_CONFLICT"}); operationId=await rpc.json();
-  }else if(document.lifecycle_state==="deleting"){
-    const operations=await serviceRequest(env,`deletion_operations?workspace_id=eq.${workspace}&resource_id=eq.${documentId}&state=in.(pending,cleaning,blocked)&select=*&order=created_at.desc&limit=1`);
-    if(!operations?.[0])throw Object.assign(new Error("The existing deletion operation is unavailable."),{status:409,code:"DELETE_CONFLICT"}); operationId=operations[0].id;
-  }else throw Object.assign(new Error("Document not found."),{status:404,code:"DOCUMENT_NOT_FOUND"});
-  await serviceRequest(env,`deletion_operations?id=eq.${operationId}`,{method:"PATCH",body:JSON.stringify({state:"cleaning"})}); const targets=await serviceRequest(env,`deletion_targets?workspace_id=eq.${workspace}&operation_id=eq.${operationId}&select=*&order=kind.asc`); const pendingTargets=targets.filter(target=>!target.verified_at);
-  const receipt=async(target,provider)=>{const verifiedAt=new Date().toISOString();const receiptHash=await sha256(JSON.stringify({workspace,operation_id:operationId,target_id:target.id,provider,verified_at:verifiedAt}));await serviceRequest(env,"deletion_receipts",{method:"POST",body:JSON.stringify([{workspace_id:workspace,operation_id:operationId,target_id:target.id,provider,receipt_hash:receiptHash,verified_at:verifiedAt}])});await serviceRequest(env,`deletion_targets?id=eq.${target.id}`,{method:"PATCH",body:JSON.stringify({attempts:Number(target.attempts||0)+1,verified_at:verifiedAt,failure_code:null})});};
+  requireCapability(member, "research:run");
+  const document = await loadBoundDocument(env, workspace, documentId);
+  const inUse = () => Object.assign(new Error("This document is the stored page of a Radar snapshot. Remove that source in Radar before deleting the document."), { status: 409, code: "DOCUMENT_IN_USE" });
+  let operationId;
+  if (document.lifecycle_state === "active") {
+    try {
+      operationId = await serviceRequest(env, "rpc/tombstone_document", { method: "POST", body: JSON.stringify({ p_workspace: workspace, p_document: documentId, p_actor: user.id }) });
+    } catch (error) {
+      if (error?.code === "DOCUMENT_IN_USE") throw inUse();
+      throw Object.assign(new Error("The document could not be marked for deletion. Reload and try again."), { status: 409, code: "DELETE_CONFLICT" });
+    }
+  } else if (document.lifecycle_state === "deleting") {
+    const operations = await serviceRequest(env, `deletion_operations?workspace_id=eq.${workspace}&resource_id=eq.${documentId}&state=in.(pending,cleaning,blocked)&select=id&order=created_at.desc&limit=1`);
+    if (!operations?.[0]) throw Object.assign(new Error("The existing deletion operation is unavailable."), { status: 409, code: "DELETE_CONFLICT" });
+    operationId = operations[0].id;
+  } else throw Object.assign(new Error("Document not found."), { status: 404, code: "DOCUMENT_NOT_FOUND" });
+  let outcome;
   try {
-    // Do not mint receipts for unimplemented database/derived-data/remote-write
-    // cleanup. The tombstone already denies retrieval; originals remain until
-    // an authoritative cleanup implementation can verify every required target.
-    if (pendingTargets.some(target => !["original", "version_index"].includes(target.kind)))
-      throw Object.assign(new Error("Deletion is tombstoned but requires verified derived-data and outstanding-write cleanup. No completion receipt was fabricated."),
-        { status: 409, code: "DELETE_REVIEW_REQUIRED" });
-    const indexes=pendingTargets.filter(t=>t.kind==="version_index"); if(indexes.length){await deleteQdrantDocument(env,workspace,documentId);for(const target of indexes)await receipt(target,"qdrant");}
-    for(const target of pendingTargets.filter(t=>t.kind==="original")){await storageDelete(env,target.object_key);await receipt(target,"supabase_storage");}
-    await serviceRequest(env,`documents?workspace_id=eq.${workspace}&id=eq.${documentId}`,{method:"DELETE"}); const remaining=await serviceRequest(env,`documents?workspace_id=eq.${workspace}&id=eq.${documentId}&select=id`); if(remaining.length)throw Object.assign(new Error("Supabase document deletion could not be verified."),{status:503,code:"SUPABASE_DELETE_UNVERIFIED"});
-    await serviceRequest(env,`deletion_operations?id=eq.${operationId}`,{method:"PATCH",body:JSON.stringify({state:"verified",verified_at:new Date().toISOString()})}); await audit(env,request,user.id,workspace,"document.delete","document"); return{success:true,message:`${document.filename} deleted with verified provider receipts`,operation_id:operationId,receipts:targets.length};
-  }catch(error){await serviceRequest(env,`deletion_operations?id=eq.${operationId}`,{method:"PATCH",body:JSON.stringify({state:"blocked"})}).catch(()=>null);throw Object.assign(error,{status:error.status||503,code:error.code||"DELETE_PARTIAL_FAILURE"});}
+    outcome = await finishDocumentDeletion(env, { workspace, documentId, operationId }, deletionTools);
+  } catch (error) {
+    // The document is already hidden and the cron will try again; that is what the person needs to know.
+    outcome = { state: "WAITING", reason: error?.code || "DELETE_PARTIAL_FAILURE" };
+  }
+  if (outcome.state === "NOT_FOUND") throw Object.assign(new Error("Document not found."), { status: 404, code: "DOCUMENT_NOT_FOUND" });
+  if (outcome.state === "BLOCKED" && outcome.reason === "RADAR_SNAPSHOT") throw inUse();
+  await audit(env, request, user.id, workspace, "document.delete", "document");
+  if (outcome.state === "VERIFIED") {
+    const answers = Number(outcome.removed?.answers_with_passages_removed || 0);
+    const findings = Number(outcome.removed?.kept?.findings || 0);
+    return { success: true, state: "DELETED", operation_id: operationId, receipts: outcome.receipts, removed: outcome.removed,
+      message: `${document.filename} was deleted.`
+        + (answers ? ` The passages it supplied to ${answers} earlier answer${answers === 1 ? "" : "s"} were removed as well.` : "")
+        + (findings ? ` ${findings} saved finding${findings === 1 ? " that used it is" : "s that used it are"} kept as ${findings === 1 ? "it is" : "they are"}; delete ${findings === 1 ? "it" : "them"} separately if ${findings === 1 ? "it" : "they"} should go too.` : "") };
+  }
+  return { success: true, state: "PENDING", operation_id: operationId, reason: outcome.reason || null, retry_at: outcome.retry_at || null,
+    message: `${document.filename} is no longer available. Its stored copies are still being erased; this finishes on its own, usually within a few minutes.` };
 }
 
 async function privateTurnRequest(request, env, workspace, sessionId, operation, body) {
@@ -989,7 +1007,7 @@ async function handle(request, env = {}) {
       if(action==="chunks"&&(request.method==="GET"||request.method==="HEAD"))return json(request,env,await chunkPreviews(request,env,user,id,documentId));
       if(action==="original"&&(request.method==="GET"||request.method==="HEAD"))return await documentOriginal(request,env,user,id,documentId);
       if(action==="reindex"&&request.method==="POST")return json(request,env,await reindexDocument(request,env,user,id,member,documentId),202);
-      if(action==="delete"&&request.method==="POST")return json(request,env,await deleteDocument(request,env,user,id,member,documentId));
+      if(action==="delete"&&request.method==="POST"){const deleted=await deleteDocument(request,env,user,id,member,documentId);return json(request,env,deleted,deleted.state==="PENDING"?202:200);}
     }
     const sessionRoute=url.pathname.match(/^\/api\/v1\/chat\/sessions\/([0-9a-f-]{36})\/(messages|clear)$/i);
     if(sessionRoute){
@@ -1208,6 +1226,7 @@ async function queue(batch,env){return handleQueue(batch,env)}
 // Once a day: which Gemini models are still served, and one question to the search index, which also keeps
 // a free cluster from being suspended for inactivity.
 const dailyChecks=env=>Promise.all([checkGeminiModels(env).catch(()=>undefined),keepIndexAwake(env).catch(()=>undefined)]);
-async function scheduled(event,env,ctx){ctx.waitUntil(sweepJobs(env));if(isDailyModelCheckWindow(event?.scheduledTime))ctx.waitUntil(dailyChecks(env))}
+// Every run also finishes deletions that could not complete when they were requested.
+async function scheduled(event,env,ctx){ctx.waitUntil(sweepJobs(env));ctx.waitUntil(sweepDeletions(env,deletionTools));if(isDailyModelCheckWindow(event?.scheduledTime))ctx.waitUntil(dailyChecks(env))}
 export { allowRequest, handle, queue, scheduled, storageDelete };
 export default { fetch: handle, queue, scheduled };

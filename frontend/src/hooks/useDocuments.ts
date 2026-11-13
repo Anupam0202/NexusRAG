@@ -5,6 +5,7 @@ import { ApiRequestError, getCurrentWorkspace, getIngestionJob, listDocuments, u
 import { useStore } from "@/hooks/useStore";
 import { canUseWorkspaceApi } from "@/hooks/useAuthGate";
 import type { DocumentListResponse } from "@/types";
+import { toast } from "sonner";
 
 type RefreshOptions = { suppressError?: boolean };
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
@@ -138,7 +139,10 @@ export function useDocuments() {
       if (!isCurrent()) return;
       const result = await deleteDocument(documentId, context());
       if (!result.success) throw new Error(result.message || "Deletion is not complete.");
-      if (isCurrent()) removeDocument(documentId);
+      if (!isCurrent()) return;
+      removeDocument(documentId);
+      // Either way the document is gone from the workspace; "pending" means its copies are still being erased.
+      if (result.state === "PENDING") toast.info(result.message); else toast.success(result.message);
     } catch (error) { if (isCurrent()) setError(message(error, "Delete failed")); }
   }, [canAccessWorkspaceApi, context, isCurrent, removeDocument, requireMutationAuthority]);
 

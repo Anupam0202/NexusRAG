@@ -42,17 +42,23 @@ export function toggleDocumentSelection(
   return { selected: [...current, documentId], limitReached: false };
 }
 
+/**
+ * Deletes documents one by one. `pendingIds` are documents that are already unavailable but whose stored
+ * copies the service is still erasing.
+ */
 export async function deleteDocumentsBestEffort(
   documentIds: string[],
   remove: (documentId: string) => Promise<unknown>
 ) {
   const deletedIds: string[] = [];
+  const pendingIds: string[] = [];
   const failures: Array<{ documentId: string; message: string }> = [];
 
   for (const documentId of documentIds) {
     try {
-      await remove(documentId);
-      deletedIds.push(documentId);
+      const receipt = await remove(documentId);
+      const pending = typeof receipt === "object" && receipt !== null && (receipt as { state?: unknown }).state === "PENDING";
+      (pending ? pendingIds : deletedIds).push(documentId);
     } catch (error) {
       failures.push({
         documentId,
@@ -61,7 +67,7 @@ export async function deleteDocumentsBestEffort(
     }
   }
 
-  return { deletedIds, failures };
+  return { deletedIds, pendingIds, failures };
 }
 
 export function normalizeRetentionSchedule(enabled: boolean, days: number) {
