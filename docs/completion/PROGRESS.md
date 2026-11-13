@@ -104,6 +104,13 @@ Owner actions, most urgent first (none can be done from a cloud session):
    GitHub `Production` environment (list in `docs/DEPLOYMENT_PRODUCTION.md`). After the release, run the Provider
    Review workflow with `record`, then approve processing in each workspace.
 5. **Merge PR #12** when ready; the ruleset's provider checks need a trusted push (D2) and item 1.
+6. **1 December fallback, only if production is not released by 28 November:** production's September gateway
+   reads `env.GEMINI_MODEL` (default `gemini-2.5-flash`, which Google reroutes to `gemini-3.5-flash-lite` on
+   1 December) and always sends `thinkingBudget: 0`. Setting the production gateway variable
+   `GEMINI_MODEL=gemini-2.5-flash-lite` (no shutdown date announced; a 2.5 model, so it accepts that setting)
+   keeps production chat working. Check afterwards that the active version is still the 23 September code
+   (`cd25c30b`), because Cloudflare's settings view shows the rolled-back 25 September version. The release
+   itself also stops production putting the Gemini key in request URLs.
 
 Decisions (D25 delegates product and technical decisions; exceptions in `MASTER_PROMPT.md`, section 9):
 - D24 Gemini model policy: `gemini-3.5-flash-lite` → `gemini-3.1-flash-lite` → `gemini-flash-latest`;
