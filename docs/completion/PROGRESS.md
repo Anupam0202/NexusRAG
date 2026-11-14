@@ -16,7 +16,7 @@ the three pending rehearsal migrations are applied (owner confirmation)
   session cannot upload frontend assets, and the preview workflow rejects this branch (environment branch rule).
 - Rehearsal Supabase (`ukgjygzfhyvnrsecdcuu`): 53 migrations applied (document deletion and retention on
   2026-11-13); pending: `20261113190000_workspace_deletion` (its apply waits for the owner to answer the Supabase
-  connector's confirmation; asked on 13 and 14 November, both timed out unanswered),
+  connector's confirmation; asked three times on 13 and 14 November, each timed out unanswered),
   `20261113210000_account_deletion` and `20261114090000_research_calculation_runs`. No document is left in `deleting`. Advisors: only leaked-password protection
   (an Auth setting). Test account A has used its trial upload and B its trial upload; reset both before the next
   journey. Provider reviews recorded for Gemini, Qdrant and Supabase Storage (staging attestation by test account
@@ -122,7 +122,8 @@ Owner actions, most urgent first (none can be done from a cloud session):
    without prepaid billing (free tier), or add credit to the current project. Put it in the candidate Worker
    secret `GOOGLE_API_KEY` and the GitHub environments' `GOOGLE_API_KEY`. Until then nothing that uses the
    shared key can be verified live.
-2. **Preview deploys from this branch.** In GitHub → Settings → Environments → `NexusRAG-Candidate-Preview`,
+2. **Preview deploys from this branch** (this also applies the pending rehearsal migrations without the Supabase
+   connector, if `SUPABASE_DB_URL` is set in that environment). In GitHub → Settings → Environments → `NexusRAG-Candidate-Preview`,
    allow `codex/runtime-manifest-008` (or all branches) under deployment branches. The frontend preview cannot
    be deployed any other way.
 3. **Keys for this cloud environment** (environment menu → Edit → Network secrets): Gemini (host
