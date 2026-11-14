@@ -59,13 +59,18 @@ jobs:
       - name: Check required configuration
         run: |
           set -euo pipefail
+          # A secret key (sb_secret_...) is not a JWT: Supabase refuses it as a Bearer token, so it goes in apikey only.
+          service_headers() {
+            printf 'header = "apikey: %s"\n' "$SUPABASE_SERVICE_ROLE_KEY"
+            case "$SUPABASE_SERVICE_ROLE_KEY" in sb_*) ;; *) printf 'header = "Authorization: Bearer %s"\n' "$SUPABASE_SERVICE_ROLE_KEY" ;; esac
+          }
           for name in CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID SUPABASE_URL SUPABASE_PUBLISHABLE_KEY SUPABASE_SERVICE_ROLE_KEY SUPABASE_DB_URL GEMINI_USER_KEY_ENCRYPTION_SECRET GOOGLE_API_KEY QDRANT_URL QDRANT_API_KEY; do
             test -n "${!name:-}" || { echo "::error::$name is missing from the Production environment"; exit 1; }
           done
           python3 -c 'import base64,os; assert len(base64.b64decode(os.environ["GEMINI_USER_KEY_ENCRYPTION_SECRET"],validate=True))==32, "encryption secret must be base64-encoded 32-byte key material"'
           python3 scripts/release.py plan --target production
           code="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' --connect-timeout 10 --max-time 30 \
-            --config <(printf 'header = "apikey: %s"\nheader = "Authorization: Bearer %s"\n' "$SUPABASE_SERVICE_ROLE_KEY" "$SUPABASE_SERVICE_ROLE_KEY") \
+            --config <(service_headers) \
             "$SUPABASE_URL/auth/v1/admin/users?per_page=1")"
           test "$code" = "200" || { echo "::error::The service credential does not authenticate against the production project."; exit 1; }
       - name: Snapshot and apply pending migrations

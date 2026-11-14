@@ -9,6 +9,7 @@
 
 import { sha256 } from "./worker-pipeline.js";
 import { indexEndpoint, indexFetch } from "./search-index.js";
+import { serviceHeaders } from "./supabase-keys.js";
 
 export const DELETE_WORKSPACE_CONFIRMATION = "DELETE WORKSPACE";
 const post = (body) => ({ method: "POST", body: JSON.stringify(body) });
@@ -52,7 +53,7 @@ export async function removeWorkspaceIndexEntries(env, workspace, fetchImpl = fe
  */
 export async function removeWorkspaceOriginals(env, workspace, keys = [], fetchImpl = fetch) {
   const storage = `${String(env.SUPABASE_URL).replace(/\/+$/, "")}/storage/v1/object`;
-  const headers = { apikey: env.SUPABASE_SERVICE_ROLE_KEY, authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`, "content-type": "application/json" };
+  const headers = serviceHeaders(env, { "content-type": "application/json" });
   const call = (url, init) => fetchImpl(url, { ...init, headers, signal: AbortSignal.timeout(8_000) })
     .catch(() => { throw failure("STORAGE_DELETE_FAILED", "File storage did not answer."); });
   const own = [...new Set(keys.filter((key) => typeof key === "string" && key.startsWith(`${workspace}/`)))];

@@ -69,9 +69,14 @@ jobs:
       - name: Verify the rehearsal schema and service credential
         run: |
           set -euo pipefail
+          # A secret key (sb_secret_...) is not a JWT: Supabase refuses it as a Bearer token, so it goes in apikey only.
+          service_headers() {
+            printf 'header = "apikey: %s"\n' "$SUPABASE_SERVICE_ROLE_KEY"
+            case "$SUPABASE_SERVICE_ROLE_KEY" in sb_*) ;; *) printf 'header = "Authorization: Bearer %s"\n' "$SUPABASE_SERVICE_ROLE_KEY" ;; esac
+          }
           rpc() {
             curl --fail --silent --show-error --connect-timeout 10 --max-time 30 \
-              --config <(printf 'header = "apikey: %s"\nheader = "Authorization: Bearer %s"\n' "$SUPABASE_SERVICE_ROLE_KEY" "$SUPABASE_SERVICE_ROLE_KEY") \
+              --config <(service_headers) \
               -H "Content-Type: application/json" -d "$2" "$SUPABASE_URL/rest/v1/rpc/$1"
           }
           rpc nexus_management_version '{}' | jq -e '.version == "036" and .atomic_members and .private_findings and .manual_finding_exports and .authoritative_member_identity' >/dev/null \
@@ -81,7 +86,7 @@ jobs:
           rpc nexus_processing_policy_version '{}' | jq -e '.version == "039" and .terms_bound_owner_decisions and .service_only and .canonical_auth_role' >/dev/null \
             || { echo "::error::Candidate canonical processing authority migration 039 is not verified"; exit 1; }
           code="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' --connect-timeout 10 --max-time 30 \
-            --config <(printf 'header = "apikey: %s"\nheader = "Authorization: Bearer %s"\n' "$SUPABASE_SERVICE_ROLE_KEY" "$SUPABASE_SERVICE_ROLE_KEY") \
+            --config <(service_headers) \
             "$SUPABASE_URL/auth/v1/admin/users?per_page=1")"
           test "$code" = "200" || { echo "::error::The service credential does not authenticate against the rehearsal project."; exit 1; }
       - name: Deploy the gateway, smoke-test and roll back on failure

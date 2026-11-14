@@ -3,6 +3,7 @@
 // models) does not show whether a key still has quota or credit, so its state is reported where it is used.
 
 import { indexSummary, indexUsable, probeIndex } from "./search-index.js";
+import { serviceHeaders } from "./supabase-keys.js";
 
 const READY_MEMORY_MS = 60_000;
 const DEGRADED_MEMORY_MS = 10_000; // someone fixing a problem should see the result soon
@@ -13,7 +14,7 @@ async function probeDatabase(env, fetchImpl) {
   if (!env?.SUPABASE_URL || !env?.SUPABASE_SERVICE_ROLE_KEY) return { state: "NOT_CONFIGURED", http_status: null };
   try {
     const response = await fetchImpl(`${String(env.SUPABASE_URL).replace(/\/+$/, "")}/rest/v1/workspaces?select=id&limit=1`, {
-      headers: { apikey: env.SUPABASE_SERVICE_ROLE_KEY, authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}` },
+      headers: serviceHeaders(env),
       signal: AbortSignal.timeout(TIMEOUT_MS),
     });
     await response.body?.cancel().catch(() => {});

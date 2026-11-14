@@ -31,6 +31,15 @@ class FingerprintTests(unittest.TestCase):
             review.fetch_terms("http://example.com/terms")
 
 
+class ServiceKeyTests(unittest.TestCase):
+    def test_a_secret_key_is_never_sent_as_a_bearer_token(self):
+        secret = review.Database("https://example.supabase.co", "sb_secret_test").headers
+        self.assertEqual(secret["apikey"], "sb_secret_test")
+        self.assertNotIn("Authorization", secret)
+        legacy = review.Database("https://example.supabase.co", "eyJsynthetic.legacy.jwt").headers
+        self.assertEqual(legacy["Authorization"], "Bearer eyJsynthetic.legacy.jwt")
+
+
 class CommandTests(unittest.TestCase):
     def run_cli(self, argv, database, fetch=None):
         calls = []

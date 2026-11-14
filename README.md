@@ -153,7 +153,7 @@ Gateway (Worker variables and secrets):
 | Name | Kind | Purpose |
 |---|---|---|
 | `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY` | variable | The Supabase project |
-| `SUPABASE_SERVICE_ROLE_KEY` | secret | Server-side database and storage access |
+| `SUPABASE_SERVICE_ROLE_KEY` | secret | Server-side database and storage access: a secret key (`sb_secret_...`) or the legacy `service_role` key, which Supabase stops accepting at the end of 2026 |
 | `QDRANT_URL`, `QDRANT_API_KEY` | secret | The Qdrant cluster |
 | `QDRANT_COLLECTION` | variable | The collection for this environment |
 | `GOOGLE_API_KEY` | secret | The service's Gemini key (trial use and the daily model check) |

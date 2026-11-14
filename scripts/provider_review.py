@@ -83,8 +83,10 @@ def fetch_terms(url: str) -> bytes:
 class Database:
     def __init__(self, url: str, service_key: str):
         self.base = url.rstrip("/") + "/rest/v1/"
-        self.headers = {"apikey": service_key, "Authorization": f"Bearer {service_key}",
-                        "Content-Type": "application/json", "User-Agent": USER_AGENT}
+        # A secret key (sb_secret_...) is not a JWT and Supabase refuses it as a Bearer token; a legacy
+        # service_role key is a JWT and goes in both headers.
+        bearer = {} if service_key.startswith("sb_") else {"Authorization": f"Bearer {service_key}"}
+        self.headers = {"apikey": service_key, **bearer, "Content-Type": "application/json", "User-Agent": USER_AGENT}
 
     def call(self, method: str, path: str, body: dict | None = None):
         outgoing = request.Request(self.base + path, method=method, headers=self.headers,

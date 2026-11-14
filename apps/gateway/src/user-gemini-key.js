@@ -1,3 +1,4 @@
+import { serviceHeaders } from "./supabase-keys.js";
 const VAULT_TABLE = "nexus_user_provider_keys";
 
 function keyError(code, status = 503) {
@@ -58,8 +59,7 @@ async function vaultRequest(env, path, init = {}) {
     ...init,
     signal: AbortSignal.timeout(8_000),
     headers: {
-      apikey: env.SUPABASE_SERVICE_ROLE_KEY,
-      authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
+      ...serviceHeaders(env),
       "content-type": "application/json",
       prefer: "return=representation",
       ...(init.headers || {}),

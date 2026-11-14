@@ -1,4 +1,5 @@
 // Service-only durable quota gate. Missing schema, policy, or budgets deny every metered call.
+import { serviceHeaders } from "./supabase-keys.js";
 const allowedStates = new Set(["READY", "QUOTA_NEAR_LIMIT"]);
 const validId = /^[0-9a-f]{8}-[0-9a-f-]{27}$/i;
 // What a person can do about each denial. The code is a stable API value; the message is shown to users.
@@ -32,7 +33,7 @@ async function quotaRpc(env, name, payload) {
   try {
     response = await fetch(`${env.SUPABASE_URL}/rest/v1/rpc/${name}`, {
       method: "POST", signal: AbortSignal.timeout(8_000),
-      headers: { apikey: env.SUPABASE_SERVICE_ROLE_KEY, authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`, "content-type": "application/json" },
+      headers: serviceHeaders(env, { "content-type": "application/json" }),
       body: JSON.stringify(payload),
     });
   } catch { throw error("PROVIDER_UNAVAILABLE"); }

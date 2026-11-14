@@ -45,6 +45,7 @@ import {
   saveUserGeminiKey,
   validateGeminiKey,
 } from "./user-gemini-key.js";
+import { serviceHeaders } from "./supabase-keys.js";
 
 // Supabase service-role access is kept in a Cloudflare secret binding; OAuth and MCP gates are exact-head validated.
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -151,8 +152,7 @@ async function serviceResponse(env, tablePath, init = {}) {
   const response = await apiFetch(`${env.SUPABASE_URL}/rest/v1/${tablePath}`, {
     ...init,
     headers: {
-      apikey: env.SUPABASE_SERVICE_ROLE_KEY,
-      authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
+      ...serviceHeaders(env),
       "content-type": "application/json",
       prefer: "return=representation",
       ...(init.headers || {}),
@@ -198,8 +198,7 @@ async function countRows(env, tablePath) {
   const response = await apiFetch(`${env.SUPABASE_URL}/rest/v1/${tablePath}`, {
     method: "HEAD",
     headers: {
-      apikey: env.SUPABASE_SERVICE_ROLE_KEY,
-      authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
+      ...serviceHeaders(env),
       prefer: "count=exact",
     },
   });
@@ -303,8 +302,7 @@ async function storageWrite(env, key, file) {
   const response = await apiFetch(`${env.SUPABASE_URL}/storage/v1/object/documents/${storagePath(key)}`, {
     method: "POST",
     headers: {
-      apikey: env.SUPABASE_SERVICE_ROLE_KEY,
-      authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
+      ...serviceHeaders(env),
       "content-type": file.type,
       "x-upsert": "false",
     },
@@ -315,9 +313,9 @@ async function storageWrite(env, key, file) {
 
 async function storageDelete(env, key) {
   const url = `${env.SUPABASE_URL}/storage/v1/object/documents/${storagePath(key)}`;
-  const response = await apiFetch(url, { method: "DELETE", headers: { apikey: env.SUPABASE_SERVICE_ROLE_KEY, authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}` } });
+  const response = await apiFetch(url, { method: "DELETE", headers: serviceHeaders(env) });
   if (!response.ok && response.status !== 404) throw Object.assign(new Error("Private original deletion failed."), { status: 503, code: "STORAGE_DELETE_FAILED", retryable: true });
-  const verification = await apiFetch(url, { headers: { apikey: env.SUPABASE_SERVICE_ROLE_KEY, authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}` } });
+  const verification = await apiFetch(url, { headers: serviceHeaders(env) });
   let missing = verification.status === 404;
   if (!missing && verification.status === 400) {
     const detail = await verification.json().catch(() => ({}));
@@ -435,7 +433,7 @@ async function documentOriginal(request, env, user, workspace, documentId) {
   const response = await metered(env, {workspaceId:workspace,provider:originalTransfer.quota_provider,priority:"interactive",action:"original_download"},
     request.method === "HEAD" ? {requests:1} : {requests:1,egress_bytes:version.original_bytes}, async () => {
       const original = await fetch(`${env.SUPABASE_URL}/storage/v1/object/${request.method === "HEAD" ? "" : "authenticated/"}${encodeURIComponent(version.original_bucket)}/${storagePath(version.original_key)}`, {
-        method:request.method,signal,headers:{apikey:env.SUPABASE_SERVICE_ROLE_KEY,authorization:`Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`},
+        method:request.method,signal,headers:serviceHeaders(env),
       });
       acquired = original;
       try {

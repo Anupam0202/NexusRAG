@@ -4,6 +4,7 @@
 // finish within the request, the cron finishes.
 
 import { finishWorkspaceDeletion } from "./workspace-deletion.js";
+import { serviceHeaders } from "./supabase-keys.js";
 
 export const DELETE_ACCOUNT_CONFIRMATION = "DELETE MY ACCOUNT";
 const post = (body) => ({ method: "POST", body: JSON.stringify(body) });
@@ -13,7 +14,7 @@ const failure = (code, message, status = 503, retryable = true) => Object.assign
 export async function removeSignIn(env, userId, fetchImpl = fetch) {
   const url = `${String(env.SUPABASE_URL).replace(/\/+$/, "")}/auth/v1/admin/users/${encodeURIComponent(userId)}`;
   const response = await fetchImpl(url, { method: "DELETE", signal: AbortSignal.timeout(8_000),
-    headers: { apikey: env.SUPABASE_SERVICE_ROLE_KEY, authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}` } })
+    headers: serviceHeaders(env) })
     .catch(() => { throw failure("AUTH_DELETE_FAILED", "Supabase Auth did not answer."); });
   if (response.ok || response.status === 404) return;
   throw failure("AUTH_DELETE_FAILED", "Supabase Auth did not remove the sign-in.");

@@ -3,6 +3,7 @@ import { deleteQdrantGeneration, extractFileText, verifyQdrantGeneration } from 
 import { loadUserGeminiKey } from "./user-gemini-key.js";
 import { embeddingModel } from "./gemini-models.js";
 import { processResearchMessage, sweepResearchRuns } from "./research-executor.js";
+import { serviceHeaders } from "./supabase-keys.js";
 
 const iso = () => new Date().toISOString();
 const err = (code, message, retryable = false) => Object.assign(new Error(message), { code, status: 503, retryable });
@@ -10,8 +11,7 @@ async function db(env, path, init = {}) {
   const response = await fetch(`${env.SUPABASE_URL}/rest/v1/${path}`, {
     ...init,
     headers: {
-      apikey: env.SUPABASE_SERVICE_ROLE_KEY,
-      authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
+      ...serviceHeaders(env),
       "content-type": "application/json",
       prefer: "return=representation",
       ...(init.headers || {}),
@@ -154,7 +154,7 @@ async function processIngestionMessage(env, message) {
       if (offset !== 0) throw err("VERSION_CONFLICT", "Durable extraction staging is missing for a resumed batch.");
       const key = version.original_key.split("/").map(encodeURIComponent).join("/");
       const original = await fetch(`${env.SUPABASE_URL}/storage/v1/object/${encodeURIComponent(version.original_bucket)}/${key}`, {
-        headers: { apikey: env.SUPABASE_SERVICE_ROLE_KEY, authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}` },
+        headers: serviceHeaders(env),
       });
       if (!original.ok) throw err("PERSISTENCE_UNAVAILABLE", "Original unavailable.", true);
       const file = new File([await original.arrayBuffer()], document.filename, { type: document.content_type });

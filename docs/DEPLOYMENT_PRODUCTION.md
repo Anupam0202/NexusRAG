@@ -11,7 +11,7 @@ Add these to the GitHub `Production` environment (Settings → Environments → 
 | Kind | Name | Value |
 |---|---|---|
 | Secret | `CLOUDFLARE_API_TOKEN` | Token that can edit Workers and Queues |
-| Secret | `SUPABASE_SERVICE_ROLE_KEY` | Service role key of the production project |
+| Secret | `SUPABASE_SERVICE_ROLE_KEY` | A secret key (`sb_secret_...`, Settings → API Keys) of the production project; the legacy `service_role` key also works until Supabase retires it at the end of 2026 |
 | Secret | `SUPABASE_DB_URL` | Session-pooler connection string of the production database (Supabase → Connect) |
 | Secret | `GEMINI_USER_KEY_ENCRYPTION_SECRET` | Base64 of 32 random bytes (`openssl rand -base64 32`). Keep a copy: it decrypts every stored user key, and changing it makes them unreadable |
 | Secret | `GOOGLE_API_KEY` | Platform Gemini key (trial chats and the daily model check) |
