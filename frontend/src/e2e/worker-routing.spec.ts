@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 
 // Run against Wrangler local or the approved deployed Worker, not Next's SSR server.
 const id = "00000000-0000-4000-8000-000000000001";
@@ -81,4 +81,59 @@ test("the dynamic legacy auth verifier rejects cross-origin posts without an ada
   expect(destination.pathname).toBe("/auth/callback");
   expect(destination.searchParams.has("token_hash")).toBe(false);
   expect(destination.searchParams.has("error_description")).toBe(true);
+});
+
+// NX-28: every page runs under its own policy, which allows scripts from the app's origin and the page's inline scripts
+// by hash, and connections to the gateway and Supabase this build uses (the environment of the build is the
+// environment of this test). A blocked inline script stops hydration, so each page must hydrate with no policy
+// violation. Some pages send a signed-out visitor on (the home page to Chat, account pages to sign-in), which also
+// needs their scripts.
+const pages = ["/", "/auth/login", "/auth/signup", "/auth/forgot-password", "/onboarding", "/chat", "/documents",
+  "/research", "/findings", "/radar", "/evidence-api", "/workspaces", "/settings/api-keys", "/settings/privacy",
+  `/documents/${id}`, "/__nexusrag_readonly_missing_route"];
+const opens: Record<string, string> = { "/": "/chat", "/auth/signup": "/auth/login", "/auth/forgot-password": "/auth/login",
+  "/onboarding": "/auth/login", "/workspaces": "/auth/login" };
+const connectPolicy = `connect-src 'self' ${[...new Set([process.env.NEXT_PUBLIC_API_URL?.trim() || "http://localhost:8000",
+  process.env.NEXT_PUBLIC_SUPABASE_URL?.trim()].filter((url): url is string => Boolean(url)).map(url => new URL(url).origin))].join(" ")}`;
+const hydrated = (page: Page) =>
+  page.evaluate(() => Object.keys(document.body).some(key => key.startsWith("__reactFiber$"))).catch(() => false);
+test("every page hydrates under a script policy that allows only its own scripts", async ({ page }) => {
+  test.setTimeout(120_000);
+  await page.addInitScript(() => {
+    const seen: string[] = [];
+    Object.assign(window, { __policyViolations: seen });
+    document.addEventListener("securitypolicyviolation", event => seen.push(`${event.effectiveDirective} ${event.blockedURI}`));
+  });
+  const reported: string[] = [];
+  page.on("console", message => {
+    if (/content[- ]security[- ]policy/i.test(message.text())) reported.push(message.text());
+  });
+  for (const path of pages) {
+    const response = await page.goto(path);
+    const policy = response?.headers()["content-security-policy"] ?? "";
+    const directives = policy.split("; ");
+    expect(directives.filter(directive => /^script-src 'self'( 'sha256-[A-Za-z0-9+/]{43}=')+$/.test(directive)), path).toHaveLength(1);
+    expect(directives, path).toContain(connectPolicy);
+    expect(policy, path).not.toMatch(/unsafe-inline|unsafe-eval/);
+    if (opens[path]) await page.waitForURL(url => url.pathname === opens[path], { waitUntil: "load", timeout: 15_000 });
+    await expect.poll(() => hydrated(page), { message: `${path} hydrates` }).toBe(true);
+    expect(await page.evaluate(() => (window as unknown as { __policyViolations: string[] }).__policyViolations), path).toEqual([]);
+  }
+  expect(reported).toEqual([]);
+});
+
+test("a page revalidated with 304 keeps the policy it was stored with", async ({ request }) => {
+  for (const path of ["/radar", `/documents/${id}`]) {
+    const first = await request.get(path);
+    expect(first.headers()["content-security-policy"], path).toContain("'sha256-");
+    const again = await request.get(path, { headers: { "If-None-Match": first.headers().etag } });
+    expect(again.status(), path).toBe(304);
+    expect(again.headers()["content-security-policy"], path).toBeUndefined();
+  }
+});
+
+test("pages are not published as static files that would skip the Worker's policy", async ({ request }) => {
+  for (const path of ["/index.html", "/radar.html", "/auth/login.html", "/404.html"]) {
+    expect((await request.get(path)).status(), path).toBe(404);
+  }
 });

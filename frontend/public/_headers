@@ -1,7 +1,8 @@
 # Security headers for files served straight from static assets; the Worker adds the same ones to its own
-# responses. Keep equal to src/lib/security-headers.ts (a test checks).
+# responses, and gives each page a script policy with its inline scripts' hashes. Keep equal to
+# src/lib/security-headers.ts (a test checks).
 /*
-  Content-Security-Policy: frame-ancestors 'none'; base-uri 'self'; object-src 'none'; form-action 'self'
+  Content-Security-Policy: frame-ancestors 'none'; base-uri 'self'; object-src 'none'; form-action 'self'; script-src 'self'
   X-Frame-Options: DENY
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin

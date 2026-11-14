@@ -27,7 +27,7 @@ import shlex
 import subprocess
 import sys
 import time
-from urllib import error, request
+from urllib import error, parse, request
 
 if __package__:
     from .gemini_model_policy import embedding_model, generation_models
@@ -67,12 +67,14 @@ TARGETS = {
 
 # PR-specific preview configs were retired in October 2026; deployments must not bring them back.
 RETIRED_CONFIGS = ("frontend/wrangler.pr3.jsonc", "apps/gateway/wrangler.pr3-preview.jsonc")
-# The frontend Worker wraps the OpenNext Worker so original documents are served with the right headers.
+# The frontend Worker wraps the OpenNext Worker so document links are served from the shell and every page gets its
+# script and connection policy (NX-28).
 FRONTEND_WRAPPER = (
     'import nextWorker from "./.open-next/worker.js"',
+    'import pagePolicy from "./.open-next/page-policy.json"',
     'from "./src/lib/static-document-worker"',
     'export * from "./.open-next/worker.js"',
-    "export default createDocumentStaticWorker(nextWorker)",
+    "export default createDocumentStaticWorker(nextWorker, pagePolicy.connect)",
 )
 
 
@@ -203,6 +205,38 @@ def fetch(url: str) -> tuple[int, str]:
         return 0, type(exc).__name__
 
 
+def page_policy(url: str) -> str:
+    """The Content-Security-Policy a page is served with, or "" when it cannot be read."""
+    call = request.Request(url, headers={"User-Agent": "nexusrag-release-smoke"})
+    try:
+        with request.urlopen(call, timeout=30) as response:
+            return response.headers.get("Content-Security-Policy", "")
+    except (error.URLError, TimeoutError, OSError):
+        return ""
+
+
+PAGE_SCRIPT_POLICY = re.compile(r"script-src 'self'( 'sha256-[A-Za-z0-9+/]{43}=')+")
+
+
+def url_origin(url: str) -> str:
+    parts = parse.urlsplit(url)
+    return f"{parts.scheme}://{parts.netloc}"
+
+
+def policy_failures(policy: str, connect: tuple[str, ...]) -> list[str]:
+    """What is wrong with a page's policy: the Worker gives every page its inline scripts' hashes and lets it connect
+    only to its own origin, the gateway and Supabase (NX-28). Without them, the deploy bypassed the Worker's entry
+    point or was built for other services."""
+    directives = {part.strip().split(" ", 1)[0]: part.strip() for part in policy.split(";") if part.strip()}
+    failures = []
+    if not PAGE_SCRIPT_POLICY.fullmatch(directives.get("script-src", "")):
+        failures.append("the home page is served without its script policy (script-src 'self' with the page's hashes)")
+    allowed = set(directives.get("connect-src", "").split()[1:])
+    if allowed != {"'self'", *connect}:
+        failures.append(f"the home page may connect to {sorted(allowed) or 'anywhere'}, expected 'self' and {', '.join(connect)}")
+    return failures
+
+
 def until_clean(check, attempts: int = 6, pause: float = 4.0) -> list[str]:
     """Retry a smoke check while a new deployment propagates; return the last list of failures."""
     failures: list[str] = []
@@ -287,11 +321,12 @@ def readiness_check(origin: str, target: dict, allow_index_down: bool = False) -
     return failures, notes
 
 
-def frontend_failures(site: str, sha: str) -> list[str]:
+def frontend_failures(site: str, sha: str, connect: tuple[str, ...]) -> list[str]:
     failures = []
     status, body = fetch(f"{site}/")
     if status != 200 or "NexusRAG" not in body:
         failures.append(f"the home page returned HTTP {status} or lacks the product name")
+    failures += policy_failures(page_policy(f"{site}/"), connect)
     status, body = fetch(f"{site}/_nexus-build.json")
     try:
         built = json.loads(body).get("source_commit") if status == 200 else None
@@ -397,7 +432,8 @@ def release_frontend(name: str, sha: str) -> int:
     result = subprocess.run(["npm", "run", "cf:deploy", "--", "--config", target["frontend_config"]], cwd=ROOT / "frontend", check=False)
     if result.returncode != 0:
         raise ReleaseError(f"The frontend deploy failed with exit code {result.returncode}")
-    failures = until_clean(lambda: frontend_failures(urls["frontend"], sha))
+    connect = (url_origin(urls["gateway"]), url_origin(supabase_url(target)))
+    failures = until_clean(lambda: frontend_failures(urls["frontend"], sha, connect))
     return finish("Frontend", name, target["frontend_worker"], urls["frontend"], sha, previous, failures)
 
 

@@ -66,6 +66,12 @@ def healthy_gateway(sha=SHA, model="gemini-3.5-flash-lite", capabilities=401, re
     return fetch
 
 
+SUPABASE = "https://ukgjygzfhyvnrsecdcuu.supabase.co"
+PAGE_POLICY = ("frame-ancestors 'none'; base-uri 'self'; object-src 'none'; form-action 'self'; "
+               "script-src 'self' 'sha256-teusDh2Hj0ZqbNia6tjQI1tFnalIUtE5EzYbJWecdcY='; "
+               f"connect-src 'self' {GATEWAY} {SUPABASE}")
+
+
 def healthy_frontend(sha=SHA, unknown=404, research=200):
     def fetch(url):
         if url == f"{SITE}/":
@@ -216,13 +222,29 @@ class SmokeTests(unittest.TestCase):
                 self.assertTrue(self.readiness(report, allow_index_down=True)[0])
 
     def test_frontend_checks_identity_real_routes_and_unknown_paths(self):
-        def run(fetch):
-            with mock.patch.object(release, "fetch", side_effect=fetch):
-                return release.frontend_failures(SITE, SHA)
+        def run(fetch, policy=PAGE_POLICY):
+            with mock.patch.object(release, "fetch", side_effect=fetch), \
+                 mock.patch.object(release, "page_policy", return_value=policy) as page_policy:
+                failures = release.frontend_failures(SITE, SHA, (GATEWAY, SUPABASE))
+            page_policy.assert_called_once_with(f"{SITE}/")
+            return failures
         self.assertEqual(run(healthy_frontend()), [])
         self.assertIn("build identity", " ".join(run(healthy_frontend(sha="b" * 40))))
         self.assertIn("unknown path returned HTTP 500", " ".join(run(healthy_frontend(unknown=500))))
         self.assertIn("/research returned HTTP 500", " ".join(run(healthy_frontend(research=500))))
+        # A page without its own hashes means the deploy bypassed the Worker's entry point.
+        connect = f"; connect-src 'self' {GATEWAY} {SUPABASE}"
+        for policy in ("", "frame-ancestors 'none'; script-src 'self'" + connect,
+                       "script-src 'self' 'unsafe-inline' 'sha256-teusDh2Hj0ZqbNia6tjQI1tFnalIUtE5EzYbJWecdcY='" + connect):
+            with self.subTest(policy=policy):
+                self.assertIn("without its script policy", " ".join(run(healthy_frontend(), policy)))
+        # A build made for another gateway or Supabase project, or one that may connect anywhere, is refused.
+        scripts = "script-src 'self' 'sha256-teusDh2Hj0ZqbNia6tjQI1tFnalIUtE5EzYbJWecdcY='"
+        for policy in (scripts, f"{scripts}; connect-src 'self' {GATEWAY}",
+                       f"{scripts}; connect-src 'self' {GATEWAY} https://fcjaomiceajcdownarel.supabase.co",
+                       f"{scripts}; connect-src 'self' {GATEWAY} {SUPABASE} https://elsewhere.example"):
+            with self.subTest(policy=policy):
+                self.assertIn("may connect to", " ".join(run(healthy_frontend(), policy)))
 
     def test_smoke_checks_retry_while_a_deployment_propagates(self):
         results = iter([["not yet"], ["not yet"], []])
@@ -354,6 +376,7 @@ class ReleaseFlowTests(unittest.TestCase):
                      mock.patch.object(release.subprocess, "run", return_value=mock.Mock(returncode=0)) as run, \
                      mock.patch.object(release, "wrangler", return_value=mock.Mock(returncode=0)) as wrangler, \
                      mock.patch.object(release, "fetch", side_effect=fetch), mock.patch.object(release.time, "sleep"), \
+                     mock.patch.object(release, "page_policy", return_value=PAGE_POLICY), \
                      mock.patch("sys.stdout", io.StringIO()):
                     self.assertEqual(release.release_frontend("candidate", SHA), expected)
                     self.assertEqual(run.call_args.args[0], ["npm", "run", "cf:deploy", "--", "--config", "wrangler.jsonc"])

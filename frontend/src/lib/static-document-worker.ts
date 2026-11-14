@@ -8,11 +8,14 @@ interface Delegate {
   fetch(request: Request, env: AssetEnvironment, context: unknown): Promise<Response> | Response;
 }
 
-/** Keep OpenNext for other routes; tenant data is fetched only by the gated client. */
-export function createDocumentStaticWorker(nextWorker: Delegate) {
+/**
+ * Keep OpenNext for other routes; tenant data is fetched only by the gated client. `connect` lists the origins pages
+ * may connect to besides their own (scripts/write-page-policy.mjs).
+ */
+export function createDocumentStaticWorker(nextWorker: Delegate, connect: readonly string[] = []) {
   return {
     async fetch(request: Request, env: AssetEnvironment, context: unknown) {
-      return withSecurityHeaders(await route(nextWorker, request, env, context));
+      return withSecurityHeaders(await route(nextWorker, request, env, context), connect);
     },
   };
 }
