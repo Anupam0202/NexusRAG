@@ -1,7 +1,8 @@
 # NexusRAG completion progress
 Last updated: 2026-11-14 — document deletion and retention verified live on the preview; workspace and account
 deletion, CALCULATION runs (NX-17), Supabase secret-key support (NX-26), per-user BYOK sealing (NX-24), the
-upload orphan fix and the tenant index (NX-36) built and tested offline; owner walkthrough checklist written. The
+upload orphan fix, the tenant index (NX-36) and page script and connection policies (NX-28) built and tested
+offline; owner walkthrough checklist written. The
 live journey still stops at ingestion on the shared Gemini key's HTTP 402, and the gateway is not re-released until
 the three pending rehearsal migrations are applied (owner confirmation)
 
@@ -85,6 +86,7 @@ the three pending rehearsal migrations are applied (owner confirmation)
 | 2026-11-13 | NX-21: real streaming from `streamGenerateContent`; the final event carries the checked and saved answer; errors before the first token keep their HTTP status | 1 (6 end-to-end tests on the real pipeline); 4 for the no-evidence path | `e50a239` |
 | 2026-11-13 | NX-28 part: security headers on every page, file and error (Worker and `_headers`), checked on the built Worker; hostile-markdown test | 2 | `5262bff` |
 | 2026-11-13 | NX-16 retention runs: owners and administrators set a number of days; every day (and on "Run now") documents uploaded before the cutoff go through the normal deletion, chat messages and research results from before it are removed, and conversations unused since are removed or closed; saved findings, what they cite and Radar pages stay. Turning it on asks for a second click that names the cutoff date | 3 (local replay with new assertions; 926 gateway and 776 frontend tests); 4 on 13 November (below) | `f589e7b` |
+| 2026-11-14 | NX-28 done: every page gets `script-src 'self'` plus the hashes of the inline scripts in that response (the Worker computes them: OpenNext re-renders pages, so the build's HTML has different ones) and `connect-src 'self'` plus the gateway and Supabase origins of the build; static files get `script-src 'self'`; HEAD and 304 carry no policy so a revalidated page keeps its own. The 27 page copies reachable as `/<page>.html` without the Worker are no longer published (only the document shell), and the build fails if one reappears. `release.py` refuses a frontend without both directives | 2 (on the built Worker: sixteen public pages hydrate with no violation in Chromium and mobile Chrome, and fail with a wrong hash; 832 frontend unit, 26 release, 967 gateway tests) | `9d8a99a` |
 | 2026-11-14 | Owner walkthrough checklist (`docs/completion/OWNER_WALKTHROUGH.md`): sixteen steps from Google sign-in to sign-out, covering the Tier 1 journey and the final regression list of section 13, with the exact labels the app shows | n/a | `f9b8286` |
 | 2026-11-14 | NX-36: `workspace_id` indexed as the Qdrant tenant (`is_tenant`), falling back to a plain index on a cluster that refuses it; existing indexes are no longer requested again, which saves four requests per indexing batch under the Workers Free limit of 50 | 1 (new-collection, upgrade, refusal and failure tests; 967 gateway tests) | `e2b597a` |
 | 2026-11-14 | NX-38: every GitHub Action pinned to the commit its major tag points to today (no change in what runs), version in a comment. NX-32 checked: claims are compare-and-swap, so a second sweep cannot double-process a job | CI | `933e649` |
@@ -184,8 +186,9 @@ Decisions (D25 delegates product and technical decisions; exceptions in `MASTER_
 4. Once the Qdrant key is added: `GET /collections` and `GET /cluster` on the cluster address; record
    collections, point counts, vector size and payload indexes here.
 5. Frontend preview: Actions → Cloudflare Preview Deploy → Run workflow on this branch with "deploy candidate
-   preview" ticked; then check `/research`, `/radar`, `/evidence-api` return 200 and an unknown path 404.
-6. Build next, none of which needs the keys: a Postgres/Storage/Qdrant reconciliation job (rest of NX-27); a
-   nonce-based script policy (rest of NX-28).
+   preview" ticked; then check `/research`, `/radar`, `/evidence-api` return 200 and an unknown path 404, and that
+   signed-in pages show no Content-Security-Policy errors in the browser console (the release checks the home page's
+   policy; signed-in use was checked offline only).
+6. Build next, none of which needs the keys: a Postgres/Storage/Qdrant reconciliation job (rest of NX-27).
 7. Hosted migration status: save `list_migrations` output to a file, then
    `python3 scripts/migration_status.py status --applied <file>`.
