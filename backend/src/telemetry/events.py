@@ -27,6 +27,7 @@ logger = get_logger(__name__)
 MAX_IN_MEMORY_EVENTS = 5000
 REDACTED = "[redacted]"
 SENSITIVE_METADATA_KEYS = ("api_key", "authorization", "secret", "token", "password")
+PRIVATE_ERROR_KEYS = {"error", "error_message", "exception", "exception_message", "traceback"}
 
 
 @dataclass(frozen=True)
@@ -66,12 +67,19 @@ def estimate_tokens(*parts: str | None) -> int:
 
 def _clean_metadata(value: Any, *, depth: int = 0) -> Any:
     if depth > 4:
-        return str(value)[:300]
+        # Never serialize an uninspected nested object: it can contain keys or
+        # private provider text beyond the depth at which we inspect keys.
+        return REDACTED
     if isinstance(value, dict):
         clean: dict[str, Any] = {}
-        for key, item in value.items():
-            key_text = str(key)
-            if any(marker in key_text.lower() for marker in SENSITIVE_METADATA_KEYS):
+        for index, (key, item) in enumerate(value.items()):
+            if not isinstance(key, str):
+                clean[f"_redacted_non_string_key_{index}"] = REDACTED
+                continue
+            key_text = key
+            if key_text.lower() in PRIVATE_ERROR_KEYS or any(
+                marker in key_text.lower() for marker in SENSITIVE_METADATA_KEYS
+            ):
                 clean[key_text] = REDACTED
             else:
                 clean[key_text] = _clean_metadata(item, depth=depth + 1)
@@ -80,7 +88,9 @@ def _clean_metadata(value: Any, *, depth: int = 0) -> Any:
         return [_clean_metadata(item, depth=depth + 1) for item in list(value)[:25]]
     if isinstance(value, (str, int, float, bool)) or value is None:
         return value if not isinstance(value, str) else value[:500]
-    return str(value)[:300]
+    # Arbitrary __str__/__repr__ methods may expose credentials or have side
+    # effects. Opaque metadata is not authority and must not be evaluated.
+    return REDACTED
 
 
 def _coerce_datetime(value: Any) -> datetime | None:
@@ -167,7 +177,7 @@ class TelemetryRecorder:
                     "usage_telemetry_persist_failed",
                     workspace_id=event.workspace_id,
                     operation=event.operation,
-                    error=str(exc)[:300],
+                    error_type=type(exc).__name__,
                 )
         return event
 
@@ -209,7 +219,7 @@ class TelemetryRecorder:
                     "audit_telemetry_persist_failed",
                     workspace_id=event.workspace_id,
                     action=event.action,
-                    error=str(exc)[:300],
+                    error_type=type(exc).__name__,
                 )
         return event
 
@@ -234,7 +244,7 @@ class TelemetryRecorder:
                 logger.warning(
                     "telemetry_summary_persisted_failed",
                     workspace_id=scoped_workspace_id,
-                    error=str(exc)[:300],
+                    error_type=type(exc).__name__,
                 )
 
         with self._lock:
@@ -267,7 +277,7 @@ class TelemetryRecorder:
                 logger.warning(
                     "audit_events_persisted_list_failed",
                     workspace_id=scoped_workspace_id,
-                    error=str(exc)[:300],
+                    error_type=type(exc).__name__,
                 )
 
         with self._lock:

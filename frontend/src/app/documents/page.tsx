@@ -8,11 +8,19 @@ import {
 } from "@/components/documents/UploadZone";
 import { DocumentList } from "@/components/documents/DocumentList";
 import { DocumentDetailPanel } from "@/components/documents/DocumentDetailPanel";
+import { ProcessingApprovalNotice } from "@/components/settings/ProcessingApprovalNotice";
+import { useStore } from "@/hooks/useStore";
 import { useDocuments } from "@/hooks/useDocuments";
 import { getSystemStatus } from "@/lib/api";
 import type { DocumentMetadata } from "@/types";
 
 export default function DocumentsPage() {
+  const identity = useStore(state => JSON.stringify([state.authMode, state.authUser?.id, state.workspaceId]));
+  return <WorkspaceDocuments key={identity} />;
+}
+function WorkspaceDocuments() {
+  const workspaceId = useStore(state => state.workspaceId);
+  const userId = useStore(state => state.authUser?.id);
   const {
     documents,
     loading,
@@ -23,14 +31,24 @@ export default function DocumentsPage() {
     reindex,
     refresh,
     canAccessWorkspaceApi,
+    canMutate,
+    mutationDisabledReason,
     authMode,
   } = useDocuments();
   const [limits, setLimits] = useState<UploadLimits>(DEFAULT_UPLOAD_LIMITS);
   const [selectedDocument, setSelectedDocument] = useState<DocumentMetadata | null>(null);
 
   useEffect(() => {
-    getSystemStatus()
+    if (!canAccessWorkspaceApi || (authMode === "authenticated" && (!workspaceId || !userId))) {
+      setLimits(DEFAULT_UPLOAD_LIMITS);
+      return;
+    }
+    let active = true;
+    getSystemStatus(authMode === "authenticated"
+      ? { workspaceId, expectedUserId: userId }
+      : {})
       .then((status) => {
+        if (!active) return;
         const settings = status.settings;
         setLimits({
           maxUploadMb: Number(settings.max_upload_size_mb) || DEFAULT_UPLOAD_LIMITS.maxUploadMb,
@@ -53,12 +71,16 @@ export default function DocumentsPage() {
               : DEFAULT_UPLOAD_LIMITS.docxEmbeddedImageOcr,
         });
       })
-      .catch(() => setLimits(DEFAULT_UPLOAD_LIMITS));
-  }, [authMode, canAccessWorkspaceApi]);
+      .catch(() => { if (active) setLimits(DEFAULT_UPLOAD_LIMITS); });
+    return () => { active = false; };
+  }, [authMode, canAccessWorkspaceApi, workspaceId, userId]);
 
   return (
     <div className="h-full overflow-y-auto">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6 sm:space-y-8">
+        {authMode === "authenticated" && workspaceId && userId && (
+          <ProcessingApprovalNotice context={{ workspaceId, expectedUserId: userId }} />
+        )}
         {/* Upload */}
         <UploadZone
           onUpload={upload}
@@ -66,7 +88,7 @@ export default function DocumentsPage() {
           limits={limits}
           disabledReason={
             canAccessWorkspaceApi
-              ? undefined
+              ? mutationDisabledReason
               : authMode === "loading"
                 ? "Checking your session..."
                 : "Sign in to upload documents"
@@ -87,6 +109,8 @@ export default function DocumentsPage() {
           onReindex={reindex}
           onRefresh={refresh}
           onSelect={setSelectedDocument}
+          canMutate={canMutate}
+          mutationDisabledReason={mutationDisabledReason}
           disabledReason={
             canAccessWorkspaceApi
               ? undefined

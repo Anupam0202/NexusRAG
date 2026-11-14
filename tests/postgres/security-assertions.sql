@@ -2,7 +2,22 @@
 DO $$ DECLARE n int; BEGIN
  SELECT count(*) INTO n FROM pg_class c JOIN pg_namespace s ON s.oid=c.relnamespace
  WHERE s.nspname='public' AND c.relkind='r' AND c.relrowsecurity;
- IF n<>56 THEN RAISE EXCEPTION 'expected 56 RLS tables, found %',n; END IF;
+ IF n<>72 THEN RAISE EXCEPTION 'expected 72 RLS tables including provider budget defaults, immutable research drafts, calculations, source quantities, research executions, finding evidence packages, supplied Radar snapshots, Obligation Evidence serving and account deletion records, found %',n; END IF;
+ IF (SELECT count(*) FROM pg_class c JOIN pg_namespace s ON s.oid=c.relnamespace
+     WHERE s.nspname='public' AND c.relkind='r' AND c.relrowsecurity
+       AND c.relname IN ('finding_export_rights','finding_packages'))<>2 THEN
+  RAISE EXCEPTION 'the two finding evidence package RLS tables are missing';
+ END IF;
+ IF (SELECT count(*) FROM pg_class c JOIN pg_namespace s ON s.oid=c.relnamespace
+     WHERE s.nspname='public' AND c.relkind='r' AND c.relrowsecurity
+       AND c.relname IN ('radar_sources','radar_snapshots','radar_changes','radar_reviews','radar_findings'))<>5 THEN
+  RAISE EXCEPTION 'the five supplied Radar snapshot RLS tables are missing';
+ END IF;
+ IF (SELECT count(*) FROM pg_class c JOIN pg_namespace s ON s.oid=c.relnamespace
+     WHERE s.nspname='public' AND c.relkind='r' AND c.relrowsecurity
+       AND c.relname IN ('obligation_evidence_origins','finding_serving_rights'))<>2 THEN
+  RAISE EXCEPTION 'the two Obligation Evidence serving RLS tables are missing';
+ END IF;
  IF has_table_privilege('authenticated','public.provider_registry','select') OR has_table_privilege('anon','public.provider_registry','select') THEN
   RAISE EXCEPTION 'client role unexpectedly reads protected provider table';
  END IF;
@@ -47,4 +62,12 @@ DO $$ DECLARE denied boolean := false; BEGIN
  IF NOT denied THEN RAISE EXCEPTION 'anon role unexpectedly executed the service-only RPC'; END IF;
 END $$;
 RESET ROLE;
+-- Every public table states its browser boundary: row security on and at least one policy.
+DO $$ DECLARE missing text; BEGIN
+ SELECT string_agg(c.relname, ', ' ORDER BY c.relname) INTO missing
+   FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+  WHERE n.nspname = 'public' AND c.relkind = 'r'
+    AND (NOT c.relrowsecurity OR NOT EXISTS (SELECT 1 FROM pg_policy p WHERE p.polrelid = c.oid));
+ IF missing IS NOT NULL THEN RAISE EXCEPTION 'public tables without row security and a policy: %', missing; END IF;
+END $$;
 SELECT 'schema_grants_role_denial_pass';

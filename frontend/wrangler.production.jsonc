@@ -1,19 +1,21 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "nexusrag-v6-frontend",
-  "main": ".open-next/worker.js",
+  "name": "nexusrag-v6-frontend-preview",
+  "main": "worker.js",
+  "preview_urls": false,
   "compatibility_date": "2026-09-20",
   "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
   "assets": {
     "directory": ".open-next/assets",
     "binding": "ASSETS",
-    "html_handling": "auto-trailing-slash",
+    "html_handling": "none",
+    "not_found_handling": "none",
     "run_worker_first": ["/documents/*"]
   },
   "services": [
     {
       "binding": "WORKER_SELF_REFERENCE",
-      "service": "nexusrag-v6-frontend"
+      "service": "nexusrag-v6-frontend-preview"
     }
   ],
   "observability": {

@@ -1,11 +1,13 @@
 # V6 master-prompt completion audit
 
+> Current execution status is maintained in `docs/implementation/execution-ledger.json` and the latest section of `docs/audits/COMPREHENSIVE_APPLICATION_AUDIT.md`. The dated/scoped labels below are historical evidence, not complete-product or current production acceptance. Normative requirement wording remains authoritative where explicitly designated. Required engineering is not deferred to future phases.
+
 Status: `PARTIAL_NOT_COMPLETE`
 
 Audited against **NEXUSRAG MASTER IMPLEMENTATION PROMPT V6** on
 2026-09-20. This report is a merge gate, not a production claim.
 
-## Delivery phases
+## Historical delivery checkpoints — not future implementation phases
 
 | Phase | State | Evidence or blocker |
 | --- | --- | --- |

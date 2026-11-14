@@ -65,7 +65,7 @@ describe("LoginPage", () => {
     expect(screen.getByRole("button", { name: "Continue with GitHub" })).toBeDisabled();
     expect(
       screen.getByText(
-        "Supabase browser variables are missing from this frontend deployment."
+        "Sign-in is not set up on this site yet. Please tell the site's administrator."
       )
     ).toBeVisible();
   });
@@ -118,6 +118,13 @@ describe("LoginPage", () => {
     resolveRequest({ error: null });
   });
 
+  it("says the account was deleted when it arrives from an account deletion", async () => {
+    window.history.replaceState({}, "", "/auth/login?account=deleted");
+    render(<LoginPage />);
+    expect(await screen.findByRole("status")).toHaveTextContent("Your account was deleted.");
+    window.history.replaceState({}, "", "/auth/login");
+  });
+
   it("sanitizes unsafe requested destinations", async () => {
     window.history.replaceState(
       {},
@@ -164,6 +171,14 @@ describe("LoginPage", () => {
     render(<LoginPage />);
 
     await waitFor(() => expect(navigateStatic).toHaveBeenCalledWith("/documents"));
+    expect(signInWithOAuth).not.toHaveBeenCalled();
+  });
+  it("does not redirect a signed-in user off-site after dot-segment normalization", async () => {
+    authState.mode = "authenticated";
+    window.history.replaceState({}, "", "/auth/login?next=%2Fdocuments%2F..%2F%2Fattacker.invalid");
+    render(<LoginPage />);
+    await waitFor(() => expect(navigateStatic).toHaveBeenCalledWith("/documents"));
+    expect(navigateStatic).not.toHaveBeenCalledWith("//attacker.invalid");
     expect(signInWithOAuth).not.toHaveBeenCalled();
   });
 });

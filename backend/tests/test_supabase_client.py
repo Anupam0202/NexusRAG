@@ -146,3 +146,84 @@ async def test_delete_object_uses_storage_remove_contract(monkeypatch) -> None:
     assert calls[0]["json"] == {"prefixes": ["workspace/document/report.pdf"]}
     assert calls[0]["headers"]["apikey"] == "sb_secret_private"
     assert "Authorization" not in calls[0]["headers"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "count_range, expected",
+    [("0-0/205", 205), ("*/0", 0), ("0-0/9007199254740991", 9007199254740991)],
+)
+async def test_exact_count_uses_head_and_no_row_download(
+    monkeypatch, count_range, expected
+) -> None:
+    import httpx
+
+    calls = []
+
+    class FakeAsyncClient:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *_args):
+            return None
+
+        async def request(self, method, url, **kwargs):
+            calls.append((method, url, kwargs))
+            return httpx.Response(
+                200, headers={"Content-Range": count_range}, request=httpx.Request(method, url)
+            )
+
+    monkeypatch.setattr(
+        "src.infrastructure.supabase_client.httpx.AsyncClient", lambda **_: FakeAsyncClient()
+    )
+    client = SupabaseClient(
+        Settings(
+            supabase_url="https://project.supabase.co",
+            supabase_anon_key="anon",
+            supabase_service_role_key="sb_secret_test-only",
+        )
+    )
+    assert (
+        await client.table_count(
+            "workspace_members", query="select=user_id&workspace_id=eq.test-workspace"
+        )
+        == expected
+    )
+    assert calls[0][0] == "HEAD"
+    assert calls[0][1].endswith("workspace_members?select=user_id&workspace_id=eq.test-workspace")
+    assert calls[0][2]["headers"]["Prefer"] == "count=exact"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "count_range", ["", "0-0/*", "0-0/-1", "0-0/1.5", "0-0/9007199254740992", "*/" + "9" * 100]
+)
+async def test_exact_count_rejects_missing_malformed_or_unsafe_totals(
+    monkeypatch, count_range
+) -> None:
+    import httpx
+
+    class FakeAsyncClient:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *_args):
+            return None
+
+        async def request(self, method, url, **kwargs):
+            return httpx.Response(
+                200, headers={"Content-Range": count_range}, request=httpx.Request(method, url)
+            )
+
+    monkeypatch.setattr(
+        "src.infrastructure.supabase_client.httpx.AsyncClient", lambda **_: FakeAsyncClient()
+    )
+    client = SupabaseClient(
+        Settings(
+            supabase_url="https://project.supabase.co",
+            supabase_anon_key="anon",
+            supabase_service_role_key="sb_secret_test-only",
+        )
+    )
+    with pytest.raises(ValueError):
+        await client.table_count("workspace_members", query="select=user_id")

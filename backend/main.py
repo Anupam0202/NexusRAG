@@ -64,7 +64,7 @@ app = FastAPI(
 app.add_middleware(RequestLoggingMiddleware)
 app.add_middleware(cast(Any, RateLimitMiddleware), rpm=120)
 
-# CORS — settings.cors_origins auto-includes RENDER_EXTERNAL_URL when set
+# CORS — explicit configured origins; legacy deployment compatibility remains bounded
 logger.info("cors_origins_configured", origins=settings.cors_origins)
 
 app.add_middleware(
@@ -79,7 +79,7 @@ app.add_middleware(
 
 register_exception_handlers(app)
 
-# ── Root (Render health probe hits / with HEAD first) ────────────────────
+# ── Root (lightweight liveness for local/self-managed probes) ────────────────────
 
 
 @app.api_route("/", methods=["GET", "HEAD"], tags=["system"], include_in_schema=False)
@@ -92,19 +92,20 @@ async def root() -> dict:
 
 @app.get("/health", tags=["system"])
 async def health() -> dict:
-    from src.api.dependencies import get_vector_store
-
-    vs = get_vector_store()
+    # Process liveness is not tenant inventory or provider readiness. Never
+    # initialize models or expose a cross-workspace count to an anonymous probe.
     return {
         "status": "healthy",
+        "probe": "liveness",
+        "readiness": "NOT_PROBED",
         "version": "1.0.0",
-        "total_chunks": vs.total_chunks,
     }
 
 
 # ── Mount Routers ─────────────────────────────────────────────────────────
 
 from src.api.auth import router as auth_router  # noqa: E402
+from src.api.invitations import router as invitation_router  # noqa: E402
 from src.api.evidence_routes import router as evidence_router  # noqa: E402
 from src.api.routes import router as api_router  # noqa: E402
 from src.api.websocket import router as ws_router  # noqa: E402
@@ -112,6 +113,7 @@ from src.api.workspace import router as workspace_router  # noqa: E402
 
 app.include_router(auth_router, prefix="/api/v1")
 app.include_router(workspace_router, prefix="/api/v1")
+app.include_router(invitation_router, prefix="/api/v1")
 app.include_router(evidence_router, prefix="/api/v1")
 app.include_router(api_router, prefix="/api/v1")
 app.include_router(ws_router)

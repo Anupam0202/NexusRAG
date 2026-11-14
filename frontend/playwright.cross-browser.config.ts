@@ -5,9 +5,12 @@ import baseline from "./playwright.config";
 // not reused as Firefox/WebKit image baselines or claimed as authenticated QA.
 export default defineConfig({
   ...baseline,
-  testMatch: "**/public-smoke.spec.ts",
+  // Select public-smoke against Next, and worker-routing against Wrangler.
+  // The CI commands name the suite explicitly so runtime contracts stay distinct.
+  testMatch: ["**/public-smoke.spec.ts", "**/worker-routing.spec.ts"],
   projects: [
     { name: "firefox", use: { ...devices["Desktop Firefox"] } },
     { name: "webkit", use: { ...devices["Desktop Safari"] } },
+    { name: "mobile-webkit", use: { ...devices["iPhone 13"] } },
   ],
 });

@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { getAnalytics, getApiKeyStatus, getBillingUsage, getSystemStatus } = vi.hoisted(() => ({
@@ -28,9 +28,11 @@ vi.mock("@/lib/api", () => ({
 }));
 
 import BillingOrUsagePage from "./page";
+import { useStore } from "@/hooks/useStore";
 
 describe("BillingOrUsagePage", () => {
   beforeEach(() => {
+    useStore.setState({ authMode: "authenticated", authUser: { id: "user-a", email: null }, workspaceId: "workspace-a" });
     getAnalytics.mockReset();
     getApiKeyStatus.mockReset();
     getBillingUsage.mockReset();
@@ -69,7 +71,7 @@ describe("BillingOrUsagePage", () => {
       total_documents: 0,
       total_chunks: 0,
       api_key_configured: true,
-      llm_model_name: "gemini-2.5-flash",
+      llm_model_name: "gemini-3.5-flash-lite",
       embedding_model: "lightweight",
       cache: {},
       settings: {
@@ -123,7 +125,7 @@ describe("BillingOrUsagePage", () => {
   it("derives the vector backend label from qdrant status flags", async () => {
     mockUsageResponses({ qdrant_configured: true, enable_qdrant: true });
     render(<BillingOrUsagePage />);
-    await waitFor(() => { expect(screen.getByText("Vector backend")).toBeInTheDocument(); });
+    await waitFor(() => { expect(screen.getByText("Search index")).toBeInTheDocument(); });
     expect(screen.getByText("qdrant")).toBeInTheDocument();
     expect(screen.queryByText("unknown")).not.toBeInTheDocument();
   });
@@ -154,4 +156,31 @@ describe("BillingOrUsagePage", () => {
     await waitFor(() => expect(screen.getByText("Unknown", { exact: true })).toBeInTheDocument());
     expect(screen.getByText(/BYOK\) calls are billed by Google/)).toBeInTheDocument();
   });
+
+  it("removes private usage immediately when the account changes", async () => {
+    mockUsageResponses();
+    const view = render(<BillingOrUsagePage />);
+    await screen.findByText("Usage records");
+    getAnalytics.mockImplementationOnce(() => new Promise(() => {}));
+    act(() => useStore.setState({ authUser: { id: "user-b", email: null } }));
+    view.rerender(<BillingOrUsagePage />);
+    expect(screen.getByText("Loading usage")).toBeInTheDocument();
+    expect(screen.queryByText("Usage records")).not.toBeInTheDocument();
+  });
+
+
+  it("never invents free quotas or healthy provider posture from missing measurements", async () => {
+    mockUsageResponses();
+    getAnalytics.mockResolvedValue({ total_documents: 1, queries_today: 2 });
+    getSystemStatus.mockResolvedValue({ settings: {}, capabilities: {}, provider_health: [] });
+    getApiKeyStatus.mockRejectedValue(new Error("Key lookup unavailable"));
+    render(<BillingOrUsagePage />);
+    await screen.findByText("Usage records");
+    expect(screen.getByText("Usage posture not verified")).toBeInTheDocument();
+    expect(screen.getAllByText(/Limit not configured/)).toHaveLength(4);
+    expect(screen.getByText("Key status unavailable")).toBeInTheDocument();
+    expect(screen.getByText(/Missing health observations do not establish availability/)).toBeInTheDocument();
+    expect(screen.queryByText("Healthy")).not.toBeInTheDocument();
+  });
+
 });

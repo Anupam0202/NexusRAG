@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import worker, { allowRequest, handle, storageDelete } from "../../apps/gateway/src/preview-worker.js";
+import { resetIndexProbeMemory } from "../../apps/gateway/src/search-index.js";
 
 const request = (path = "/health", init = {}) => new Request(`https://preview.invalid${path}`, init);
 const configured = {
@@ -74,7 +75,7 @@ test("workspace settings are authenticated, tenant-scoped, secret-free, and use 
     }), configured);
     const body = await response.json();
     assert.equal(response.status, 200);
-    assert.equal(body.llm_model_name, "gemini-2.5-flash");
+    assert.equal(body.llm_model_name, "gemini-3.5-flash-lite");
     assert.equal(body.embedding_model, "gemini-embedding-001");
     assert.equal(body.retrieval_top_k, 10);
     assert.equal(body.hybrid_search_alpha, 0.6);
@@ -268,6 +269,7 @@ test("storage deletion rejects an unrelated 400 verification response", async ()
 
 test("authenticated system status reports real data-API reachability without leaking provider secrets", async () => {
   const originalFetch = globalThis.fetch;
+  resetIndexProbeMemory();
   globalThis.fetch = async (url, init = {}) => {
     const target = String(url);
     if (target.endsWith("/auth/v1/user")) {
@@ -277,6 +279,11 @@ test("authenticated system status reports real data-API reachability without lea
     if (target.includes("/rest/v1/workspaces?select=id&limit=1")) {
       return new Response("[]", { status: 200, headers: { "content-type": "application/json" } });
     }
+    // The search index is asked too: one read of the collection, with the service's key.
+    if (target === "https://qdrant.invalid/collections/nexusrag-v6-preview") {
+      assert.equal(init.headers["api-key"], "synthetic-qdrant-secret");
+      return new Response(JSON.stringify({ result: { status: "green", points_count: 0 } }), { status: 200, headers: { "content-type": "application/json" } });
+    }
     throw new Error(`Unexpected status probe: ${target}`);
   };
   try {
@@ -284,6 +291,9 @@ test("authenticated system status reports real data-API reachability without lea
     const body = await response.json();
     assert.equal(response.status, 200);
     assert.equal(body.status, "READY");
+    assert.equal(body.readiness, "READY");
+    // The database and the index were asked; Gemini was not, and the report says so.
+    assert.deepEqual(body.dependency_status, { supabase_data_api: "REACHABLE", qdrant: "READY", gemini: "CONFIGURED_NOT_PROBED" });
     assert.equal(body.settings.supabase_configured, true);
     assert.equal(body.settings.supabase_auth_configured, true);
     assert.equal(body.settings.supabase_data_api_reachable, true);
@@ -456,4 +466,25 @@ test("billing usage denies non-admin workspace members before reading ledger row
   } finally {
     globalThis.fetch = originalFetch;
   }
+});
+
+
+test("workspace analytics rejects missing, malformed and unsafe exact counts", async () => {
+  const originalFetch = globalThis.fetch;
+  const workspace = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+  const user = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
+  try {
+    for (const contentRange of [null, "0-0/*", "0-0/NaN", "0-0/-1", "0-0/1.5", "0-0/9007199254740992"]) {
+      globalThis.fetch = async (url, init = {}) => {
+        const target = String(url);
+        if (target.endsWith("/auth/v1/user")) return new Response(JSON.stringify({ id: user }));
+        if (target.includes("/rest/v1/workspace_members?")) return new Response(JSON.stringify([{ workspace_id: workspace, user_id: user, role: "owner" }]));
+        if (init.method === "HEAD") return new Response(null, { headers: contentRange === null ? {} : { "content-range": contentRange } });
+        throw new Error("Unexpected synthetic count fixture request");
+      };
+      const response = await handle(request("/api/v1/analytics/summary", { headers: { authorization: "Bearer synthetic-user-token", "x-nexus-workspace-id": workspace } }), configured);
+      assert.equal(response.status, 503, String(contentRange));
+      assert.equal((await response.json()).error.code, "PERSISTENCE_UNAVAILABLE");
+    }
+  } finally { globalThis.fetch = originalFetch; }
 });

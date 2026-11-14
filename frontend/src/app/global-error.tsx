@@ -1,36 +1,26 @@
 "use client";
 
 import { useEffect } from "react";
-import { AlertTriangle, RefreshCw } from "lucide-react";
 
-export default function GlobalError({
-  error,
-  reset,
-}: {
-  error: Error & { digest?: string };
-  reset: () => void;
-}) {
+/**
+ * Shown when the app's own frame fails. It replaces the whole document, so it carries its own minimal styles and
+ * follows the system's light or dark setting.
+ */
+export default function AppError({ error, retry }: { error: unknown; retry: () => void }) {
   useEffect(() => {
-    console.error("Global app error:", error);
+    console.error(error);
   }, [error]);
-
   return (
     <html lang="en">
-      <body>
-        <main className="flex min-h-screen flex-col items-center justify-center bg-slate-950 px-4 text-center text-white">
-          <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-red-500/15">
-            <AlertTriangle size={24} className="text-red-300" />
-          </div>
-          <h1 className="mb-2 text-xl font-bold">Something went wrong</h1>
-          <p className="mb-6 max-w-sm text-sm text-slate-300">
-            {error.message || "An unexpected error occurred. Please try again."}
+      <body style={{ margin: 0, fontFamily: "system-ui, sans-serif", display: "flex", minHeight: "100vh", alignItems: "center", justifyContent: "center", padding: "16px", colorScheme: "light dark" }}>
+        <title>NexusRAG could not start</title>
+        <main role="alert" style={{ maxWidth: "28rem", textAlign: "center" }}>
+          <h1 style={{ fontSize: "1.25rem" }}>NexusRAG could not start</h1>
+          <p style={{ lineHeight: 1.6 }}>
+            Something went wrong while loading the app. Nothing you saved was lost. Try again in a moment.
           </p>
-          <button
-            onClick={reset}
-            className="inline-flex items-center gap-2 rounded-xl bg-white px-5 py-2.5 text-sm font-semibold text-slate-950 transition hover:bg-slate-200"
-          >
-            <RefreshCw size={15} />
-            Try Again
+          <button type="button" onClick={() => retry()} style={{ padding: "8px 16px", borderRadius: "8px", border: "1px solid currentColor", background: "transparent", color: "inherit", cursor: "pointer", fontWeight: 600 }}>
+            Try again
           </button>
         </main>
       </body>

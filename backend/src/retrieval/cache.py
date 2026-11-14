@@ -11,6 +11,7 @@ full retrieval + generation round-trip.
 
 from __future__ import annotations
 
+import copy
 import threading
 import time
 from dataclasses import dataclass, field
@@ -110,11 +111,10 @@ class SemanticCache:
                 if cos > best_score:
                     best_score = cos
                     best_entry = entry
-
-        if best_entry and best_score >= self._threshold:
-            self.hits += 1
-            logger.debug("cache_hit", similarity=round(best_score, 4))
-            return best_entry.response
+            if best_entry and best_score >= self._threshold:
+                self.hits += 1
+                logger.debug("cache_hit", similarity=round(best_score, 4))
+                return copy.deepcopy(best_entry.response)
 
         self.misses += 1
         return None
@@ -137,7 +137,7 @@ class SemanticCache:
             workspace_id=normalize_workspace_id(workspace_id),
             namespace=namespace,
             query_embedding=q_emb,
-            response=response,
+            response=copy.deepcopy(response),
         )
 
         with self._lock:

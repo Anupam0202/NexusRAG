@@ -266,8 +266,8 @@ class AuditEventListResponse(BaseModel):
 class EvaluationRunRequest(BaseModel):
     mode: Literal["retrieval", "extractive"] = "retrieval"
     top_k: int | None = Field(None, ge=1, le=20)
-    fail_under_recall: float = Field(default=0.8, ge=0.0, le=1.0)
-    fail_under_citation_precision: float = Field(default=0.8, ge=0.0, le=1.0)
+    fail_under_recall: float = Field(default=0.9, ge=0.0, le=1.0)
+    fail_under_citation_precision: float = Field(default=0.95, ge=0.0, le=1.0)
 
 
 class EvaluationCaseResponse(BaseModel):

@@ -4,6 +4,11 @@ Tests for the retrieval module.
 
 from __future__ import annotations
 
+import pickle
+
+import faiss
+import numpy as np
+import pytest
 from langchain_core.documents import Document
 
 from config.settings import Settings, get_settings
@@ -573,6 +578,196 @@ def test_vector_store_maps_date_and_metadata_filters_to_qdrant() -> None:
         "metadata.uploaded_at_epoch": {"gte": 100, "lte": 200},
         "metadata.department": "finance",
     }
+
+
+class TestLocalVectorStorePersistence:
+    @staticmethod
+    def store(tmp_path):
+        return VectorStoreManager(Settings(
+            vector_store_path=str(tmp_path / "persistent-store"),
+            enable_lightweight_embeddings=True,
+            enable_qdrant=False,
+        ))
+
+    @staticmethod
+    def document(identifier):
+        return Document(
+            page_content=f"Exact retained evidence about {identifier} quartz oceans.",
+            metadata={"document_id": identifier, "filename": f"{identifier}.txt"},
+        )
+
+    def test_last_delete_remains_empty_after_restart_and_next_upload(self, tmp_path):
+        store = self.store(tmp_path)
+        store.add_documents([self.document("deleted")], workspace_id="workspace-a")
+        assert store.delete_by_identifier("deleted", workspace_id="workspace-a") == 1
+        assert store._index is None and store._dim == 0
+        assert not (store._persist_dir / "faiss.index").exists()
+
+        restarted = self.store(tmp_path)
+        assert restarted.total_chunks == 0 and restarted._index is None
+        assert restarted.search("deleted quartz", workspace_id="workspace-a") == []
+        added = self.document("new-source")
+        assert restarted.add_documents([added], workspace_id="workspace-a") == 1
+        assert restarted._index.ntotal == restarted.total_chunks == 1
+        hits = restarted._dense_search(added.page_content, 2, workspace_id="workspace-a", filters={})
+        assert [hit.document.metadata["document_id"] for hit in hits] == ["new-source"]
+
+    def test_legacy_empty_metadata_discards_and_removes_old_vector_cache(self, tmp_path):
+        store = self.store(tmp_path)
+        store.add_documents([self.document("deleted")], workspace_id="workspace-a")
+        metadata = store._persist_dir / "store_meta.pkl"
+        metadata.write_bytes(pickle.dumps({"documents": [], "embeddings": []}))
+        assert faiss.read_index(str(store._persist_dir / "faiss.index")).ntotal == 1
+
+        restarted = self.store(tmp_path)
+        assert restarted.total_chunks == 0 and restarted._raw_embeddings == []
+        assert restarted._index is None and restarted._dim == 0
+        assert not (store._persist_dir / "faiss.index").exists()
+
+    def test_partial_delete_keeps_only_survivors_searchable_after_restart(self, tmp_path):
+        store = self.store(tmp_path)
+        keep = self.document("surviving")
+        store.add_documents([self.document("removed"), keep], workspace_id="workspace-a")
+        assert store.delete_by_identifier("removed", workspace_id="workspace-a") == 1
+        restarted = self.store(tmp_path)
+        assert restarted._index.ntotal == restarted.total_chunks == 1
+        hits = restarted._dense_search(keep.page_content, 2, workspace_id="workspace-a", filters={})
+        assert [hit.document.metadata["document_id"] for hit in hits] == ["surviving"]
+        assert faiss.read_index(str(restarted._persist_dir / "faiss.index")).ntotal == 1
+
+    @pytest.mark.parametrize("cache_state", ["missing", "corrupt", "count", "dimension", "reordered"])
+    def test_cache_is_rebuilt_from_exact_metadata_embeddings(self, tmp_path, cache_state):
+        store = self.store(tmp_path)
+        documents = [self.document("alpha"), self.document("beta")]
+        store.add_documents(documents, workspace_id="workspace-a")
+        expected = np.array(store._raw_embeddings, dtype="float32")
+        path = store._persist_dir / "faiss.index"
+        if cache_state == "missing":
+            path.unlink()
+        elif cache_state == "corrupt":
+            path.write_bytes(b"not a FAISS index")
+        else:
+            vectors = (np.concatenate([expected, expected[:1]]) if cache_state == "count" else
+                       expected[:, :2].copy() if cache_state == "dimension" else expected[::-1].copy())
+            wrong = faiss.IndexFlatIP(vectors.shape[1])
+            wrong.add(vectors)
+            faiss.write_index(wrong, str(path))
+
+        restarted = self.store(tmp_path)
+        assert restarted.total_chunks == restarted._index.ntotal == 2
+        np.testing.assert_array_equal(restarted._index.reconstruct_n(0, 2), expected)
+        np.testing.assert_array_equal(faiss.read_index(str(path)).reconstruct_n(0, 2), expected)
+        hits = restarted._dense_search(documents[0].page_content, 1, workspace_id="workspace-a", filters={})
+        assert hits[0].document.metadata["document_id"] == "alpha"
+
+    @pytest.mark.parametrize("invalid", ["count", "ragged", "nonfinite", "document", "unknown", "missing", "extra"])
+    def test_invalid_metadata_fails_without_replacing_persisted_evidence(self, tmp_path, invalid):
+        store = self.store(tmp_path)
+        store.add_documents([self.document("alpha"), self.document("beta")], workspace_id="workspace-a")
+        path = store._persist_dir / "store_meta.pkl"
+        data = pickle.loads(path.read_bytes())
+        if invalid == "count":
+            data["embeddings"].pop()
+        elif invalid == "ragged":
+            data["embeddings"][0] = np.array([1.0], dtype="float32")
+        elif invalid == "nonfinite":
+            data["embeddings"][0][0] = np.nan
+        elif invalid == "document":
+            data["documents"][0] = "not a document"
+        elif invalid == "unknown":
+            data = {"unexpected": "retained evidence"}
+        elif invalid == "missing":
+            data.pop("embeddings")
+        else:
+            data["unexpected"] = "retained evidence"
+        path.write_bytes(pickle.dumps(data))
+        before = path.read_bytes()
+        with pytest.raises(ValueError):
+            self.store(tmp_path)
+        assert path.read_bytes() == before
+
+    @pytest.mark.parametrize("operation", ["add", "partial-delete", "last-delete"])
+    @pytest.mark.parametrize("failure", ["metadata-write", "metadata-publish"])
+    def test_failed_mutation_preserves_memory_and_disk_for_retry(self, tmp_path, monkeypatch, operation, failure):
+        store = self.store(tmp_path)
+        documents = [self.document("alpha")]
+        if operation != "last-delete":
+            documents.append(self.document("beta"))
+        store.add_documents(documents, workspace_id="workspace-a")
+        metadata = store._persist_dir / "store_meta.pkl"
+        before = metadata.read_bytes()
+        identifiers = [doc.metadata["document_id"] for doc in store._documents]
+        added = self.document("gamma")
+
+        def mutate():
+            if operation == "add":
+                return store.add_documents([added], workspace_id="workspace-a")
+            return store.delete_by_identifier("alpha", workspace_id="workspace-a")
+
+        with monkeypatch.context() as failing:
+            if failure == "metadata-write":
+                def fail_write(*args, **kwargs):
+                    raise OSError("synthetic mutation persistence failure")
+                failing.setattr(pickle, "dump", fail_write)
+            else:
+                original_replace = type(metadata).replace
+
+                def fail_publish(candidate, target):
+                    if candidate.name.startswith(".store_meta."):
+                        raise OSError("synthetic mutation persistence failure")
+                    return original_replace(candidate, target)
+                failing.setattr(type(metadata), "replace", fail_publish)
+            with pytest.raises(OSError, match="synthetic mutation persistence failure"):
+                mutate()
+        assert metadata.read_bytes() == before
+        assert [doc.metadata["document_id"] for doc in store._documents] == identifiers
+        assert store._index.ntotal == store.total_chunks == len(identifiers)
+        # Restart must recover the old committed state even when a cache was
+        # published/removed just before metadata publication failed.
+        restarted = self.store(tmp_path)
+        assert [doc.metadata["document_id"] for doc in restarted._documents] == identifiers
+        assert restarted._index.ntotal == len(identifiers)
+        assert mutate() == 1
+        final = self.store(tmp_path)
+        expected = [*identifiers, "gamma"] if operation == "add" else [x for x in identifiers if x != "alpha"]
+        assert [doc.metadata["document_id"] for doc in final._documents] == expected
+
+    def test_metadata_write_failure_is_visible_and_preserves_previous_file(self, tmp_path, monkeypatch):
+        store = self.store(tmp_path)
+        store.add_documents([self.document("kept")], workspace_id="workspace-a")
+        path = store._persist_dir / "store_meta.pkl"
+        before = path.read_bytes()
+
+        def fail_write(*args, **kwargs):
+            raise OSError("synthetic metadata write failure")
+
+        monkeypatch.setattr(pickle, "dump", fail_write)
+        with pytest.raises(OSError, match="synthetic metadata write failure"):
+            store._save()
+        assert path.read_bytes() == before
+
+    def test_last_delete_does_not_report_success_when_index_removal_fails(self, tmp_path, monkeypatch):
+        store = self.store(tmp_path)
+        store.add_documents([self.document("removed")], workspace_id="workspace-a")
+        path = store._persist_dir / "faiss.index"
+        metadata = store._persist_dir / "store_meta.pkl"
+        before = metadata.read_bytes()
+        original_unlink = type(path).unlink
+
+        def fail_index_unlink(candidate, *args, **kwargs):
+            if candidate == path:
+                raise OSError("synthetic index removal failure")
+            return original_unlink(candidate, *args, **kwargs)
+
+        with monkeypatch.context() as failing:
+            failing.setattr(type(path), "unlink", fail_index_unlink)
+            with pytest.raises(OSError, match="synthetic index removal failure"):
+                store.delete_by_identifier("removed", workspace_id="workspace-a")
+        assert path.exists()
+        assert metadata.read_bytes() == before
+        assert store._index.ntotal == store.total_chunks == 1
+        assert store.delete_by_identifier("removed", workspace_id="workspace-a") == 1
+        assert not path.exists()
 
 
 class TestQueryTransformer:

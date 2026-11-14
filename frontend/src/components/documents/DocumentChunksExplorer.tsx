@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Layers3, Loader2, RefreshCw, Search } from "lucide-react";
-import { getDocumentChunks } from "@/lib/api";
+import { useStore } from "@/hooks/useStore";
+import { useWorkspaceApiAccess } from "@/hooks/useAuthGate";
+import { ApiRequestError, getDocumentChunks } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import type { DocumentChunkPreview } from "@/types";
 
@@ -13,59 +15,72 @@ interface Props {
   className?: string;
 }
 
-export function DocumentChunksExplorer({
-  documentId,
-  expectedChunkCount = 0,
-  limit = 50,
-  className,
-}: Props) {
+export function DocumentChunksExplorer(props: Props) {
+  const identity = useStore(state => JSON.stringify([state.authMode, state.authUser?.id, state.workspaceId, props.documentId]));
+  return <WorkspaceChunks key={identity} {...props} />;
+}
+function WorkspaceChunks({ documentId, expectedChunkCount = 0, limit = 50, className }: Props) {
+  const { authMode, workspaceId, isWorkspaceLoading, canAccessWorkspaceApi } = useWorkspaceApiAccess();
+  const userId = useStore(state => state.authUser?.id);
+  const expectedUserId = authMode === "authenticated" ? userId ?? null : undefined;
+  const alive = useRef(true), sequence = useRef(0);
+  useEffect(() => { const counter = sequence; alive.current = true; return () => { alive.current = false; counter.current++; }; }, []);
   const [chunks, setChunks] = useState<DocumentChunkPreview[]>([]);
-  const [total, setTotal] = useState(0);
+  const [total, setTotal] = useState<number | null>(null);
+  const [exact, setExact] = useState(false);
+  const [after, setAfter] = useState<number | null>(null);
+  const [version, setVersion] = useState<string | undefined>();
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [moreError, setMoreError] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
-    if (!documentId) {
-      setChunks([]);
-      setTotal(0);
-      setError(null);
-      return;
-    }
-
-    const ctrl = new AbortController();
+    const current = ++sequence.current;
+    setChunks([]); setTotal(null); setExact(false); setAfter(null); setVersion(undefined); setError(null); setMoreError(null);
+    if (!documentId || !canAccessWorkspaceApi || isWorkspaceLoading) { setLoading(false); return; }
+    setLoading(true);
     const timer = window.setTimeout(async () => {
-      setLoading(true);
-      setError(null);
       try {
-        const response = await getDocumentChunks(documentId, {
-          search: query,
-          limit,
-        });
-        if (ctrl.signal.aborted) return;
-        setChunks(response.chunks);
-        setTotal(response.total);
+        const response = await getDocumentChunks(documentId, { search: query, limit }, { workspaceId, expectedUserId });
+        if (!alive.current || current !== sequence.current) return;
+        setChunks(response.chunks); setTotal(response.total); setExact(response.total_is_exact === true);
+        setAfter(response.next_after ?? null); setVersion(response.version_id);
       } catch (err: unknown) {
-        if (ctrl.signal.aborted) return;
+        if (!alive.current || current !== sequence.current) return;
         setError(err instanceof Error ? err.message : "Unable to load document chunks");
-        setChunks([]);
-        setTotal(0);
-      } finally {
-        if (!ctrl.signal.aborted) setLoading(false);
-      }
+      } finally { if (alive.current && current === sequence.current) setLoading(false); }
     }, 250);
+    return () => { window.clearTimeout(timer); };
+  }, [documentId, limit, query, refreshKey, canAccessWorkspaceApi, isWorkspaceLoading, workspaceId, expectedUserId]);
 
-    return () => {
-      ctrl.abort();
-      window.clearTimeout(timer);
-    };
-  }, [documentId, limit, query, refreshKey]);
-
-  const countLabel = query.trim()
-    ? `${total} matching chunk${total === 1 ? "" : "s"}`
-    : `${total || expectedChunkCount} indexed chunk${(total || expectedChunkCount) === 1 ? "" : "s"}`;
-  const chunksNeedRefresh = !query.trim() && expectedChunkCount > 0 && total === 0;
+  const loadMore = async () => {
+    if (loading || after === null || !version) return;
+    const current = ++sequence.current;
+    setLoading(true); setError(null); setMoreError(null);
+    try {
+      const response = await getDocumentChunks(documentId, { search: query, limit, after, versionId: version }, { workspaceId, expectedUserId });
+      if (!alive.current || current !== sequence.current) return;
+      if (response.version_id !== version || response.chunks.some(row => chunks.some(old => old.chunk_index === row.chunk_index)) ||
+          (response.next_after != null && response.next_after <= after)) throw new ApiRequestError("Chunk inventory changed or did not advance. Refresh before continuing.", "VERSION_CONFLICT");
+      setChunks(old => [...old, ...response.chunks]); setAfter(response.next_after ?? null);
+      setTotal(response.total); setExact(response.total_is_exact === true);
+    } catch (err: unknown) {
+      if (alive.current && current === sequence.current) {
+        const message = err instanceof Error ? err.message : "Unable to load more chunks";
+        // Only transport/decoding interruptions retain the earlier previews.
+        // API refusals and changed inventories still require a fresh read.
+        if (err instanceof Error && !(err instanceof ApiRequestError) && !("code" in err)) setMoreError(message);
+        else setError(message);
+        setExact(false);
+      }
+    } finally { if (alive.current && current === sequence.current) setLoading(false); }
+  };
+  const countLabel = total === null ? "Chunk inventory not measured" : exact
+    ? `${total} ${query.trim() ? "matching" : "indexed"} chunk${total === 1 ? "" : "s"} · showing ${chunks.length}`
+    : `Showing ${chunks.length} chunk previews · total unverified`;
+  const chunksNeedRefresh = total !== null && !query.trim() && expectedChunkCount > 0 && total === 0;
 
   return (
     <div className={cn("space-y-3", className)}>
@@ -73,6 +88,8 @@ export function DocumentChunksExplorer({
         <label className="relative block min-w-0 flex-1">
           <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
           <input
+            disabled={!canAccessWorkspaceApi || isWorkspaceLoading}
+            aria-label="Search indexed chunks"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Search indexed chunks"
@@ -94,13 +111,17 @@ export function DocumentChunksExplorer({
         </div>
       </div>
 
-      {loading ? (
+      {moreError && <div role="alert" className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-200">
+        <p>{moreError}</p>
+        <p className="mt-1">Previously loaded previews are retained. The current inventory has not been reverified.</p>
+      </div>}
+      {loading && chunks.length === 0 ? (
         <div className="flex items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--bg-card)] py-12 text-sm text-[var(--text-muted)]">
           <Loader2 size={17} className="mr-2 animate-spin" />
           Loading chunks
         </div>
       ) : error ? (
-        <div className="rounded-xl border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-300">
+        <div role="alert" className="rounded-xl border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-300">
           {error}
         </div>
       ) : chunks.length === 0 ? (
@@ -134,7 +155,7 @@ export function DocumentChunksExplorer({
                   )}
                 </div>
                 <span className="shrink-0 text-[10px] text-[var(--text-muted)]">
-                  {chunk.token_count || Math.ceil(chunk.content.length / 4)} tokens
+                  {chunk.token_count == null ? `Approx. ${Math.ceil(chunk.content.length / 4)}` : chunk.token_count} tokens
                 </span>
               </div>
               {chunk.section_title && (
@@ -148,9 +169,20 @@ export function DocumentChunksExplorer({
               >
                 {chunk.content}
               </p>
+              {chunk.original_content_hash && <details className="mt-2 min-w-0 text-xs text-[var(--text-muted)]">
+                <summary className="cursor-pointer">Source receipt for chunk {chunk.chunk_index + 1}</summary>
+                <p className="mt-2 break-all font-mono">SHA256 {chunk.original_content_hash}</p>
+                {version && <p className="mt-1 break-all font-mono">Version {version}</p>}
+              </details>}
             </article>
           ))}
         </div>
+      )}
+      {after !== null && version && !error && (
+        <button type="button" onClick={loadMore} disabled={loading}
+          className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm disabled:opacity-50">
+          {loading ? "Loading more chunks…" : moreError ? "Retry loading more chunks" : "Load more chunks"}
+        </button>
       )}
     </div>
   );

@@ -1,487 +1,199 @@
 <p align="center">
-  <img src="https://img.shields.io/badge/Python-3.11+-blue?logo=python&logoColor=white" alt="Python" />
-  <img src="https://img.shields.io/badge/Next.js-16-black?logo=next.js&logoColor=white" alt="Next.js" />
-  <img src="https://img.shields.io/badge/FastAPI-0.111+-009688?logo=fastapi&logoColor=white" alt="FastAPI" />
-  <img src="https://img.shields.io/badge/Gemini-Failover-4285F4?logo=google&logoColor=white" alt="Gemini" />
-  <img src="https://img.shields.io/badge/Qdrant-Vector_Search-DC244C" alt="Qdrant" />
-  <img src="https://img.shields.io/badge/Deploy-Cloudflare_+_Supabase-F38020?logo=cloudflare&logoColor=white" alt="Deploy" />
-  <img src="https://img.shields.io/badge/License-MIT-green" alt="MIT" />
+  <a href="https://github.com/Anupam0202/NexusRAG/actions/workflows/v6-foundation-ci.yml"><img src="https://github.com/Anupam0202/NexusRAG/actions/workflows/v6-foundation-ci.yml/badge.svg?branch=main" alt="CI" /></a>
+  <img src="https://img.shields.io/badge/Cloudflare-Workers-F38020?logo=cloudflare&logoColor=white" alt="Cloudflare Workers" />
+  <img src="https://img.shields.io/badge/Next.js-16-black?logo=next.js&logoColor=white" alt="Next.js 16" />
+  <img src="https://img.shields.io/badge/Supabase-Postgres%20%2B%20Auth-3FCF8E?logo=supabase&logoColor=white" alt="Supabase" />
+  <img src="https://img.shields.io/badge/Qdrant-vector%20search-DC244C" alt="Qdrant" />
+  <img src="https://img.shields.io/badge/Gemini-API-4285F4?logo=google&logoColor=white" alt="Gemini" />
+  <img src="https://img.shields.io/badge/License-MIT-green" alt="MIT licence" />
 </p>
 
-# NexusRAG — Enterprise Document Intelligence Platform
+# NexusRAG
 
-A **Retrieval-Augmented Generation** platform under active validation for workspace-scoped document research and reviewable findings. The bounded runtime uses **Cloudflare**, **Supabase**, **Qdrant**, **Gemini**, and **Next.js 16**; **FastAPI** contains additional local/research implementations.
+NexusRAG lets a team put its documents in a private workspace and ask questions about them. Every answer cites the
+passages it comes from, so it can be checked, and an answer worth keeping can be saved as a finding, reviewed by a
+colleague and exported with its evidence.
 
-> NexusRAG connects documents, retrieval, and reviewable findings. Optional contextual enrichment exists in the Python research path; it is not enabled in the bounded gateway, and improved answer quality is not established merely by implementing it.
+It runs on free tiers: a Cloudflare Worker gateway, a Next.js frontend on Cloudflare, Supabase for sign-in,
+records and files, Qdrant for vector search, and Google's Gemini API for reading documents and writing answers.
 
----
+## What it does
 
-## Runtime scope and release status
+- **Workspaces and members.** Sign in with Google or GitHub, create a workspace, and add colleagues as
+  administrators, editors or viewers. Everything (documents, conversations, findings, keys) belongs to one
+  workspace and is never visible from another.
+- **Documents.** Upload PDF, Word, text, Markdown, CSV, JSON, ZIP archives of text files, and PNG, JPEG, WebP or
+  TIFF images, up to 10 MB each. A document is marked *Ready* only once it can actually be answered from.
+- **Chat with citations.** Answers stream as they are written. Retrieval combines vector search with keyword
+  matching inside the workspace; before an answer is saved, each cited passage is checked against the stored
+  text, and the answer says when nothing in the documents supports a claim.
+- **Research.** Plan a larger question in one of twelve modes (quick lookup, evidence answer, comparison,
+  timeline, contradiction analysis, deep research, obligation analysis, entity investigation, due diligence,
+  product passport, procurement research, calculation), run it, and see which sources were consulted and which
+  were skipped. In a calculation, Gemini only points at the figures the documents state; every result is computed
+  exactly and checked by the database, with its formula, units, rounding and the passages it came from.
+- **Findings and review.** Save an answer as a finding, share it, have a second member approve it, and export a
+  reproducible evidence package.
+- **Privacy controls.** Deleting a document removes its search entries, stored file and every row, and leaves
+  deletion receipts. Owners can set a retention period, delete a whole workspace, and anyone can delete their own
+  account.
+- **Your own Gemini key.** The repository ships no usable provider key. When an operator configures the service's
+  key, each account gets a short trial on it (five questions and one document), limited by the provider
+  rights and budget records the operator keeps; after that it uses its own Gemini key, which is stored encrypted
+  and never returned to the browser. Google may bill the project that owns that key.
 
-The deployed Cloudflare gateway is the bounded, tenant-scoped runtime; the Python backend also contains richer local/research implementations. The feature inventory below describes repository capabilities, **not a guarantee that every feature is enabled in the deployed gateway**.
+Products that are built but not yet verified end to end (Terms & Quota Radar, the Evidence API) stay out of the
+navigation until they are switched on with `NEXT_PUBLIC_FEATURES`.
 
-- Gateway source accepts bounded PDF, DOCX, TXT, Markdown, CSV, JSON, ZIP, PNG, JPEG, WebP, and TIFF, up to **10,000,000 bytes**. Binary Gemini extraction requires approved non-sensitive processing, rights and budgets. Excel, GIF and BMP are not supported by this runtime. Verify the deployed revision before assuming source behavior is live.
-- Migrations 035/036 add atomic workspace creation, confirmed-Auth existing-account member management, private versioned findings, independent review and manual-note export receipts. `/findings` is the corresponding workbench. Invitations and complete ten-product workflows are not established by these features.
-- Unsupported advanced retrieval filters, retention enforcement, and workspace erasure fail closed. Deletions needing unimplemented derived-content or outstanding-write verification remain tombstoned/blocked; no successful receipt is fabricated.
-- Document inventory follows bounded keyset pages rather than presenting the first 100 records as the entire workspace.
-- Consult [the comprehensive audit](docs/audits/COMPREHENSIVE_APPLICATION_AUDIT.md) for validated checks and remaining release blockers. Production readiness and defect-free operation are not claimed.
-- Qdrant Free clusters can suspend after inactivity. Check cluster health before diagnosing a gateway failure; reactivation does not establish a production availability SLA.
-- `main` is the canonical source branch. Candidate deployment is manual, main-only, and restricted to the isolated rehearsal backend. Production deployment remains separately guarded; merging code does not deploy production.
+## Status
 
-## Local/research feature inventory
+NexusRAG is under active development. The gateway, frontend and database have broad automated tests, and the
+preview environment runs the current code. Verification of the full upload-to-answer journey on real services, and
+the next production release, are still in progress. Current state, decisions and next steps are kept in
+[docs/completion/PROGRESS.md](docs/completion/PROGRESS.md).
 
-The following features describe optional Python implementations, not production acceptance or the bounded gateway's capabilities. See the current audit and runtime capability responses before enabling them.
+Known limits:
 
-### Multi-Format Document Ingestion
-- **PDF** — native text extraction + OCR for scanned documents
-- **DOCX** — paragraphs, tables, and embedded image OCR
-- **Excel / CSV** — automatic statistical summaries with multi-representation indexing
-- **Images** (PNG, JPG, GIF, WebP, BMP, TIFF) — full OCR via Gemini Vision
-- **TXT, Markdown, JSON** — with multi-encoding support
-- Drag-and-drop upload with real-time progress
-- Upload preflight returns clear limits for large PDFs, scanned PDFs, and high-resolution images before processing starts
-
-### Advanced RAG Pipeline
-- **Hybrid Retrieval** — BM25 and Qdrant in the Python path; the bounded gateway has its own lexical/dense fusion. Neither is production-quality verified solely by synthetic tests.
-- **Cross-Encoder Re-ranking** — `ms-marco-MiniLM-L-6-v2` for precision
-- **Smart Chunking** — recursive, semantic (embedding-based breakpoints), and hierarchical strategies
-- **Contextual Enrichment** — LLM-generated context prepended to each chunk (Anthropic-style)
-- **Semantic Cache** — embedding-similarity cache avoids redundant LLM calls
-- **Multi-Query Expansion** — generates alternative queries for better recall
-- **Adaptive K** — query classification adjusts retrieval depth (10–50 chunks)
-- **History-Aware Reformulation** — resolves pronouns using conversation context
-
-### Cloud OCR with Auto-Recovery
-- **Gemini Vision** (primary) — understanding-based extraction with typed prompts (ID cards, invoices, scientific papers)
-- **Google Cloud Vision** (fallback) — pixel-level OCR with adaptive preprocessing
-- **Circuit breaker with auto-recovery** — disables OCR on rate limit, re-enables after 5-minute cooldown
-- **Embedded image extraction** — OCRs figures/charts inside PDFs and DOCX files
-- **4 preprocessing strategies** — upscaling, CLAHE, high contrast, Otsu binarization
-
-### Scientific PDF Parser
-- Section hierarchy extraction (title, subsections, paragraphs)
-- Equation detection via Canny edge-density heuristic
-- Table extraction via Gemini Vision
-- Figure detection with contour analysis + OCR
-- Embedded image extraction via PyMuPDF
-- Can fall back to the standard PDF loader in memory-constrained local/research environments; Render is not an active deployment target.
-
-### Real-Time Streaming Chat
-- WebSocket-based token streaming with typed JSON frames
-- Markdown rendering with GFM tables, code blocks, and lists
-- Source attribution with expandable citation panels (framer-motion slide-in)
-- Conversation memory with session management and TTL-based auto-eviction
-- Confidence scoring based on actual retrieval scores
-
-### API Key Management
-- The repository ships no usable provider key. An operator may configure a server key behind explicit rights and budget gates.
-- Auto-prompted modal when quota is exceeded
-- Users can enter their own Google API key to continue
-- Account-scoped encrypted BYOK status is managed from `/settings/api-keys`; the user's Google project may be billed.
-- Raw keys are never returned to the browser and can be removed without mutating global server settings
-- Key validation runs server-side using a bounded provider model-list request; do not infer cost or quota rights merely from a successful validation.
-
-### Runtime Settings
-- Tunable temperature, top-k, hybrid alpha, context window
-- Toggle re-ranking and contextual enrichment on/off
-- Persistent sessions with configurable TTL
-
-### Security
-- Google-first and GitHub-second OAuth through Supabase Auth, with no transactional auth email dependency
-- Account-security posture for linked providers plus explicit current-session or all-session sign-out
-- Input sanitization (anti-prompt-injection, XSS, SQL injection detection)
-- File validation with magic-byte checks (PDF, PNG, JPEG, GIF, BMP)
-- PII redaction patterns (email, phone, SSN, credit card)
-- Rate limiting (per-IP token bucket)
-- Optional API key authentication
-
----
+- PDFs and images are read by Gemini. A document whose text does not fit in one extraction response is refused
+  with a message asking to split it; nothing partial is indexed.
+- A document is split into at most 400 passages.
+- The Workers free plan allows 10 ms of CPU and 50 outbound requests per invocation, so deletion, retention and
+  ingestion work in small steps that a cron run every five minutes carries on.
+- Free Qdrant clusters are suspended after a week without use and free Supabase projects pause after a week of
+  low activity. The gateway's first cron run each day queries the index, which counts as use.
 
 ## Architecture
 
-```text
-Browser → Cloudflare OpenNext frontend → Cloudflare gateway
-                                      ├→ Supabase Auth/Postgres/Storage
-                                      ├→ Qdrant tenant/version-fenced vectors
-                                      ├→ Gemini admitted model calls
-                                      └→ Computer Worker queued heavy processing
+```mermaid
+flowchart LR
+  Browser --> Frontend["Frontend Worker<br/>Next.js 16 on OpenNext"]
+  Browser --> Gateway["Gateway Worker<br/>apps/gateway"]
+  Gateway --> Auth["Supabase Auth"]
+  Gateway --> DB[("Supabase Postgres<br/>row-level security")]
+  Gateway --> Files[("Supabase Storage<br/>original files")]
+  Gateway --> Index[("Qdrant<br/>passage vectors")]
+  Gateway --> Gemini["Gemini API"]
+  Gateway --> Queue[["Cloudflare Queue<br/>ingestion jobs"]]
+  Queue --> Gateway
+  Cron["Cron, every 5 minutes"] --> Gateway
 ```
 
-Customer evidence and business records remain authoritative in Supabase. Qdrant is reconstructible. Cloudflare is the public security and routing boundary. Vercel and Render are not active deployment paths.
+- The **gateway** (`apps/gateway/src/preview-worker.js` and the modules beside it) authenticates every request
+  with Supabase Auth, checks workspace membership, and is the only component that holds service credentials.
+- **Postgres** is the system of record: documents, versions, passages, conversations, findings, budgets and
+  deletion receipts, each protected by row-level security. Most writes go through database functions that check
+  the caller's role and the workspace's state in one transaction.
+- **Ingestion** runs from the queue: extract text, split it into passages, embed them with
+  `gemini-embedding-001` (768 dimensions), and publish a new document version only when the index holds exactly
+  the expected entries.
+- **Model choice** follows one policy in `apps/gateway/src/gemini-models.js`: `gemini-3.5-flash-lite`, then
+  `gemini-3.1-flash-lite`, then `gemini-flash-latest`, falling back automatically when Google retires a model.
+- **The cron** finishes deletions that could not complete in their request, carries out retention schedules,
+  checks which Gemini models are still served, and keeps the search index awake.
 
----
+The frontend uses Next.js 16 (Next.js requires Node `>=20.9.0`), React 19, TailwindCSS 4, Zustand and Lucide
+icons. More detail: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) and [docs/SECURITY.md](docs/SECURITY.md).
 
-## Tech Stack
+## Repository layout
 
-| Layer | Technology |
-|-------|-----------|
-| **LLM** | Google Gemini failover chain (`gemini-2.5-flash` primary by default, fast 2.5/2.0 fallbacks) |
-| **Embeddings** | Sentence Transformers (all-MiniLM-L6-v2) |
-| **Re-ranker** | Cross-encoder (ms-marco-MiniLM-L-6-v2) |
-| **OCR** | Gemini Vision + Google Cloud Vision |
-| **Backend** | FastAPI, Uvicorn, LangChain, Pydantic v2 |
-| **Frontend** | Next.js 16, React 19, TailwindCSS, Zustand, Framer Motion |
-| **Vector Store** | Qdrant primary + BM25Okapi; local FAISS fallback for development/demo |
-| **Streaming** | WebSocket (native JSON frames) |
-| **Deploy** | Cloudflare Workers/OpenNext + Supabase + Qdrant |
-| **Styling** | TailwindCSS 3, Inter font, Lucide icons |
+| Path | Contents |
+|---|---|
+| `apps/gateway/` | The Cloudflare Worker that serves the API, the ingestion queue and the cron |
+| `frontend/` | The Next.js app, built for Cloudflare with OpenNext |
+| `supabase/` | The database baseline and forward migrations |
+| `tests/cloudflare/` | Gateway tests (Node's test runner) |
+| `tests/postgres/` | SQL assertions and the full local database replay |
+| `tests/scripts/` | Tests for the release and migration tooling |
+| `scripts/` | Release, migration, provider-review and smoke-test tools |
+| `backend/` | The original FastAPI implementation, kept as a local research tool; it is not deployed |
+| `docs/` | Architecture, security, deployment guides and the completion plan |
 
----
+## Running it locally
 
-## Quick Start
+CI uses Node.js 24 and Python 3.13; the database tests need PostgreSQL 17 (16 also works) with pgvector.
 
-### Prerequisites
-
-- **Python 3.11+**
-- **Node.js 18+**
-- **Google API Key** — get one free at [Google AI Studio](https://aistudio.google.com/apikey)
-
-### 1. Clone & Setup Backend
+**Gateway tests** (from the repository root):
 
 ```bash
-git clone https://github.com/Anupam0202/NexusRAG.git
-cd NexusRAG/backend
-
-# Create virtual environment
-python -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
-
-# Install dependencies
-pip install -e ".[dev]"
-
-# Configure environment
-cp .env.example .env
-# Edit .env and add your GOOGLE_API_KEY
-# For local demo-only runs without Supabase Auth, set ENABLE_ANONYMOUS_DEMO=true.
+npm run test:cloudflare
 ```
 
-### 2. Setup Frontend
-
-```bash
-cd ../frontend
-npm install
-cp .env.example .env.local
-# Edit .env.local if backend is not on localhost:8000
-```
-
-NexusRAG never receives Google or GitHub credentials. Supabase Auth is the sole
-identity and session authority, and the FastAPI backend receives only
-Supabase-issued JWTs. Provider secrets belong only in Supabase Auth
-configuration.
-
-### 3. Run Both Servers
-
-**Terminal 1 — Backend:**
-```bash
-cd backend
-python -m uvicorn main:app --reload --host 0.0.0.0 --port 8000
-```
-
-**Terminal 2 — Frontend:**
-```bash
-cd frontend
-npm run dev
-```
-
-Open **http://localhost:3000** and start uploading documents!
-
-### Docker (Alternative)
-
-```bash
-# Copy and configure backend env
-cp backend/.env.example backend/.env
-# Edit backend/.env and add your GOOGLE_API_KEY
-
-docker-compose up --build
-```
-
----
-
-## Deployment
-
-The preview deployment is automated by `.github/workflows/cloudflare-preview-deploy.yml` using the protected GitHub `Preview` environment.
+**Frontend** checks, unit tests and builds:
 
 ```bash
 cd frontend
 npm ci --ignore-scripts
-npm run cf:build
-npm run cf:deploy
+npm run lint && npx tsc --noEmit && npm test
+npm run build && npm run cf:build
 ```
 
-Required public configuration points the frontend at the Cloudflare gateway and the connected Supabase project. Provider credentials remain protected secrets. See `docs/DEPLOYMENT_FREE.md` and `docs/DEPLOYMENT_PRODUCTION.md` for the exact environment contract and promotion gates.
+**Database replay**: builds a fresh database from the baseline and every migration, then runs all SQL assertions.
+Use an empty, disposable database:
 
-Vercel and Render configuration files have been removed. There is no automatic fallback to those platforms.
-
----
-
-## Project Structure
-
-```
-NexusRAG/
-├── backend/
-│   ├── main.py                    # FastAPI entry point
-│   ├── config/
-│   │   └── settings.py            # Pydantic settings (env vars)
-│   ├── src/
-│   │   ├── api/
-│   │   │   ├── routes.py          # REST endpoints
-│   │   │   ├── websocket.py       # WebSocket streaming
-│   │   │   ├── dependencies.py    # Singleton DI
-│   │   │   ├── middleware.py      # Rate limiting, logging
-│   │   │   └── models.py          # Request/response schemas
-│   │   ├── generation/
-│   │   │   ├── chain.py           # RAG orchestrator
-│   │   │   ├── llm.py             # Gemini provider + failover
-│   │   │   ├── prompts.py         # System prompt v3
-│   │   │   └── memory.py          # Conversation sessions
-│   │   ├── ingestion/
-│   │   │   ├── pipeline.py        # Orchestrator
-│   │   │   ├── loader.py          # Multi-format loaders (8 types)
-│   │   │   ├── ocr_manager.py     # Gemini Vision + Cloud Vision
-│   │   │   ├── chunker.py         # Smart chunking strategies
-│   │   │   ├── contextualizer.py  # LLM-based enrichment
-│   │   │   ├── embedder.py        # Sentence transformers
-│   │   │   └── scientific.py      # Scientific PDF parser
-│   │   ├── retrieval/
-│   │   │   ├── retriever.py       # Hybrid BM25 + vector
-│   │   │   ├── reranker.py        # Cross-encoder re-scoring
-│   │   │   ├── vector_store.py    # Qdrant/local hybrid vector manager
-│   │   │   ├── cache.py           # Semantic query cache
-│   │   │   └── query_transformer.py
-│   │   └── utils/
-│   │       ├── exceptions.py      # Custom error hierarchy
-│   │       ├── helpers.py         # Text utilities
-│   │       ├── logger.py          # Structured logging
-│   │       └── security.py        # Input sanitization
-│   ├── scripts/
-│   │   ├── evaluate.py            # RAG evaluation suite
-│   │   └── ingest.py              # CLI ingestion
-│   ├── tests/                     # pytest test suite
-│   ├── pyproject.toml
-│   └── Dockerfile
-├── frontend/
-│   ├── src/
-│   │   ├── app/                   # Next.js App Router pages
-│   │   │   ├── chat/page.tsx      # Chat interface
-│   │   │   ├── documents/page.tsx # Upload & manage
-│   │   │   ├── analytics/page.tsx # System dashboard
-│   │   │   ├── settings/page.tsx  # Runtime config
-│   │   │   └── error.tsx          # Error boundaries
-│   │   ├── components/
-│   │   │   ├── chat/              # ChatInterface, MessageBubble,
-│   │   │   │                      # SourcePanel, ApiKeyModal
-│   │   │   ├── documents/         # UploadZone, DocumentList
-│   │   │   └── layout/            # Sidebar, Header, ThemeProvider,
-│   │   │                          # PageTransition
-│   │   ├── hooks/                 # useChat, useStore, useDocuments
-│   │   ├── lib/                   # api.ts, websocket.ts, utils.ts
-│   │   └── types/                 # TypeScript definitions
-│   ├── package.json
-│   ├── wrangler.jsonc
-│   ├── open-next.config.ts
-│   └── Dockerfile
-├── docker-compose.yml
-├── .github/workflows/cloudflare-preview-deploy.yml
-├── Makefile
-└── .gitignore
+```bash
+PGHOST=... PGPORT=... PGUSER=postgres PGDATABASE=nexus_replay bash tests/postgres/local-rehearsal.sh
 ```
 
----
+**Release and migration tooling** tests:
+
+```bash
+python3 -m unittest discover -s tests/scripts -p 'test_*.py'
+```
+
+To run the app itself against your own services, create a Supabase project (apply
+`supabase/baseline/001_v6_zero_cost_baseline.sql`, then the migrations in the order
+`tests/postgres/local-rehearsal.sh` applies them), a Qdrant cluster and a Gemini key. Put the gateway's secrets in
+`apps/gateway/.dev.vars` and start it with `npx wrangler dev --config apps/gateway/wrangler.preview.jsonc`, then
+start the frontend with `npm run dev` in `frontend/` and the variables below.
 
 ## Configuration
 
-### Backend Environment Variables (`backend/.env`)
+Gateway (Worker variables and secrets):
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `GOOGLE_API_KEY` | — | Google Gemini API key **(required)** |
-| `SUPABASE_URL` | empty | Supabase project URL for durable documents, workspaces, and auth |
-| `SUPABASE_ANON_KEY` / `SUPABASE_PUBLISHABLE_KEY` | empty | Supabase public browser key; both common naming styles are accepted |
-| `SUPABASE_SERVICE_ROLE_KEY` / `SUPABASE_SECRET_KEY` | empty | Supabase service-role key for trusted backend persistence and storage |
-| `SUPABASE_JWT_SECRET` / `SUPABASE_JWKS_URL` | empty | Token verification config; hosted Supabase projects can use the JWKS URL |
-| `SUPABASE_STORAGE_BUCKET` | `documents` | Supabase Storage bucket for uploaded source files |
-| `ENABLE_ANONYMOUS_DEMO` | `false` | Enables local anonymous mode only when explicitly set to `true` |
-| `LLM_MODEL_NAME` | `gemini-2.5-flash` | Primary LLM model |
-| `LLM_FALLBACK_MODELS` | `gemini-2.5-flash-lite,gemini-2.0-flash,gemini-2.0-flash-lite` | Comma-separated fallback chain |
-| `EMBEDDING_MODEL` | `all-MiniLM-L6-v2` | Sentence transformer model |
-| `CHUNK_SIZE` | `1000` | Target characters per chunk |
-| `CHUNK_OVERLAP` | `200` | Overlap between chunks |
-| `RETRIEVAL_TOP_K` | `10` | Base chunks retrieved per query |
-| `SIMILARITY_THRESHOLD` | `0.25` | Minimum relevance score |
-| `HYBRID_SEARCH_ALPHA` | `0.6` | Dense vs sparse weight (0–1) |
-| `ENABLE_RERANKING` | `true` | Cross-encoder re-ranking |
-| `ENABLE_CONTEXTUAL_ENRICHMENT` | `true` | LLM chunk enrichment |
-| `ENABLE_SEMANTIC_CHUNKING` | `true` | Smart chunking routing |
-| `ENABLE_QUERY_EXPANSION` | `true` | LLM query variants for broader retrieval recall; automatically skipped in constrained memory mode |
-| `ENABLE_LIGHTWEIGHT_EMBEDDINGS` | `false` | Use deterministic hash embeddings instead of local transformer embeddings |
-| `CONSTRAINED_MEMORY` | `false` | Enables free-tier memory guards for Render-sized instances |
-| `ENABLE_ASYNC_INGESTION` | `false` | Returns uploads quickly while ingestion continues in the background |
-| `QDRANT_URL` | empty | Optional managed Qdrant endpoint for production vector search |
-| `QDRANT_API_KEY` | empty | Qdrant API key when `QDRANT_URL` is configured |
-| `QDRANT_COLLECTION` | `nexusrag_chunks` | Qdrant collection name |
-| `ENABLE_QDRANT` | `false` | Enables Qdrant adapter when endpoint/key are ready |
-| `ENABLE_PGVECTOR_FALLBACK` | `false` | Use Supabase pgvector when Qdrant is unavailable |
-| `ENABLE_LOCAL_FAISS` | `true` | Allows local FAISS fallback for local/demo environments |
-| `API_CORS_ORIGINS` | `localhost:3000` | Allowed CORS origins |
-| `ENABLE_CACHE` | `true` | Semantic query cache |
-| `MAX_UPLOAD_SIZE_MB` | `100` | Max file upload size |
-| `MAX_PDF_PAGES` | `40` | Max pages accepted per PDF upload |
-| `MAX_PDF_OCR_PAGES` | `12` | Max pages for OCR-heavy or scanned PDFs |
-| `PDF_OCR_DPI` | `150` | DPI used when rasterizing PDF pages for OCR |
-| `ENABLE_PDF_EMBEDDED_IMAGE_OCR` | `true` | OCR embedded PDF figures/images when the instance has enough memory |
-| `ENABLE_DOCX_EMBEDDED_IMAGE_OCR` | `true` | OCR embedded DOCX images when the instance has enough memory |
-| `MAX_PDF_EMBEDDED_IMAGES` | `8` | Max embedded PDF images OCRed per upload |
-| `MAX_DOCX_EMBEDDED_IMAGES` | `8` | Max embedded DOCX images OCRed per upload |
-| `MAX_IMAGE_MEGAPIXELS` | `25` | Max standalone image size accepted for OCR |
-| `ENABLE_SCIENTIFIC_MODE` | `true` | Advanced PDF parser; enable only in a suitably provisioned Computer Worker |
+| Name | Kind | Purpose |
+|---|---|---|
+| `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY` | variable | The Supabase project |
+| `SUPABASE_SERVICE_ROLE_KEY` | secret | Server-side database and storage access: a secret key (`sb_secret_...`) or the legacy `service_role` key, which Supabase stops accepting at the end of 2026 |
+| `QDRANT_URL`, `QDRANT_API_KEY` | secret | The Qdrant cluster |
+| `QDRANT_COLLECTION` | variable | The collection for this environment |
+| `GOOGLE_API_KEY` | secret | The service's Gemini key (trial use and the daily model check) |
+| `GEMINI_USER_KEY_ENCRYPTION_SECRET` | secret | Encrypts users' own Gemini keys, each bound to its user; to rotate it, move the old value to `GEMINI_USER_KEY_ENCRYPTION_SECRET_PREVIOUS` until the daily cron has re-sealed every key |
+| `GEMINI_MODEL`, `GEMINI_EMBEDDING_MODEL` | variable | Optional overrides of the model policy |
+| `FRONTEND_ORIGIN` | variable | The frontend's origin, for CORS |
 
-### Frontend Environment (`frontend/.env.local`)
+Frontend (read at build time):
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `NEXT_PUBLIC_API_URL` | `http://localhost:8000` locally | Cloudflare gateway URL |
-| `NEXT_PUBLIC_SUPABASE_URL` | empty | Supabase project URL supplied by the GitHub Preview environment |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` / `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | empty | Supabase publishable key supplied by the GitHub Preview environment |
-| `NEXT_PUBLIC_SITE_URL` | current browser origin | Canonical production frontend origin for email auth callbacks |
+| Name | Purpose |
+|---|---|
+| `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | The Supabase project, for sign-in |
+| `NEXT_PUBLIC_API_URL` | The gateway's URL |
+| `NEXT_PUBLIC_OAUTH_PROVIDERS` | Sign-in providers to offer, for example `google,github`; each needs its OAuth callbacks configured in Supabase Auth |
+| `NEXT_PUBLIC_FEATURES` | Products in development to show, for example `radar,evidence-api` |
 
-The canonical split between GitHub `Preview` environment secrets and variables
-is documented in [GitHub environments](docs/GITHUB_ENVIRONMENTS.md).
-| `NEXT_PUBLIC_OAUTH_PROVIDERS` | `github` | Comma-separated OAuth providers shown on the login screen; set `google,github` only after both providers are enabled in Supabase |
+## Deployment
 
----
+Nothing deploys automatically. A preview deploy is opt-in: a manual run of the Cloudflare Preview Deploy workflow
+(GitHub environment `NexusRAG-Candidate-Preview`) or of `scripts/release.py`; a working preview is
+not production acceptance. Production is released by a manual run of the Production Deploy workflow. Every release checks
+`/health` and `/ready` on the new version and rolls back automatically on failure. The preview and production use
+separate Workers, queues, collections and Supabase projects, and the release script refuses to mix them.
 
-## API Reference
+- Preview: [docs/DEPLOYMENT_FREE.md](docs/DEPLOYMENT_FREE.md)
+- Production: [docs/DEPLOYMENT_PRODUCTION.md](docs/DEPLOYMENT_PRODUCTION.md)
 
-### REST Endpoints (`/api/v1`)
+## Security
 
-| Method | Path | Description |
-|--------|------|-------------|
-| `POST` | `/documents/upload` | Upload & ingest a file |
-| `GET` | `/documents` | List all documents |
-| `DELETE` | `/documents/{filename}` | Remove a document |
-| `POST` | `/chat` | Blocking RAG query |
-| `POST` | `/chat/sessions/{sid}/clear` | Clear session memory |
-| `GET` | `/settings` | Get current settings |
-| `PATCH` | `/settings` | Update runtime settings |
-| `POST` | `/apikey` | Set user API key |
-| `GET` | `/analytics/summary` | System metrics |
+Workspace isolation is enforced twice: by the gateway's membership checks and by row-level security in Postgres.
+Service credentials stay in the gateway; documents are processed by Gemini only for workspaces whose owner has
+approved it; every page and file is served with a content security policy and related headers. See
+[docs/SECURITY.md](docs/SECURITY.md). Please report a vulnerability privately to the maintainer, Anupam0202, through
+GitHub rather than in a public issue.
 
-### WebSocket (`/ws/chat`)
+## Contributing
 
-```json
-// Client → Server
-{ "question": "What is...?", "session_id": "abc", "conversation_history": [] }
+Issues and pull requests are welcome. Please keep changes focused, run the tests above for the parts you change,
+and use [Conventional Commits](https://www.conventionalcommits.org/) for commit messages.
 
-// Server → Client (multiple frames)
-{ "type": "token", "content": "Some text..." }
-{ "type": "sources", "sources": [...] }
-{ "type": "done", "metadata": { "query_type": "factual", "confidence": 0.85 } }
-{ "type": "error", "content": "...", "error_code": "QUOTA_EXCEEDED" }
-```
+## Licence
 
-### Health Check
-
-```
-GET /health → { "status": "healthy", "version": "1.0.0", "total_chunks": 26 }
-```
-
-### Supported File Types
-
-| Type | Extensions | Extraction Method |
-|------|-----------|-------------------|
-| PDF | `.pdf` | pdfplumber → Gemini Vision OCR → pypdf |
-| Word | `.docx` | python-docx + embedded image OCR |
-| Excel | `.xlsx`, `.xls` | pandas (4 representations per sheet) |
-| CSV | `.csv` | pandas (multi-encoding detection) |
-| Images | `.png`, `.jpg`, `.jpeg`, `.gif`, `.webp`, `.bmp`, `.tif`, `.tiff` | Gemini Vision + Cloud Vision OCR |
-| Text | `.txt`, `.md` | Direct text with encoding detection |
-| JSON | `.json` | Structured + per-item documents |
-
-PDF uploads are preflighted before ingestion. Normal text PDFs use the standard loader first; scanned PDFs use bounded OCR; scientific parsing and embedded PDF image OCR should be enabled only on larger backend instances.
-
----
-
-## Rate Limit & API Key Handling
-
-NexusRAG ships with a default API key for quick evaluation. When the free-tier quota is exhausted:
-
-1. Backend detects `429 RESOURCE_EXHAUSTED` and sends a `QUOTA_EXCEEDED` WebSocket frame
-2. Frontend shows a modal prompting the user to enter their own Google API key
-3. Key is validated server-side using a free `list_models()` call
-4. On success, the key is stored encrypted for the active workspace and resolved per request
-5. User can immediately continue chatting with their own quota without exposing the raw key in API responses
-
----
-
-## RAG Pipeline Deep Dive
-
-### Ingestion Flow
-```
-Upload → File Validation → Format Detection → Loader
-  → OCR (if scanned/image) → Smart Chunking → Contextual Enrichment
-  → Embedding (all-MiniLM-L6-v2) → Qdrant/FAISS vector index + BM25 index
-```
-
-### Query Flow
-```
-Question → Input Sanitization → Semantic Cache Check
-  → Query Classification (regex, zero LLM cost)
-  → Adaptive K Selection (10–50 based on query type)
-  → History-Aware Reformulation (LLM)
-  → Multi-Query Expansion (2 alternatives)
-  → Hybrid Search (Qdrant or FAISS dense + BM25 sparse → RRF fusion)
-  → Cross-Encoder Re-ranking (top 5)
-  → Prompt Assembly (system + context + history + question)
-  → Gemini Streaming Generation (with failover chain)
-  → Confidence Estimation (retrieval-score-based)
-  → Cache Update + Memory Update
-```
-
-### Model Failover Chain
-```
-gemini-2.5-flash → gemini-2.5-flash-lite → gemini-2.0-flash → gemini-2.0-flash-lite
-```
-Each model is tried in order. Provider-level retries are disabled so quota or model-availability failures move to the next candidate quickly instead of delaying the chat stream.
-
----
-
-## Development
-
-```bash
-# Run backend tests
-cd backend
-pytest tests/ -v --cov
-
-# Lint & format
-ruff check src/
-ruff format src/
-
-# Type checking
-mypy src/
-
-# CLI document ingestion
-python scripts/ingest.py path/to/files/
-
-# CI-safe RAG evaluation, no paid LLM calls required
-python -m evals.run_eval --fail-under-recall 0.8
-
-# Compatibility wrapper for the same harness
-python scripts/evaluate.py --fail-under-recall 0.8
-```
-
-### Evaluation Harness
-
-The backend includes `backend/evals/` for quota-safe RAG quality checks. The
-default sample dataset seeds two isolated workspaces, measures retrieval
-recall@k, MRR, nDCG, citation precision/recall, extractive answer support,
-latency, and cross-workspace leakage. Retrieval and extractive modes use
-lightweight deterministic embeddings, so they can run in CI without a Gemini
-or paid provider call. The app also exposes `/evaluations`, backed by
-`POST /api/v1/evaluations/sample`, for running the same free-tier-safe quality
-gate from the UI. Use `--mode rag` only for manual provider-backed checks.
-
----
-
-## License
-
-This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
+[MIT](LICENSE)

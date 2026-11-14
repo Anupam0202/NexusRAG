@@ -78,3 +78,11 @@ def test_summary_reports_percentiles_fallback_quota_and_cost() -> None:
     assert summary["fallback_rate"] == 0.5
     assert summary["quota_failure_rate"] == 0.5
     assert summary["avg_estimated_cost_usd"] == 0.02
+
+
+def test_sample_gate_defaults_preserve_requested_quality_thresholds() -> None:
+    from src.api.models import EvaluationRunRequest
+
+    request = EvaluationRunRequest()
+    assert request.fail_under_recall == 0.90
+    assert request.fail_under_citation_precision == 0.95

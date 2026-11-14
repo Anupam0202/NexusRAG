@@ -82,12 +82,11 @@ class TestLLMProvider:
         provider = LLMProvider(settings)
 
         assert provider._candidates == [
-            "gemini-2.5-flash",
-            "gemini-2.5-flash-lite",
-            "gemini-2.0-flash",
-            "gemini-2.0-flash-lite",
+            "gemini-3.5-flash-lite",
+            "gemini-3.1-flash-lite",
+            "gemini-flash-latest",
         ]
-        assert "gemini-1.5-pro" not in provider._candidates
+        assert not [name for name in provider._candidates if name.startswith(("gemini-1.", "gemini-2."))]
 
     def test_langchain_google_provider_retries_are_disabled(self, monkeypatch):
         calls: list[dict] = []
@@ -152,7 +151,7 @@ class TestLLMProvider:
             assert result == "scoped answer"
             assert calls[0]["google_api_key"] == "workspace-key"
             assert settings.google_api_key == "server-key"
-            assert provider._candidates[0] == "gemini-2.5-flash"
+            assert provider._candidates[0] == "gemini-3.5-flash-lite"
         finally:
             get_provider_key_manager.cache_clear()
 
@@ -342,12 +341,15 @@ class TestRAGChain:
 
         first = chain.query("What is the private marker?", workspace_id="workspace-a")
         second = chain.query("What is the private marker?", workspace_id="workspace-b")
-        cached = chain.query("What is the private marker?", workspace_id="workspace-a")
+        cached = chain.query(
+            "What is the private marker?", workspace_id="workspace-a", session_id="fresh-context"
+        )
 
         assert calls == ["workspace-a", "workspace-b"]
         assert "workspace-a" in first["answer"]
         assert "workspace-b" in second["answer"]
         assert cached["from_cache"] is True
+        assert len(chain.get_session_history("fresh-context", workspace_id="workspace-a")) == 2
 
     def test_cache_is_isolated_by_retrieval_filter_namespace(self, monkeypatch):
         cache = SemanticCache(settings=Settings(_env_file=None, enable_cache=True))

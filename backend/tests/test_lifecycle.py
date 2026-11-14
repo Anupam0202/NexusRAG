@@ -123,6 +123,8 @@ class FakeRetentionSettings:
         return [
             {
                 "workspace_id": "workspace-1",
+                "retention_lease_owner": "retention-worker",
+                "retention_lease_expires_at": "2099-01-01T00:00:00+00:00",
                 "retention_enabled": True,
                 "retention_days": 30,
             },
@@ -132,6 +134,10 @@ class FakeRetentionSettings:
                 "retention_days": 7,
             },
         ]
+
+    async def finish_retention_claim(self, *, workspace_id, **claim):
+        self.updated.append((workspace_id, claim))
+        return True
 
     async def upsert_settings(self, *, workspace_id: str, values: dict[str, str]):
         self.updated.append((workspace_id, values))
@@ -250,7 +256,7 @@ async def test_workspace_deletion_fails_closed_when_scoped_cleanup_fails() -> No
 
     assert result.workspace_deleted is False
     assert result.failures == [
-        {"resource": "workspace_settings", "message": "settings unavailable"}
+        {"resource": "workspace_settings", "code": "WORKSPACE_CLEANUP_FAILED", "message": "Workspace data cleanup failed; deletion remains incomplete."}
     ]
     assert workspaces.deleted == 0
 
@@ -276,7 +282,7 @@ async def test_workspace_deletion_reports_workspace_row_delete_failure() -> None
 
     assert result.workspace_deleted is False
     assert result.failures == [
-        {"resource": "workspaces", "message": "workspace foreign key blocked"}
+        {"resource": "workspaces", "code": "WORKSPACE_DELETE_FAILED", "message": "Workspace deletion failed; complete deletion is not confirmed."}
     ]
     assert workspaces.deleted == 0
 
@@ -298,9 +304,9 @@ async def test_retention_scheduler_runs_due_workspaces_and_advances_schedule() -
     assert summary.failed == 0
     assert lifecycle.runs == [("workspace-1", 30)]
     assert settings.updated[0][0] == "workspace-1"
-    assert settings.updated[0][1]["last_retention_at"]
-    assert settings.updated[0][1]["next_retention_at"]
-    assert settings.updated[0][1]["retention_lease_owner"] is None
+    assert settings.updated[0][1]["succeeded"] is True
+    assert settings.updated[0][1]["worker_id"] == "retention-worker"
+    assert settings.updated[0][1]["lease_expires_at"] == "2099-01-01T00:00:00+00:00"
 
 
 @pytest.mark.asyncio
@@ -309,14 +315,16 @@ async def test_manual_retention_reports_partial_failure_and_schedules_retry(monk
     audits: list[dict] = []
 
     class FakeSettingsRepository:
-        async def get_settings(self, *, workspace_id: str):
+        async def claim_workspace_retention(self, *, workspace_id: str, actor_id: str, worker_id: str):
             assert workspace_id == "workspace-1"
-            return {"retention_enabled": True, "retention_days": 30}
+            assert actor_id == "owner-1"
+            return {"workspace_id": workspace_id, "retention_enabled": True, "retention_days": 30,
+                    "retention_lease_owner": worker_id, "retention_lease_expires_at": "2099-01-01T00:00:00+00:00"}
 
-        async def upsert_settings(self, *, workspace_id: str, values: dict):
-            assert workspace_id == "workspace-1"
+        async def finish_retention_claim(self, **values):
+            assert values["workspace_id"] == "workspace-1"
             updated.append(values)
-            return values
+            return True
 
     class FakeLifecycleService:
         def __init__(self, **_kwargs) -> None:
@@ -367,7 +375,8 @@ async def test_manual_retention_reports_partial_failure_and_schedules_retry(monk
 
     assert exc.value.status_code == 502
     assert "partial failures" in str(exc.value.detail)
-    assert "last_retention_at" not in updated[0]
-    assert updated[0]["next_retention_at"]
-    assert updated[0]["retention_lease_owner"] is None
+    assert updated[0]["succeeded"] is False
+    assert updated[0]["worker_id"].startswith("manual-retention:")
+    assert updated[0]["lease_expires_at"] == "2099-01-01T00:00:00+00:00"
+    assert audits[0]["metadata"]["retry_scheduled"] is True
     assert audits[0]["action"] == "privacy.retention_failed"

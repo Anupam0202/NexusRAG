@@ -13,6 +13,7 @@ from __future__ import annotations
 import hashlib
 import pickle
 import re
+import tempfile
 import threading
 from dataclasses import dataclass
 from pathlib import Path
@@ -159,17 +160,26 @@ class VectorStoreManager:
             documents_to_add = [item[0] for item in filtered]
             vectors = np.array([item[1] for item in filtered], dtype="float32")
 
-            if self._dim == 0:
-                self._dim = vectors.shape[1]
-            if self._index is None:
-                self._index = faiss.IndexFlatIP(self._dim)
+            previous_documents = self._documents.copy()
+            previous_embeddings = self._raw_embeddings.copy()
+            try:
+                if self._dim == 0:
+                    self._dim = vectors.shape[1]
+                if self._index is None:
+                    self._index = faiss.IndexFlatIP(self._dim)
 
-            self._index.add(vectors)
-            for doc, vec in zip(documents_to_add, vectors):
-                self._documents.append(doc)
-                self._raw_embeddings.append(vec)
-            self._rebuild_bm25()
-            self._save()
+                self._index.add(vectors)
+                for doc, vec in zip(documents_to_add, vectors):
+                    self._documents.append(doc)
+                    self._raw_embeddings.append(vec)
+                self._rebuild_bm25()
+                self._save()
+            except Exception:
+                self._documents = previous_documents
+                self._raw_embeddings = previous_embeddings
+                self._rebuild_index()
+                self._rebuild_bm25()
+                raise
 
         logger.info("documents_added", count=len(documents_to_add), total=len(self._documents))
         return len(documents_to_add)
@@ -196,11 +206,20 @@ class VectorStoreManager:
             ]
             if len(keep) == before:
                 return 0
-            self._documents = [k[0] for k in keep]
-            self._raw_embeddings = [k[1] for k in keep]
-            self._rebuild_index()
-            self._rebuild_bm25()
-            self._save()
+            previous_documents = self._documents
+            previous_embeddings = self._raw_embeddings
+            try:
+                self._documents = [k[0] for k in keep]
+                self._raw_embeddings = [k[1] for k in keep]
+                self._rebuild_index()
+                self._rebuild_bm25()
+                self._save()
+            except Exception:
+                self._documents = previous_documents
+                self._raw_embeddings = previous_embeddings
+                self._rebuild_index()
+                self._rebuild_bm25()
+                raise
         removed = before - len(self._documents)
         logger.info(
             "documents_deleted",
@@ -815,11 +834,13 @@ class VectorStoreManager:
     #  PERSISTENCE
     # ══════════════════════════════════════════════════════════════════
 
-    def _rebuild_index(self) -> None:
+    def _rebuild_index(self, vectors: np.ndarray | None = None) -> None:
         if not self._raw_embeddings:
             self._index = None
+            self._dim = 0
             return
-        vectors = np.array(self._raw_embeddings, dtype="float32")
+        if vectors is None:
+            vectors = np.array(self._raw_embeddings, dtype="float32")
         self._dim = vectors.shape[1]
         self._index = faiss.IndexFlatIP(self._dim)
         self._index.add(vectors)
@@ -832,9 +853,15 @@ class VectorStoreManager:
         self._bm25 = BM25Okapi(tokenized)
 
     def _save(self) -> None:
+        temporary_paths: list[Path] = []
         try:
+            self._persist_dir.mkdir(parents=True, exist_ok=True)
             meta_path = self._persist_dir / "store_meta.pkl"
-            with open(meta_path, "wb") as f:
+            with tempfile.NamedTemporaryFile(
+                mode="wb", prefix=".store_meta.", dir=self._persist_dir, delete=False
+            ) as f:
+                temporary_meta = Path(f.name)
+                temporary_paths.append(temporary_meta)
                 pickle.dump(
                     {
                         "documents": self._documents,
@@ -842,12 +869,33 @@ class VectorStoreManager:
                     },
                     f,
                 )
+            idx_path = self._persist_dir / "faiss.index"
+            temporary_index = None
             if self._index is not None:
-                idx_path = str(self._persist_dir / "faiss.index")
-                faiss.write_index(self._index, idx_path)
+                with tempfile.NamedTemporaryFile(
+                    prefix=".faiss.", dir=self._persist_dir, delete=False
+                ) as f:
+                    temporary_index = Path(f.name)
+                    temporary_paths.append(temporary_index)
+                faiss.write_index(self._index, str(temporary_index))
+            # Metadata is the final commit point. A cache changed before a
+            # failed metadata publication is rebuilt from the old committed
+            # metadata on restart; the caller restores the old in-memory rows.
+            # Preparing both files first avoids truncating valid metadata.
+            if temporary_index is not None:
+                temporary_index.replace(idx_path)
+                temporary_paths.remove(temporary_index)
+            else:
+                idx_path.unlink(missing_ok=True)
+            temporary_meta.replace(meta_path)
+            temporary_paths.remove(temporary_meta)
             logger.debug("vector_store_saved", chunks=len(self._documents))
         except Exception as exc:
             logger.error("vector_store_save_failed", error=str(exc))
+            raise
+        finally:
+            for path in temporary_paths:
+                path.unlink(missing_ok=True)
 
     def _load(self) -> None:
         meta_path = self._persist_dir / "store_meta.pkl"
@@ -856,18 +904,34 @@ class VectorStoreManager:
         try:
             with open(meta_path, "rb") as f:
                 data = pickle.load(f)
-            self._documents = data.get("documents", [])
-            self._raw_embeddings = data.get("embeddings", [])
-            idx_path = str(self._persist_dir / "faiss.index")
-            if Path(idx_path).exists():
-                self._index = faiss.read_index(idx_path)
-                self._dim = self._index.d
-            else:
-                self._rebuild_index()
+            if not isinstance(data, dict) or set(data) != {"documents", "embeddings"}:
+                raise ValueError("Persisted vector metadata must contain exactly documents and embeddings")
+            documents = data["documents"]
+            embeddings = data["embeddings"]
+            if (
+                not isinstance(documents, list)
+                or not isinstance(embeddings, list)
+                or len(documents) != len(embeddings)
+                or any(not isinstance(doc, Document) for doc in documents)
+            ):
+                raise ValueError("Persisted documents and embeddings are not aligned")
+            vectors = None
+            if embeddings:
+                vectors = np.array(embeddings, dtype="float32")
+                if vectors.ndim != 2 or vectors.shape[1] == 0 or not np.isfinite(vectors).all():
+                    raise ValueError("Persisted embeddings must be finite equal-sized vectors")
+            self._documents = documents
+            self._raw_embeddings = embeddings
+            # faiss.index is only a derived cache. Legacy partial saves can
+            # leave different rows, dimensions or ordering even at equal count.
+            # Rebuild from the paired metadata and replace/remove that cache.
+            self._rebuild_index(vectors)
             self._rebuild_bm25()
+            self._save()
             logger.info("vector_store_loaded", chunks=len(self._documents))
         except Exception as exc:
             logger.warning("vector_store_load_failed", error=str(exc))
+            raise
 
     @staticmethod
     def _tokenize(text: str) -> list[str]:

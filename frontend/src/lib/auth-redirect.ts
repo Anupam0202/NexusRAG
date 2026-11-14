@@ -22,23 +22,38 @@ function requireSecureAppOrigin(value: string, label: string) {
   return url.origin;
 }
 
-export function sanitizeAuthNextPath(value: string | null | undefined, fallback: string) {
-  const safeFallback =
-    fallback.startsWith("/") && !fallback.startsWith("//") && !fallback.includes("\\")
-      ? fallback
-      : FALLBACK_AUTH_PATH;
-
-  if (!value?.startsWith("/") || value.startsWith("//") || value.includes("\\")) {
-    return safeFallback;
+function hasUnsafeCharacters(value: string): boolean {
+  for (const character of value) {
+    const code = character.charCodeAt(0);
+    if (character === "\\" || code < 32 || code === 127) return true;
   }
+  return false;
+}
 
+function safeInternalPath(value: string | null | undefined): string | null {
+  if (!value?.startsWith("/") || value.startsWith("//") || hasUnsafeCharacters(value)) return null;
   try {
     const candidate = new URL(value, INTERNAL_URL_BASE);
-    if (candidate.origin !== INTERNAL_URL_BASE) return safeFallback;
-    return `${candidate.pathname}${candidate.search}${candidate.hash}`;
+    if (candidate.origin !== INTERNAL_URL_BASE) return null;
+    // URL normalization can turn dot segments into a protocol-relative path.
+    // Validate decoded path variants too, but preserve query/hash encoding.
+    let pathname = candidate.pathname;
+    for (let depth = 0; depth < 5; depth++) {
+      if (pathname.startsWith("//") || hasUnsafeCharacters(pathname)) return null;
+      const normalized = new URL(pathname, INTERNAL_URL_BASE);
+      if (normalized.origin !== INTERNAL_URL_BASE || normalized.pathname.startsWith("//")) return null;
+      const decoded = decodeURIComponent(pathname);
+      if (decoded === pathname) return `${candidate.pathname}${candidate.search}${candidate.hash}`;
+      pathname = decoded;
+    }
+    return null;
   } catch {
-    return safeFallback;
+    return null;
   }
+}
+
+export function sanitizeAuthNextPath(value: string | null | undefined, fallback: string) {
+  return safeInternalPath(value) ?? safeInternalPath(fallback) ?? FALLBACK_AUTH_PATH;
 }
 
 export function buildAuthCallbackUrl(
