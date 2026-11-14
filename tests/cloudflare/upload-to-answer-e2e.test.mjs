@@ -469,6 +469,32 @@ test("upload without non-sensitive attestation is denied before storage and data
   assert.equal(fixture.generationCalls, 0);
 });
 
+test("an upload whose document row cannot be written removes the stored original", async (t) => {
+  const fixture = localAppFixture();
+  let refused = 0;
+  t.mock.method(globalThis, "fetch", async (rawUrl, init = {}) => {
+    const url = new URL(String(rawUrl));
+    if (url.pathname === "/rest/v1/documents" && init.method === "POST") {
+      refused++;
+      return new Response(JSON.stringify({ code: "XX000", message: "synthetic database failure" }), { status: 500 });
+    }
+    return fixture.fetch(rawUrl, init);
+  });
+  const form = new FormData();
+  form.set("file", new File([fixture.source], "policy.txt", { type: "text/plain" }));
+  form.set("data_classification", "non_sensitive");
+  form.set("non_sensitive_attested", "true");
+  const response = await handle(new Request("https://gateway.invalid/api/v1/documents/upload", {
+    method: "POST", headers: { authorization: "Bearer synthetic-oauth-token", "x-nexus-workspace-id": workspace, "idempotency-key": crypto.randomUUID() }, body: form,
+  }), fixture.env);
+  assert.equal(response.status, 503);
+  assert.equal(refused, 1);
+  const storage = fixture.events.filter((event) => event.path.startsWith("/storage/v1/object/documents/"));
+  assert.deepEqual(storage.map((event) => event.method).slice(0, 2), ["POST", "DELETE"]);
+  assert.equal(fixture.objects.size, 0, "no stored original is left without a record");
+  assert.equal(fixture.queue.sent.length, 0);
+});
+
 for (const [reason, status, pattern] of [
   ["WORKSPACE_APPROVAL_REQUIRED", 403, /workspace owner needs to approve Google Gemini processing/],
   ["PROVIDER_REVIEW_REQUIRED", 503, /service operator has not recorded a current review/],
