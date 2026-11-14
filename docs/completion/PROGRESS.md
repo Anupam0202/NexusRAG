@@ -1,13 +1,16 @@
 # NexusRAG completion progress
 Last updated: 2026-11-14 — document deletion and retention verified live on the preview; workspace and account
-deletion built and green in CI (live once their migrations are applied); README rewritten; CALCULATION runs built
-(NX-17); the live journey still stops at ingestion on the shared Gemini key's HTTP 402
+deletion, CALCULATION runs (NX-17), Supabase secret-key support (NX-26), per-user BYOK sealing (NX-24), the
+upload orphan fix and the tenant index (NX-36) built and tested offline; owner walkthrough checklist written. The
+live journey still stops at ingestion on the shared Gemini key's HTTP 402, and the gateway is not re-released until
+the three pending rehearsal migrations are applied (owner confirmation)
 
 ## Current state
 - main: `85b14f1`; working branch: `codex/runtime-manifest-008` (draft PR #12, owner-approved for direct
   commits on 2026-11-09); open PRs: #12
 - Plan: `docs/completion/MASTER_PROMPT.md`; repository notes: `CLAUDE.md`
-- Candidate preview: gateway `f589e7b` (version `cb022eae`), released 2026-11-13 19:46 UTC (smoke test and `/ready`
+- Candidate preview: gateway `f589e7b` (version `cb022eae`; the branch is ahead, see the done log; release it after
+  the pending migrations, because its cron calls their functions), released 2026-11-13 19:46 UTC (smoke test and `/ready`
   passed: database reachable, search index ready, collection `nexusrag-v6-candidate` empty). Frontend is still the old
   build `2fbc5c9`, whose `/research`, `/radar`, `/evidence-api` and unknown paths return 500 (NX-01): a cloud
   session cannot upload frontend assets, and the preview workflow rejects this branch (environment branch rule).
@@ -82,9 +85,9 @@ deletion built and green in CI (live once their migrations are applied); README 
 | 2026-11-13 | NX-21: real streaming from `streamGenerateContent`; the final event carries the checked and saved answer; errors before the first token keep their HTTP status | 1 (6 end-to-end tests on the real pipeline); 4 for the no-evidence path | `e50a239` |
 | 2026-11-13 | NX-28 part: security headers on every page, file and error (Worker and `_headers`), checked on the built Worker; hostile-markdown test | 2 | `5262bff` |
 | 2026-11-13 | NX-16 retention runs: owners and administrators set a number of days; every day (and on "Run now") documents uploaded before the cutoff go through the normal deletion, chat messages and research results from before it are removed, and conversations unused since are removed or closed; saved findings, what they cite and Radar pages stay. Turning it on asks for a second click that names the cutoff date | 3 (local replay with new assertions; 926 gateway and 776 frontend tests); 4 on 13 November (below) | `f589e7b` |
-| 2026-11-14 | Owner walkthrough checklist (`docs/completion/OWNER_WALKTHROUGH.md`): sixteen steps from Google sign-in to sign-out, covering the Tier 1 journey and the final regression list of section 13, with the exact labels the app shows | n/a | this commit |
-| 2026-11-14 | NX-36: `workspace_id` indexed as the Qdrant tenant (`is_tenant`), falling back to a plain index on a cluster that refuses it; existing indexes are no longer requested again, which saves four requests per indexing batch under the Workers Free limit of 50 | 1 (new-collection, upgrade, refusal and failure tests; 967 gateway tests) | this commit |
-| 2026-11-14 | NX-38: every GitHub Action pinned to the commit its major tag points to today (no change in what runs), version in a comment. NX-32 checked: claims are compare-and-swap, so a second sweep cannot double-process a job | CI | this commit |
+| 2026-11-14 | Owner walkthrough checklist (`docs/completion/OWNER_WALKTHROUGH.md`): sixteen steps from Google sign-in to sign-out, covering the Tier 1 journey and the final regression list of section 13, with the exact labels the app shows | n/a | `f9b8286` |
+| 2026-11-14 | NX-36: `workspace_id` indexed as the Qdrant tenant (`is_tenant`), falling back to a plain index on a cluster that refuses it; existing indexes are no longer requested again, which saves four requests per indexing batch under the Workers Free limit of 50 | 1 (new-collection, upgrade, refusal and failure tests; 967 gateway tests) | `e2b597a` |
+| 2026-11-14 | NX-38: every GitHub Action pinned to the commit its major tag points to today (no change in what runs), version in a comment. NX-32 checked: claims are compare-and-swap, so a second sweep cannot double-process a job | CI | `933e649` |
 | 2026-11-14 | NX-27: found in the upload path: the original was stored before its document row was written, and nothing removed it when that write failed, leaving a file no one could list or delete. It is now removed when the row cannot be written | 1 (a test with the row write refused; it fails without the fix; 964 gateway tests) | `25c4c72` |
 | 2026-11-14 | NX-24: users' Gemini keys are sealed for their user (associated data names the user, the provider and the sealing secret's id), so a ciphertext copied into another row does not open; older keys still open. Rotation: a previous secret can be set while the daily cron re-seals keys with compare-and-swap, which never writes back a key replaced or deleted meanwhile; both deploy workflows ship the previous secret when it is set | 1 (sealing, binding, old format, rotation and sweep tests; 963 gateway tests; workflow scripts checked) | `c029b1d` |
 | 2026-11-14 | NX-26: Supabase stops accepting the legacy service key at the end of 2026, and its secret keys are refused as Bearer tokens, which is how every gateway call, both deploy workflows and `provider_review.py` sent the key. They now send a secret key in `apikey` only and a legacy key as before (`supabase-keys.js`), so the key can be swapped without a code change (owner action 7) | 1 (helper, route-level and Python tests; 960 gateway tests; workflow scripts checked with `bash -n` and both key kinds) | `ebb460c` |
