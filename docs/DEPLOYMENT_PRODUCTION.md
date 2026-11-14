@@ -21,6 +21,7 @@ Add these to the GitHub `Production` environment (Settings → Environments → 
 | Variable | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Publishable key of the production project |
 | Variable | `NEXT_PUBLIC_OAUTH_PROVIDERS` | For example `google,github` |
 | Variable (optional) | `GEMINI_MODEL`, `GEMINI_EMBEDDING_MODEL` | Override the default model policy |
+| Variable (optional) | `NEXT_PUBLIC_FEATURES` | Products in development to show, for example `radar,evidence-api`; empty hides them |
 
 ## Releasing
 

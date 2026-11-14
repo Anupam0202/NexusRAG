@@ -14,6 +14,10 @@ class ReadmeRuntimeContractTests(unittest.TestCase):
         self.readme = (ROOT / "README.md").read_text(encoding="utf-8")
         self.lock = json.loads((ROOT / "frontend/package-lock.json").read_text())
 
+    def section(self, heading):
+        """The text under a `## ` heading, up to the next one."""
+        return self.readme.split(f"\n## {heading}\n", 1)[1].split("\n## ", 1)[0]
+
     def test_node_and_styling_match_the_locked_frontend(self):
         minimum = self.lock["packages"]["node_modules/next"]["engines"]["node"]
         major = self.lock["packages"]["node_modules/tailwindcss"]["version"].split(".")[0]
@@ -22,12 +26,12 @@ class ReadmeRuntimeContractTests(unittest.TestCase):
         self.assertNotIn("Node.js 18+", self.readme)
 
     def test_frontend_setup_uses_the_real_lock(self):
-        setup = self.readme.split("### 2. Setup Frontend\n", 1)[1].split("### 3.", 1)[0]
-        self.assertIn("\nnpm ci\n", setup)
-        self.assertNotIn("\nnpm install\n", setup)
+        setup = self.section("Running it locally")
+        self.assertIn("\nnpm ci --ignore-scripts\n", setup)
+        self.assertNotIn("npm install", setup)
 
     def test_deployment_is_not_described_as_automatic(self):
-        section = self.readme.split("## Deployment\n", 1)[1].split("## Project Structure", 1)[0]
+        section = self.section("Deployment")
         self.assertIn("Nothing deploys automatically", section)
         self.assertIn("opt-in", section)
         self.assertIn("NexusRAG-Candidate-Preview", section)
@@ -35,13 +39,12 @@ class ReadmeRuntimeContractTests(unittest.TestCase):
         self.assertIn("rolls back automatically on failure", section)
 
     def test_oauth_provider_configuration_is_a_table_row(self):
-        section = self.readme.split("### Frontend Environment", 1)[1].split("## API Reference", 1)[0]
-        rows = section.split("\n\n", 1)[1].split("\n\n", 1)[0]
-        self.assertIn("| `NEXT_PUBLIC_OAUTH_PROVIDERS` |", rows)
-        self.assertIn("OAuth callbacks", rows)
+        rows = [line for line in self.section("Configuration").splitlines() if line.startswith("| `NEXT_PUBLIC_OAUTH_PROVIDERS` |")]
+        self.assertEqual(len(rows), 1)
+        self.assertIn("OAuth callbacks", rows[0])
 
     def test_provider_setup_does_not_promise_a_bundled_key_or_free_quota(self):
-        section = self.readme.split("## Rate Limit & API Key Handling\n", 1)[1].split("## RAG Pipeline", 1)[0]
+        section = self.section("What it does")
         self.assertIn("ships no usable provider key", section)
         self.assertNotIn("ships with a default API key", section)
         self.assertNotIn("free `list_models()` call", section)
