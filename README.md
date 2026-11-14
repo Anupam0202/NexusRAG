@@ -157,7 +157,7 @@ Gateway (Worker variables and secrets):
 | `QDRANT_URL`, `QDRANT_API_KEY` | secret | The Qdrant cluster |
 | `QDRANT_COLLECTION` | variable | The collection for this environment |
 | `GOOGLE_API_KEY` | secret | The service's Gemini key (trial use and the daily model check) |
-| `GEMINI_USER_KEY_ENCRYPTION_SECRET` | secret | Encrypts users' own Gemini keys; must never change without a re-encryption plan |
+| `GEMINI_USER_KEY_ENCRYPTION_SECRET` | secret | Encrypts users' own Gemini keys, each bound to its user; to rotate it, move the old value to `GEMINI_USER_KEY_ENCRYPTION_SECRET_PREVIOUS` until the daily cron has re-sealed every key |
 | `GEMINI_MODEL`, `GEMINI_EMBEDDING_MODEL` | variable | Optional overrides of the model policy |
 | `FRONTEND_ORIGIN` | variable | The frontend's origin, for CORS |
 

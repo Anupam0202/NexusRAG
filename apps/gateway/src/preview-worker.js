@@ -42,6 +42,7 @@ import {
   deleteUserGeminiKey,
   getUserGeminiKeyRecord,
   loadUserGeminiKey,
+  reencryptUserGeminiKeys,
   saveUserGeminiKey,
   validateGeminiKey,
 } from "./user-gemini-key.js";
@@ -1323,7 +1324,8 @@ async function handle(request, env = {}) {
 async function queue(batch,env){return handleQueue(batch,env)}
 // Once a day: which Gemini models are still served, and one question to the search index, which also keeps
 // a free cluster from being suspended for inactivity.
-const dailyChecks=env=>Promise.all([checkGeminiModels(env).catch(()=>undefined),keepIndexAwake(env).catch(()=>undefined)]);
+const dailyChecks=env=>Promise.all([checkGeminiModels(env).catch(()=>undefined),keepIndexAwake(env).catch(()=>undefined),
+  reencryptUserGeminiKeys(env).catch(()=>undefined)]);
 // Every run also finishes document, workspace and account deletions that could not complete when they were
 // requested, and carries out one workspace's retention run when one is due.
 async function scheduled(event,env,ctx){ctx.waitUntil(sweepJobs(env));ctx.waitUntil(sweepDeletions(env,deletionTools));ctx.waitUntil(sweepWorkspaceDeletions(env,workspaceDeletionTools));ctx.waitUntil(sweepAccountDeletions(env,accountDeletionTools));ctx.waitUntil(runDueRetention(env,{db:serviceRequest}));if(isDailyModelCheckWindow(event?.scheduledTime))ctx.waitUntil(dailyChecks(env))}

@@ -566,7 +566,7 @@ test("a BYOK-authorized PDF uses the uploader's encrypted key for extraction and
   const fixture = localAppFixture();
   fixture.accountUsage.lifetime_documents = 1;
   const rawKey = "AIzaSyntheticUploaderKey000000000000";
-  const sealed = await encryptGeminiKey(fixture.env, rawKey);
+  const sealed = await encryptGeminiKey(fixture.env, rawKey, userId);
   fixture.userKeys.set(userId, {
     user_id: userId, provider: "gemini", ...sealed, key_fingerprint: "…0000", is_active: true,
   });

@@ -39,6 +39,8 @@ jobs:
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
       SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
       GEMINI_USER_KEY_ENCRYPTION_SECRET: ${{ secrets.GEMINI_USER_KEY_ENCRYPTION_SECRET }}
+      # Only while rotating the encryption secret: the old one, so keys it sealed still open until re-sealed.
+      GEMINI_USER_KEY_ENCRYPTION_SECRET_PREVIOUS: ${{ secrets.GEMINI_USER_KEY_ENCRYPTION_SECRET_PREVIOUS }}
       GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
       QDRANT_URL: ${{ secrets.QDRANT_URL }}
       QDRANT_API_KEY: ${{ secrets.QDRANT_API_KEY }}
@@ -56,6 +58,7 @@ jobs:
             test -n "${!name:-}" || { echo "::error::$name is missing from NexusRAG-Candidate-Preview"; exit 1; }
           done
           python3 -c 'import base64,os; assert len(base64.b64decode(os.environ["GEMINI_USER_KEY_ENCRYPTION_SECRET"],validate=True))==32, "encryption secret must be base64-encoded 32-byte key material"'
+          python3 -c 'import base64,os; v=os.environ.get("GEMINI_USER_KEY_ENCRYPTION_SECRET_PREVIOUS",""); assert not v or len(base64.b64decode(v,validate=True))==32, "previous encryption secret must be base64-encoded 32-byte key material"'
           python3 scripts/release.py plan --target candidate
       - name: Apply pending migrations to the rehearsal database
         run: |
@@ -96,7 +99,7 @@ jobs:
           secrets_file="$RUNNER_TEMP/gateway-secrets.json"
           trap 'rm -f "$secrets_file"' EXIT
           # Secrets ship with the new version, so new code never takes traffic without them.
-          jq -n '{SUPABASE_SERVICE_ROLE_KEY: env.SUPABASE_SERVICE_ROLE_KEY, GEMINI_USER_KEY_ENCRYPTION_SECRET: env.GEMINI_USER_KEY_ENCRYPTION_SECRET, GOOGLE_API_KEY: env.GOOGLE_API_KEY, QDRANT_URL: env.QDRANT_URL, QDRANT_API_KEY: env.QDRANT_API_KEY}' >"$secrets_file"
+          jq -n '{SUPABASE_SERVICE_ROLE_KEY: env.SUPABASE_SERVICE_ROLE_KEY, GEMINI_USER_KEY_ENCRYPTION_SECRET: env.GEMINI_USER_KEY_ENCRYPTION_SECRET, GOOGLE_API_KEY: env.GOOGLE_API_KEY, QDRANT_URL: env.QDRANT_URL, QDRANT_API_KEY: env.QDRANT_API_KEY} + (if (env.GEMINI_USER_KEY_ENCRYPTION_SECRET_PREVIOUS // "") != "" then {GEMINI_USER_KEY_ENCRYPTION_SECRET_PREVIOUS: env.GEMINI_USER_KEY_ENCRYPTION_SECRET_PREVIOUS} else {} end)' >"$secrets_file"
           python3 scripts/release.py gateway --target candidate --sha "$RELEASE_SHA" --secrets-file "$secrets_file"
 
   frontend:
