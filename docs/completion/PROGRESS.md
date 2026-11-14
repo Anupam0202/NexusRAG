@@ -52,7 +52,7 @@ deletion built and green in CI (live once their migrations are applied); README 
   script [x] document deletion finishes (NX-47) [x] NX-03 Ready only when answerable [x] NX-16 no control calls
   a missing endpoint [x] NX-21 real streaming (live for the no-evidence path) [x] NX-30 first run and plain wording [ ] ingestion → answer → delete on
   the preview (blocked: Gemini 402) [ ] frontend preview deploy (blocked: environment branch rule) [ ] NX-04,
-  NX-05 verified live [ ] owner walkthrough
+  NX-05 verified live [ ] owner walkthrough (checklist: `docs/completion/OWNER_WALKTHROUGH.md`)
 - Tier 4 pulled forward because of NX-07: [x] Qdrant keep-alive, `/ready` and typed index errors (D15, NX-23)
 - Tier 2: [x] retention runs, scheduled and on demand (NX-16; verified live) [x] workspace deletion (NX-16; live
   after its migration) [x] CALCULATION as the twelfth run mode, with actionable review (NX-17; live check needs a
@@ -82,6 +82,7 @@ deletion built and green in CI (live once their migrations are applied); README 
 | 2026-11-13 | NX-21: real streaming from `streamGenerateContent`; the final event carries the checked and saved answer; errors before the first token keep their HTTP status | 1 (6 end-to-end tests on the real pipeline); 4 for the no-evidence path | `e50a239` |
 | 2026-11-13 | NX-28 part: security headers on every page, file and error (Worker and `_headers`), checked on the built Worker; hostile-markdown test | 2 | `5262bff` |
 | 2026-11-13 | NX-16 retention runs: owners and administrators set a number of days; every day (and on "Run now") documents uploaded before the cutoff go through the normal deletion, chat messages and research results from before it are removed, and conversations unused since are removed or closed; saved findings, what they cite and Radar pages stay. Turning it on asks for a second click that names the cutoff date | 3 (local replay with new assertions; 926 gateway and 776 frontend tests); 4 on 13 November (below) | `f589e7b` |
+| 2026-11-14 | Owner walkthrough checklist (`docs/completion/OWNER_WALKTHROUGH.md`): sixteen steps from Google sign-in to sign-out, covering the Tier 1 journey and the final regression list of section 13, with the exact labels the app shows | n/a | this commit |
 | 2026-11-14 | NX-36: `workspace_id` indexed as the Qdrant tenant (`is_tenant`), falling back to a plain index on a cluster that refuses it; existing indexes are no longer requested again, which saves four requests per indexing batch under the Workers Free limit of 50 | 1 (new-collection, upgrade, refusal and failure tests; 967 gateway tests) | this commit |
 | 2026-11-14 | NX-38: every GitHub Action pinned to the commit its major tag points to today (no change in what runs), version in a comment. NX-32 checked: claims are compare-and-swap, so a second sweep cannot double-process a job | CI | this commit |
 | 2026-11-14 | NX-27: found in the upload path: the original was stored before its document row was written, and nothing removed it when that write failed, leaving a file no one could list or delete. It is now removed when the row cannot be written | 1 (a test with the row write refused; it fails without the fix; 964 gateway tests) | `25c4c72` |
