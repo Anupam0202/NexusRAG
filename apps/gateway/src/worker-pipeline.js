@@ -134,18 +134,35 @@ function qdrantFilter(workspaceId, documentIds = [], versionIds = [], indexGener
   return { must };
 }
 
+// Payload fields every search filters on. workspace_id is the tenant: Qdrant (1.11+) keeps each tenant's points
+// together when its index says so (NX-36).
+const PAYLOAD_INDEXES = ["workspace_id", "document_id", "version_id", "index_generation"];
+const indexReady = (existing, tenant) => existing?.data_type === "keyword" && (!tenant || existing.params?.is_tenant === true);
+
 async function ensureQdrant(env, vectorSize, allowCreate = false, signal) {
   const { base, headers } = indexEndpoint(env);
   const current = await indexFetch(base, { headers, signal });
+  let schema = {};
   if (current.status === 404) {
     // Indexing creates a missing collection; a search against one has nothing to search.
     if (!allowCreate) throw indexFailure("EMPTY", 404);
     await providerJson(base, { method: "PUT", headers, body: JSON.stringify({ vectors: { size: vectorSize, distance: "Cosine" } }) });
   } else if (!current.ok) {
     throw indexFailure(indexStateFor(current.status), current.status);
+  } else {
+    schema = (await current.json().catch(() => null))?.result?.payload_schema || {};
   }
-  if (allowCreate) for (const field_name of ["workspace_id", "document_id", "version_id", "index_generation"]) {
-    const response = await indexFetch(`${base}/index?wait=true`, { method: "PUT", headers, body: JSON.stringify({ field_name, field_schema: "keyword" }) });
+  // Only missing indexes are created, so a batch usually costs one request here instead of five.
+  if (allowCreate) for (const field_name of PAYLOAD_INDEXES) {
+    const tenant = field_name === "workspace_id";
+    if (indexReady(schema[field_name], tenant)) continue;
+    const create = (field_schema) => indexFetch(`${base}/index?wait=true`, { method: "PUT", headers, body: JSON.stringify({ field_name, field_schema }) });
+    let response = await create(tenant ? { type: "keyword", is_tenant: true } : "keyword");
+    // A cluster older than 1.11, or one that will not convert an existing index, still filters on a plain index.
+    if (tenant && !response.ok && response.status >= 400 && response.status < 500 && response.status !== 409) {
+      if (schema[field_name]?.data_type === "keyword") continue;
+      response = await create("keyword");
+    }
     if (!response.ok && response.status !== 409) throw indexFailure(indexStateFor(response.status), response.status);
   }
   return { base, headers };
@@ -329,6 +346,7 @@ async function generateAnswerStream(env, prompt, context, onToken) {
 }
 
 export {
+  ensureQdrant,
   MAX_DOCUMENT_CHUNKS,
   MAX_INDEX_BATCH_CHUNKS,
   MAX_WORKER_UPLOAD_BYTES,
