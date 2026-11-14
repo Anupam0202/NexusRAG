@@ -15,6 +15,7 @@ export function researchResultsClipboardText(results: readonly ResearchRunResult
     if (result.diligence) parts.push(`Due Diligence (bounded source review; no automatic adverse decision):\n${JSON.stringify(result.diligence, null, 2)}`);
     if (result.passport) parts.push(`Product Passport (qualified source claims; product match and statuses not verified):\n${JSON.stringify(result.passport, null, 2)}`);
     if (result.procurement) parts.push(`Procurement Research (source wording; proposed notices, no current eligibility or award decision):\n${JSON.stringify(result.procurement, null, 2)}`);
+    if (result.calculation) parts.push(`Calculations (figures quoted from the sources; results computed exactly, rounded half to even; review required):\n${JSON.stringify(result.calculation, null, 2)}`);
     if (result.query_retrieval) parts.push(`Search queries (not evidence): ${result.query_retrieval.queries.join(" | ")}`);
     return parts.join("\n");
   }).join("\n\n");

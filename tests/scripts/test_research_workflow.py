@@ -308,7 +308,8 @@ class ResearchWorkflowTests(unittest.TestCase):
         self.assertIn("Saved plan. Executions are tracked separately.", page)
         self.assertIn("<ResearchRuns", page)
         runs = (ROOT / "frontend/src/components/research/ResearchRuns.tsx").read_text()
-        self.assertIn("completion criteria still require review", runs)
+        self.assertIn("Completion criteria still require review", runs)
+        self.assertIn("plan.plan.completion_criteria.map", runs)
         self.assertIn("No processing will start", runs)
         self.assertIn("not currently available", page)
 

@@ -1,7 +1,7 @@
 # NexusRAG completion progress
 Last updated: 2026-11-14 — document deletion and retention verified live on the preview; workspace and account
-deletion built and green in CI (live once their migrations are applied); README rewritten; the live journey still
-stops at ingestion on the shared Gemini key's HTTP 402
+deletion built and green in CI (live once their migrations are applied); README rewritten; CALCULATION runs built
+(NX-17); the live journey still stops at ingestion on the shared Gemini key's HTTP 402
 
 ## Current state
 - main: `85b14f1`; working branch: `codex/runtime-manifest-008` (draft PR #12, owner-approved for direct
@@ -13,8 +13,8 @@ stops at ingestion on the shared Gemini key's HTTP 402
   session cannot upload frontend assets, and the preview workflow rejects this branch (environment branch rule).
 - Rehearsal Supabase (`ukgjygzfhyvnrsecdcuu`): 53 migrations applied (document deletion and retention on
   2026-11-13); pending: `20261113190000_workspace_deletion` (its apply waits for the owner to answer the Supabase
-  connector's confirmation; asked on 13 and 14 November, both timed out unanswered) and
-  `20261113210000_account_deletion`. No document is left in `deleting`. Advisors: only leaked-password protection
+  connector's confirmation; asked on 13 and 14 November, both timed out unanswered),
+  `20261113210000_account_deletion` and `20261114090000_research_calculation_runs`. No document is left in `deleting`. Advisors: only leaked-password protection
   (an Auth setting). Test account A has used its trial upload and B its trial upload; reset both before the next
   journey. Provider reviews recorded for Gemini, Qdrant and Supabase Storage (staging attestation by test account
   A, valid to 2027-11-12). Two test accounts (`nexus-e2e-a@nexusrag.test`, `nexus-e2e-b@nexusrag.test`), each
@@ -55,7 +55,8 @@ stops at ingestion on the shared Gemini key's HTTP 402
   NX-05 verified live [ ] owner walkthrough
 - Tier 4 pulled forward because of NX-07: [x] Qdrant keep-alive, `/ready` and typed index errors (D15, NX-23)
 - Tier 2: [x] retention runs, scheduled and on demand (NX-16; verified live) [x] workspace deletion (NX-16; live
-  after its migration) [ ] the rest of Tier 2
+  after its migration) [x] CALCULATION as the twelfth run mode, with actionable review (NX-17; live check needs a
+  Gemini key) [ ] the rest of Tier 2
 - Tier 3: not started
 
 ## Done log
@@ -81,7 +82,8 @@ stops at ingestion on the shared Gemini key's HTTP 402
 | 2026-11-13 | NX-21: real streaming from `streamGenerateContent`; the final event carries the checked and saved answer; errors before the first token keep their HTTP status | 1 (6 end-to-end tests on the real pipeline); 4 for the no-evidence path | `e50a239` |
 | 2026-11-13 | NX-28 part: security headers on every page, file and error (Worker and `_headers`), checked on the built Worker; hostile-markdown test | 2 | `5262bff` |
 | 2026-11-13 | NX-16 retention runs: owners and administrators set a number of days; every day (and on "Run now") documents uploaded before the cutoff go through the normal deletion, chat messages and research results from before it are removed, and conversations unused since are removed or closed; saved findings, what they cite and Radar pages stay. Turning it on asks for a second click that names the cutoff date | 3 (local replay with new assertions; 926 gateway and 776 frontend tests); 4 on 13 November (below) | `f589e7b` |
-| 2026-11-13 | README rewritten: what the app does, honest status and limits, architecture, layout, tests, configuration, deployment, security; the README contract tests keep their checks against the new sections | 1 (script tests) | this commit |
+| 2026-11-14 | NX-17: CALCULATION is the twelfth run mode. Gemini only points at the figures the passages state (passage, number, unit in one or two pieces, period, each as written) and names operations; the gateway computes exactly (BigInt decimals, half to even) and the step function stores a step only when every figure stands where the step says and every result equals `nexus_calculate_binary`, so no number can come from the model. Results show the formula, units, rounding and marked passages, and can be saved as findings for a second member's review. Finished runs list the plan's completion criteria and say what to do next; stopped runs say why in words. The obligation-evidence assertions now find the Radar barrier anywhere in the finding view's chain of wrappers (NX-34) | 3 (real-SQL integration through the production executor: 420 arithmetic parity cases, a three-step run, nine tampered commits refused, second-member review, cancel/resume, provider failures; 956 gateway and 821 frontend tests; 204 research browser tests) | this commit |
+| 2026-11-13 | README rewritten: what the app does, honest status and limits, architecture, layout, tests, configuration, deployment, security; the README contract tests keep their checks against the new sections | 1 (script tests) | `40f0860` |
 | 2026-11-13 | NX-27 account deletion (security settings, typed confirmation): owned workspaces go through workspace deletion; in other workspaces private conversations and unshared findings are removed and uploaded documents and shared findings go to that workspace's owner; memberships and invitations go; then Supabase Auth removes the sign-in, profile, keys and usage. Each status check repeats the cleanup, so a workspace created meanwhile is deleted too. Found: the membership trigger and RESTRICT keys made every used account undeletable, even from the dashboard | 3 (assertions incl. an Auth-style user delete on fixtures-only and populated databases, 85 markers; 945 gateway and 797 frontend tests) | `9611537` |
 | 2026-11-13 | Firefox logged "Acquiring an exclusive Navigator LockManager lock ... immediately failed" on every page (new Firefox reports the Supabase client's handled lock error as unhandled); a lock wrapper reports it outside the browser's callback | 1 (unit tests; CI's Firefox suite checks it) | `4fffc89` |
 | 2026-11-13 | NX-30, NX-40: navigation follows the core journey; products in development are switched off by `NEXT_PUBLIC_FEATURES` (D10); plain overview page without placeholder statuses; error screens with a retry; plain wording; publishable key name first. Playwright 1.60 → 1.63 so CI and this container use the same Chromium; visual baselines regenerated | 2 (built app: 48 public smoke and 4 visual tests, Radar and Evidence API browser suites; 783 unit tests) | `cb90337` |
@@ -143,7 +145,8 @@ Decisions (D25 delegates product and technical decisions; exceptions in `MASTER_
 
 ## Next steps (exact commands)
 0. When the owner approves the Supabase connector's confirmation: apply `20261113190000_workspace_deletion.sql`, then
-   `20261113210000_account_deletion.sql`, to rehearsal (without their outer `begin`/`commit`), check `get_advisors`,
+   `20261113210000_account_deletion.sql`, then `20261114090000_research_calculation_runs.sql`, to rehearsal (without
+   their outer `begin`/`commit`), check `get_advisors`,
    release the gateway from a clean checkout of the commit (step 1), then as test account A create a throwaway
    workspace, give it a conversation, delete it with the typed confirmation, and check that `deletion_operations`
    shows it verified with three receipts and that no table holds its rows. Account deletion: check it with a third,
@@ -165,7 +168,7 @@ Decisions (D25 delegates product and technical decisions; exceptions in `MASTER_
    collections, point counts, vector size and payload indexes here.
 5. Frontend preview: Actions → Cloudflare Preview Deploy → Run workflow on this branch with "deploy candidate
    preview" ticked; then check `/research`, `/radar`, `/evidence-api` return 200 and an unknown path 404.
-6. Build next, none of which needs the keys: account deletion cleanup and a Postgres/Storage/Qdrant
-   reconciliation job (NX-27); a nonce-based script policy (rest of NX-28); the CALCULATION run mode (NX-17).
+6. Build next, none of which needs the keys: a Postgres/Storage/Qdrant reconciliation job (rest of NX-27); a
+   nonce-based script policy (rest of NX-28).
 7. Hosted migration status: save `list_migrations` output to a file, then
    `python3 scripts/migration_status.py status --applied <file>`.

@@ -9,7 +9,7 @@ for(const theme of ["light","dark"])test(`${theme}: calculate, inspect and reloa
   const question=`Synthetic calculation ${theme} ${testInfo.project.name}`;
   await page.getByLabel("Mode").selectOption("CALCULATION");
   await page.getByLabel("Question",{exact:true}).fill(question);await page.getByLabel("Completion criteria").fill("Review exact arithmetic and input evidence");await save.click();
-  await expect(page.getByRole("status")).toHaveText("Saved plan. Calculations are tracked separately.");
+  await expect(page.getByRole("status")).toHaveText("Saved plan. Runs find the figures in the selected documents and compute the results; you can also enter figures yourself below.");
   const execute=page.getByRole("button",{name:"Calculate and save",exact:true});await expect(execute).toBeEnabled();
   for(const [name,value] of [["Left value","9007199254740993.1"],["Right value","0.2"],["Left unit","USD"],["Right unit","USD"],
     ["Left evidence references","synthetic-interrupted-calculation"],["Right evidence references","source-b"],["Decimal places","2"]])await page.getByLabel(name,{exact:true}).fill(value);

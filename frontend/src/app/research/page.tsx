@@ -127,7 +127,7 @@ function ResearchWorkbench() {
       <section aria-label={selected ? "Stored research plan" : "Draft research plan"} className="min-w-0">
         {selected ? <><div className="mb-4 flex flex-wrap items-center justify-between gap-3"><h2 ref={storedHeading} tabIndex={-1} className="text-lg font-semibold break-words">{modeLabel(selected.plan.mode)}</h2>
           <button className={button} disabled={busy || !canWrite} onClick={() => newDraft(selected.plan)}><Copy size={16} />Copy to a new plan</button></div>
-          <p role="status" className="mb-4 text-sm text-emerald-700 dark:text-emerald-300">{selected.plan.mode==="CALCULATION"?"Saved plan. Calculations are tracked separately.":"Saved plan. Executions are tracked separately."}</p>
+          <p role="status" className="mb-4 text-sm text-emerald-700 dark:text-emerald-300">{selected.plan.mode==="CALCULATION"?"Saved plan. Runs find the figures in the selected documents and compute the results; you can also enter figures yourself below.":"Saved plan. Executions are tracked separately."}</p>
           <p className="mb-4 whitespace-pre-wrap break-words">{selected.plan.question}</p>
           {selected.plan.mode==="PRODUCT_PASSPORT"&&<section aria-label="Declared product" className="mb-4 min-w-0 border-y border-[var(--border)] py-3">
             <h3 className="mb-2 text-sm font-semibold">Declared product</h3>
@@ -140,8 +140,8 @@ function ResearchWorkbench() {
             {[["Private source IDs", selected.plan.private_source_ids.join("\n")], ["Start date", selected.plan.date_from], ["End date", selected.plan.date_to], ["Jurisdiction", selected.plan.jurisdiction]].map(([label, value]) =>
               <div key={label}><dt className="text-xs font-semibold text-[var(--text-muted)]">{label}</dt><dd className="mt-1 whitespace-pre-wrap break-words text-sm">{value || "-"}</dd></div>)}
           </dl></details>
-          {selected.plan.mode==="CALCULATION" && <CalculationTools key={selected.id} planId={selected.id} workspaceId={workspaceId} userId={userId!} canWrite={canWrite} documents={documents} privateSourceIds={selected.plan.private_source_ids}/>}
-          {selected.plan.mode!=="CALCULATION" && <ResearchRuns key={selected.id} plan={selected} workspaceId={workspaceId} userId={userId!} canWrite={canWrite}/>}
+          <ResearchRuns key={selected.id} plan={selected} workspaceId={workspaceId} userId={userId!} canWrite={canWrite}/>
+          {selected.plan.mode==="CALCULATION" && <CalculationTools key={`tools:${selected.id}`} planId={selected.id} workspaceId={workspaceId} userId={userId!} canWrite={canWrite} documents={documents} privateSourceIds={selected.plan.private_source_ids}/>}
           </> : <form onSubmit={event => { event.preventDefault(); if (canWrite && !busy) void save(); }} className="space-y-4">
           <div className="grid min-w-0 gap-4 sm:grid-cols-2"><label className="text-sm">Mode<select aria-label="Mode" className={`${control} mt-1`} value={draft.mode} disabled={busy || !canWrite}
             onChange={event => setDraft({ ...draft, mode: event.target.value as ResearchMode })}>{researchModes.map(mode => <option key={mode} value={mode}>{modeLabel(mode)}</option>)}</select></label>

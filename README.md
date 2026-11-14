@@ -27,9 +27,11 @@ records and files, Qdrant for vector search, and Google's Gemini API for reading
 - **Chat with citations.** Answers stream as they are written. Retrieval combines vector search with keyword
   matching inside the workspace; before an answer is saved, each cited passage is checked against the stored
   text, and the answer says when nothing in the documents supports a claim.
-- **Research.** Plan a larger question in one of eleven modes (quick lookup, evidence answer, comparison,
+- **Research.** Plan a larger question in one of twelve modes (quick lookup, evidence answer, comparison,
   timeline, contradiction analysis, deep research, obligation analysis, entity investigation, due diligence,
-  product passport, procurement research), run it, and see which sources were consulted and which were skipped.
+  product passport, procurement research, calculation), run it, and see which sources were consulted and which
+  were skipped. In a calculation, Gemini only points at the figures the documents state; every result is computed
+  exactly and checked by the database, with its formula, units, rounding and the passages it came from.
 - **Findings and review.** Save an answer as a finding, share it, have a second member approve it, and export a
   reproducible evidence package.
 - **Privacy controls.** Deleting a document removes its search entries, stored file and every row, and leaves

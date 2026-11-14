@@ -66,8 +66,11 @@ begin
   -- controlled barrier calls the REAL tombstone function after real projection;
   -- all schema/data edits disappear with this nested rollback.
   begin
-    select pg_get_functiondef('public.nexus_research_finding_view(jsonb,uuid)'::regprocedure) into projection_definition;
-    if strpos(projection_definition,'if change is null then return f;end if;')=0 then raise exception 'Known frozen projection barrier missing';end if;
+    -- The barrier is in the Radar layer of the finding view, however many research modes have wrapped it since.
+    select pg_get_functiondef(p.oid) into projection_definition from pg_proc p join pg_namespace n on n.oid=p.pronamespace
+      where n.nspname='public' and p.proname like 'nexus\_research\_finding\_view%' and pg_get_function_identity_arguments(p.oid)='p_context jsonb, p_id uuid'
+        and strpos(pg_get_functiondef(p.oid),'if change is null then return f;end if;')>0;
+    if coalesce(strpos(projection_definition,'if change is null then return f;end if;'),0)=0 then raise exception 'Known frozen projection barrier missing';end if;
     execute replace(projection_definition,'if change is null then return f;end if;',
       'if change is null then perform pg_temp.obligation_projection_lifecycle(p_context);return f;end if;');
     perform set_config('nexusrag063.interleaving_document',r.source_snapshot->1->>'document_id',true);
@@ -93,8 +96,11 @@ begin
     insert into public.finding_serving_rights(workspace_id,version_id,original_hash,action,actor_id,policy,intent_hash)
       select ws,v.id,v.original_hash,'SERVE_API',owner_actor,head.policy,head.intent_hash from public.document_versions v
         where v.workspace_id=ws and v.id=(b->>'version_id')::uuid;
-    select pg_get_functiondef('public.nexus_research_finding_view(jsonb,uuid)'::regprocedure) into projection_definition;
-    if strpos(projection_definition,'if change is null then return f;end if;')=0 then raise exception 'Known frozen projection barrier missing';end if;
+    -- The barrier is in the Radar layer of the finding view, however many research modes have wrapped it since.
+    select pg_get_functiondef(p.oid) into projection_definition from pg_proc p join pg_namespace n on n.oid=p.pronamespace
+      where n.nspname='public' and p.proname like 'nexus\_research\_finding\_view%' and pg_get_function_identity_arguments(p.oid)='p_context jsonb, p_id uuid'
+        and strpos(pg_get_functiondef(p.oid),'if change is null then return f;end if;')>0;
+    if coalesce(strpos(projection_definition,'if change is null then return f;end if;'),0)=0 then raise exception 'Known frozen projection barrier missing';end if;
     execute replace(projection_definition,'if change is null then return f;end if;',
       'if change is null then perform pg_temp.obligation_projection_lifecycle(p_context);return f;end if;');
     perform set_config('nexusrag063.interleaving_document',b->>'document_id',true);

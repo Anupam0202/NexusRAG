@@ -21,6 +21,7 @@ import { EntityCandidates } from "@/components/research/EntityCandidates";
 import { DiligenceObservations } from "@/components/research/DiligenceObservations";
 import { PassportClaims } from "@/components/research/PassportClaims";
 import { ProcurementRecords } from "@/components/research/ProcurementRecords";
+import { CalculationRunResults } from "@/components/research/CalculationRunResults";
 import { FindingPackages } from "@/components/findings/FindingPackages";
 import { RadarOriginPanel } from "@/components/findings/RadarOriginPanel";
 import { FindingServingRights } from "@/components/findings/FindingServingRights";
@@ -191,6 +192,7 @@ function FindingsWorkbench() {
               {selected.research_origin.diligence&&<DiligenceObservations analysis={selected.research_origin.diligence} sourcePrefix={`finding-${selected.id}`}/>}
               {selected.research_origin.passport&&<PassportClaims analysis={selected.research_origin.passport} sourcePrefix={`finding-${selected.id}`}/>}
               {selected.research_origin.procurement&&<ProcurementRecords analysis={selected.research_origin.procurement} sourcePrefix={`finding-${selected.id}`}/>}
+              {selected.research_origin.calculation&&<CalculationRunResults analysis={selected.research_origin.calculation} sourcePrefix={`finding-${selected.id}`}/>}
               <p className="text-xs text-[var(--text-muted)]">Source-backed export requires an approved export-rights decision. Review does not grant source rights or certify the claim.</p>
             </div>}
             {selected.source_unavailable && <p role="alert">Source evidence is unavailable. Generated content is withheld.</p>}

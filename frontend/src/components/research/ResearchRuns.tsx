@@ -20,8 +20,15 @@ import { EntityCandidates } from "./EntityCandidates";
 import { DiligenceObservations } from "./DiligenceObservations";
 import { PassportClaims } from "./PassportClaims";
 import { ProcurementRecords } from "./ProcurementRecords";
+import { CalculationRunResults } from "./CalculationRunResults";
 
 const button="inline-flex items-center justify-center gap-2 rounded-lg border border-[var(--border)] px-3 py-2 text-sm disabled:opacity-50";
+// Why a run stopped, in words; the code stays visible for support.
+const stopReasons:Record<string,string>={RUN_DEADLINE:"the time allowed for this run ran out",PROVIDER_UNAVAILABLE:"Gemini did not answer",
+  PROVIDER_INCOMPLETE:"Gemini's answer was cut off",PROVIDER_INVALID_RESPONSE:"Gemini's answer was not in the expected form",
+  PROVIDER_CREDIT_EXHAUSTED:"the Gemini key's project has no credit left",PROVIDER_KEY_REJECTED:"Gemini rejected the key",
+  PROVIDER_RATE_LIMITED:"Gemini asked for fewer requests",SOURCE_UNAVAILABLE:"a selected document changed or was deleted",
+  CANCELLED:"it was cancelled",INDEX_NOT_ANSWERING:"the search index did not answer",BYOK_REQUIRED:"no query allowance or Gemini key is available"};
 function ResearchSourceDetails({source,id}:{source:ResearchRun["results"][number]["sources"][number];id:string}) {
   const [expanded,setExpanded]=useState(false);
   return <details id={id} tabIndex={-1} open={expanded} onToggle={event=>setExpanded(event.currentTarget.open)} className="mb-2 min-w-0 rounded-lg border border-[var(--border)] p-3">
@@ -38,8 +45,9 @@ const ResearchResultArticle=memo(function ResearchResultArticle({runId,index,res
   const prefix=`${runId}-${index}`;
   return <article id={prefix} className="mb-5 min-w-0 border-t border-[var(--border)] pt-4">
     <h4 className="mb-2 whitespace-pre-wrap break-words font-medium">{result.question}</h4>
-    <p className="mb-2 text-xs text-[var(--text-muted)]">{result.claim_state==="UNSUPPORTED"?"No supported answer":"Review required; citation presence is not entailment"}</p>
-    {result.comparison?<ComparisonMatrix matrix={result.comparison} sourcePrefix={prefix}/>:result.timeline?<p className="mb-3 text-sm">{result.timeline.events.length} source events / criterion {result.timeline.criterion_index+1} / batch {result.timeline.batch_index+1}</p>:result.contradiction?<ContradictionPairs analysis={result.contradiction} sourcePrefix={prefix}/>:result.obligations?.candidates.length||result.entities?.candidates.length?null:<p className="mb-3 whitespace-pre-wrap break-words text-sm">{result.answer}</p>}
+    <p className="mb-2 text-xs text-[var(--text-muted)]">{result.claim_state==="UNSUPPORTED"?"No supported answer: nothing in the passages read supports one, so it cannot be saved as a finding"
+      :"Review required: a citation shows where to look, not that the passage proves the answer. Check it, then save it as a finding for a colleague to approve"}</p>
+    {result.comparison?<ComparisonMatrix matrix={result.comparison} sourcePrefix={prefix}/>:result.timeline?<p className="mb-3 text-sm">{result.timeline.events.length} source events / criterion {result.timeline.criterion_index+1} / batch {result.timeline.batch_index+1}</p>:result.contradiction?<ContradictionPairs analysis={result.contradiction} sourcePrefix={prefix}/>:result.obligations?.candidates.length||result.entities?.candidates.length||result.calculation?null:<p className="mb-3 whitespace-pre-wrap break-words text-sm">{result.answer}</p>}
     {result.query_retrieval&&<ResearchQueryCoverage retrieval={result.query_retrieval}/>}
     {result.deep&&<DeepResearchReport report={result.deep} sourcePrefix={prefix} runPrefix={runId}/>}
     {result.obligations&&<ObligationCandidates analysis={result.obligations} sourcePrefix={prefix}/>}
@@ -47,6 +55,7 @@ const ResearchResultArticle=memo(function ResearchResultArticle({runId,index,res
     {result.diligence&&<DiligenceObservations analysis={result.diligence} sourcePrefix={prefix}/>}
     {result.passport&&<PassportClaims analysis={result.passport} sourcePrefix={prefix}/>}
     {result.procurement&&<ProcurementRecords analysis={result.procurement} sourcePrefix={prefix}/>}
+    {result.calculation&&<CalculationRunResults analysis={result.calculation} sourcePrefix={prefix}/>}
     <ResearchFindingAction runId={runId} index={index} result={result} workspaceId={workspaceId} userId={userId} canWrite={canWrite}/>
     {result.sources.map(source=><ResearchSourceDetails key={source.citation_id} source={source} id={`${prefix}-${source.citation_id}`}/>)}
     <p className="text-xs text-[var(--text-muted)]">{result.coverage.chunks_considered} candidate chunks considered / bounded retrieval, not exhaustive / provider cost {result.provider_cost_status.toLowerCase()}</p>
@@ -60,11 +69,11 @@ export function ResearchRuns({plan,workspaceId,userId,canWrite}:{plan:ResearchPl
   const alive=useRef(true),pending=useRef(false),sequence=useRef(0),startKey=useRef<string|null>(null),heading=useRef<HTMLHeadingElement>(null);
   const copyPending=useRef(false),copySequence=useRef(0);
   const context={workspaceId,expectedUserId:userId};
-  const supported=["QUICK_LOOKUP","EVIDENCE_ANSWER","COMPARE","TIMELINE","CONTRADICTION_ANALYSIS","DEEP_RESEARCH","OBLIGATION_ANALYSIS","ENTITY_INVESTIGATION","DUE_DILIGENCE","PRODUCT_PASSPORT","PROCUREMENT_RESEARCH"].includes(plan.plan.mode),comparing=plan.plan.mode==="COMPARE",investigating=["ENTITY_INVESTIGATION","DUE_DILIGENCE"].includes(plan.plan.mode),batched=comparing||plan.plan.mode==="TIMELINE";
+  const supported=["QUICK_LOOKUP","EVIDENCE_ANSWER","COMPARE","TIMELINE","CONTRADICTION_ANALYSIS","DEEP_RESEARCH","OBLIGATION_ANALYSIS","ENTITY_INVESTIGATION","DUE_DILIGENCE","PRODUCT_PASSPORT","PROCUREMENT_RESEARCH","CALCULATION"].includes(plan.plan.mode),comparing=plan.plan.mode==="COMPARE",investigating=["ENTITY_INVESTIGATION","DUE_DILIGENCE"].includes(plan.plan.mode),batched=comparing||plan.plan.mode==="TIMELINE";
   const subjectMissing=plan.plan.mode==="PRODUCT_PASSPORT"&&!confirmedPassportSubject(plan.plan.passport_subject);
   const scopeMissing=comparing?new Set(plan.plan.private_source_ids).size<2:!plan.plan.private_source_ids.length;
   const steps=selected?.total_steps||selected?.questions.length||1,units=batched?"batches":"questions";
-  const unsupported=plan.plan.public_provider_ids.length||(!investigating&&plan.plan.entity_scope.length)||plan.plan.rights_constraints.length||plan.plan.expected_calculations.length
+  const unsupported=plan.plan.public_provider_ids.length||(!investigating&&plan.plan.entity_scope.length)||plan.plan.rights_constraints.length||(plan.plan.mode!=="CALCULATION"&&plan.plan.expected_calculations.length)
     ||plan.plan.date_from||plan.plan.date_to||plan.plan.jurisdiction;
   const active=selected&&["queued","running"].includes(selected.state);
   useEffect(()=>{const counter=sequence;alive.current=true;return()=>{alive.current=false;counter.current++;};},[]);
@@ -135,10 +144,14 @@ export function ResearchRuns({plan,workspaceId,userId,canWrite}:{plan:ResearchPl
       const page=await listResearchRuns(plan.id,context,after);if(alive.current){setItems(items=>[...items,...page.items.filter(item=>!items.some(old=>old.id===item.id))]);setAfter(page.next_after);}
     })}>Load more executions</button>}
     {selected&&<div className="min-w-0 border-t border-[var(--border)] pt-4">
-      <div role="status" className="mb-2 text-sm font-medium">{selected.state==="completed"?"Execution finished; completion criteria still require review.":`Execution ${selected.state}`} / {selected.position} of {steps} {units} saved</div>
+      <div role="status" className="mb-2 text-sm font-medium">{selected.state==="completed"?"Execution finished":`Execution ${selected.state}`} / {selected.position} of {steps} {units} saved</div>
+      {selected.state==="completed"&&<section aria-label="Review this run" className="mb-3 min-w-0 text-sm">
+        <p className="break-words">Completion criteria still require review: check each result against its sources and the criteria below, then save the results that hold up as findings. A colleague approves each finding on the Findings page.</p>
+        <ul className="mt-1 list-disc break-words pl-5">{plan.plan.completion_criteria.map((criterion,i)=><li key={i} className="whitespace-pre-wrap">{criterion}</li>)}</ul>
+      </section>}
       <progress aria-label="Research progress" value={selected.position} max={steps} className="mb-3 h-2 w-full"/>
       {selected.dispatch_state==="PENDING_RECOVERY"&&<p role="status" className="mb-3 text-sm text-amber-700 dark:text-amber-300">Saved, but queue dispatch was not confirmed. Scheduled recovery can redispatch queued work; no generation result is confirmed yet.</p>}
-      {selected.error_code&&<p role="status" className="mb-3 break-words text-sm">Execution stopped: {selected.error_code}. Saved answers are retained. A resume may repeat an unconfirmed provider request and consume quota.</p>}
+      {selected.error_code&&<p role="status" className="mb-3 break-words text-sm">Execution stopped: {stopReasons[selected.error_code]?`${stopReasons[selected.error_code]} (${selected.error_code})`:selected.error_code}. Saved answers are kept; resume to answer the remaining questions. Resuming may repeat a request Gemini already received and use quota.</p>}
       <div className="mb-4 flex flex-wrap gap-2">
         {selected.state==="queued"&&<button className={button} disabled={busy||!canWrite||!attested} onClick={()=>void operate(()=>researchRunCommand(plan.id,context,"resume",selected.id,undefined,plan.plan.mode))}><RefreshCw size={16}/>Retry queued dispatch</button>}
         {active&&<button className={button} disabled={busy||!canWrite} onClick={()=>void operate(()=>researchRunCommand(plan.id,context,"cancel",selected.id))}><Square size={16}/>Cancel execution</button>}
