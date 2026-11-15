@@ -6,12 +6,16 @@ account can see none of it, deletion, and proof that the answer is gone afterwar
 
   SMOKE_GATEWAY_URL=... SMOKE_SUPABASE_URL=... SMOKE_SUPABASE_PUBLISHABLE_KEY=... \\
   SMOKE_USER_A_EMAIL=... SMOKE_USER_A_PASSWORD=... SMOKE_USER_B_EMAIL=... SMOKE_USER_B_PASSWORD=... \\
-  python3 scripts/preview_smoke.py [--keep-document] [--report FILE]
+  python3 scripts/preview_smoke.py [--journey core|workspace-deletion] [--keep-document] [--report FILE]
+
+The second journey, `--journey workspace-deletion`, needs no working model key: account A creates a throwaway
+workspace, stores a document in it and deletes the workspace with the typed confirmation; the workspace must be
+hidden at once, account B must never reach it, and every stored copy must be verified gone.
 
 It refuses to run against anything but the candidate gateway. Each account's free trial covers one document
 and five chats on the platform key, so reset the two test accounts' usage on the rehearsal project before a
 rerun (rows in nexus_account_usage and nexus_account_operations for those users), or give them their own keys.
-A run that fails after its upload deletes the document it uploaded, so reruns start clean.
+A run that fails after its upload deletes what it created, so reruns start clean.
 """
 from __future__ import annotations
 
@@ -27,6 +31,7 @@ import uuid
 
 TIMEOUT = 90
 INGESTION_DEADLINE = 300
+DELETE_WORKSPACE_CONFIRMATION = "DELETE WORKSPACE"  # as in apps/gateway/src/workspace-deletion.js
 DELETION_DEADLINE = 420  # the gateway's cron finishes a deletion that had to wait, within a few minutes
 
 
@@ -92,6 +97,7 @@ class Smoke:
         self.document_id: str | None = None
         self.owner: Account | None = None
         self.deleted = False
+        self.throwaway: str | None = None  # a workspace this run created and has not deleted yet
 
     def check(self, name: str, ok: bool, detail: str = "") -> None:
         self.results.append({"check": name, "ok": bool(ok), "detail": detail})
@@ -148,7 +154,12 @@ class Smoke:
             time.sleep(30)
 
     def clean_up(self) -> None:
-        """After a failed run: remove the uploaded document, so the next run does not find leftovers."""
+        """After a failed run: remove what it created, so the next run does not find leftovers."""
+        if self.throwaway and self.owner:
+            status, body = self.owner.api("POST", "/api/v1/workspaces/current/delete", workspace=self.throwaway,
+                                          body={"confirmation": DELETE_WORKSPACE_CONFIRMATION})
+            print(f"      clean-up: deleting the throwaway workspace returned HTTP {status} {body.get('state') if isinstance(body, dict) else ''}", flush=True)
+            return
         if self.keep_document or self.deleted or not self.document_id or not self.owner:
             return
         status, body = self.delete_document()
@@ -157,7 +168,8 @@ class Smoke:
     def ask(self, account: Account, question: str, **scope):
         return account.api("POST", "/api/v1/chat", body={"question": question, "non_sensitive_attested": True, **scope}, idempotent=True)
 
-    def run(self) -> None:
+    def preflight(self) -> tuple[Account, Account]:
+        """The gateway is the candidate, reaches its stores and refuses strangers; then both accounts sign in."""
         status, health = call("GET", f"{self.gateway}/health")
         self.check("gateway is the candidate preview", status == 200 and isinstance(health, dict) and "candidate" in str(health.get("service")),
                    f"{health.get('service') if isinstance(health, dict) else status}")
@@ -173,12 +185,10 @@ class Smoke:
 
         a, b = self.sign_in("A"), self.sign_in("B")
         self.owner = a
-        self.ensure_workspace(a)
-        self.ensure_workspace(b)
-        self.check("the two accounts have different workspaces", a.workspace != b.workspace)
-        self.approve_processing(a)
-        self.approve_processing(b)
+        return a, b
 
+    def upload(self, account: Account) -> dict:
+        """Stores the test policy in the account's current workspace and returns the gateway's answer."""
         text = (
             "NexusRAG smoke-test policy.\n\n"
             f"The retention period for audit records is 47 days. The reference code of this policy is {self.marker}.\n\n"
@@ -186,19 +196,82 @@ class Smoke:
         ).encode()
         payload, content_type = multipart({"data_classification": "non_sensitive", "non_sensitive_attested": "true"},
                                           f"smoke-policy-{self.marker.lower()}.txt", text, "text/plain")
-        status, uploaded = a.api("POST", "/api/v1/documents/upload", body=payload, extra={"Content-Type": content_type}, idempotent=True)
-        self.check("account A uploads a document", status == 202 and isinstance(uploaded, dict) and uploaded.get("job_id"),
+        status, uploaded = account.api("POST", "/api/v1/documents/upload", body=payload, extra={"Content-Type": content_type}, idempotent=True)
+        self.check(f"account {account.label} uploads a document", status == 202 and isinstance(uploaded, dict) and uploaded.get("job_id"),
                    f"HTTP {status} {json.dumps(uploaded)[:200] if status != 202 else ''}")
-        self.document_id = uploaded["document"]["document_id"]
+        return uploaded
 
+    def wait_for_job(self, account: Account, document_id: str, deadline: int) -> tuple[dict, int]:
+        """Polls the document's processing until it has ended or the deadline passes."""
         started, job = time.time(), {}
-        while time.time() - started < INGESTION_DEADLINE:
-            status, job = a.api("GET", f"/api/v1/documents/{self.document_id}/status")
+        while time.time() - started < deadline:
+            status, job = account.api("GET", f"/api/v1/documents/{document_id}/status")
             if status == 200 and job.get("status") in {"completed", "failed", "cancelled"}:
                 break
             time.sleep(5)
+        return job if isinstance(job, dict) else {}, int(time.time() - started)
+
+    def run_workspace_deletion(self) -> None:
+        """A throwaway workspace with a stored document is deleted by its owner. No model is needed: the upload
+        stores the original, and the deletion must remove it whatever became of its processing."""
+        a, b = self.preflight()
+        home = None
+        status, listing = a.api("GET", "/api/v1/workspaces")
+        if status == 200 and isinstance(listing, dict) and listing.get("workspaces"):
+            home = listing["workspaces"][0]["workspace_id"]
+        status, created = a.api("POST", "/api/v1/workspaces", body={"name": f"Deletion check {self.marker}"}, idempotent=True)
+        throwaway = created.get("workspace_id") if isinstance(created, dict) else None
+        self.check("account A creates a throwaway workspace", status == 201 and bool(throwaway) and throwaway != home, f"HTTP {status}")
+        self.throwaway, a.workspace = throwaway, throwaway
+        self.approve_processing(a)
+        document_id = self.upload(a)["document"]["document_id"]
+        # A job that is being processed makes the erasure wait for it, so let it end first where it does.
+        job, waited = self.wait_for_job(a, document_id, 120)
+        print(f"      processing ended as {job.get('status')}/{job.get('stage')} after {waited}s", flush=True)
+
+        status, _ = b.api("GET", "/api/v1/documents", workspace=throwaway)
+        self.check("account B cannot open the workspace", status in {403, 404}, f"HTTP {status}")
+        status, _ = b.api("POST", "/api/v1/workspaces/current/delete", workspace=throwaway, body={"confirmation": DELETE_WORKSPACE_CONFIRMATION})
+        self.check("account B cannot delete it", status in {403, 404}, f"HTTP {status}")
+        status, _ = a.api("POST", "/api/v1/workspaces/current/delete", body={"confirmation": DELETE_WORKSPACE_CONFIRMATION.lower()})
+        self.check("deleting needs the confirmation typed exactly", status == 422, f"HTTP {status}")
+        status, listing = a.api("GET", "/api/v1/workspaces")
+        self.check("a refused deletion leaves the workspace in place",
+                   status == 200 and any(item["workspace_id"] == throwaway for item in listing.get("workspaces", [])), f"HTTP {status}")
+
+        status, receipt = a.api("POST", "/api/v1/workspaces/current/delete", body={"confirmation": DELETE_WORKSPACE_CONFIRMATION})
+        receipt = receipt if isinstance(receipt, dict) else {}
+        self.check("account A deletes the workspace",
+                   status in {200, 202} and receipt.get("workspace_deleted") is True and receipt.get("state") in {"DELETED", "PENDING"},
+                   f"HTTP {status} {json.dumps(receipt)[:240]}")
+        self.throwaway, a.workspace = None, home
+        status, listing = a.api("GET", "/api/v1/workspaces")
+        self.check("the workspace is gone from its owner's list at once",
+                   status == 200 and all(item["workspace_id"] != throwaway for item in listing.get("workspaces", [])), f"HTTP {status}")
+        status, _ = a.api("GET", "/api/v1/documents", workspace=throwaway)
+        self.check("its documents can no longer be opened, even by its owner", status in {403, 404}, f"HTTP {status}")
+        status, _ = a.api("GET", f"/api/v1/documents/{document_id}/status")
+        self.check("its document cannot be reached through another workspace", status == 404, f"HTTP {status}")
+        if receipt.get("state") == "DELETED":
+            self.check("every stored copy is verified gone, with receipts for the index, the files and the rows",
+                       int(receipt.get("receipts") or 0) >= 3 and int(receipt.get("documents_deleted") or 0) == 1, json.dumps(receipt)[:240])
+        else:
+            # A job was still running: the gateway's cron finishes the erasure, and only the operator can see that
+            # (deletion_operations), because the workspace no longer exists for anyone.
+            self.check("the erasure waits for a running job and is left to the cron", True, f"operation {receipt.get('operation_id')}")
+
+    def run(self) -> None:
+        a, b = self.preflight()
+        self.ensure_workspace(a)
+        self.ensure_workspace(b)
+        self.check("the two accounts have different workspaces", a.workspace != b.workspace)
+        self.approve_processing(a)
+        self.approve_processing(b)
+
+        self.document_id = self.upload(a)["document"]["document_id"]
+        job, waited = self.wait_for_job(a, self.document_id, INGESTION_DEADLINE)
         self.check("ingestion completes", job.get("status") == "completed",
-                   f"{job.get('status')}/{job.get('stage')} after {int(time.time() - started)}s {job.get('error_message') or ''}")
+                   f"{job.get('status')}/{job.get('stage')} after {waited}s {job.get('error_message') or ''}")
         status, listing = a.api("GET", "/api/v1/documents")
         mine = next((item for item in listing.get("documents", []) if item["document_id"] == self.document_id), None) if status == 200 else None
         self.check("the document is listed as ready with chunks", bool(mine) and mine["status"] == "ready" and mine["chunk_count"] > 0,
@@ -249,7 +322,9 @@ class Smoke:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("--keep-document", action="store_true", help="skip the deletion checks")
+    parser.add_argument("--journey", choices=["core", "workspace-deletion"], default="core",
+                        help="core: upload to answer to deletion; workspace-deletion: a throwaway workspace is erased")
+    parser.add_argument("--keep-document", action="store_true", help="core journey: skip the deletion checks")
     parser.add_argument("--report", type=Path, help="write the check results as JSON")
     args = parser.parse_args(argv)
     names = ["SMOKE_GATEWAY_URL", "SMOKE_SUPABASE_URL", "SMOKE_SUPABASE_PUBLISHABLE_KEY",
@@ -261,7 +336,10 @@ def main(argv: list[str] | None = None) -> int:
         return 2
     smoke = Smoke(env, args.keep_document)
     try:
-        smoke.run()
+        if args.journey == "workspace-deletion":
+            smoke.run_workspace_deletion()
+        else:
+            smoke.run()
         outcome = 0
     except SmokeFailure:
         outcome = 1
@@ -269,8 +347,8 @@ def main(argv: list[str] | None = None) -> int:
     passed = sum(1 for result in smoke.results if result["ok"])
     print(f"\n{'PREVIEW_SMOKE_PASS' if outcome == 0 else 'PREVIEW_SMOKE_FAIL'}: {passed}/{len(smoke.results)} checks passed")
     if args.report:
-        args.report.write_text(json.dumps({"passed": outcome == 0, "marker": smoke.marker, "document_id": smoke.document_id,
-                                           "checks": smoke.results}, indent=2) + "\n")
+        args.report.write_text(json.dumps({"passed": outcome == 0, "journey": args.journey, "marker": smoke.marker,
+                                           "document_id": smoke.document_id, "checks": smoke.results}, indent=2) + "\n")
     return outcome
 
 
