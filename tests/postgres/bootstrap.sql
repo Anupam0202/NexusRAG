@@ -35,7 +35,9 @@ CREATE TABLE storage.buckets (
 );
 CREATE TABLE storage.objects (
  id uuid PRIMARY KEY DEFAULT gen_random_uuid(), bucket_id text NOT NULL, name text NOT NULL,
- owner_id uuid, metadata jsonb NOT NULL DEFAULT '{}'::jsonb
+ owner_id uuid, metadata jsonb NOT NULL DEFAULT '{}'::jsonb,
+ -- As on hosted Supabase: when the object was stored, and whether it is only the marker of a deleted version.
+ created_at timestamptz NOT NULL DEFAULT now(), is_delete_marker boolean NOT NULL DEFAULT false
 );
 ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY;
 GRANT USAGE ON SCHEMA storage TO authenticated,service_role;
