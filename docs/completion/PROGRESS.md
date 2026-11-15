@@ -1,10 +1,10 @@
 # NexusRAG completion progress
-Last updated: 2026-11-14 — document deletion and retention verified live on the preview; workspace and account
+Last updated: 2026-11-15 — document deletion and retention verified live on the preview; workspace and account
 deletion, CALCULATION runs (NX-17), Supabase secret-key support (NX-26), per-user BYOK sealing (NX-24), the
-upload orphan fix, the tenant index (NX-36) and page script and connection policies (NX-28) built and tested
-offline; owner walkthrough checklist written. The
-live journey still stops at ingestion on the shared Gemini key's HTTP 402, and the gateway is not re-released until
-the three pending rehearsal migrations are applied (owner confirmation)
+upload orphan fix, the tenant index (NX-36), page script and connection policies (NX-28) and the reconciliation of
+file storage and the index (NX-27) built and tested offline; owner walkthrough checklist written. The live journey
+still stops at ingestion on the shared Gemini key's HTTP 402, and the gateway is not re-released until the four
+pending rehearsal migrations are applied (owner confirmation)
 
 ## Current state
 - main: `85b14f1`; working branch: `codex/runtime-manifest-008` (draft PR #12, owner-approved for direct
@@ -18,7 +18,8 @@ the three pending rehearsal migrations are applied (owner confirmation)
 - Rehearsal Supabase (`ukgjygzfhyvnrsecdcuu`): 53 migrations applied (document deletion and retention on
   2026-11-13); pending: `20261113190000_workspace_deletion` (its apply waits for the owner to answer the Supabase
   connector's confirmation; asked three times on 13 and 14 November, each timed out unanswered),
-  `20261113210000_account_deletion` and `20261114090000_research_calculation_runs`. No document is left in `deleting`. Advisors: only leaked-password protection
+  `20261113210000_account_deletion`, `20261114090000_research_calculation_runs` and
+  `20261114120000_storage_reconciliation`. No document is left in `deleting`. Advisors: only leaked-password protection
   (an Auth setting). Test account A has used its trial upload and B its trial upload; reset both before the next
   journey. Provider reviews recorded for Gemini, Qdrant and Supabase Storage (staging attestation by test account
   A, valid to 2027-11-12). Two test accounts (`nexus-e2e-a@nexusrag.test`, `nexus-e2e-b@nexusrag.test`), each
@@ -86,6 +87,8 @@ the three pending rehearsal migrations are applied (owner confirmation)
 | 2026-11-13 | NX-21: real streaming from `streamGenerateContent`; the final event carries the checked and saved answer; errors before the first token keep their HTTP status | 1 (6 end-to-end tests on the real pipeline); 4 for the no-evidence path | `e50a239` |
 | 2026-11-13 | NX-28 part: security headers on every page, file and error (Worker and `_headers`), checked on the built Worker; hostile-markdown test | 2 | `5262bff` |
 | 2026-11-13 | NX-16 retention runs: owners and administrators set a number of days; every day (and on "Run now") documents uploaded before the cutoff go through the normal deletion, chat messages and research results from before it are removed, and conversations unused since are removed or closed; saved findings, what they cite and Radar pages stay. Turning it on asks for a second click that names the cutoff date | 3 (local replay with new assertions; 926 gateway and 776 frontend tests); 4 on 13 November (below) | `f589e7b` |
+| 2026-11-15 | NX-27 done: reconciliation of file storage and the search index with the database. Two read-only reports (`20261114120000_storage_reconciliation.sql`) find stored files no row names (older than an hour, so an upload in progress is left alone), documents whose original is gone, index entries of versions that no longer exist, and answerable documents the index holds nothing of. The gateway logs the counts in the first cron run of each day (`store_reconciliation`, a warning when anything is found). `scripts/reconciliation.py` and the manual Store Reconciliation workflow show them, printing counts only because workflow logs are public, and remove leftovers only when given the count of a fresh report; the index is not touched while documents are missing from it. The report's queries, run read-only on production: 7 stored files, none without a document, no original missing | 3 for the reports (fresh replay with nine broken variants each refused by the assertions), 1 for the rest (974 gateway tests; 18 tool tests with eight broken variants each refused) | `36114ce`, `2253a3a`, `b7e8250` |
+| 2026-11-14 | NX-28 follow-up: the first CI run failed in Firefox only, on the test, not the app: a browser revalidates a page it has stored, the 304 it gets carries no policy by design, and Firefox reports that 304 where Chromium and WebKit report the stored page. The test now reads each page's policy from a fresh request and checks in the browser that an injected inline script and a request to another origin are refused, also on a stored page opened again | 2 ([CI](https://github.com/Anupam0202/NexusRAG/actions/runs/43602062101): Chromium, mobile Chrome, Firefox, WebKit and mobile WebKit; three broken variants each fail locally) | `7d45ec3` |
 | 2026-11-14 | NX-28 done: every page gets `script-src 'self'` plus the hashes of the inline scripts in that response (the Worker computes them: OpenNext re-renders pages, so the build's HTML has different ones) and `connect-src 'self'` plus the gateway and Supabase origins of the build; static files get `script-src 'self'`; HEAD and 304 carry no policy so a revalidated page keeps its own. The 27 page copies reachable as `/<page>.html` without the Worker are no longer published (only the document shell), and the build fails if one reappears. `release.py` refuses a frontend without both directives | 2 (on the built Worker: sixteen public pages hydrate with no violation in Chromium and mobile Chrome, and fail with a wrong hash; 832 frontend unit, 26 release, 967 gateway tests) | `9d8a99a` |
 | 2026-11-14 | Owner walkthrough checklist (`docs/completion/OWNER_WALKTHROUGH.md`): sixteen steps from Google sign-in to sign-out, covering the Tier 1 journey and the final regression list of section 13, with the exact labels the app shows | n/a | `f9b8286` |
 | 2026-11-14 | NX-36: `workspace_id` indexed as the Qdrant tenant (`is_tenant`), falling back to a plain index on a cluster that refuses it; existing indexes are no longer requested again, which saves four requests per indexing batch under the Workers Free limit of 50 | 1 (new-collection, upgrade, refusal and failure tests; 967 gateway tests) | `e2b597a` |
@@ -164,8 +167,9 @@ Decisions (D25 delegates product and technical decisions; exceptions in `MASTER_
 
 ## Next steps (exact commands)
 0. When the owner approves the Supabase connector's confirmation: apply `20261113190000_workspace_deletion.sql`, then
-   `20261113210000_account_deletion.sql`, then `20261114090000_research_calculation_runs.sql`, to rehearsal (without
-   their outer `begin`/`commit`), check `get_advisors`,
+   `20261113210000_account_deletion.sql`, then `20261114090000_research_calculation_runs.sql`, then
+   `20261114120000_storage_reconciliation.sql`, to rehearsal (without their outer `begin`/`commit`), check `get_advisors`
+   and run `select public.nexus_storage_reconciliation(3600, 0)` once,
    release the gateway from a clean checkout of the commit (step 1), then as test account A create a throwaway
    workspace, give it a conversation, delete it with the typed confirmation, and check that `deletion_operations`
    shows it verified with three receipts and that no table holds its rows. Account deletion: check it with a third,
@@ -189,6 +193,11 @@ Decisions (D25 delegates product and technical decisions; exceptions in `MASTER_
    preview" ticked; then check `/research`, `/radar`, `/evidence-api` return 200 and an unknown path 404, and that
    signed-in pages show no Content-Security-Policy errors in the browser console (the release checks the home page's
    policy; signed-in use was checked offline only).
-6. Build next, none of which needs the keys: a Postgres/Storage/Qdrant reconciliation job (rest of NX-27).
+6. Build next, none of which needs the keys: ingestion limits (NX-22: text layer first, page splitting, one
+   documented size limit with clear messages), then keyword search in the database instead of scoring 200 rows in
+   the Worker (NX-20).
+6a. Once the Qdrant key is available (item 4): `python3 scripts/reconciliation.py report --target candidate`, which
+   is the first run of the index part against a real cluster (it reads entries with the scroll API; the gateway's
+   daily check uses one facet request and reports `NOT_COUNTABLE` if the cluster cannot answer it).
 7. Hosted migration status: save `list_migrations` output to a file, then
    `python3 scripts/migration_status.py status --applied <file>`.
