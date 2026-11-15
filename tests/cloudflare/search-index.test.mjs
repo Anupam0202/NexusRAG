@@ -157,7 +157,7 @@ test("only a summary without counts is public", () => {
   assert.equal(indexSummary({ ...probe, state: "NOT_ANSWERING", points: null }).populated, null);
 });
 
-test("the first cron run of each day asks the index one question, which keeps a free cluster awake", async (t) => {
+test("the first cron run of each day asks the index what it holds, which keeps a free cluster awake", async (t) => {
   reset();
   const backend = services(() => collection(7), { database: () => json([]) });
   t.mock.method(globalThis, "fetch", backend.fetch);
@@ -170,10 +170,11 @@ test("the first cron run of each day asks the index one question, which keeps a 
     await Promise.all(waited);
   };
   await run(Date.UTC(2026, 10, 13, 0, 0));
-  assert.deepEqual(backend.calls.qdrant.map((call) => call.url), [COLLECTION_URL]);
+  // The keep-alive question, then the versions it holds for the daily reconciliation (reconciliation.test.mjs).
+  assert.deepEqual(backend.calls.qdrant.map((call) => call.url), [COLLECTION_URL, `${COLLECTION_URL}/facet`]);
   await run(Date.UTC(2026, 10, 13, 0, 5));
   await run(Date.UTC(2026, 10, 13, 12, 0));
-  assert.equal(backend.calls.qdrant.length, 1, "other runs leave the index alone");
+  assert.equal(backend.calls.qdrant.length, 2, "other runs leave the index alone");
   assert.equal(warnings.some((line) => String(line).includes("search_index_keepalive")), false, "a healthy index is not a warning");
   // The Worker's log is the operator's record of what the index holds.
   assert.deepEqual(logged.filter((line) => String(line).includes("search_index_keepalive")).map((line) => JSON.parse(line)),
@@ -186,6 +187,7 @@ test("the first cron run of each day asks the index one question, which keeps a 
   const reports = warnings.filter((line) => String(line).includes("search_index_keepalive")).map((line) => JSON.parse(line));
   assert.deepEqual(reports, [{ event: "search_index_keepalive", state: "NOT_ANSWERING", http_status: 503, collection: "nexusrag-test", points: null, vector_size: null }]);
   assert.doesNotMatch(warnings.join(""), /synthetic/);
+  assert.equal(silent.calls.qdrant.length, 1, "an index that does not answer is not asked a second question");
 
   // An environment without an index asks nothing.
   const none = services(() => { throw new Error("must not be asked"); }, { database: () => json([]) });

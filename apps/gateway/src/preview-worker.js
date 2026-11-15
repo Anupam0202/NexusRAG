@@ -47,6 +47,7 @@ import {
   validateGeminiKey,
 } from "./user-gemini-key.js";
 import { serviceHeaders } from "./supabase-keys.js";
+import { reconcileStores } from "./reconciliation.js";
 
 // Supabase service-role access is kept in a Cloudflare secret binding; OAuth and MCP gates are exact-head validated.
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -1325,8 +1326,10 @@ async function handle(request, env = {}) {
 }
 async function queue(batch,env){return handleQueue(batch,env)}
 // Once a day: which Gemini models are still served, and one question to the search index, which also keeps
-// a free cluster from being suspended for inactivity.
-const dailyChecks=env=>Promise.all([checkGeminiModels(env).catch(()=>undefined),keepIndexAwake(env).catch(()=>undefined),
+// a free cluster from being suspended for inactivity. What the index answers is then compared, together with
+// file storage, against the database (reconciliation.js).
+const dailyChecks=env=>Promise.all([checkGeminiModels(env).catch(()=>undefined),
+  keepIndexAwake(env).catch(()=>undefined).then(probe=>reconcileStores(env,{db:serviceRequest,probe})).catch(()=>undefined),
   reencryptUserGeminiKeys(env).catch(()=>undefined)]);
 // Every run also finishes document, workspace and account deletions that could not complete when they were
 // requested, and carries out one workspace's retention run when one is due.
