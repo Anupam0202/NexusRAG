@@ -90,6 +90,35 @@ answers HTTP 503 with `NOT_ANSWERING`. Reactivate the cluster in the Qdrant Clou
 it sleeps, but Qdrant deletes a suspended free cluster after four weeks. A release during that time is rolled
 back unless it is run from a terminal with `--allow-index-down`. `KEY_REJECTED` means `QDRANT_API_KEY` is wrong.
 
+## Leftovers and losses in file storage and the index
+
+Uploads and deletions touch file storage, the search index and the database in steps. A crash between two steps,
+or a store that lost data, leaves them out of step. Four things can then be true:
+
+| Finding | What it means | What to do |
+|---|---|---|
+| Stored files that no document names | A deleted document's file, or one whose upload never finished, is still stored | Remove them (below) |
+| Index entries of versions that no longer exist | A deleted document's passages are still in the index | Remove them (below) |
+| Documents whose original file is gone | They can be read and asked about, but not downloaded or re-indexed | Their uploaders delete them and upload the files again |
+| Answerable documents the index holds nothing of | Questions about them find nothing | Open each in Documents and choose Re-index |
+
+The gateway counts these in the first cron run of every day and writes one line to its log
+(`store_reconciliation`, a warning when anything is found; Cloudflare dashboard → the gateway Worker → Logs). To
+see the counts at any time, run **Actions → Store Reconciliation → Run workflow** with action `report`: it changes
+nothing, prints counts only (that log is public; file names are not) and fails when anything is out of step.
+
+To remove leftovers, run the same workflow with action `remove-files` or `remove-index-entries` and, in
+`expect`, the count the report showed. A removal makes a fresh report first and stops if its count differs, so it
+deletes exactly what you looked at; it also refuses to touch the index while documents are missing from it,
+because a database compared with the wrong index looks like that. To see file names and identifiers, run the
+report in your own terminal:
+
+```bash
+python3 scripts/reconciliation.py report --target production --details
+```
+
+with `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `QDRANT_URL` and `QDRANT_API_KEY` set to the production values.
+
 ## Model retirements
 
 `/health` reports the Gemini models in use. The weekly **Gemini Model Check** workflow fails when Google stops
