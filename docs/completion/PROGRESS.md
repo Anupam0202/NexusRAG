@@ -10,19 +10,20 @@ offline. The live journey still stops at ingestion on the shared Gemini key's HT
 - main: `85b14f1`; working branch: `codex/runtime-manifest-008` (draft PR #12, owner-approved for direct
   commits on 2026-11-09); open PRs: #12
 - Plan: `docs/completion/MASTER_PROMPT.md`; repository notes: `CLAUDE.md`
-- Candidate preview: gateway `cc3fc24` (version `58798606`, previous `cb022eae`), released 2026-11-16 07:45 UTC (smoke
-  test and `/ready` passed: database reachable, search index ready, collection `nexusrag-v6-candidate` empty). Its
-  cron treats a missing database function as unavailable, so it runs safely before the remaining migrations; account
-  deletion, CALCULATION runs and the daily reconciliation line stay unavailable there until then. Frontend is still the
-  old build `2fbc5c9`, whose `/research`, `/radar`, `/evidence-api` and unknown paths return 500 (NX-01): a cloud
-  session cannot upload frontend assets, and the preview workflow rejects this branch (environment branch rule).
+- Candidate preview: gateway `739c7c2` (version `75e63e5a`, previous `58798606`), released 2026-11-16 15:36 UTC (smoke
+  test and `/ready` passed: database reachable, search index ready, collection `nexusrag-v6-candidate` empty); the
+  workspace-deletion journey passed 19 of 19 checks on it afterwards. Its cron treats a missing database function as
+  unavailable, so it runs safely before the remaining migrations; account deletion, CALCULATION runs and the daily
+  reconciliation line stay unavailable there until then. Frontend is still the old build `2fbc5c9`, whose
+  `/research`, `/radar`, `/evidence-api` and unknown paths return 500 (NX-01): a cloud session cannot upload frontend
+  assets, and the preview workflow rejects this branch (environment branch rule).
 - Rehearsal Supabase (`ukgjygzfhyvnrsecdcuu`): 54 migrations applied (`20261113190000_workspace_deletion` on
   2026-11-15, when the owner answered the Supabase connector's confirmation); pending:
   `20261113210000_account_deletion`, `20261114090000_research_calculation_runs` and
   `20261114120000_storage_reconciliation` (the confirmation for the next one was asked on 15 and 16 November and
   timed out unanswered both times). Nothing is stored or open: no documents, no stored files, no open deletions.
-  Advisors: only leaked-password protection (an Auth setting). Test account A has used its trial upload again
-  (16 November); reset both accounts' counters before the next journey. Provider reviews recorded for Gemini, Qdrant
+  Advisors: only leaked-password protection (an Auth setting). Both test accounts' trial counters were reset after
+  the last journey (16 November). Provider reviews recorded for Gemini, Qdrant
   and Supabase Storage (staging attestation by test account A, valid to 2027-11-12). Two test accounts
   (`nexus-e2e-a@nexusrag.test`, `nexus-e2e-b@nexusrag.test`), each with an approved workspace; their passwords were
   set anew on 2026-11-15 and exist only in the build session, so set new ones (a bcrypt hash in
@@ -214,8 +215,8 @@ Decisions (D25 delegates product and technical decisions; exceptions in `MASTER_
 6. Build next, none of which needs the keys: keyword search in the database instead of scoring 200 rows in the
    Worker (NX-20).
 6b. Once a Gemini key works: upload a PDF of 40 to 80 pages on the preview and check that it becomes Ready with
-   `read: full` in its version's extraction manifest (NX-22); the long read has only run against a stand-in. Release
-   the gateway first: the preview runs `cc3fc24`, which still has the 8,192-token limit.
+   `read: full` in its version's extraction manifest (NX-22); the long read has only run against a stand-in. The
+   preview gateway already runs it (`739c7c2`).
 6a. Once the Qdrant key is available (item 4): `python3 scripts/reconciliation.py report --target candidate`, which
    is the first run of the index part against a real cluster (it reads entries with the scroll API; the gateway's
    daily check uses one facet request and reports `NOT_COUNTABLE` if the cluster cannot answer it).
