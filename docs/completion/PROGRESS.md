@@ -1,29 +1,32 @@
 # NexusRAG completion progress
-Last updated: 2026-11-15 — document deletion and retention verified live on the preview; workspace and account
-deletion, CALCULATION runs (NX-17), Supabase secret-key support (NX-26), per-user BYOK sealing (NX-24), the
-upload orphan fix, the tenant index (NX-36), page script and connection policies (NX-28) and the reconciliation of
-file storage and the index (NX-27) built and tested offline; owner walkthrough checklist written. The live journey
-still stops at ingestion on the shared Gemini key's HTTP 402, and the gateway is not re-released until the four
-pending rehearsal migrations are applied (owner confirmation)
+Last updated: 2026-11-16 — the preview gateway runs `cc3fc24`; workspace deletion is verified live there (16
+November), as document deletion and retention were (13 November). Account deletion, CALCULATION runs (NX-17) and the
+reconciliation (NX-27) are built and tested offline, with their three migrations still waiting for the owner's
+confirmation on the rehearsal project. Supabase secret-key support (NX-26), per-user BYOK sealing (NX-24), the
+upload orphan fix, the tenant index (NX-36) and page script and connection policies (NX-28) are built and tested
+offline. The live journey still stops at ingestion on the shared Gemini key's HTTP 402
 
 ## Current state
 - main: `85b14f1`; working branch: `codex/runtime-manifest-008` (draft PR #12, owner-approved for direct
   commits on 2026-11-09); open PRs: #12
 - Plan: `docs/completion/MASTER_PROMPT.md`; repository notes: `CLAUDE.md`
-- Candidate preview: gateway `f589e7b` (version `cb022eae`; the branch is ahead, see the done log; release it after
-  the pending migrations, because its cron calls their functions), released 2026-11-13 19:46 UTC (smoke test and `/ready`
-  passed: database reachable, search index ready, collection `nexusrag-v6-candidate` empty). Frontend is still the old
-  build `2fbc5c9`, whose `/research`, `/radar`, `/evidence-api` and unknown paths return 500 (NX-01): a cloud
+- Candidate preview: gateway `cc3fc24` (version `58798606`, previous `cb022eae`), released 2026-11-16 07:45 UTC (smoke
+  test and `/ready` passed: database reachable, search index ready, collection `nexusrag-v6-candidate` empty). Its
+  cron treats a missing database function as unavailable, so it runs safely before the remaining migrations; account
+  deletion, CALCULATION runs and the daily reconciliation line stay unavailable there until then. Frontend is still the
+  old build `2fbc5c9`, whose `/research`, `/radar`, `/evidence-api` and unknown paths return 500 (NX-01): a cloud
   session cannot upload frontend assets, and the preview workflow rejects this branch (environment branch rule).
-- Rehearsal Supabase (`ukgjygzfhyvnrsecdcuu`): 53 migrations applied (document deletion and retention on
-  2026-11-13); pending: `20261113190000_workspace_deletion` (its apply waits for the owner to answer the Supabase
-  connector's confirmation; asked three times on 13 and 14 November, each timed out unanswered),
+- Rehearsal Supabase (`ukgjygzfhyvnrsecdcuu`): 54 migrations applied (`20261113190000_workspace_deletion` on
+  2026-11-15, when the owner answered the Supabase connector's confirmation); pending:
   `20261113210000_account_deletion`, `20261114090000_research_calculation_runs` and
-  `20261114120000_storage_reconciliation`. No document is left in `deleting`. Advisors: only leaked-password protection
-  (an Auth setting). Test account A has used its trial upload and B its trial upload; reset both before the next
-  journey. Provider reviews recorded for Gemini, Qdrant and Supabase Storage (staging attestation by test account
-  A, valid to 2027-11-12). Two test accounts (`nexus-e2e-a@nexusrag.test`, `nexus-e2e-b@nexusrag.test`), each
-  with an approved workspace.
+  `20261114120000_storage_reconciliation` (the confirmation for the next one was asked on 15 and 16 November and
+  timed out unanswered both times). Nothing is stored or open: no documents, no stored files, no open deletions.
+  Advisors: only leaked-password protection (an Auth setting). Test account A has used its trial upload again
+  (16 November); reset both accounts' counters before the next journey. Provider reviews recorded for Gemini, Qdrant
+  and Supabase Storage (staging attestation by test account A, valid to 2027-11-12). Two test accounts
+  (`nexus-e2e-a@nexusrag.test`, `nexus-e2e-b@nexusrag.test`), each with an approved workspace; their passwords were
+  set anew on 2026-11-15 and exist only in the build session, so set new ones (a bcrypt hash in
+  `auth.users.encrypted_password`) when a later session needs to sign in.
 - Production: `nexusrag-v6-frontend-preview` v29 → `nexusrag-v6-preview-gateway` v52, both from 23 September,
   on Supabase `fcjaomiceajcdownarel` (35 migrations applied, 38 pending from 035 onward) and collection
   `nexusrag-v6-preview`. The live gateway still defaults to `gemini-2.5-flash` with `thinkingBudget: 0`, has no
@@ -87,6 +90,7 @@ pending rehearsal migrations are applied (owner confirmation)
 | 2026-11-13 | NX-21: real streaming from `streamGenerateContent`; the final event carries the checked and saved answer; errors before the first token keep their HTTP status | 1 (6 end-to-end tests on the real pipeline); 4 for the no-evidence path | `e50a239` |
 | 2026-11-13 | NX-28 part: security headers on every page, file and error (Worker and `_headers`), checked on the built Worker; hostile-markdown test | 2 | `5262bff` |
 | 2026-11-13 | NX-16 retention runs: owners and administrators set a number of days; every day (and on "Run now") documents uploaded before the cutoff go through the normal deletion, chat messages and research results from before it are removed, and conversations unused since are removed or closed; saved findings, what they cite and Radar pages stay. Turning it on asks for a second click that names the cutoff date | 3 (local replay with new assertions; 926 gateway and 776 frontend tests); 4 on 13 November (below) | `f589e7b` |
+| 2026-11-16 | Preview gateway released at `cc3fc24`; NX-16 workspace deletion verified live (see the live checks below). `preview_smoke.py` has a second journey, `--journey workspace-deletion`, which needs no model key, so it can be run on the preview whatever the Gemini key's state | 4 for workspace deletion (19 of 19 live checks, then the database checked directly); 1 for the journey itself (five faults each fail exactly their own check against an in-memory gateway) | `d6b490c` |
 | 2026-11-15 | NX-27 done: reconciliation of file storage and the search index with the database. Two read-only reports (`20261114120000_storage_reconciliation.sql`) find stored files no row names (older than an hour, so an upload in progress is left alone), documents whose original is gone, index entries of versions that no longer exist, and answerable documents the index holds nothing of. The gateway logs the counts in the first cron run of each day (`store_reconciliation`, a warning when anything is found). `scripts/reconciliation.py` and the manual Store Reconciliation workflow show them, printing counts only because workflow logs are public, and remove leftovers only when given the count of a fresh report; the index is not touched while documents are missing from it. The report's queries, run read-only on production: 7 stored files, none without a document, no original missing | 3 for the reports (fresh replay with nine broken variants each refused by the assertions), 1 for the rest (974 gateway tests; 18 tool tests with eight broken variants each refused) | `36114ce`, `2253a3a`, `b7e8250` |
 | 2026-11-14 | NX-28 follow-up: the first CI run failed in Firefox only, on the test, not the app: a browser revalidates a page it has stored, the 304 it gets carries no policy by design, and Firefox reports that 304 where Chromium and WebKit report the stored page. The test now reads each page's policy from a fresh request and checks in the browser that an injected inline script and a request to another origin are refused, also on a stored page opened again | 2 ([CI](https://github.com/Anupam0202/NexusRAG/actions/runs/43602062101): Chromium, mobile Chrome, Firefox, WebKit and mobile WebKit; three broken variants each fail locally) | `7d45ec3` |
 | 2026-11-14 | NX-28 done: every page gets `script-src 'self'` plus the hashes of the inline scripts in that response (the Worker computes them: OpenNext re-renders pages, so the build's HTML has different ones) and `connect-src 'self'` plus the gateway and Supabase origins of the build; static files get `script-src 'self'`; HEAD and 304 carry no policy so a revalidated page keeps its own. The 27 page copies reachable as `/<page>.html` without the Worker are no longer published (only the document shell), and the build fails if one reappears. `release.py` refuses a frontend without both directives | 2 (on the built Worker: sixteen public pages hydrate with no violation in Chromium and mobile Chrome, and fail with a wrong hash; 832 frontend unit, 26 release, 967 gateway tests) | `9d8a99a` |
@@ -102,6 +106,18 @@ pending rehearsal migrations are applied (owner confirmation)
 | 2026-11-13 | Firefox logged "Acquiring an exclusive Navigator LockManager lock ... immediately failed" on every page (new Firefox reports the Supabase client's handled lock error as unhandled); a lock wrapper reports it outside the browser's callback | 1 (unit tests; CI's Firefox suite checks it) | `4fffc89` |
 | 2026-11-13 | NX-30, NX-40: navigation follows the core journey; products in development are switched off by `NEXT_PUBLIC_FEATURES` (D10); plain overview page without placeholder statuses; error screens with a retry; plain wording; publishable key name first. Playwright 1.60 → 1.63 so CI and this container use the same Chromium; visual baselines regenerated | 2 (built app: 48 public smoke and 4 visual tests, Radar and Evidence API browser suites; 783 unit tests) | `cb90337` |
 | 2026-11-13 | NX-16 workspace deletion: the owner types DELETE WORKSPACE; the workspace disappears for every member at once; jobs stop; its search index entries (by workspace filter, counted and verified) and stored originals (known keys, then anything left in its folder) are removed with receipts; one database function then removes every row of every table that has a `workspace_id`, checks that nothing is left and writes the last receipt; the cron finishes what a request could not. Members keep their accounts, Gemini keys and trial usage | 3 (assertions on a fixtures-only database and on the fully populated replay; 938 gateway and 777 frontend tests) | `73d950d` |
+
+Live checks on the preview, 2026-11-16, gateway `cc3fc24`: `python3 scripts/preview_smoke.py --journey
+workspace-deletion` passes 19 of 19 checks. Account A created a throwaway workspace, approved processing and stored
+a document in it (its processing failed on the Gemini key, as expected); account B could neither open nor delete
+it; a confirmation in the wrong letter case was refused and left it in place; the deletion answered HTTP 200
+`DELETED` with three receipts; the workspace left its owner's list at once and its document could not be reached
+through it or through another workspace. In the database: the operation is `verified` with receipts from Qdrant,
+Supabase Storage and the database; the targets record one stored file removed, no index entries and the rows
+(one document, one member); no table with a `workspace_id` holds a row of it, no file is stored under it, and the
+audit trail has its `workspace.delete` event. The core journey passes 12 of 13 checks and stops at "ingestion
+completes" with Gemini's credit message; its clean-up deleted the test document (HTTP 200 `DELETED`). Afterwards the
+project holds no document, no stored file, no open deletion and no open job.
 
 Live checks on the preview, 2026-11-13 evening: with the deletion migration applied (19:40 UTC), the cron finished
 the three test documents stuck in `deleting` (19:45 and 19:50; all five cleanup targets verified, five receipts
@@ -166,14 +182,15 @@ Decisions (D25 delegates product and technical decisions; exceptions in `MASTER_
   needs the owner's own review (item 4).
 
 ## Next steps (exact commands)
-0. When the owner approves the Supabase connector's confirmation: apply `20261113190000_workspace_deletion.sql`, then
-   `20261113210000_account_deletion.sql`, then `20261114090000_research_calculation_runs.sql`, then
-   `20261114120000_storage_reconciliation.sql`, to rehearsal (without their outer `begin`/`commit`), check `get_advisors`
-   and run `select public.nexus_storage_reconciliation(3600, 0)` once,
-   release the gateway from a clean checkout of the commit (step 1), then as test account A create a throwaway
-   workspace, give it a conversation, delete it with the typed confirmation, and check that `deletion_operations`
-   shows it verified with three receipts and that no table holds its rows. Account deletion: check it with a third,
-   throwaway test account only (never A or B).
+0. When the owner approves the Supabase connector's confirmation: apply `20261113210000_account_deletion.sql`, then
+   `20261114090000_research_calculation_runs.sql`, then `20261114120000_storage_reconciliation.sql`, to rehearsal
+   (without their outer `begin`/`commit`), check `get_advisors` and run
+   `select public.nexus_storage_reconciliation(3600, 0)` once. Workspace deletion is applied and verified (16
+   November; rerun it with `python3 scripts/preview_smoke.py --journey workspace-deletion`). Account deletion:
+   check it with a third, throwaway test account only (never A or B): create the account, give it a workspace with a
+   conversation, delete the account under Settings → Security, then check `account_deletions` shows it `verified`,
+   the sign-in is gone and no table holds its rows. CALCULATION: create a Calculation plan over a document that
+   states two figures and run it (needs a working Gemini key).
 1. Preview gateway release (works from a cloud session). Release from a clean checkout of the commit
    (`git worktree add --detach <dir> <sha>`): the script deploys whatever is in the working directory.
    `CLOUDFLARE_API_TOKEN=proxy-injected CLOUDFLARE_ACCOUNT_ID=84e80d9629e0a6e6e5b31dbe85146acf
