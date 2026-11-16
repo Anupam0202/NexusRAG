@@ -10,6 +10,8 @@ const SUPPORTED_WORKER_MIME = new Set([
 ]);
 const MAX_INDEX_BATCH_CHUNKS = 3;
 const MAX_DOCUMENT_CHUNKS = 400;
+// 400 passages of 1,600 characters that overlap by 240 hold a little over half a million characters.
+const TOO_LONG_TO_INDEX = "This document is too long to index: it holds more than about 540,000 characters of text (roughly 300 pages). Split it into smaller files and upload them separately; nothing of it was indexed.";
 
 function pipelineError(code, message, status = 422, retryable = false) {
   return Object.assign(new Error(message), { code, status, retryable });
@@ -52,7 +54,7 @@ function chunkText(input, size = 1_600, overlap = 240) {
     if (end >= text.length) break;
     offset = Math.max(offset + 1, end - overlap);
   }
-  if (chunks.length > MAX_DOCUMENT_CHUNKS) throw pipelineError("CAPACITY_REACHED", "Extraction exceeds the maximum indexed chunk count; no source content was silently dropped.", 413);
+  if (chunks.length > MAX_DOCUMENT_CHUNKS) throw pipelineError("CAPACITY_REACHED", TOO_LONG_TO_INDEX, 413);
   return chunks;
 }
 
@@ -351,6 +353,7 @@ export {
   MAX_INDEX_BATCH_CHUNKS,
   MAX_WORKER_UPLOAD_BYTES,
   SUPPORTED_WORKER_MIME,
+  TOO_LONG_TO_INDEX,
   chunkText,
   generateAnswer,
   generateAnswerStream,

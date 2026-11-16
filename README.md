@@ -54,9 +54,11 @@ the next production release, are still in progress. Current state, decisions and
 
 Known limits:
 
-- PDFs and images are read by Gemini. A document whose text does not fit in one extraction response is refused
-  with a message asking to split it; nothing partial is indexed.
-- A document is split into at most 400 passages.
+- PDFs and images are read by Gemini, in one response of up to the model's output limit (65,536 tokens for the
+  default models, roughly 100 pages of text). A longer document is refused with a message asking to split it;
+  nothing partial is indexed. A PDF's own text layer is not read separately.
+- A document is split into at most 400 passages, a little over half a million characters (roughly 300 pages).
+- From a Word document, the text of the main body is read; headers, footers, footnotes and comments are not.
 - The Workers free plan allows 10 ms of CPU and 50 outbound requests per invocation, so deletion, retention and
   ingestion work in small steps that a cron run every five minutes carries on.
 - Free Qdrant clusters are suspended after a week without use and free Supabase projects pause after a week of

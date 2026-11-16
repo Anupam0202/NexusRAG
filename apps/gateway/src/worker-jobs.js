@@ -1,4 +1,4 @@
-import { chunkText, indexChunks, MAX_DOCUMENT_CHUNKS, MAX_INDEX_BATCH_CHUNKS, sha256 } from "./worker-pipeline.js";
+import { chunkText, indexChunks, MAX_DOCUMENT_CHUNKS, MAX_INDEX_BATCH_CHUNKS, sha256, TOO_LONG_TO_INDEX } from "./worker-pipeline.js";
 import { deleteQdrantGeneration, extractFileText, verifyQdrantGeneration } from "./worker-lifecycle.js";
 import { loadUserGeminiKey } from "./user-gemini-key.js";
 import { embeddingModel } from "./gemini-models.js";
@@ -74,6 +74,21 @@ async function beat(env, claimResult, patch) {
     body: JSON.stringify({ heartbeat_at: iso(), lease_expires_at: new Date(Date.now() + 300000).toISOString(), ...patch }),
   });
   if (!out?.[0]) throw err("STALE_WORKER", "Lease or lifecycle changed.");
+}
+
+// Reading a long document can take minutes, longer than a lease lasts. The lease is renewed meanwhile, and the
+// read is given up as soon as the lease is gone: the document was deleted, or another run took the job.
+const LEASE_RENEWAL_MS = 120_000;
+async function whileHoldingLease(env, claimResult, work) {
+  const givenUp = new AbortController();
+  const timer = setInterval(() => {
+    beat(env, claimResult, {}).catch((error) => { if (error?.code === "STALE_WORKER") givenUp.abort(); });
+  }, LEASE_RENEWAL_MS);
+  try {
+    return await work(givenUp.signal);
+  } finally {
+    clearInterval(timer);
+  }
 }
 
 async function checkpointBatch(env, claimResult, payload) {
@@ -158,10 +173,11 @@ async function processIngestionMessage(env, message) {
       });
       if (!original.ok) throw err("PERSISTENCE_UNAVAILABLE", "Original unavailable.", true);
       const file = new File([await original.arrayBuffer()], document.filename, { type: document.content_type });
-      const extracted = await extractFileText(env, file, { workspaceId: job.workspace_id, priority: "background", dataClassification: version.data_classification, actorId: document.uploaded_by, userApiKey, credentialMode });
+      const extracted = await whileHoldingLease(env, claimResult, (signal) => extractFileText(env, file, { workspaceId: job.workspace_id, priority: "background",
+        dataClassification: version.data_classification, actorId: document.uploaded_by, userApiKey, credentialMode, signal }));
       const chunks = chunkText(extracted.text);
       if (!chunks.length) throw err("EMPTY_DOCUMENT", "The document contains no indexable text.");
-      if (chunks.length > MAX_DOCUMENT_CHUNKS) throw err("CAPACITY_REACHED", "Document exceeds the 400-chunk bounded ingestion limit.");
+      if (chunks.length > MAX_DOCUMENT_CHUNKS) throw err("CAPACITY_REACHED", TOO_LONG_TO_INDEX);
       extractionManifest = { ...(extracted.manifest || {}), method: extracted.method };
       totalChunks = chunks.length;
       const extractionRows = await Promise.all(chunks.map(async (chunk) => ({
@@ -318,4 +334,4 @@ async function sweepJobs(env) {
   try { researchEnqueued = await sweepResearchRuns(env, db); } catch { /* Next cron or explicit start retries dispatch, never generation. */ }
   return { enqueued, research_enqueued: researchEnqueued, research_dispatch_state: researchEnqueued === null ? "UNAVAILABLE" : "CHECKED" };
 }
-export { handleQueue, processIngestionMessage, sweepJobs };
+export { handleQueue, processIngestionMessage, sweepJobs, whileHoldingLease };

@@ -12,6 +12,20 @@ export const DEFAULT_GENERATION_MODELS = Object.freeze([
 export const DEFAULT_EMBEDDING_MODEL = "gemini-embedding-001"; // supported until 2028-05-14
 export const EMBEDDING_DIMENSIONS = 768;
 
+// Token limits Google publishes for the pinned models (their model pages, read 2026-11-16). A model that is not
+// listed, such as the alias or an override, gets limits that are safe whatever it turns out to be: the output
+// limit every Gemini model accepts, and an input limit no Gemini model exceeds.
+const MODEL_LIMITS = Object.freeze({
+  "gemini-3.5-flash-lite": Object.freeze({ inputTokens: 1_048_576, outputTokens: 65_536 }),
+  "gemini-3.1-flash-lite": Object.freeze({ inputTokens: 1_048_576, outputTokens: 65_536 }),
+});
+const UNLISTED_MODEL_LIMITS = Object.freeze({ inputTokens: 2_097_152, outputTokens: 8_192 });
+
+/** The most tokens a request to this model can count as input, and the most it can return. */
+export function modelLimits(model) {
+  return MODEL_LIMITS[model] || UNLISTED_MODEL_LIMITS;
+}
+
 const MODEL_ID = /^[a-z0-9][a-z0-9.-]{2,80}$/;
 const MEMORY_TTL_MS = 24 * 60 * 60 * 1000;
 const remembered = new Map(); // candidate list -> { index, at }; per isolate
