@@ -8,7 +8,7 @@ and the reconciliation wait for their three rehearsal migrations (the owner's co
 stops at ingestion: the key the owner supplied on 17 November also answers HTTP 402 (no prepaid credit)
 
 ## Handoff 2026-11-17
-Branch and head: `codex/runtime-manifest-008` @ `36b8491` (V6 Foundation CI and V6 Database Rehearsal green); PRs: #12 (draft)
+Branch and head: `codex/runtime-manifest-008` @ `729c4ec` (V6 Foundation CI and V6 Database Rehearsal green); PRs: #12 (draft)
 Deployed: candidate frontend `2fbc5c9` (October build) / gateway `8bcfc22`; production unchanged (23 September Workers).
 Public addresses https://nexusrag.pages.dev and https://nexusrag-preview.pages.dev are live and forward to the Workers
 until a build made for them is released.
@@ -19,6 +19,9 @@ Done this session:
   level 2 for serving through the binding (local Worker pair, release smoke passed)
 - NX-20 ranked keyword search for chat → `c05f319` → level 3 for the database (replay, eight broken variants refused),
   level 1 for the gateway; the preview gateway runs it with the fallback until the migration is applied
+- Supabase advisors reviewed; 21 foreign keys indexed → `11f3066` → level 3 (replay; the new check catches a dropped index)
+- NX-25: tokens checked in the gateway → `6e1d540` → level 4 (real tokens, tampering, sign-out); both request counters
+  → `8bcfc22` → level 4 for the release, but a one-client burst passes both (a strict limit needs a Durable Object)
 Not verified or still failing:
 - Ingestion and answers: both Gemini keys answer HTTP 402 (prepaid projects without credit)
 - Five rehearsal migrations unapplied: the Supabase connector's approval went unanswered on 15, 16 and 17 November
@@ -31,6 +34,7 @@ Owner decisions needed:
 - Supabase Auth URL configuration for both public addresses (values in `docs/DEPLOYMENT_PRODUCTION.md`)
 - NX-22's remaining limit (no separate PDF text layer or page splitting on the free plan): accept, or ask for it
   (recommended: accept)
+- NX-25's approximate per-user rate limit: accept, or ask for a Durable Object limiter (recommended: accept for now)
 Next three steps:
 1. Actions → Cloudflare Preview Deploy on this branch; then check https://nexusrag-preview.pages.dev serves the app
    itself and Google sign-in returns there
