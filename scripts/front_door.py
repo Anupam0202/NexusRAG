@@ -37,8 +37,10 @@ PRODUCTION_BRANCH = "main"
 BINDING = "APP"
 
 
-def api(method: str, path: str, token: str, *, body: dict | None = None, form: list[tuple] | None = None) -> dict:
-    """One Cloudflare API call; returns the parsed answer. A 404 is returned (not raised) so callers can create."""
+def api(method: str, path: str, token: str, *, body: dict | None = None, form: list[tuple] | None = None,
+        missing_ok: bool = False) -> dict:
+    """One Cloudflare API call; returns the parsed answer. With `missing_ok`, a 404 is returned as
+    {"success": False, "status": 404} so the caller can create what is missing; any other failure raises."""
     headers = {"Authorization": f"Bearer {token}"}
     data = None
     if body is not None:
@@ -51,7 +53,7 @@ def api(method: str, path: str, token: str, *, body: dict | None = None, form: l
         with request.urlopen(call, timeout=60) as response:
             answer = json.loads(response.read(4 * 1024 * 1024))
     except error.HTTPError as exc:
-        if exc.code == 404:
+        if exc.code == 404 and missing_ok:
             return {"success": False, "status": 404}
         raise ReleaseError(f"Cloudflare API returned HTTP {exc.code} for {method} {path.split('?')[0]}: "
                            f"{api_errors(exc.read(64 * 1024))}") from None
@@ -104,7 +106,7 @@ def production_config(target: dict, fallback: str) -> dict:
 
 def ensure_project(target: dict, account: str, token: str) -> dict:
     path = f"/accounts/{account}/pages/projects/{target['pages_project']}"
-    project = api("GET", path, token)
+    project = api("GET", path, token, missing_ok=True)
     if project.get("status") == 404:
         project = api("POST", f"/accounts/{account}/pages/projects", token,
                       body={"name": target["pages_project"], "production_branch": PRODUCTION_BRANCH})

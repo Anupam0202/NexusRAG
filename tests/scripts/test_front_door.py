@@ -19,8 +19,9 @@ class Cloudflare:
         self.exists, self.subdomain, self.stages, self.calls = exists, subdomain, list(stages), []
         self.project = project
 
-    def __call__(self, method, path, token, *, body=None, form=None):
+    def __call__(self, method, path, token, *, body=None, form=None, missing_ok=False):
         assert token == ENV["CLOUDFLARE_API_TOKEN"]
+        assert missing_ok == ((method, path) == ("GET", self.project)), "only a missing project may be created"
         self.calls.append((method, path, body, form))
         if path == "/accounts/account/workers/subdomain":
             return {"success": True, "result": {"subdomain": "example"}}
@@ -116,7 +117,12 @@ class FrontDoorTests(unittest.TestCase):
         self.assertEqual(front_door.api_errors(b"not json"), "no details")
         missing = front_door.error.HTTPError("https://api.invalid", 404, "Not Found", {}, io.BytesIO(b"{}"))
         with mock.patch.object(front_door.request, "urlopen", side_effect=missing):
-            self.assertEqual(front_door.api("GET", PROJECT, "token"), {"success": False, "status": 404})
+            self.assertEqual(front_door.api("GET", PROJECT, "token", missing_ok=True), {"success": False, "status": 404})
+        gone = front_door.error.HTTPError("https://api.invalid", 404, "Not Found", {},
+                                          io.BytesIO(json.dumps({"errors": [{"message": "Deployment not found"}]}).encode()))
+        with mock.patch.object(front_door.request, "urlopen", side_effect=gone):
+            with self.assertRaisesRegex(ReleaseError, "HTTP 404 .*Deployment not found"):
+                front_door.api("GET", f"{PROJECT}/deployments/unknown", "token")
         refused = front_door.error.HTTPError("https://api.invalid", 403, "Forbidden", {},
                                              io.BytesIO(json.dumps({"errors": [{"message": "Authentication error"}]}).encode()))
         with mock.patch.object(front_door.request, "urlopen", side_effect=refused):

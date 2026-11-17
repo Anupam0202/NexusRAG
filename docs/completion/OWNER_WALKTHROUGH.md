@@ -5,8 +5,8 @@ production before the final release. This is the checklist. It takes about twent
 window, and reply in chat with "walkthrough passed", or with the number of the first step that went wrong and what
 you saw.
 
-**Where:** the preview, `https://nexusrag-v6-candidate-frontend.nexusrag-evidence-preview.workers.dev`. For the
-production pass, `https://nexusrag-v6-frontend-preview.nexusrag-evidence-preview.workers.dev`.
+**Where:** the preview, https://nexusrag-preview.pages.dev. For the production pass, https://nexusrag.pages.dev.
+The address should stay in the browser's address bar throughout, including after Google sign-in.
 
 **Before you start** (Claude checks these and tells you when they are true):
 - The preview gateway's `/health` shows the commit being tested, and its `/ready` says the database and the search
