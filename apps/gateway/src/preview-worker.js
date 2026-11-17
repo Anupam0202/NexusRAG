@@ -118,19 +118,19 @@ export function allowedOrigin(env, origin) {
   return Boolean(origin) && String(env.FRONTEND_ORIGIN || "").split(",").some((entry) => entry.trim() === origin);
 }
 
-// NX-25: Cloudflare's rate limiter counts a user's requests across the Worker's isolates in each location. Where the
-// binding is absent (local runs, tests) or does not answer, the per-isolate counter above decides instead.
+// NX-25: both counters must allow a request. The isolate's own count is exact but starts again in every isolate;
+// Cloudflare's rate limiter is shared by the Worker's isolates in a location but approximate, because counts reach
+// each other in the background, so a burst can pass it (a strict limit would need a Durable Object).
 async function withinRequestLimit(env, userId) {
-  if (typeof env.USER_RATE_LIMITER?.limit === "function") {
-    try {
-      return (await env.USER_RATE_LIMITER.limit({ key: userId }))?.success !== false;
-    } catch (error) {
-      // Logged without the user, so an unavailable limiter is visible in the Worker's logs.
-      console.warn(JSON.stringify({ event: "rate_limiter_failed", error: error?.name || "Error", message: String(error?.message || "").slice(0, 200) }));
-      return allowRequest(userId);
-    }
+  if (!allowRequest(userId)) return false;
+  if (typeof env.USER_RATE_LIMITER?.limit !== "function") return true;
+  try {
+    return (await env.USER_RATE_LIMITER.limit({ key: userId }))?.success !== false;
+  } catch (error) {
+    // Logged without the user, so an unavailable limiter is visible in the Worker's logs.
+    console.warn(JSON.stringify({ event: "rate_limiter_failed", error: error?.name || "Error", message: String(error?.message || "").slice(0, 200) }));
+    return true;
   }
-  return allowRequest(userId);
 }
 
 function headers(request, env) {

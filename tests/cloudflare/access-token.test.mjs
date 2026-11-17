@@ -131,17 +131,22 @@ test("the gateway answers a checked token without asking Supabase Auth, and refu
   assert.equal(calls.filter((url) => url.endsWith("/auth/v1/user")).length, 1, "other tokens still go to Supabase Auth");
 });
 
-test("Cloudflare's rate limiter decides per user when bound, and the per-isolate counter otherwise", async (t) => {
+test("a request needs both the isolate's count and Cloudflare's rate limiter to allow it", async (t) => {
   const keys = [];
   const limiter = (success) => ({ limit: async ({ key }) => { keys.push(key); return { success }; } });
-  assert.equal(await withinRequestLimit({ USER_RATE_LIMITER: limiter(true) }, USER), true);
-  assert.equal(await withinRequestLimit({ USER_RATE_LIMITER: limiter(false) }, USER), false);
-  assert.deepEqual(keys, [USER, USER], "the user is the key");
+  const user = `user-${crypto.randomUUID()}`;
+  assert.equal(await withinRequestLimit({ USER_RATE_LIMITER: limiter(true) }, user), true);
+  assert.equal(await withinRequestLimit({ USER_RATE_LIMITER: limiter(false) }, user), false, "Cloudflare's count refuses");
+  assert.deepEqual(keys, [user, user], "the user is the key");
   const failing = { USER_RATE_LIMITER: { limit: async () => { throw new Error("unavailable"); } } };
-  assert.equal(await withinRequestLimit(failing, `fallback-${crypto.randomUUID()}`), true, "a limiter that fails leaves the per-isolate counter to decide");
-  const unbound = `unbound-${crypto.randomUUID()}`;
-  for (let index = 0; index < 60; index += 1) assert.equal(await withinRequestLimit({}, unbound), true);
-  assert.equal(await withinRequestLimit({}, unbound), false, "without the binding the sixty-first request in a minute is refused");
+  t.mock.method(console, "warn", () => {});
+  assert.equal(await withinRequestLimit(failing, `fallback-${crypto.randomUUID()}`), true, "a limiter that fails leaves the isolate's count to decide");
+  assert.match(console.warn.mock.calls[0].arguments[0], /"event":"rate_limiter_failed"/);
+  for (const env of [{}, { USER_RATE_LIMITER: limiter(true) }]) {
+    const burst = `burst-${crypto.randomUUID()}`;
+    for (let index = 0; index < 60; index += 1) assert.equal(await withinRequestLimit(env, burst), true);
+    assert.equal(await withinRequestLimit(env, burst), false, "the isolate refuses the sixty-first request in a minute even when Cloudflare's count allows it");
+  }
 
   // Through the gateway: a refused request gets 429 with a retry time, before anything else is read.
   resetAccessTokenKeys();

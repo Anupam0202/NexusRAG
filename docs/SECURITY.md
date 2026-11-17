@@ -13,7 +13,7 @@ NexusRAG is designed around tenant isolation, durable auth context, and defensiv
 - Public sign-in and callback responses avoid provider-detail and token leakage.
 - Account-security controls use explicit Supabase sign-out scopes instead of relying on the SDK's global default.
 - Workspace membership checks for protected document, chat, settings, analytics, and key routes.
-- Each user's requests are limited to 60 a minute by Cloudflare's rate limiter, separately for the preview and production.
+- Each user's requests are limited to 60 a minute by two counters that must both allow a request: one in each Worker isolate and Cloudflare's rate limiter, shared by the isolates in a location. Cloudflare's count is approximate, so a short burst can exceed the limit.
 - Supabase Storage and metadata tables are authoritative; Cloudflare local state and Qdrant vectors are not customer-record authorities.
 - File validation for extension, empty content, upload size, and magic bytes for PDFs and common image formats.
 - Filename sanitization to strip paths, dangerous characters, and control characters.
