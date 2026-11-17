@@ -55,9 +55,12 @@ function localAppFixture() {
   const qdrantQueryLimits = [];
   const qdrantQueryFilters = [];
   const restQueries = [];
+  const keywordSearches = [];
   const generationTemperatures = [];
   let expectedGeminiApiKey = null;
   let processingGate = { state: "READY" };
+  // "missing" answers like a database without the NX-20 migration; "foreign" adds a passage of another workspace.
+  let keywordSearch = "ranked";
   let onGenerate = null;
   // Decides what a streamed generation answers: a Response (an error status), { failAfter } to break the stream
   // after that many pieces, or nothing for a normal stream of the generated answer.
@@ -295,6 +298,24 @@ function localAppFixture() {
           extractionManifests.delete(body.p_job); extractionChunks.delete(body.p_job);
           return json({ state: "ready", chunks: doc.chunk_count });
         }
+        // Stand-in for nexus_keyword_chunks (NX-20): whole lower-cased words of the question, weighted by rarity among
+        // the searched passages of the published, non-sensitive versions of the workspace that were asked for.
+        if (rpc === "nexus_keyword_chunks") {
+          keywordSearches.push(body);
+          if (keywordSearch === "missing") return json({ code: "PGRST202", message: "Could not find the function public.nexus_keyword_chunks" }, 404);
+          const words = (text) => new Set(String(text || "").toLowerCase().match(/[\p{L}\p{N}]+/gu) || []);
+          const terms = [...words(body.p_question)].filter((term) => term.length >= 2 && term.length <= 64);
+          const scope = (body.p_version_ids || []).filter((id) => { const version = versions.get(id);
+            return version?.workspace_id === body.p_workspace && version.publication_state === "ready" && version.data_classification === "non_sensitive"; });
+          const passages = scope.flatMap((id) => chunks.get(id) || []);
+          const found = passages.map((row) => ({ row, hits: terms.filter((term) => words(row.content).has(term)) })).filter((item) => item.hits.length);
+          const weight = (term) => { const count = found.filter((item) => item.hits.includes(term)).length; return Math.log(1 + (passages.length - count + 0.5) / (count + 0.5)); };
+          const ranked = found.map(({ row, hits }) => ({ ...row, keyword_score: hits.reduce((sum, term) => sum + weight(term), 0) }))
+            .sort((a, b) => b.keyword_score - a.keyword_score || a.id.localeCompare(b.id));
+          const foreign = { ...ranked[0], id: "99999999-9999-4999-8999-999999999991", workspace_id: "99999999-9999-4999-8999-999999999999",
+            content: "FOREIGN_WORKSPACE_EVIDENCE", original_text: "FOREIGN_WORKSPACE_EVIDENCE", keyword_score: 99 };
+          return json((keywordSearch === "foreign" ? [foreign, ...ranked] : ranked).slice(0, Math.min(Math.max(Number(body.p_limit) || 50, 1), 100)));
+        }
         throw new Error(`Unexpected RPC: ${rpc}`);
       }
       throw new Error(`Unexpected local Supabase request: ${method} ${table}${url.search}`);
@@ -339,7 +360,7 @@ function localAppFixture() {
     }
     throw new Error(`Unexpected synthetic network request: ${method} ${url.href}`);
   };
-  return { env, user, member, setGeneratedAnswer(value) { generatedAnswer = value; }, setOnGenerate(callback) { onGenerate = callback; }, setOnStream(callback) { onStream = callback; }, source, expectedChunks, docs, versions, jobs, chunks, extractionManifests, extractionChunks, objects, points, sessions, messages, outbound, auditEvents, deletionReceipts, deletionTargets, events, queue, accountUsage, userKeys, qdrantQueryLimits, qdrantQueryFilters, restQueries, generationTemperatures, fetch, setExpectedGeminiApiKey(value) { expectedGeminiApiKey = value; }, setProcessingGate(value) { processingGate = value; }, get deletionOperation() { return deletionOperation; }, get embeddingCalls() { return embeddingCalls; }, get generationCalls() { return generationCalls; } };
+  return { env, user, member, setGeneratedAnswer(value) { generatedAnswer = value; }, setOnGenerate(callback) { onGenerate = callback; }, setOnStream(callback) { onStream = callback; }, source, expectedChunks, docs, versions, jobs, chunks, extractionManifests, extractionChunks, objects, points, sessions, messages, outbound, auditEvents, deletionReceipts, deletionTargets, events, queue, accountUsage, userKeys, qdrantQueryLimits, qdrantQueryFilters, restQueries, keywordSearches, setKeywordSearch(value) { keywordSearch = value; }, generationTemperatures, fetch, setExpectedGeminiApiKey(value) { expectedGeminiApiKey = value; }, setProcessingGate(value) { processingGate = value; }, get deletionOperation() { return deletionOperation; }, get embeddingCalls() { return embeddingCalls; }, get generationCalls() { return generationCalls; } };
 }
 
 // Independently model the small PostgREST subset used by filtered chat. These
@@ -783,6 +804,8 @@ test("all advanced filters constrain the actual dense and lexical chat paths equ
   assert.equal(answer.metadata.coverage.chunk_scope, "COMPLETE_BOUNDED_MATCHING_CHUNKS");
   assert.deepEqual(fixture.qdrantQueryFilters[0].must.at(-1), { has_id: [matching.id] });
   assert.doesNotMatch(JSON.stringify(fixture.outbound), /EXCLUDED_PRIVATE_EVIDENCE/);
+  assert.equal(fixture.keywordSearches.length, 0, "page and metadata filters keep the complete bounded read");
+  assert.equal(answer.metadata.coverage.lexical_search, "FIRST_PASSAGES");
   for (const query of fixture.restQueries.filter(item => ["documents", "document_chunks"].includes(item.table))) {
     assert.deepEqual(query.params.getAll("workspace_id"), [`eq.${workspace}`]);
     if (query.table === "documents") assert.equal(query.params.get("uploaded_by"), `eq.${userId}`);
@@ -866,6 +889,60 @@ test("a poisoned vector response cannot bypass the authoritative filtered chunk 
 });
 
 // Real streaming (NX-21): the answer arrives as Gemini writes it, then as the checked and saved answer.
+// NX-20: a document of 250 passages whose rare clause code sits in the last one by identifier, and is not in the
+// vector index, so only keyword search can find it.
+async function longDocumentFixture(t, keywordSearch = "ranked") {
+  const value = await seededResearchFixture(t), { fixture, documentId } = value;
+  const versionId = fixture.docs.get(documentId).active_version_id;
+  const passages = fixture.chunks.get(versionId);
+  for (let index = 1; index <= 249; index += 1) {
+    const content = `This section says what the policy does for members, number ${index}.`;
+    passages.push({ id: `51515151-5151-4151-8151-${String(index).padStart(12, "0")}`, workspace_id: workspace, document_id: documentId,
+      version_id: versionId, content, original_text: content, original_content_hash: await sha256(content), chunk_index: index, page_number: 0 });
+  }
+  const rare = "Clause ZX-4471 sets the late-payment penalties at two percent.";
+  const rareId = "5fffffff-5151-4151-8151-000000000001";
+  passages.push({ id: rareId, workspace_id: workspace, document_id: documentId, version_id: versionId, content: rare,
+    original_text: rare, original_content_hash: await sha256(rare), chunk_index: 250, page_number: 0 });
+  fixture.setKeywordSearch(keywordSearch);
+  fixture.setGeneratedAnswer("Clause ZX-4471 sets the late-payment penalties at two percent. [S1]");
+  const request = new Request(value.request.url, { method: "POST", headers: value.request.headers,
+    body: JSON.stringify({ question: "What does clause ZX-4471 say about penalties?", non_sensitive_attested: true, document_ids: [documentId] }) });
+  return { fixture, versionId, rareId, request };
+}
+
+test("chat finds a rare clause code in any passage of a long document, not only the first 200", async t => {
+  const { fixture, versionId, rareId, request } = await longDocumentFixture(t);
+  const response = await handle(request, fixture.env), answer = await response.json();
+  assert.equal(response.status, 200, JSON.stringify(answer));
+  assert.deepEqual(fixture.keywordSearches.map(search => [search.p_workspace, search.p_version_ids, search.p_limit]), [[workspace, [versionId], 50]]);
+  assert.ok(answer.sources.some(source => source.metadata.chunk_id === rareId), "the passage with the code is cited");
+  assert.match(JSON.stringify(fixture.outbound), /ZX-4471 sets the late-payment penalties/);
+  assert.equal(answer.metadata.coverage.lexical_search, "RANKED");
+  assert.equal(answer.metadata.coverage.lexical_limit_reached, false);
+  assert.equal(fixture.restQueries.filter(query => query.table === "document_chunks" && query.params.get("limit") === "201").length, 0);
+});
+
+test("before the keyword migration, chat keeps the bounded read and says so", async t => {
+  const { fixture, rareId, request } = await longDocumentFixture(t, "missing");
+  const response = await handle(request, fixture.env), answer = await response.json();
+  assert.equal(response.status, 200, JSON.stringify(answer));
+  assert.equal(fixture.keywordSearches.length, 1);
+  assert.equal(fixture.restQueries.filter(query => query.table === "document_chunks" && query.params.get("limit") === "201").length, 1);
+  assert.equal(answer.metadata.coverage.lexical_search, "FIRST_PASSAGES");
+  assert.equal(answer.metadata.coverage.lexical_limit_reached, true);
+  assert.ok(!answer.sources.some(source => source.metadata.chunk_id === rareId), "the 250th passage is beyond the bounded read");
+});
+
+test("a keyword match from another workspace never reaches the model or the answer", async t => {
+  const { fixture, rareId, request } = await longDocumentFixture(t, "foreign");
+  const response = await handle(request, fixture.env), answer = await response.json();
+  assert.equal(response.status, 200, JSON.stringify(answer));
+  assert.doesNotMatch(JSON.stringify(fixture.outbound), /FOREIGN_WORKSPACE_EVIDENCE/);
+  assert.ok(!answer.sources.some(source => source.metadata.chunk_id.startsWith("99999999")));
+  assert.ok(answer.sources.some(source => source.metadata.chunk_id === rareId));
+});
+
 function streamRequest(documentId, question = "What is the retention policy?") {
   return new Request("https://gateway.invalid/api/v1/chat", { method: "POST",
     headers: { authorization: "Bearer synthetic-oauth-token", "x-nexus-workspace-id": workspace, "content-type": "application/json",

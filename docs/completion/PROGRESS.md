@@ -24,8 +24,8 @@ stops at ingestion: the key the owner supplied on 17 November also answers HTTP 
 - Rehearsal Supabase (`ukgjygzfhyvnrsecdcuu`): 54 migrations applied (`20261113190000_workspace_deletion` on
   2026-11-15, when the owner answered the Supabase connector's confirmation); pending:
   `20261113210000_account_deletion`, `20261114090000_research_calculation_runs` and
-  `20261114120000_storage_reconciliation` (the confirmation for the next one was asked on 15 and 16 November and
-  timed out unanswered both times). Nothing is stored or open: no documents, no stored files, no open deletions.
+  `20261114120000_storage_reconciliation`, and since 17 November `20261117090000_ranked_keyword_search` (the
+  confirmation was asked on 15, 16 and 17 November and timed out unanswered each time). Nothing is stored or open: no documents, no stored files, no open deletions.
   Advisors: only leaked-password protection (an Auth setting). Both test accounts' trial counters were reset after
   the journey of 16 November; the journey of 17 November used account A's trial document again, so reset them
   before the next one (next steps, item 2). Provider reviews recorded for Gemini, Qdrant
@@ -34,7 +34,7 @@ stops at ingestion: the key the owner supplied on 17 November also answers HTTP 
   set anew on 2026-11-15 and exist only in the build session, so set new ones (a bcrypt hash in
   `auth.users.encrypted_password`) when a later session needs to sign in.
 - Production: `nexusrag-v6-frontend-preview` v29 → `nexusrag-v6-preview-gateway` v52, both from 23 September,
-  on Supabase `fcjaomiceajcdownarel` (35 migrations applied, 38 pending from 035 onward) and collection
+  on Supabase `fcjaomiceajcdownarel` (35 migrations applied, 39 pending from 035 onward) and collection
   `nexusrag-v6-preview`. The live gateway still defaults to `gemini-2.5-flash` with `thinkingBudget: 0`, has no
   `GEMINI_USER_KEY_ENCRYPTION_SECRET`, and nothing has been changed there.
 - Gemini: the candidate Worker's shared key answers **HTTP 402** (its Google project is prepaid and has no
@@ -109,6 +109,7 @@ stops at ingestion: the key the owner supplied on 17 November also answers HTTP 
 | 2026-11-13 | NX-28 part: security headers on every page, file and error (Worker and `_headers`), checked on the built Worker; hostile-markdown test | 2 | `5262bff` |
 | 2026-11-13 | NX-16 retention runs: owners and administrators set a number of days; every day (and on "Run now") documents uploaded before the cutoff go through the normal deletion, chat messages and research results from before it are removed, and conversations unused since are removed or closed; saved findings, what they cite and Radar pages stay. Turning it on asks for a second click that names the cutoff date | 3 (local replay with new assertions; 926 gateway and 776 frontend tests); 4 on 13 November (below) | `f589e7b` |
 | 2026-11-16 | NX-22 ingestion limits. A PDF or image cut off at 8,192 output tokens (about a dozen pages; it used to fail with "split the document") is read again with the model's published limit: 65,536 tokens for both pinned models, roughly 100 pages (Google's model pages, read 16 November). The job's lease is renewed during the read. The shared key's budget counts a file at no more input than a request can hold; one token per byte had made every PDF over 4 MB impossible on the trial. Word text comes from the elements Word shows. Every way a read can end has its own plain message, and nothing partial is indexed. Not done: a PDF's own text layer and splitting by page (a PDF parser does not fit the free plan's CPU limit) | 1 (986 gateway tests; 12 new, eleven broken variants each refused). The long read has run against a stand-in only | `e0d3b60` |
+| 2026-11-17 | NX-20 for chat: keyword search ranked in the database over every passage of the chosen versions (`20261117090000_ranked_keyword_search.sql`: whole lower-cased words, weighted by rarity, published and non-sensitive versions of the workspace only, a GIN index; `keyword-search.js`). Chat used to score only the first 200 passages by identifier, so a clause code in passage 250 was never matched; now it is. Page or metadata filters keep the complete bounded read, and a database without the migration falls back to it; the answer's coverage says which ran. Research runs keep their fair bounded read | 3 for the database (fresh local replay on PostgreSQL 16 with new assertions; eight broken variants of the function each fail them), 1 for the gateway (1,005 tests; a 250-passage end-to-end chat finds the code ranked and misses it on the fallback; two broken variants each fail). Not yet on any hosted database | this commit |
 | 2026-11-17 | Plain public addresses, at the owner's request (no version, "preview" or "gateway" in them): a front door per environment, a Cloudflare Pages project whose code hands every request to the frontend Worker through a service binding (Pages is the only free Cloudflare product with a one-word address). It serves a build made for its address and sends the pages of any other build to the address that build names, so it switches over by itself at the next release and never breaks the app before. Builds name their address in `/_nexus-build.json` (`site_url`); the frontend Worker sends pages opened on its own `workers.dev` address to the public one, because sign-in returns only there; the gateway accepts a list of origins. `release.py` builds for the public address and smoke-tests through it. Cloudflare cleanup: the PR3 Workers and queues deleted | 1 (9 front-door, 9 deploy-script, 3 new release and 7 new frontend tests; CORS list matched exactly); 2 for the path that serves the app (the built frontend Worker behind the front door over a real service binding, locally: pages with their script policy, files, the document shell and a 404, and `release.py`'s frontend smoke passed; on its own `workers.dev` address the Worker sends pages on with a 302); 4 for the redirect path (outside scans of both addresses) and for the gateway's origin list (released to the preview at `6fb3123`: preflights from both preview origins allowed, from production's address and another site refused; the workspace-deletion journey passed 19 of 19 checks) | `6fb3123`, `ffbb53f` |
 | 2026-11-16 | Preview gateway released at `cc3fc24`; NX-16 workspace deletion verified live (see the live checks below). `preview_smoke.py` has a second journey, `--journey workspace-deletion`, which needs no model key, so it can be run on the preview whatever the Gemini key's state | 4 for workspace deletion (19 of 19 live checks, then the database checked directly); 1 for the journey itself (five faults each fail exactly their own check against an in-memory gateway) | `d6b490c` |
 | 2026-11-15 | NX-27 done: reconciliation of file storage and the search index with the database. Two read-only reports (`20261114120000_storage_reconciliation.sql`) find stored files no row names (older than an hour, so an upload in progress is left alone), documents whose original is gone, index entries of versions that no longer exist, and answerable documents the index holds nothing of. The gateway logs the counts in the first cron run of each day (`store_reconciliation`, a warning when anything is found). `scripts/reconciliation.py` and the manual Store Reconciliation workflow show them, printing counts only because workflow logs are public, and remove leftovers only when given the count of a fresh report; the index is not touched while documents are missing from it. The report's queries, run read-only on production: 7 stored files, none without a document, no original missing | 3 for the reports (fresh replay with nine broken variants each refused by the assertions), 1 for the rest (974 gateway tests; 18 tool tests with eight broken variants each refused) | `36114ce`, `2253a3a`, `b7e8250` |
@@ -210,7 +211,8 @@ Decisions (D25 delegates product and technical decisions; exceptions in `MASTER_
 
 ## Next steps (exact commands)
 0. When the owner approves the Supabase connector's confirmation: apply `20261113210000_account_deletion.sql`, then
-   `20261114090000_research_calculation_runs.sql`, then `20261114120000_storage_reconciliation.sql`, to rehearsal
+   `20261114090000_research_calculation_runs.sql`, then `20261114120000_storage_reconciliation.sql`, then
+   `20261117090000_ranked_keyword_search.sql`, to rehearsal
    (without their outer `begin`/`commit`), check `get_advisors` and run
    `select public.nexus_storage_reconciliation(3600, 0)` once. Workspace deletion is applied and verified (16
    November; rerun it with `python3 scripts/preview_smoke.py --journey workspace-deletion`). Account deletion:
@@ -239,8 +241,9 @@ Decisions (D25 delegates product and technical decisions; exceptions in `MASTER_
    policy; signed-in use was checked offline only). This is the first build made for
    https://nexusrag-preview.pages.dev: check that the address now serves the app itself (no redirect), that Google
    sign-in returns there, and that the Worker's own address sends pages to it.
-6. Build next, none of which needs the keys: keyword search in the database instead of scoring 200 rows in the
-   Worker (NX-20).
+6. NX-20 is built for chat; apply `20261117090000_ranked_keyword_search.sql` with the other pending rehearsal
+   migrations (item 0), then ask a question whose answer is in a late passage of a long document and check the
+   answer's `coverage.lexical_search` is `RANKED`.
 6b. Once a Gemini key works: upload a PDF of 40 to 80 pages on the preview and check that it becomes Ready with
    `read: full` in its version's extraction manifest (NX-22); the long read has only run against a stand-in. The
    preview gateway already runs it (`739c7c2`).

@@ -48,6 +48,7 @@ import {
 } from "./user-gemini-key.js";
 import { serviceHeaders } from "./supabase-keys.js";
 import { reconcileStores } from "./reconciliation.js";
+import { keywordCandidates } from "./keyword-search.js";
 
 // Supabase service-role access is kept in a Cloudflare secret binding; OAuth and MCP gates are exact-head validated.
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -703,11 +704,14 @@ async function chat(request, env, user, workspace, member, stream = null) {
   const activeDocumentIds = eligibleDocuments.map(item => item.id);
   const activeVersionIds = eligibleDocuments.map(item => item.active_version_id);
   const topK = settings.retrieval_top_k;
-  const lexicalRows = activeVersionIds.length ? await serviceRequest(env, `document_chunks?workspace_id=eq.${workspace}&version_id=in.(${activeVersionIds.join(",")})${chunkFilterQuery(filters)}&select=id,workspace_id,document_id,version_id,chunk_index,page_number,content,original_text,original_content_hash,location,metadata&order=id.asc&limit=201`) : [];
+  // NX-20: the database ranks every passage by the question's words; page or metadata filters keep the bounded read.
+  const keyword = await keywordCandidates((path, init) => serviceRequest(env, path, init), { workspace,
+    versionIds: activeVersionIds, question, chunkFilters: chunkFilterQuery(filters), chunkScoped });
+  const lexicalRows = keyword.rows;
   // Chunk filters use an exhaustive bounded durable allowlist for both paths.
   // Never search the unfiltered vector space or silently truncate that scope.
   if (chunkScoped && lexicalRows.length > 200) throw Object.assign(new Error("Narrow the page or metadata scope to at most 200 matching chunks, or select fewer documents."), { status: 413, code: "CAPACITY_REACHED" });
-  const lexicalLimited = lexicalRows.length > 200;
+  const lexicalLimited = keyword.limited;
   const lexical = lexicalRows.slice(0, 200).filter(row => matchesChunkFilters(row, filters));
   const chunkIds = chunkScoped ? lexical.map(row => row.id) : undefined;
   admissionKey(request);
@@ -758,7 +762,8 @@ async function chat(request, env, user, workspace, member, stream = null) {
   }
   response.metadata.coverage = { scope_documents: activeDocumentIds.length, lexical_candidates: lexical.length,
     filters_applied: Object.keys(filters), chunk_scope: chunkScoped ? "COMPLETE_BOUNDED_MATCHING_CHUNKS" : "UNFILTERED_CHUNK_SCOPE",
-    lexical_limit_reached: lexicalLimited, completeness: lexicalLimited ? "PARTIAL_BOUNDED_RETRIEVAL" : "BOUNDED_RETRIEVAL_NOT_EXHAUSTIVE",
+    lexical_search: keyword.method, lexical_limit_reached: lexicalLimited,
+    completeness: lexicalLimited ? "PARTIAL_BOUNDED_RETRIEVAL" : "BOUNDED_RETRIEVAL_NOT_EXHAUSTIVE",
     evidence_authority: "SUPABASE_HASH_VERIFIED" };
   response.metadata.account_usage={free_chat_queries_used:admission.credentialMode==="platform_trial"?admission.used:5,free_chat_queries_limit:5,credential_mode:admission.credentialMode};
   response.metadata.document_selection = { reason: summaryScope.reason, document_ids: summaryScope.document_ids };
