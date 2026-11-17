@@ -199,9 +199,11 @@ async function indexChunks(env, { workspaceId, documentId, versionId, generation
 async function searchChunks(env, { workspaceId, question, documentIds = [], versionIds = [], indexGenerations = [], chunkIds, limit = 8, dataClassification = "unknown", actorId, userApiKey, credentialMode, signal }) {
   if (dataClassification !== "non_sensitive") throw pipelineError("RIGHTS_BLOCKED", "Only non-sensitive questions and document scope may be searched.", 403);
   const filter = qdrantFilter(workspaceId, documentIds, versionIds, indexGenerations, chunkIds);
-  return metered(env, { workspaceId, provider: "qdrant", priority: "interactive" }, { requests: 2 }, async () => {
+  return metered(env, { workspaceId, provider: "qdrant", priority: "interactive" }, { requests: 1 }, async () => {
   const vector = await embedText(env, question, "RETRIEVAL_QUERY", { workspaceId, priority: "interactive", dataClassification, actorId, userApiKey, credentialMode, signal });
-  const { base, headers } = await ensureQdrant(env, vector.length, false, signal);
+  // A search asks the collection nothing first: the query's own answer says when the collection is missing (404,
+  // an empty index), the key is refused or the cluster does not answer, so each answer saves a round trip (F8).
+  const { base, headers } = indexEndpoint(env);
   const body = { query: vector, limit: Math.min(Math.max(limit, 1), 12), with_payload: true, filter };
   const result = await providerJson(`${base}/points/query`, { method: "POST", headers, body: JSON.stringify(body), signal });
   return (result?.result?.points || []).filter((item) => item?.payload?.workspace_id === workspaceId
@@ -220,7 +222,7 @@ async function searchChunkVariants(env,{queries,workspaceId,documentIds,versionI
   const apiKey=userApiKey||env.GOOGLE_API_KEY,model=embeddingModel(env);
   if(!apiKey)throw pipelineError("CONFIGURATION_ERROR","Gemini embedding is not configured.",503);
   const filter=qdrantFilter(workspaceId,documentIds,versionIds,indexGenerations);
-  return metered(env,{workspaceId,provider:"qdrant",priority:"interactive"},{requests:2},async()=>{
+  return metered(env,{workspaceId,provider:"qdrant",priority:"interactive"},{requests:1},async()=>{
     // Reserve each embedded query conservatively, even though transport is batched.
     const embedded=await geminiCall(env,{workspaceId,provider:"gemini",priority:"interactive",dataClassification,actorId,userApiKey,credentialMode},
       {requests:queries.length,embedding_tokens:queries.reduce((n,q)=>n+new TextEncoder().encode(q).length,0)},()=>providerJson(
@@ -230,7 +232,7 @@ async function searchChunkVariants(env,{queries,workspaceId,documentIds,versionI
     const vectors=embedded?.embeddings?.map(item=>item?.values);
     if(!Array.isArray(vectors)||vectors.length!==queries.length||vectors.some(v=>!Array.isArray(v)||v.length<8||v.length!==vectors[0].length||v.some(n=>!Number.isFinite(n))))
       throw pipelineError("PROVIDER_INVALID_RESPONSE","The embedding batch did not confirm every query.",503);
-    const {base,headers}=await ensureQdrant(env,vectors[0].length,false,signal);
+    const {base,headers}=indexEndpoint(env); // as in searchChunks: the query itself reports a missing collection
     const boundedLimit=Math.min(Math.max(limit,1),12);
     const response=await providerJson(`${base}/points/query/batch`,{method:"POST",signal,headers,
       body:JSON.stringify({searches:vectors.map(query=>({query,limit:boundedLimit,with_payload:true,filter}))})});

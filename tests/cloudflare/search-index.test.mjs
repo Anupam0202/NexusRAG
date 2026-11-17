@@ -327,3 +327,18 @@ test("the signed-in status page shows the probed index state instead of a guess"
   assert.deepEqual([asleep.status, asleep.readiness, asleep.dependency_status.qdrant], ["DEGRADED", "DEGRADED", "NOT_ANSWERING"]);
   assert.doesNotMatch(JSON.stringify(asleep), /synthetic/);
 });
+
+test("a search asks Qdrant once, and its budget is charged for that one request", async (t) => {
+  reset();
+  const { fetch, calls } = services((url) => url === `${COLLECTION_URL}/points/query` ? json({ result: { points: [] } }) : json({}, 500));
+  const reservations = [];
+  t.mock.method(globalThis, "fetch", async (url, init) => {
+    if (String(url).endsWith("/rpc/v6_reserve_many")) reservations.push(JSON.parse(init.body));
+    return fetch(url, init);
+  });
+  const found = await searchChunks(gateway, { workspaceId, question: "What is the retention period?", dataClassification: "non_sensitive" });
+  assert.deepEqual(found, []);
+  // No collection check first: the query's own answer reports a missing collection (the failure tests above).
+  assert.deepEqual(calls.qdrant.map((call) => call.url), [`${COLLECTION_URL}/points/query`]);
+  assert.deepEqual(reservations.filter((entry) => entry.p_provider === "qdrant").map((entry) => entry.p_dimensions), [{ requests: 1 }]);
+});

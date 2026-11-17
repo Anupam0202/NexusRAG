@@ -1101,7 +1101,7 @@ test("outgoing requests per invocation stay within the free plan's 50, and an an
   assert.equal(fixture.restQueries.filter((query) => query.table === "document_chunks" && query.params.get("limit") === "201").length, 0);
   assert.deepEqual([chat.supabase_auth, upload.supabase_auth, ...batches.map((batch) => batch.supabase_auth)], [0, 0, ...batches.map(() => 0)],
     "a checked token is never sent to Supabase Auth");
-  assert.deepEqual([chat.qdrant, chat.gemini], [2, 2], "per answer: the collection check and one search, one embedding and one generation call");
+  assert.deepEqual([chat.qdrant, chat.gemini], [1, 2], "per answer: one search, one embedding and one generation call");
   for (const [name, calls] of [["upload", upload], ["chat", chat], ...batches.map((batch, index) => [`batch ${index + 1}`, batch])]) {
     assert.ok(calls.total <= 40, `${name} makes ${calls.total} requests; the free plan allows 50 per invocation, and 10 are kept in reserve`);
   }
