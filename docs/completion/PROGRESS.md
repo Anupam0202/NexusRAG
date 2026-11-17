@@ -21,13 +21,13 @@ Done this session:
   level 1 for the gateway; the preview gateway runs it with the fallback until the migration is applied
 Not verified or still failing:
 - Ingestion and answers: both Gemini keys answer HTTP 402 (prepaid projects without credit)
-- Four rehearsal migrations unapplied: the Supabase connector's approval went unanswered on 15, 16 and 17 November
+- Five rehearsal migrations unapplied: the Supabase connector's approval went unanswered on 15, 16 and 17 November
 - Frontend preview: the `NexusRAG-Candidate-Preview` environment rejects this branch; production is unreleased
 Owner decisions needed:
 - Gemini key with credit, or from a project without billing, in both GitHub environments' `GOOGLE_API_KEY`
   (recommended: a free-tier project key)
 - Allow this branch in `NexusRAG-Candidate-Preview` and add `SUPABASE_DB_URL` there (recommended: yes; the preview
-  workflow then applies the four migrations itself)
+  workflow then applies the five migrations itself)
 - Supabase Auth URL configuration for both public addresses (values in `docs/DEPLOYMENT_PRODUCTION.md`)
 - NX-22's remaining limit (no separate PDF text layer or page splitting on the free plan): accept, or ask for it
   (recommended: accept)
@@ -56,7 +56,8 @@ Next three steps:
 - Rehearsal Supabase (`ukgjygzfhyvnrsecdcuu`): 54 migrations applied (`20261113190000_workspace_deletion` on
   2026-11-15, when the owner answered the Supabase connector's confirmation); pending:
   `20261113210000_account_deletion`, `20261114090000_research_calculation_runs` and
-  `20261114120000_storage_reconciliation`, and since 17 November `20261117090000_ranked_keyword_search` (the
+  `20261114120000_storage_reconciliation`, and since 17 November `20261117090000_ranked_keyword_search` and
+  `20261117120000_foreign_key_indexes` (the
   confirmation was asked on 15, 16 and 17 November and timed out unanswered each time). Nothing is stored or open: no documents, no stored files, no open deletions.
   Advisors: only leaked-password protection (an Auth setting). Both test accounts' trial counters were reset after
   the journey of 16 November; the journey of 17 November used account A's trial document again, so reset them
@@ -66,7 +67,7 @@ Next three steps:
   set anew on 2026-11-15 and exist only in the build session, so set new ones (a bcrypt hash in
   `auth.users.encrypted_password`) when a later session needs to sign in.
 - Production: `nexusrag-v6-frontend-preview` v29 → `nexusrag-v6-preview-gateway` v52, both from 23 September,
-  on Supabase `fcjaomiceajcdownarel` (35 migrations applied, 39 pending from 035 onward) and collection
+  on Supabase `fcjaomiceajcdownarel` (35 migrations applied, 40 pending from 035 onward) and collection
   `nexusrag-v6-preview`. The live gateway still defaults to `gemini-2.5-flash` with `thinkingBudget: 0`, has no
   `GEMINI_USER_KEY_ENCRYPTION_SECRET`, and nothing has been changed there.
 - Gemini: the candidate Worker's shared key answers **HTTP 402** (its Google project is prepaid and has no
@@ -141,6 +142,7 @@ Next three steps:
 | 2026-11-13 | NX-28 part: security headers on every page, file and error (Worker and `_headers`), checked on the built Worker; hostile-markdown test | 2 | `5262bff` |
 | 2026-11-13 | NX-16 retention runs: owners and administrators set a number of days; every day (and on "Run now") documents uploaded before the cutoff go through the normal deletion, chat messages and research results from before it are removed, and conversations unused since are removed or closed; saved findings, what they cite and Radar pages stay. Turning it on asks for a second click that names the cutoff date | 3 (local replay with new assertions; 926 gateway and 776 frontend tests); 4 on 13 November (below) | `f589e7b` |
 | 2026-11-16 | NX-22 ingestion limits. A PDF or image cut off at 8,192 output tokens (about a dozen pages; it used to fail with "split the document") is read again with the model's published limit: 65,536 tokens for both pinned models, roughly 100 pages (Google's model pages, read 16 November). The job's lease is renewed during the read. The shared key's budget counts a file at no more input than a request can hold; one token per byte had made every PDF over 4 MB impossible on the trial. Word text comes from the elements Word shows. Every way a read can end has its own plain message, and nothing partial is indexed. Not done: a PDF's own text layer and splitting by page (a PDF parser does not fit the free plan's CPU limit) | 1 (986 gateway tests; 12 new, eleven broken variants each refused). The long read has run against a stand-in only | `e0d3b60` |
+| 2026-11-17 | Supabase advisors reviewed on both projects (NX-41): the only security warning is leaked-password protection (an Auth setting; sign-in is Google-only). The performance advisor's 21 foreign keys without a covering index on rehearsal get indexes (`20261117120000_foreign_key_indexes.sql`); deleting an account, a document or a research run no longer scans whole tables to check them. A new assertion names any foreign key left without one. Unused indexes are what a database without traffic shows | 3 (fresh local replay; the check fails before the migration, names a single dropped index, and passes after) | this commit |
 | 2026-11-17 | NX-20 for chat: keyword search ranked in the database over every passage of the chosen versions (`20261117090000_ranked_keyword_search.sql`: whole lower-cased words, weighted by rarity, published and non-sensitive versions of the workspace only, a GIN index; `keyword-search.js`). Chat used to score only the first 200 passages by identifier, so a clause code in passage 250 was never matched; now it is. Page or metadata filters keep the complete bounded read, and a database without the migration falls back to it; the answer's coverage says which ran. Research runs keep their fair bounded read | 3 for the database (fresh local replay on PostgreSQL 16, and on 17 in [CI](https://github.com/Anupam0202/NexusRAG/actions/runs/44041276126), with new assertions; eight broken variants of the function each fail them), 1 for the gateway (1,005 tests; a 250-passage end-to-end chat finds the code ranked and misses it on the fallback; two broken variants each fail). Not yet on any hosted database; the preview gateway runs it with the fallback | `c05f319` |
 | 2026-11-17 | Plain public addresses, at the owner's request (no version, "preview" or "gateway" in them): a front door per environment, a Cloudflare Pages project whose code hands every request to the frontend Worker through a service binding (Pages is the only free Cloudflare product with a one-word address). It serves a build made for its address and sends the pages of any other build to the address that build names, so it switches over by itself at the next release and never breaks the app before. Builds name their address in `/_nexus-build.json` (`site_url`); the frontend Worker sends pages opened on its own `workers.dev` address to the public one, because sign-in returns only there; the gateway accepts a list of origins. `release.py` builds for the public address and smoke-tests through it. Cloudflare cleanup: the PR3 Workers and queues deleted | 1 (9 front-door, 9 deploy-script, 3 new release and 7 new frontend tests; CORS list matched exactly); 2 for the path that serves the app (the built frontend Worker behind the front door over a real service binding, locally: pages with their script policy, files, the document shell and a 404, and `release.py`'s frontend smoke passed; on its own `workers.dev` address the Worker sends pages on with a 302); 4 for the redirect path (outside scans of both addresses) and for the gateway's origin list (released to the preview at `6fb3123`: preflights from both preview origins allowed, from production's address and another site refused; the workspace-deletion journey passed 19 of 19 checks) | `6fb3123`, `ffbb53f` |
 | 2026-11-16 | Preview gateway released at `cc3fc24`; NX-16 workspace deletion verified live (see the live checks below). `preview_smoke.py` has a second journey, `--journey workspace-deletion`, which needs no model key, so it can be run on the preview whatever the Gemini key's state | 4 for workspace deletion (19 of 19 live checks, then the database checked directly); 1 for the journey itself (five faults each fail exactly their own check against an in-memory gateway) | `d6b490c` |
@@ -244,7 +246,7 @@ Decisions (D25 delegates product and technical decisions; exceptions in `MASTER_
 ## Next steps (exact commands)
 0. When the owner approves the Supabase connector's confirmation: apply `20261113210000_account_deletion.sql`, then
    `20261114090000_research_calculation_runs.sql`, then `20261114120000_storage_reconciliation.sql`, then
-   `20261117090000_ranked_keyword_search.sql`, to rehearsal
+   `20261117090000_ranked_keyword_search.sql` and `20261117120000_foreign_key_indexes.sql`, to rehearsal
    (without their outer `begin`/`commit`), check `get_advisors` and run
    `select public.nexus_storage_reconciliation(3600, 0)` once. Workspace deletion is applied and verified (16
    November; rerun it with `python3 scripts/preview_smoke.py --journey workspace-deletion`). Account deletion:
