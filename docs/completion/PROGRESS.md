@@ -7,6 +7,36 @@ workspace deletion, document deletion and retention are verified live there. Acc
 and the reconciliation wait for their three rehearsal migrations (the owner's confirmation). The live journey still
 stops at ingestion: the key the owner supplied on 17 November also answers HTTP 402 (no prepaid credit)
 
+## Handoff 2026-11-17
+Branch and head: `codex/runtime-manifest-008` @ `36b8491` (V6 Foundation CI and V6 Database Rehearsal green); PRs: #12 (draft)
+Deployed: candidate frontend `2fbc5c9` (October build) / gateway `c05f319`; production unchanged (23 September Workers).
+Public addresses https://nexusrag.pages.dev and https://nexusrag-preview.pages.dev are live and forward to the Workers
+until a build made for them is released.
+Done this session:
+- Cloudflare cleanup: only the two environments' Workers, queues and the two front doors remain (PR3 Workers and queues
+  deleted) → verified by listing every resource type through the API
+- Public addresses → `6fb3123`, `ffbb53f` → level 4 for the forwarding (outside scans) and the gateway's origin list,
+  level 2 for serving through the binding (local Worker pair, release smoke passed)
+- NX-20 ranked keyword search for chat → `c05f319` → level 3 for the database (replay, eight broken variants refused),
+  level 1 for the gateway; the preview gateway runs it with the fallback until the migration is applied
+Not verified or still failing:
+- Ingestion and answers: both Gemini keys answer HTTP 402 (prepaid projects without credit)
+- Four rehearsal migrations unapplied: the Supabase connector's approval went unanswered on 15, 16 and 17 November
+- Frontend preview: the `NexusRAG-Candidate-Preview` environment rejects this branch; production is unreleased
+Owner decisions needed:
+- Gemini key with credit, or from a project without billing, in both GitHub environments' `GOOGLE_API_KEY`
+  (recommended: a free-tier project key)
+- Allow this branch in `NexusRAG-Candidate-Preview` and add `SUPABASE_DB_URL` there (recommended: yes; the preview
+  workflow then applies the four migrations itself)
+- Supabase Auth URL configuration for both public addresses (values in `docs/DEPLOYMENT_PRODUCTION.md`)
+- NX-22's remaining limit (no separate PDF text layer or page splitting on the free plan): accept, or ask for it
+  (recommended: accept)
+Next three steps:
+1. Actions → Cloudflare Preview Deploy on this branch; then check https://nexusrag-preview.pages.dev serves the app
+   itself and Google sign-in returns there
+2. Reset the test accounts' trial counters, then `python3 scripts/preview_smoke.py` for the full two-account journey
+3. Owner walkthrough on the preview (`docs/completion/OWNER_WALKTHROUGH.md`), then merge PR #12 and run Production Deploy
+
 ## Current state
 - main: `85b14f1`; working branch: `codex/runtime-manifest-008` (draft PR #12, owner-approved for direct
   commits on 2026-11-09); open PRs: #12
