@@ -49,6 +49,7 @@ import {
 import { serviceHeaders } from "./supabase-keys.js";
 import { reconcileStores } from "./reconciliation.js";
 import { keywordCandidates } from "./keyword-search.js";
+import { InvalidAccessToken, verifyAccessToken } from "./access-token.js";
 
 // Supabase service-role access is kept in a Cloudflare secret binding; OAuth and MCP gates are exact-head validated.
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -151,6 +152,14 @@ async function apiFetch(url, init = {}, timeout = 8_000) {
 async function authenticate(request, env) {
   const authorization = request.headers.get("authorization") || "";
   if (!authorization.startsWith("Bearer ")) throw Object.assign(new Error("Authentication is required."), { status: 401, code: "AUTH_REQUIRED" });
+  // NX-25: a token signed with the project's published key is checked here; any other goes to Supabase Auth.
+  try {
+    const user = await verifyAccessToken(authorization.slice("Bearer ".length).trim(), env);
+    if (user) return user;
+  } catch (error) {
+    if (error instanceof InvalidAccessToken) throw Object.assign(new Error("The access token is invalid or expired."), { status: 401, code: "AUTH_REQUIRED" });
+    throw error;
+  }
   const response = await apiFetch(`${env.SUPABASE_URL}/auth/v1/user`, { headers: { apikey: env.SUPABASE_PUBLISHABLE_KEY, authorization } });
   if (!response.ok) throw Object.assign(new Error("The access token is invalid or expired."), { status: 401, code: "AUTH_REQUIRED" });
   const user = await response.json();

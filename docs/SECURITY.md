@@ -4,7 +4,7 @@ NexusRAG is designed around tenant isolation, durable auth context, and defensiv
 
 ## Implemented Controls
 
-- Supabase JWT validation and workspace-scoped API context.
+- Supabase access tokens are checked in the gateway against the project's published signing keys (ES256: signature, issuer, audience, role and expiry, `access-token.js`); a token signed any other way is checked by Supabase Auth. Signing out ends refresh sessions at once, and an access token already issued stays valid until it expires (an hour), as the security page tells people. Workspace membership is checked in the database on every request, so removing a member or deleting an account takes effect immediately.
 - Supabase Auth is the sole identity and session authority; NexusRAG never receives Google or GitHub credentials.
 - The candidate frontend offers Google and GitHub OAuth. Supabase provider
   activation and real Google callback verification remain environment setup
