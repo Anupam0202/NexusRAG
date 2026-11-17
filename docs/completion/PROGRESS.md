@@ -9,8 +9,8 @@ confirmation). The F8 budgets are measured. The live journey still stops at inge
 on 17 November also answers HTTP 402 (no prepaid credit)
 
 ## Handoff 2026-11-17
-Branch and head: `codex/runtime-manifest-008`, last code commit `e9b23af` (CI green on `729c4ec`; later runs in PR #12); PRs: #12 (draft)
-Deployed: candidate frontend `2fbc5c9` (October build) / gateway `e9b23af`; production unchanged (23 September Workers).
+Branch and head: `codex/runtime-manifest-008`, last code commit `fb372a3` (CI: see PR #12); PRs: #12 (draft)
+Deployed: candidate frontend `2fbc5c9` (October build) / gateway `c7eb61c`; production unchanged (23 September Workers).
 Public addresses https://nexusrag.pages.dev and https://nexusrag-preview.pages.dev are live and forward to the Workers
 until a build made for them is released.
 Done this session:
@@ -21,9 +21,9 @@ Done this session:
 - NX-20 ranked keyword search for chat → `c05f319` → level 3 for the database (replay, eight broken variants refused),
   level 1 for the gateway; the preview gateway runs it with the fallback until the migration is applied
 - Supabase advisors reviewed; 21 foreign keys indexed → `11f3066` → level 3 (replay; the new check catches a dropped index)
-- NX-42: a job that runs out of attempts no longer leaves its document "processing" for ever → level 1
-- F8: a chat answer makes one Qdrant request instead of two (no collection check before the search) → level 1
-- F8 budgets measured (see "Optimization budgets") → level 4 for live figures; first-load JavaScript is
+- NX-42: a job that runs out of attempts no longer leaves its document "processing" for ever → `e9b23af` → level 1
+- F8: a chat answer makes one Qdrant request instead of two (no collection check before the search) → `fb372a3` → level 1
+- F8 budgets measured (see "Optimization budgets") → `4881f01` → level 4 for live figures; first-load JavaScript is
   25.6 KiB larger than October's, 10.5 KiB of it avoidable by splitting `src/lib/api.ts` (F7)
 - NX-25: tokens checked in the gateway → `6e1d540` → level 4 (real tokens, tampering, sign-out); both request counters
   → `8bcfc22` → level 4 for the release, but a one-client burst passes both (a strict limit needs a Durable Object)
@@ -31,15 +31,15 @@ Not verified or still failing:
 - Ingestion and answers: both Gemini keys answer HTTP 402 (prepaid projects without credit)
 - Five rehearsal migrations unapplied: the Supabase connector's approval went unanswered on 15, 16 and 17 November
 - Frontend preview: the `NexusRAG-Candidate-Preview` environment rejects this branch; production is unreleased
+- Production still defaults to `gemini-2.5-flash`, which Google shuts down on 2026-12-01: release before then
 Owner decisions needed:
 - Gemini key with credit, or from a project without billing, in both GitHub environments' `GOOGLE_API_KEY`
   (recommended: a free-tier project key)
 - Allow this branch in `NexusRAG-Candidate-Preview` and add `SUPABASE_DB_URL` there (recommended: yes; the preview
   workflow then applies the five migrations itself)
 - Supabase Auth URL configuration for both public addresses (values in `docs/DEPLOYMENT_PRODUCTION.md`)
-- NX-22's remaining limit (no separate PDF text layer or page splitting on the free plan): accept, or ask for it
-  (recommended: accept)
-- NX-25's approximate per-user rate limit: accept, or ask for a Durable Object limiter (recommended: accept for now)
+- Accept or decide the ledger items listed under "Ledger status", each with a recommendation there: NX-22, NX-25,
+  NX-32, NX-33, NX-35, NX-41, NX-42 (recommended: accept); NX-15, NX-31, NX-38, NX-40 (decisions)
 Next three steps:
 1. Actions → Cloudflare Preview Deploy on this branch; then check https://nexusrag-preview.pages.dev serves the app
    itself and Google sign-in returns there
@@ -71,7 +71,7 @@ Next three steps:
   `20261117120000_foreign_key_indexes` (the
   confirmation was asked on 15, 16 and 17 November and timed out unanswered each time). Nothing is stored or open: no documents, no stored files, no open deletions.
   Advisors: only leaked-password protection (an Auth setting). Both test accounts' trial counters were reset after
-  the journey of 16 November; the journey of 17 November used account A's trial document again, so reset them
+  the journey on `c7eb61c` (17 November); each journey uses account A's trial document, so reset them again
   before the next one (next steps, item 2). Provider reviews recorded for Gemini, Qdrant
   and Supabase Storage (staging attestation by test account A, valid to 2027-11-12). Two test accounts
   (`nexus-e2e-a@nexusrag.test`, `nexus-e2e-b@nexusrag.test`), each with an approved workspace; their passwords were
@@ -207,7 +207,7 @@ in chat with a reason. Where each one stands:
 | 2026-11-17 | NX-25, second half: a request must pass both the isolate's own counter (exact, but every isolate counts from zero) and Cloudflare's rate limiter (binding `USER_RATE_LIMITER`, 60 a minute per location; the preview and production use separate namespaces, which `release.py` checks). Cloudflare's count is approximate by design: live on the preview, 327 requests from one location in 45 seconds all passed it, and after both counters were required, 304 in 45 seconds still passed, because one client's requests are spread over many isolates, each counting from zero. The old per-isolate limit was never strict either. A strict per-user limit needs a Durable Object (not built; the ledger keeps this open for the owner to accept or ask for). A limiter that fails is logged and leaves the isolate's counter to decide | 1 (1,011 gateway and 30 release tests); 4 for the binding being accepted by the free plan and for the burst behaviour above | `b5125c9`, `b891b6e`, `8bcfc22` |
 | 2026-11-17 | NX-25, first half: the gateway checks access tokens itself against the project's published ES256 key (both projects publish one and sign with it: checked on a real rehearsal token), instead of asking Supabase Auth on every request, which also saves one of the 50 outbound requests a free-plan invocation may make. Signature, issuer, audience, role, expiry and user id are checked; the key list is cached and re-read for a rotated key; a token signed otherwise, or an unreadable key list, still goes to Supabase Auth; a failing token is refused, never handed on. Trade-off, already stated on the security page: after signing out, an access token works until it expires (an hour); membership is still checked on every request | 1 (1,010 gateway tests; a real ES256 key pair; removing any one of seven checks fails a test); 4 on the preview gateway `6e1d540`: a real rehearsal token is accepted and reads the database, a tampered one is refused (401), and after a global sign-out Supabase Auth refuses the token (403) while the gateway accepts it until it expires, which shows the check runs in the Worker | `6e1d540` |
 | 2026-11-17 | F8: a search no longer asks Qdrant about the collection before querying it. The query's own answer already says when the collection is missing (an empty index), the key is refused or the cluster does not answer, through the same typed errors, so each chat answer and research query saves a round trip to the cluster and a request (an answer now makes 28). Its budget reservation drops from two Qdrant requests to the one it makes | 1 (1,017 gateway tests; the typed-failure tests unchanged; the two new checks fail on the previous code) | `fb372a3` |
-| 2026-11-17 | NX-42 reviewed: a job's database record, not the queue, decides whether it runs again, so a message the queue dead-letters is retried by the cron, and the job fails after three attempts. Found and fixed: when the attempts ran out because the Worker kept stopping mid-batch, the job and its version failed but a document that never had a usable version showed "processing" for ever; it now shows an error, and a document with a ready version keeps it | 1 (four new tests; the two that cover the fix fail without it); released to the preview (smoke test and `/ready` passed) | `e9b23af` |
+| 2026-11-17 | NX-42 reviewed: a job's database record, not the queue, decides whether it runs again, so a message the queue dead-letters is retried by the cron, and the job fails after three attempts. Found and fixed: when the attempts ran out because the Worker kept stopping mid-batch, the job and its version failed but a document that never had a usable version showed "processing" for ever; it now shows an error, and a document with a ready version keeps it | 1 (four new tests; the two that cover the fix fail without it); released to the preview (smoke test and `/ready` passed). On `c7eb61c` the live workspace-deletion journey passed 19 of 19, its upload failing at Gemini's 402 and its document marked failed within 5 s through the shared helper | `e9b23af` |
 | 2026-11-17 | F8 budgets measured (table above): bundle sizes, first-load JavaScript, CPU per event type, subrequests, data sizes, orphans and CI time, before and after. The end-to-end test now counts the requests of an upload, each ingestion batch and a chat answer, and fails if a checked token reaches Supabase Auth, if chat falls back to the bounded keyword read, or if an invocation makes more than 40 of the 50 requests the free plan allows | 1 for the counts (two broken variants each fail the test); 4 for the live CPU, subrequest and data figures | `4881f01` |
 | 2026-11-17 | Supabase advisors reviewed on both projects (NX-41): the only security warning is leaked-password protection (an Auth setting; sign-in is Google-only). The performance advisor's 21 foreign keys without a covering index on rehearsal get indexes (`20261117120000_foreign_key_indexes.sql`); deleting an account, a document or a research run no longer scans whole tables to check them. A new assertion names any foreign key left without one. Unused indexes are what a database without traffic shows | 3 (fresh local replay; the check fails before the migration, names a single dropped index, and passes after) | `11f3066` |
 | 2026-11-17 | NX-20 for chat: keyword search ranked in the database over every passage of the chosen versions (`20261117090000_ranked_keyword_search.sql`: whole lower-cased words, weighted by rarity, published and non-sensitive versions of the workspace only, a GIN index; `keyword-search.js`). Chat used to score only the first 200 passages by identifier, so a clause code in passage 250 was never matched; now it is. Page or metadata filters keep the complete bounded read, and a database without the migration falls back to it; the answer's coverage says which ran. Research runs keep their fair bounded read | 3 for the database (fresh local replay on PostgreSQL 16, and on 17 in [CI](https://github.com/Anupam0202/NexusRAG/actions/runs/44041276126), with new assertions; eight broken variants of the function each fail them), 1 for the gateway (1,005 tests; a 250-passage end-to-end chat finds the code ranked and misses it on the fallback; two broken variants each fail). Not yet on any hosted database; the preview gateway runs it with the fallback | `c05f319` |
