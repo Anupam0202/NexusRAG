@@ -124,7 +124,9 @@ async function withinRequestLimit(env, userId) {
   if (typeof env.USER_RATE_LIMITER?.limit === "function") {
     try {
       return (await env.USER_RATE_LIMITER.limit({ key: userId }))?.success !== false;
-    } catch {
+    } catch (error) {
+      // Logged without the user, so an unavailable limiter is visible in the Worker's logs.
+      console.warn(JSON.stringify({ event: "rate_limiter_failed", error: error?.name || "Error", message: String(error?.message || "").slice(0, 200) }));
       return allowRequest(userId);
     }
   }
