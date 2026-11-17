@@ -78,7 +78,9 @@ Next three steps:
   set anew on 2026-11-15 and exist only in the build session, so set new ones (a bcrypt hash in
   `auth.users.encrypted_password`) when a later session needs to sign in.
 - Production: `nexusrag-v6-frontend-preview` v29 → `nexusrag-v6-preview-gateway` v52, both from 23 September,
-  on Supabase `fcjaomiceajcdownarel` (35 migrations applied, 40 pending from 035 onward) and collection
+  on Supabase `fcjaomiceajcdownarel` (35 migrations applied, nine of them under names the repository no longer
+  uses; matched by name, 46 of the repository's 72 are pending, checked 17 November with `scripts/migration_status.py
+  status --applied` on its migration list) and collection
   `nexusrag-v6-preview`. The live gateway still defaults to `gemini-2.5-flash` with `thinkingBudget: 0`, has no
   `GEMINI_USER_KEY_ENCRYPTION_SECRET`, and nothing has been changed there.
 - Gemini: the candidate Worker's shared key answers **HTTP 402** (its Google project is prepaid and has no
