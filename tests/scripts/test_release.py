@@ -17,6 +17,8 @@ SHA = "a" * 40
 PREVIOUS = "11111111-2222-4333-8444-555555555555"
 GATEWAY = "https://nexusrag-v6-candidate-gateway.example.workers.dev"
 SITE = "https://nexusrag-v6-candidate-frontend.example.workers.dev"
+PUBLIC = "https://nexusrag-preview.pages.dev"
+URLS = {"gateway": GATEWAY, "frontend": PUBLIC, "frontend_worker": SITE}
 MODELS = ("gemini-3.5-flash-lite", "gemini-3.1-flash-lite", "gemini-flash-latest")
 CONFIGS = [
     "apps/gateway/wrangler.preview.jsonc", "apps/gateway/wrangler.production.jsonc",
@@ -72,9 +74,9 @@ PAGE_POLICY = ("frame-ancestors 'none'; base-uri 'self'; object-src 'none'; form
                f"connect-src 'self' {GATEWAY} {SUPABASE}")
 
 
-def healthy_frontend(sha=SHA, unknown=404, research=200):
+def healthy_frontend(sha=SHA, unknown=404, research=200, site=SITE):
     def fetch(url):
-        if url == f"{SITE}/":
+        if url == f"{site}/":
             return 200, "<title>NexusRAG</title>"
         if url.endswith("/_nexus-build.json"):
             return 200, json.dumps({"source_commit": sha})
@@ -96,6 +98,35 @@ class TargetIsolationTests(unittest.TestCase):
         self.assertEqual(release.supabase_url(candidate), "https://ukgjygzfhyvnrsecdcuu.supabase.co")
         self.assertEqual(release.supabase_url(production), "https://fcjaomiceajcdownarel.supabase.co")
         self.assertEqual(release.other_refs("candidate"), ["fcjaomiceajcdownarel"])
+        self.assertEqual((candidate["public_url"], production["public_url"]),
+                         ("https://nexusrag-preview.pages.dev", "https://nexusrag.pages.dev"))
+
+    def test_a_public_address_is_its_own_pages_project_and_is_never_shared(self):
+        production = release.TARGETS["production"]
+        for change, message in (({"public_url": "https://nexusrag.example.com"}, "Pages project's own address"),
+                                ({"public_url": "http://nexusrag.pages.dev"}, "Pages project's own address"),
+                                ({"pages_project": "nexusrag-preview", "public_url": "https://nexusrag-preview.pages.dev"},
+                                 "share a resource that must be separate: pages_project")):
+            with self.subTest(change=change), mock.patch.dict(release.TARGETS, {"production": {**production, **change}}):
+                with self.assertRaisesRegex(release.ReleaseError, message):
+                    release.validate_targets()
+
+    def test_origins_are_the_public_address_and_the_workers_own(self):
+        answer = {"success": True, "result": {"subdomain": "example"}}
+        with mock.patch.object(release, "cloudflare", return_value=answer) as cloudflare:
+            urls = release.origins(release.TARGETS["production"], "account", "token")
+        cloudflare.assert_called_once_with("/accounts/account/workers/subdomain", "token")
+        self.assertEqual(urls, {"gateway": "https://nexusrag-v6-preview-gateway.example.workers.dev",
+                                "frontend": "https://nexusrag.pages.dev",
+                                "frontend_worker": "https://nexusrag-v6-frontend-preview.example.workers.dev"})
+
+    def test_the_build_is_made_for_the_public_address(self):
+        env = {"CLOUDFLARE_API_TOKEN": "token", "CLOUDFLARE_ACCOUNT_ID": "account",
+               "NEXT_PUBLIC_SUPABASE_URL": SUPABASE, "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY": "sb_publishable_synthetic"}
+        with mock.patch.dict(os.environ, env, clear=True), mock.patch.object(release, "origins", return_value=URLS), \
+             mock.patch("sys.stdout", io.StringIO()) as out:
+            self.assertEqual(release.build_env("candidate"), 0)
+        self.assertEqual(out.getvalue(), f"NEXT_PUBLIC_API_URL={GATEWAY}\nNEXT_PUBLIC_SITE_URL={PUBLIC}\n")
 
     def test_a_config_that_names_another_resource_is_refused(self):
         changes = {
@@ -269,7 +300,7 @@ class ReleaseFlowTests(unittest.TestCase):
             env = {**self.env, "GITHUB_OUTPUT": str(output), **(extra_env or {})}
             completed = mock.Mock(returncode=0)
             with mock.patch.dict(os.environ, env, clear=True), \
-                 mock.patch.object(release, "origins", return_value={"gateway": GATEWAY, "frontend": SITE}), \
+                 mock.patch.object(release, "origins", return_value=URLS), \
                  mock.patch.object(release, "active_version", return_value=previous), \
                  mock.patch.object(release, "wrangler", return_value=completed) as wrangler, \
                  mock.patch.object(release, "fetch", side_effect=fetch), \
@@ -292,7 +323,7 @@ class ReleaseFlowTests(unittest.TestCase):
         self.assertEqual(variables["QDRANT_COLLECTION"], "nexusrag-v6-candidate")
         self.assertEqual(variables["GEMINI_MODEL"], ",".join(MODELS))
         self.assertEqual(variables["GEMINI_EMBEDDING_MODEL"], "gemini-embedding-001")
-        self.assertEqual(variables["FRONTEND_ORIGIN"], SITE)
+        self.assertEqual(variables["FRONTEND_ORIGIN"], f"{PUBLIC},{SITE}")
         self.assertEqual(variables["SUPABASE_URL"], "https://ukgjygzfhyvnrsecdcuu.supabase.co")
         self.assertFalse([call for call in wrangler.call_args_list if call.args[0] == "rollback"])
         self.assertIn("Smoke test: passed", printed)
@@ -368,10 +399,12 @@ class ReleaseFlowTests(unittest.TestCase):
             assets.mkdir(parents=True)
             (assets / "_nexus-build.json").write_text(json.dumps({"source_commit": SHA}))
             env = {"CLOUDFLARE_API_TOKEN": "token", "CLOUDFLARE_ACCOUNT_ID": "account"}
-            for fetch, expected in [(healthy_frontend(), 0), (healthy_frontend(unknown=500), 1)]:
+            # The smoke test goes through the public address, as people do.
+            for fetch, expected in [(healthy_frontend(site=PUBLIC), 0), (healthy_frontend(site=PUBLIC, unknown=500), 1),
+                                    (healthy_frontend(), 1)]:
                 with self.subTest(expected=expected), mock.patch.object(release, "ROOT", root), \
                      mock.patch.dict(os.environ, env, clear=True), \
-                     mock.patch.object(release, "origins", return_value={"gateway": GATEWAY, "frontend": SITE}), \
+                     mock.patch.object(release, "origins", return_value=URLS), \
                      mock.patch.object(release, "active_version", return_value=PREVIOUS), \
                      mock.patch.object(release.subprocess, "run", return_value=mock.Mock(returncode=0)) as run, \
                      mock.patch.object(release, "wrangler", return_value=mock.Mock(returncode=0)) as wrangler, \

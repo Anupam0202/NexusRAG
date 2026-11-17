@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { createDocumentStaticWorker } from "./static-document-worker";
+import { createDocumentStaticWorker, toPublicAddress } from "./static-document-worker";
 const id = "00000000-0000-4000-8000-000000000001";
 const origin = "https://synthetic.invalid";
 describe("static document-detail Worker routing", () => {
@@ -44,5 +44,43 @@ describe("static document-detail Worker routing", () => {
     const env = {}, ctx = {}, request = new Request(`${origin}/auth/confirm/verify`);
     expect(await (await worker.fetch(request, env, ctx)).text()).toBe("Delegate fixture");
     expect(delegate.fetch).toHaveBeenCalledWith(request, env, ctx);
+  });
+});
+
+describe("pages asked for on the Worker's own address", () => {
+  const site = "https://nexusrag.pages.dev";
+  const own = "https://nexusrag-app.example.workers.dev";
+  const page = (url: string, init: RequestInit = {}) =>
+    new Request(url, { ...init, headers: { Accept: "text/html,application/xhtml+xml", ...(init.headers ?? {}) } });
+
+  it("go to the public address with their path and query, temporarily and without being stored", async () => {
+    const delegate = { fetch: vi.fn() };
+    const response = await createDocumentStaticWorker(delegate, [], site).fetch(page(`${own}/research?plan=1`), {}, {});
+    expect(response.status).toBe(302);
+    expect(response.headers.get("Location")).toBe(`${site}/research?plan=1`);
+    expect(response.headers.get("Cache-Control")).toBe("no-store");
+    expect(response.headers.get("Content-Security-Policy")).toBeNull();
+    expect(delegate.fetch).not.toHaveBeenCalled();
+    const document = await createDocumentStaticWorker(delegate, [], site).fetch(page(`${own}/documents/${id}`, { method: "HEAD" }), {}, {});
+    expect(document.headers.get("Location")).toBe(`${site}/documents/${id}`);
+  });
+
+  it("are served where they are asked for on the public address, locally, or when the build names no address", () => {
+    for (const url of [`${site}/research`, "http://localhost:3003/research", "https://nexusrag.example.com/research"]) {
+      expect(toPublicAddress(page(url), site)).toBeNull();
+    }
+    expect(toPublicAddress(page(`${own}/research`), null)).toBeNull();
+  });
+
+  it("leave files, data requests and changes where they are, so release checks and open pages keep working", () => {
+    expect(toPublicAddress(new Request(`${own}/_nexus-build.json`), site)).toBeNull();
+    expect(toPublicAddress(new Request(`${own}/research`, { headers: { Accept: "*/*", RSC: "1" } }), site)).toBeNull();
+    expect(toPublicAddress(page(`${own}/auth/callback`, { method: "POST" }), site)).toBeNull();
+  });
+
+  it("are served by the app once they reach the public address", async () => {
+    const delegate = { fetch: vi.fn().mockResolvedValue(new Response("Delegate fixture")) };
+    const response = await createDocumentStaticWorker(delegate, [], site).fetch(page(`${site}/research`), {}, {});
+    expect(await response.text()).toBe("Delegate fixture");
   });
 });

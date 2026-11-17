@@ -1,10 +1,11 @@
 # NexusRAG completion progress
-Last updated: 2026-11-16 — the preview gateway runs `cc3fc24`; workspace deletion is verified live there (16
-November), as document deletion and retention were (13 November). Account deletion, CALCULATION runs (NX-17) and the
-reconciliation (NX-27) are built and tested offline, with their three migrations still waiting for the owner's
-confirmation on the rehearsal project. Supabase secret-key support (NX-26), per-user BYOK sealing (NX-24), the
-upload orphan fix, the tenant index (NX-36) and page script and connection policies (NX-28) are built and tested
-offline. The live journey still stops at ingestion on the shared Gemini key's HTTP 402
+Last updated: 2026-11-17 — the app has plain public addresses: https://nexusrag.pages.dev (production) and
+https://nexusrag-preview.pages.dev (preview), Cloudflare Pages front doors that switch to serving the app by
+themselves when a build made for them is released, and until then send people on to the Workers (verified from
+outside on 17 November). Cloudflare holds only what the two environments use. The preview gateway runs `739c7c2`;
+workspace deletion, document deletion and retention are verified live there. Account deletion, CALCULATION runs
+and the reconciliation wait for their three rehearsal migrations (the owner's confirmation). The live journey still
+stops at ingestion: the key the owner supplied on 17 November also answers HTTP 402 (no prepaid credit)
 
 ## Current state
 - main: `85b14f1`; working branch: `codex/runtime-manifest-008` (draft PR #12, owner-approved for direct
@@ -34,6 +35,18 @@ offline. The live journey still stops at ingestion on the shared Gemini key's HT
   `GEMINI_USER_KEY_ENCRYPTION_SECRET`, and nothing has been changed there.
 - Gemini: the candidate Worker's shared key answers **HTTP 402** (its Google project is prepaid and has no
   credit; Google enforces this since March 2026). Every ingestion and every chat on the shared key fails.
+- Public addresses (17 November): Pages projects `nexusrag` → https://nexusrag.pages.dev, bound to
+  `nexusrag-v6-frontend-preview`, and `nexusrag-preview` → https://nexusrag-preview.pages.dev, bound to
+  `nexusrag-v6-candidate-frontend` (deployed with `scripts/front_door.py`; code `apps/front-door/worker.js`). Both
+  Workers still run builds from before the front door, so page requests are sent on (302) to the Workers' own
+  addresses; Cloudflare's URL scanner, run from outside, followed the preview address to the app, with every file
+  served (200). The service-binding path is exercised by the first release made for the public address. This
+  session cannot open `*.pages.dev` (network allowlist).
+- Cloudflare (17 November): Workers `nexusrag-v6-candidate-gateway`, `nexusrag-v6-candidate-frontend`,
+  `nexusrag-v6-preview-gateway`, `nexusrag-v6-frontend-preview`; queues `nexusrag-v6-candidate-ingestion`,
+  `nexusrag-v6-preview-ingestion` and their DLQs; the two Pages projects above. The retired PR3 Workers
+  (`nexusrag-v6-pr3-gateway`, `nexusrag-v6-pr3-frontend`) and queues (`nexusrag-v6-pr3-ingestion` and its DLQ)
+  were deleted on 17 November at the owner's request. No KV, D1, R2, Hyperdrive or zones.
 - Qdrant: cluster `fc0c77d2-d9fd-4648-8459-09fa74372f16` (AWS eu-west-2) stopped serving between 9 and 11
   November and serves again since 12 November. The preview gateway reaches it with its own key (`/ready`:
   READY). The daily keep-alive is live on the preview from `4864133`; production gets it with the release.
@@ -92,6 +105,7 @@ offline. The live journey still stops at ingestion on the shared Gemini key's HT
 | 2026-11-13 | NX-28 part: security headers on every page, file and error (Worker and `_headers`), checked on the built Worker; hostile-markdown test | 2 | `5262bff` |
 | 2026-11-13 | NX-16 retention runs: owners and administrators set a number of days; every day (and on "Run now") documents uploaded before the cutoff go through the normal deletion, chat messages and research results from before it are removed, and conversations unused since are removed or closed; saved findings, what they cite and Radar pages stay. Turning it on asks for a second click that names the cutoff date | 3 (local replay with new assertions; 926 gateway and 776 frontend tests); 4 on 13 November (below) | `f589e7b` |
 | 2026-11-16 | NX-22 ingestion limits. A PDF or image cut off at 8,192 output tokens (about a dozen pages; it used to fail with "split the document") is read again with the model's published limit: 65,536 tokens for both pinned models, roughly 100 pages (Google's model pages, read 16 November). The job's lease is renewed during the read. The shared key's budget counts a file at no more input than a request can hold; one token per byte had made every PDF over 4 MB impossible on the trial. Word text comes from the elements Word shows. Every way a read can end has its own plain message, and nothing partial is indexed. Not done: a PDF's own text layer and splitting by page (a PDF parser does not fit the free plan's CPU limit) | 1 (986 gateway tests; 12 new, eleven broken variants each refused). The long read has run against a stand-in only | `e0d3b60` |
+| 2026-11-17 | Plain public addresses, at the owner's request (no version, "preview" or "gateway" in them): a front door per environment, a Cloudflare Pages project whose code hands every request to the frontend Worker through a service binding (Pages is the only free Cloudflare product with a one-word address). It serves a build made for its address and sends the pages of any other build to the address that build names, so it switches over by itself at the next release and never breaks the app before. Builds name their address in `/_nexus-build.json` (`site_url`); the frontend Worker sends pages opened on its own `workers.dev` address to the public one, because sign-in returns only there; the gateway accepts a list of origins. `release.py` builds for the public address and smoke-tests through it. Cloudflare cleanup: the PR3 Workers and queues deleted | 1 (9 front-door, 9 deploy-script, 3 new release and 7 new frontend tests; CORS list matched exactly); 2 for the path that serves the app (the built frontend Worker behind the front door over a real service binding, locally: pages with their script policy, files, the document shell and a 404, and `release.py`'s frontend smoke passed; on its own `workers.dev` address the Worker sends pages on with a 302); 4 for the redirect path (an outside scan of the preview address) | this commit |
 | 2026-11-16 | Preview gateway released at `cc3fc24`; NX-16 workspace deletion verified live (see the live checks below). `preview_smoke.py` has a second journey, `--journey workspace-deletion`, which needs no model key, so it can be run on the preview whatever the Gemini key's state | 4 for workspace deletion (19 of 19 live checks, then the database checked directly); 1 for the journey itself (five faults each fail exactly their own check against an in-memory gateway) | `d6b490c` |
 | 2026-11-15 | NX-27 done: reconciliation of file storage and the search index with the database. Two read-only reports (`20261114120000_storage_reconciliation.sql`) find stored files no row names (older than an hour, so an upload in progress is left alone), documents whose original is gone, index entries of versions that no longer exist, and answerable documents the index holds nothing of. The gateway logs the counts in the first cron run of each day (`store_reconciliation`, a warning when anything is found). `scripts/reconciliation.py` and the manual Store Reconciliation workflow show them, printing counts only because workflow logs are public, and remove leftovers only when given the count of a fresh report; the index is not touched while documents are missing from it. The report's queries, run read-only on production: 7 stored files, none without a document, no original missing | 3 for the reports (fresh replay with nine broken variants each refused by the assertions), 1 for the rest (974 gateway tests; 18 tool tests with eight broken variants each refused) | `36114ce`, `2253a3a`, `b7e8250` |
 | 2026-11-14 | NX-28 follow-up: the first CI run failed in Firefox only, on the test, not the app: a browser revalidates a page it has stored, the 304 it gets carries no policy by design, and Firefox reports that 304 where Chromium and WebKit report the stored page. The test now reads each page's policy from a fresh request and checks in the browser that an injected inline script and a request to another origin are refused, also on a stored page opened again | 2 ([CI](https://github.com/Anupam0202/NexusRAG/actions/runs/43602062101): Chromium, mobile Chrome, Firefox, WebKit and mobile WebKit; three broken variants each fail locally) | `7d45ec3` |
@@ -144,7 +158,14 @@ Owner actions, most urgent first (none can be done from a cloud session):
 1. **Gemini key.** Replace the shared key with one that works: create a key in Google AI Studio in a project
    without prepaid billing (free tier), or add credit to the current project. Put it in the candidate Worker
    secret `GOOGLE_API_KEY` and the GitHub environments' `GOOGLE_API_KEY`. Until then nothing that uses the
-   shared key can be verified live.
+   shared key can be verified live. The key supplied on 17 November belongs to a prepaid project without credit
+   too (HTTP 402 on both pinned models, checked twice that day).
+1a. **Supabase Auth addresses** (Authentication → URL Configuration), before the first release made for the
+   public addresses: production `fcjaomiceajcdownarel` — Site URL `https://nexusrag.pages.dev`, add redirect URL
+   `https://nexusrag.pages.dev/**`; rehearsal `ukgjygzfhyvnrsecdcuu` — Site URL
+   `https://nexusrag-preview.pages.dev`, add `https://nexusrag-preview.pages.dev/**`, and remove the retired PR3
+   redirect URLs. Optional, same visit: rename the production project from its generated name
+   (`supabase-camel-drawer`) to `NexusRAG`.
 2. **Preview deploys from this branch** (this also applies the pending rehearsal migrations without the Supabase
    connector, if `SUPABASE_DB_URL` is set in that environment). In GitHub → Settings → Environments → `NexusRAG-Candidate-Preview`,
    allow `codex/runtime-manifest-008` (or all branches) under deployment branches. The frontend preview cannot
@@ -211,7 +232,9 @@ Decisions (D25 delegates product and technical decisions; exceptions in `MASTER_
 5. Frontend preview: Actions → Cloudflare Preview Deploy → Run workflow on this branch with "deploy candidate
    preview" ticked; then check `/research`, `/radar`, `/evidence-api` return 200 and an unknown path 404, and that
    signed-in pages show no Content-Security-Policy errors in the browser console (the release checks the home page's
-   policy; signed-in use was checked offline only).
+   policy; signed-in use was checked offline only). This is the first build made for
+   https://nexusrag-preview.pages.dev: check that the address now serves the app itself (no redirect), that Google
+   sign-in returns there, and that the Worker's own address sends pages to it.
 6. Build next, none of which needs the keys: keyword search in the database instead of scoring 200 rows in the
    Worker (NX-20).
 6b. Once a Gemini key works: upload a PDF of 40 to 80 pages on the preview and check that it becomes Ready with

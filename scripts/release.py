@@ -40,7 +40,8 @@ SHA = re.compile(r"^[a-f0-9]{40}$")
 API = "https://api.cloudflare.com/client/v4"
 
 # The Workers named "*-preview" have served production since September 2026 (decision D8): releasing into them
-# keeps the public URL, the OAuth redirect settings, the queue and the stored secrets.
+# keeps the queue and the stored secrets. People reach each target at its public address, a Cloudflare Pages project
+# (the front door, apps/front-door) that hands every request to the frontend Worker (scripts/front_door.py).
 TARGETS = {
     "candidate": {
         "gateway_worker": "nexusrag-v6-candidate-gateway",
@@ -51,6 +52,8 @@ TARGETS = {
         "dlq": "nexusrag-v6-candidate-ingestion-dlq",
         "qdrant_collection": "nexusrag-v6-candidate",
         "supabase_ref": "ukgjygzfhyvnrsecdcuu",
+        "pages_project": "nexusrag-preview",
+        "public_url": "https://nexusrag-preview.pages.dev",
     },
     "production": {
         "gateway_worker": "nexusrag-v6-preview-gateway",
@@ -61,20 +64,22 @@ TARGETS = {
         "dlq": "nexusrag-v6-preview-ingestion-dlq",
         "qdrant_collection": "nexusrag-v6-preview",
         "supabase_ref": "fcjaomiceajcdownarel",
+        "pages_project": "nexusrag",
+        "public_url": "https://nexusrag.pages.dev",
     },
 }
 
 
 # PR-specific preview configs were retired in October 2026; deployments must not bring them back.
 RETIRED_CONFIGS = ("frontend/wrangler.pr3.jsonc", "apps/gateway/wrangler.pr3-preview.jsonc")
-# The frontend Worker wraps the OpenNext Worker so document links are served from the shell and every page gets its
-# script and connection policy (NX-28).
+# The frontend Worker wraps the OpenNext Worker so document links are served from the shell, every page gets its
+# script and connection policy (NX-28), and pages opened on the Worker's own address go to the public one.
 FRONTEND_WRAPPER = (
     'import nextWorker from "./.open-next/worker.js"',
     'import pagePolicy from "./.open-next/page-policy.json"',
     'from "./src/lib/static-document-worker"',
     'export * from "./.open-next/worker.js"',
-    "export default createDocumentStaticWorker(nextWorker, pagePolicy.connect)",
+    "export default createDocumentStaticWorker(nextWorker, pagePolicy.connect, pagePolicy.site ?? null)",
 )
 
 
@@ -113,11 +118,14 @@ def validate_targets(root: Path = ROOT) -> None:
     for expected in FRONTEND_WRAPPER:
         if expected not in wrapper.read_text(encoding="utf-8"):
             raise ReleaseError(f"The frontend wrapper does not preserve {expected}.")
-    for key in ("gateway_worker", "frontend_worker", "queue", "dlq", "qdrant_collection", "supabase_ref"):
+    for key in ("gateway_worker", "frontend_worker", "queue", "dlq", "qdrant_collection", "supabase_ref",
+                "pages_project", "public_url"):
         values = [target[key] for target in TARGETS.values()]
         if len(values) != len(set(values)):
             raise ReleaseError(f"Release targets share a resource that must be separate: {key}")
     for name, target in TARGETS.items():
+        if target["public_url"] != f"https://{target['pages_project']}.pages.dev":
+            raise ReleaseError(f"The {name} public address must be its Pages project's own address.")
         gateway = json.loads(strip_jsonc((root / target["gateway_config"]).read_text(encoding="utf-8")))
         queues = gateway.get("queues", {})
         producer = (queues.get("producers") or [{}])[0]
@@ -157,10 +165,13 @@ def cloudflare(path: str, token: str) -> dict:
 
 
 def origins(target: dict, account: str, token: str) -> dict[str, str]:
+    """Where a target is reached: the gateway, the app's public address (`frontend`, what people open and what the
+    build is made for) and the frontend Worker's own address, which sends pages on to the public one."""
     subdomain = cloudflare(f"/accounts/{account}/workers/subdomain", token)["result"]["subdomain"]
     return {
         "gateway": f"https://{target['gateway_worker']}.{subdomain}.workers.dev",
-        "frontend": f"https://{target['frontend_worker']}.{subdomain}.workers.dev",
+        "frontend": target["public_url"],
+        "frontend_worker": f"https://{target['frontend_worker']}.{subdomain}.workers.dev",
     }
 
 
@@ -390,7 +401,8 @@ def release_gateway(name: str, sha: str, secrets_file: str | None, allow_index_d
         "SUPABASE_URL": env["SUPABASE_URL"],
         "SUPABASE_PUBLISHABLE_KEY": env["SUPABASE_PUBLISHABLE_KEY"],
         "QDRANT_COLLECTION": target["qdrant_collection"],
-        "FRONTEND_ORIGIN": urls["frontend"],
+        # The public address, and the Worker's own one for pages opened there before a release reached them.
+        "FRONTEND_ORIGIN": f"{urls['frontend']},{urls['frontend_worker']}",
         "RUNTIME_SERVICE_NAME": target["gateway_worker"],
         # --keep-vars would keep a stale model on the Worker, so every release states the policy (D24).
         "GEMINI_MODEL": ",".join(models),

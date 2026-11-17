@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import worker, { allowRequest, handle, storageDelete } from "../../apps/gateway/src/preview-worker.js";
+import worker, { allowRequest, allowedOrigin, handle, storageDelete } from "../../apps/gateway/src/preview-worker.js";
 import { resetIndexProbeMemory } from "../../apps/gateway/src/search-index.js";
 
 const request = (path = "/health", init = {}) => new Request(`https://preview.invalid${path}`, init);
@@ -220,6 +220,21 @@ test("CORS is exact-origin and preflight is bounded", async () => {
   assert.match(settingsPreflight.headers.get("access-control-allow-methods"), /PATCH/);
   const denied = await handle(request("/api/v2/capabilities", { method: "OPTIONS", headers: { Origin: "https://evil.invalid" } }), configured);
   assert.equal(denied.headers.get("access-control-allow-origin"), null);
+});
+
+test("CORS allows each listed app origin exactly, and nothing that merely resembles one", async () => {
+  const env = { ...configured, FRONTEND_ORIGIN: "https://nexusrag.pages.dev, https://app.example.workers.dev" };
+  for (const origin of ["https://nexusrag.pages.dev", "https://app.example.workers.dev"]) {
+    const allowed = await handle(request("/api/v2/capabilities", { method: "OPTIONS", headers: { Origin: origin } }), env);
+    assert.equal(allowed.headers.get("access-control-allow-origin"), origin);
+    assert.equal(allowed.headers.get("vary"), "Origin");
+  }
+  for (const origin of ["https://nexusrag.pages.dev.evil.invalid", "https://evil.pages.dev", "https://nexusrag.pages.dev, https://app.example.workers.dev", "null", ""]) {
+    const denied = await handle(request("/api/v2/capabilities", { method: "OPTIONS", headers: { Origin: origin } }), env);
+    assert.equal(denied.headers.get("access-control-allow-origin"), null, origin);
+  }
+  assert.equal(allowedOrigin({ FRONTEND_ORIGIN: "" }, ""), false);
+  assert.equal(allowedOrigin({}, "https://nexusrag.pages.dev"), false);
 });
 
 test("per-user fallback limiter rejects the sixty-first request", () => {

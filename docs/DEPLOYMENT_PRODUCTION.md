@@ -1,8 +1,39 @@
 # Production release
 
-Production runs on Cloudflare Workers (`nexusrag-v6-preview-gateway` and `nexusrag-v6-frontend-preview`; the
-names are historical), Supabase project `fcjaomiceajcdownarel`, the Qdrant collection `nexusrag-v6-preview` and
-Gemini. A release is one manual run of the **Production Deploy** workflow.
+People open production at **https://nexusrag.pages.dev**. Behind that address it runs on Cloudflare Workers
+(`nexusrag-v6-preview-gateway` and `nexusrag-v6-frontend-preview`; the names are historical), Supabase project
+`fcjaomiceajcdownarel`, the Qdrant collection `nexusrag-v6-preview` and Gemini. A release is one manual run of the
+**Production Deploy** workflow.
+
+## The public address
+
+`https://nexusrag.pages.dev` is the front door: a Cloudflare Pages project, `nexusrag`, whose only code
+(`apps/front-door/worker.js`) hands every request to the frontend Worker through a service binding, so the browser
+keeps the plain address while the app keeps running and releasing as its Worker. Pages is the only free Cloudflare
+product with a one-word address; a custom domain would replace it later without changing the app.
+
+Before a page is served, the front door reads the build's `/_nexus-build.json`. A build made for the public address
+(`site_url`) is served there. Any other build, including the one production ran before the front door existed, has
+its pages sent on to the Worker's own address, so the switch happens by itself when the first release made for the
+public address goes live. From then on the Worker sends pages opened on its own address to the public one, because
+sign-in returns only to the address the build names. The gateway accepts both origins (`FRONTEND_ORIGIN`).
+
+The front door is set up once, and again only when its code changes:
+
+```bash
+CLOUDFLARE_API_TOKEN=... CLOUDFLARE_ACCOUNT_ID=... python3 scripts/front_door.py deploy --target production
+```
+
+The token needs Pages edit access (the Workers token in the GitHub environment does not need it). The script
+creates the project if it is missing, binds the frontend Worker as `APP`, and refuses a project whose address
+Cloudflare gave differently. It uploads only the front door's code.
+
+In Supabase (project `fcjaomiceajcdownarel` → Authentication → URL Configuration), before the first release made
+for the public address:
+
+- **Site URL:** `https://nexusrag.pages.dev`
+- **Redirect URLs:** add `https://nexusrag.pages.dev/**`. The Worker's own `workers.dev` entry can be removed once
+  a release made for the public address has run.
 
 ## Before the first release
 
@@ -38,9 +69,10 @@ The workflow then:
 3. Deploys the gateway together with its secrets, then checks `/health` (commit, models, providers), that an
    unauthenticated API call is refused, and `/ready`: the new version must reach its database and its search
    index with its own credentials. If a check fails, it restores the previous gateway version.
-4. Builds and deploys the frontend, then checks the home page, the build identity, `/research`, `/radar`,
-   `/evidence-api` and that an unknown path returns 404, followed by the browser smoke tests. If any of these
-   fail, it restores the previous frontend version and then the previous gateway version.
+4. Builds and deploys the frontend for the public address, then checks, through that address, the home page, the
+   build identity, `/research`, `/radar`, `/evidence-api` and that an unknown path returns 404, followed by the
+   browser smoke tests. If any of these fail, it restores the previous frontend version and then the previous
+   gateway version.
 
 ## After the first release: allow processing
 

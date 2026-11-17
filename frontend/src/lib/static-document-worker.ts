@@ -10,14 +10,33 @@ interface Delegate {
 
 /**
  * Keep OpenNext for other routes; tenant data is fetched only by the gated client. `connect` lists the origins pages
- * may connect to besides their own (scripts/write-page-policy.mjs).
+ * may connect to besides their own, and `site` is the address the build was made for (scripts/write-page-policy.mjs).
  */
-export function createDocumentStaticWorker(nextWorker: Delegate, connect: readonly string[] = []) {
+export function createDocumentStaticWorker(nextWorker: Delegate, connect: readonly string[] = [], site: string | null = null) {
   return {
     async fetch(request: Request, env: AssetEnvironment, context: unknown) {
-      return withSecurityHeaders(await route(nextWorker, request, env, context), connect);
+      const moved = toPublicAddress(request, site);
+      return withSecurityHeaders(moved ?? await route(nextWorker, request, env, context), connect);
     },
   };
+}
+
+/**
+ * A page asked for on the Worker's own workers.dev address is sent to the address the build was made for: sign-in
+ * returns only there, and the gateway expects requests from it. Files, data and every other method are served where
+ * they are asked for, so release checks and open pages keep working. The redirect is temporary (302), so browsers do
+ * not keep it if the public address ever changes.
+ */
+export function toPublicAddress(request: Request, site: string | null): Response | null {
+  if (!site || !["GET", "HEAD"].includes(request.method)) return null;
+  if (!(request.headers.get("Accept") ?? "").includes("text/html")) return null;
+  const url = new URL(request.url);
+  const target = new URL(site);
+  if (url.host === target.host || !url.hostname.endsWith(".workers.dev")) return null;
+  return new Response(null, {
+    status: 302,
+    headers: { Location: new URL(`${url.pathname}${url.search}`, target.origin).toString(), "Cache-Control": "no-store" },
+  });
 }
 
 async function route(nextWorker: Delegate, request: Request, env: AssetEnvironment, context: unknown): Promise<Response> {

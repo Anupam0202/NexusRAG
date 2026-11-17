@@ -17,6 +17,9 @@ colleague and exported with its evidence.
 It runs on free tiers: a Cloudflare Worker gateway, a Next.js frontend on Cloudflare, Supabase for sign-in,
 records and files, Qdrant for vector search, and Google's Gemini API for reading documents and writing answers.
 
+**Open it at [nexusrag.pages.dev](https://nexusrag.pages.dev)**; the preview of the next release is at
+[nexusrag-preview.pages.dev](https://nexusrag-preview.pages.dev).
+
 ## What it does
 
 - **Workspaces and members.** Sign in with Google or GitHub, create a workspace, and add colleagues as
@@ -161,7 +164,7 @@ Gateway (Worker variables and secrets):
 | `GOOGLE_API_KEY` | secret | The service's Gemini key (trial use and the daily model check) |
 | `GEMINI_USER_KEY_ENCRYPTION_SECRET` | secret | Encrypts users' own Gemini keys, each bound to its user; to rotate it, move the old value to `GEMINI_USER_KEY_ENCRYPTION_SECRET_PREVIOUS` until the daily cron has re-sealed every key |
 | `GEMINI_MODEL`, `GEMINI_EMBEDDING_MODEL` | variable | Optional overrides of the model policy |
-| `FRONTEND_ORIGIN` | variable | The frontend's origin, for CORS |
+| `FRONTEND_ORIGIN` | variable | The app's origins, comma-separated, for CORS: its public address and the frontend Worker's own |
 
 Frontend (read at build time):
 
@@ -169,6 +172,7 @@ Frontend (read at build time):
 |---|---|
 | `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | The Supabase project, for sign-in |
 | `NEXT_PUBLIC_API_URL` | The gateway's URL |
+| `NEXT_PUBLIC_SITE_URL` | The app's public address: sign-in returns there, and the frontend Worker sends pages opened on its own address to it |
 | `NEXT_PUBLIC_OAUTH_PROVIDERS` | Sign-in providers to offer, for example `google,github`; each needs its OAuth callbacks configured in Supabase Auth |
 | `NEXT_PUBLIC_FEATURES` | Products in development to show, for example `radar,evidence-api` |
 
@@ -178,7 +182,9 @@ Nothing deploys automatically. A preview deploy is opt-in: a manual run of the C
 (GitHub environment `NexusRAG-Candidate-Preview`) or of `scripts/release.py`; a working preview is
 not production acceptance. Production is released by a manual run of the Production Deploy workflow. Every release checks
 `/health` and `/ready` on the new version and rolls back automatically on failure. The preview and production use
-separate Workers, queues, collections and Supabase projects, and the release script refuses to mix them.
+separate Workers, queues, collections and Supabase projects, and the release script refuses to mix them. People
+reach each one at its public address, a small Cloudflare Pages project (`apps/front-door`) that hands every request
+to the frontend Worker; `scripts/front_door.py` sets it up.
 
 - Preview: [docs/DEPLOYMENT_FREE.md](docs/DEPLOYMENT_FREE.md)
 - Production: [docs/DEPLOYMENT_PRODUCTION.md](docs/DEPLOYMENT_PRODUCTION.md)

@@ -110,11 +110,17 @@ function allowRequest(key, now = Date.now()) {
   recent.push(now); buckets.set(key, recent); return true;
 }
 
+// FRONTEND_ORIGIN lists the app's origins, comma-separated: its public address and the frontend Worker's own one.
+// Each is matched exactly, never as a prefix or pattern.
+export function allowedOrigin(env, origin) {
+  return Boolean(origin) && String(env.FRONTEND_ORIGIN || "").split(",").some((entry) => entry.trim() === origin);
+}
+
 function headers(request, env) {
   const output = new Headers(BASE_HEADERS);
   output.set("x-request-id", request.headers.get("cf-ray") || crypto.randomUUID());
   const origin = request.headers.get("origin");
-  if (origin && origin === env.FRONTEND_ORIGIN) {
+  if (allowedOrigin(env, origin)) {
     output.set("access-control-allow-origin", origin);
     output.set("access-control-allow-credentials", "true");
     output.set("access-control-expose-headers", "retry-after");

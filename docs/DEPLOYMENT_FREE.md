@@ -5,6 +5,11 @@ The candidate preview is the place to test a branch on real services at no cost:
 `nexusrag-v6-candidate`, and the rehearsal Supabase project `ukgjygzfhyvnrsecdcuu`. It never shares a Worker,
 queue, collection or database with production; `scripts/release.py` refuses any other combination.
 
+Its public address is **https://nexusrag-preview.pages.dev**, a front door like production's (see "The public
+address" in `docs/DEPLOYMENT_PRODUCTION.md`; `python3 scripts/front_door.py deploy --target candidate`). In the
+rehearsal project's Authentication → URL Configuration, add `https://nexusrag-preview.pages.dev/**` to the
+redirect URLs and make it the Site URL.
+
 ## Deploying a branch
 
 Run **Actions → Cloudflare Preview Deploy → Run workflow**, choose the branch and tick "Deploy this branch to
