@@ -5,6 +5,7 @@ import { handle } from "../../apps/gateway/src/preview-worker.js";
 import { chunkText, sha256 } from "../../apps/gateway/src/worker-pipeline.js";
 import { encryptGeminiKey } from "../../apps/gateway/src/user-gemini-key.js";
 import { resetGeminiModelMemory } from "../../apps/gateway/src/gemini-models.js";
+import { resetAccessTokenKeys } from "../../apps/gateway/src/access-token.js";
 
 const workspace = "10101010-1010-4010-8010-101010101010";
 const userId = "20202020-2020-4020-8020-202020202020";
@@ -1036,4 +1037,72 @@ test("a document deleted while the answer streams is not cited or saved", async 
   assert.equal(last.event, "error");
   assert.equal(last.data.code, "VERSION_CONFLICT");
   assert.equal(saved(fixture).length, 0);
+});
+
+/** A token signed the way Supabase Auth signs one, and the key list the gateway reads to check it. */
+async function signedSession(supabaseUrl) {
+  const pair = await crypto.subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, true, ["sign", "verify"]);
+  const { x, y } = await crypto.subtle.exportKey("jwk", pair.publicKey);
+  const part = (value) => Buffer.from(JSON.stringify(value)).toString("base64url");
+  const now = Math.floor(Date.now() / 1000);
+  const unsigned = `${part({ alg: "ES256", kid: "budget", typ: "JWT" })}.${part({ iss: `${supabaseUrl}/auth/v1`, aud: "authenticated",
+    role: "authenticated", sub: userId, iat: now - 60, exp: now + 3540 })}`;
+  const signature = await crypto.subtle.sign({ name: "ECDSA", hash: "SHA-256" }, pair.privateKey, new TextEncoder().encode(unsigned));
+  return { token: `${unsigned}.${Buffer.from(signature).toString("base64url")}`, keys: { keys: [{ kty: "EC", crv: "P-256", x, y, kid: "budget", alg: "ES256", use: "sig" }] } };
+}
+
+test("outgoing requests per invocation stay within the free plan's 50, and an answer asks Supabase Auth nothing", async (t) => {
+  resetAccessTokenKeys();
+  const fixture = localAppFixture();
+  const session = await signedSession(fixture.env.SUPABASE_URL);
+  t.mock.method(globalThis, "fetch", async (url, init) => String(url).endsWith("/auth/v1/.well-known/jwks.json") ? json(session.keys) : fixture.fetch(url, init));
+  const counted = async (work) => { const start = fixture.events.length; await work(); return fixture.events.slice(start); };
+  const tally = (calls) => ({
+    total: calls.length,
+    supabase_rest: calls.filter((call) => call.path.startsWith("/rest/v1/")).length,
+    supabase_storage: calls.filter((call) => call.path.startsWith("/storage/v1/")).length,
+    supabase_auth: calls.filter((call) => call.path.startsWith("/auth/v1/")).length,
+    qdrant: calls.filter((call) => call.host === "qdrant.invalid").length,
+    gemini: calls.filter((call) => call.host === "generativelanguage.googleapis.com").length,
+  });
+  const headers = { authorization: `Bearer ${session.token}`, "x-nexus-workspace-id": workspace };
+
+  let uploaded;
+  const upload = tally(await counted(async () => {
+    const form = new FormData();
+    form.set("file", new File([fixture.source], "retention-policy.txt", { type: "text/plain" }));
+    form.set("data_classification", "non_sensitive"); form.set("non_sensitive_attested", "true");
+    const response = await handle(new Request("https://gateway.invalid/api/v1/documents/upload", {
+      method: "POST", headers: { ...headers, "idempotency-key": crypto.randomUUID() }, body: form }), fixture.env);
+    assert.equal(response.status, 202);
+    uploaded = await response.json();
+  }));
+  const batches = [];
+  while (fixture.queue.sent.length) {
+    const body = fixture.queue.sent.shift();
+    batches.push(tally(await counted(() => handleQueue({ messages: [{ body, ack() {}, retry() { assert.fail("a batch was retried"); } }] }, fixture.env))));
+  }
+  const documentId = uploaded.document.document_id;
+  assert.equal(fixture.docs.get(documentId).status, "ready");
+
+  let answer;
+  const chat = tally(await counted(async () => {
+    const response = await handle(new Request("https://gateway.invalid/api/v1/chat", {
+      method: "POST", headers: { ...headers, "content-type": "application/json", "idempotency-key": crypto.randomUUID() },
+      body: JSON.stringify({ question: "What retention period does the policy specify?", non_sensitive_attested: true, document_ids: [documentId], top_k: 8 }),
+    }), fixture.env);
+    answer = await response.json();
+    assert.equal(response.status, 200, JSON.stringify(answer));
+  }));
+  t.diagnostic(`requests per invocation: ${JSON.stringify({ upload, batches, chat })}`);
+
+  assert.match(answer.answer, /30-day retention policy/);
+  assert.equal(answer.metadata.coverage.lexical_search, "RANKED", "keyword search ran in the database, not as a bounded passage read");
+  assert.equal(fixture.restQueries.filter((query) => query.table === "document_chunks" && query.params.get("limit") === "201").length, 0);
+  assert.deepEqual([chat.supabase_auth, upload.supabase_auth, ...batches.map((batch) => batch.supabase_auth)], [0, 0, ...batches.map(() => 0)],
+    "a checked token is never sent to Supabase Auth");
+  assert.deepEqual([chat.qdrant, chat.gemini], [2, 2], "per answer: the collection check and one search, one embedding and one generation call");
+  for (const [name, calls] of [["upload", upload], ["chat", chat], ...batches.map((batch, index) => [`batch ${index + 1}`, batch])]) {
+    assert.ok(calls.total <= 40, `${name} makes ${calls.total} requests; the free plan allows 50 per invocation, and 10 are kept in reserve`);
+  }
 });
