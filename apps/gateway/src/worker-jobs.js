@@ -33,6 +33,23 @@ function queueMessage(job, batchOffset = 0) {
   };
 }
 
+// A document that never had a usable version must not stay "pending" for ever.
+const failUnpublishedDocument = (env, job) => db(env, `documents?id=eq.${job.document_id}&workspace_id=eq.${job.workspace_id}&active_version_id=is.null&status=in.(queued,processing)`, {
+  method: "PATCH", body: JSON.stringify({ status: "failed" }),
+}).catch(() => null);
+
+/** A job that has used all its attempts fails, with its version, and so does a document that never had a usable version. */
+async function failExhaustedJob(env, job) {
+  await db(env, `ingestion_jobs?id=eq.${job.id}&status=in.(queued,retry_wait,processing)`, {
+    method: "PATCH",
+    body: JSON.stringify({ status: "failed", stage: "failed", error_code: "LEASE_EXHAUSTED", error_message: "Maximum batch attempts exhausted.", completed_at: iso(), lease_owner: null, lease_expires_at: null }),
+  });
+  await db(env, `document_versions?id=eq.${job.version_id}&publication_state=neq.ready`, {
+    method: "PATCH", body: JSON.stringify({ publication_state: "failed", failure_code: "LEASE_EXHAUSTED" }),
+  }).catch(() => null);
+  await failUnpublishedDocument(env, job);
+}
+
 async function claim(env, message) {
   const rows = await db(env, `ingestion_jobs?id=eq.${message.job_id}&workspace_id=eq.${message.workspace_id}&select=*&limit=1`);
   const job = rows?.[0];
@@ -44,13 +61,7 @@ async function claim(env, message) {
   if (!Number.isSafeInteger(offset) || offset < 0 || (message.batch_offset != null && Number(message.batch_offset) !== offset)) return null;
   if (job.cancellation_requested_at || (job.available_at && Date.parse(job.available_at) > Date.now())) return null;
   if (Number(job.attempts || 0) >= Number(job.max_attempts || 3)) {
-    await db(env, `ingestion_jobs?id=eq.${job.id}&status=in.(queued,retry_wait,processing)`, {
-      method: "PATCH",
-      body: JSON.stringify({ status: "failed", stage: "failed", error_code: "LEASE_EXHAUSTED", error_message: "Maximum batch attempts exhausted.", completed_at: iso(), lease_owner: null, lease_expires_at: null }),
-    });
-    await db(env, `document_versions?id=eq.${job.version_id}&publication_state=neq.ready`, {
-      method: "PATCH", body: JSON.stringify({ publication_state: "failed", failure_code: "LEASE_EXHAUSTED" }),
-    }).catch(() => null);
+    await failExhaustedJob(env, job);
     return null;
   }
   if (job.status === "processing" && Date.parse(job.lease_expires_at) > Date.now()) return null;
@@ -282,10 +293,7 @@ async function processIngestionMessage(env, message) {
     if (!retry) await db(env, `document_versions?id=eq.${job.version_id}&publication_state=neq.ready`, {
       method: "PATCH", body: JSON.stringify({ publication_state: "failed", failure_code: error.code || "INGESTION_FAILED" }),
     }).catch(() => null);
-    // A document that never had a usable version must not stay "pending" for ever.
-    if (!retry) await db(env, `documents?id=eq.${job.document_id}&workspace_id=eq.${job.workspace_id}&active_version_id=is.null&status=in.(queued,processing)`, {
-      method: "PATCH", body: JSON.stringify({ status: "failed" }),
-    }).catch(() => null);
+    if (!retry) await failUnpublishedDocument(env, job);
     error.retryable = retry;
     throw error;
   }
@@ -315,12 +323,7 @@ async function sweepJobs(env) {
   let enqueued = 0;
   for (const job of unique.values()) {
     if (Number(job.attempts || 0) >= Number(job.max_attempts || 3)) {
-      await db(env, `ingestion_jobs?id=eq.${job.id}&status=in.(queued,retry_wait,processing)`, {
-        method: "PATCH", body: JSON.stringify({ status: "failed", stage: "failed", error_code: "LEASE_EXHAUSTED", error_message: "Maximum batch attempts exhausted.", completed_at: iso(), lease_owner: null, lease_expires_at: null }),
-      });
-      await db(env, `document_versions?id=eq.${job.version_id}&publication_state=neq.ready`, {
-        method: "PATCH", body: JSON.stringify({ publication_state: "failed", failure_code: "LEASE_EXHAUSTED" }),
-      }).catch(() => null);
+      await failExhaustedJob(env, job);
       continue;
     }
     const offset = Number(job.payload?.batch_offset || 0);
