@@ -123,10 +123,16 @@ def validate_targets(root: Path = ROOT) -> None:
         values = [target[key] for target in TARGETS.values()]
         if len(values) != len(set(values)):
             raise ReleaseError(f"Release targets share a resource that must be separate: {key}")
+    limiters = {}
     for name, target in TARGETS.items():
         if target["public_url"] != f"https://{target['pages_project']}.pages.dev":
             raise ReleaseError(f"The {name} public address must be its Pages project's own address.")
         gateway = json.loads(strip_jsonc((root / target["gateway_config"]).read_text(encoding="utf-8")))
+        # Cloudflare counts each user's requests (NX-25), and every target keeps its own counters.
+        limiter = [item for item in gateway.get("ratelimits") or [] if item.get("name") == "USER_RATE_LIMITER"]
+        if len(limiter) != 1 or not str(limiter[0].get("namespace_id", "")).isdigit():
+            raise ReleaseError(f"{target['gateway_config']} must declare the USER_RATE_LIMITER rate limit.")
+        limiters[name] = limiter[0]["namespace_id"]
         queues = gateway.get("queues", {})
         producer = (queues.get("producers") or [{}])[0]
         consumer = (queues.get("consumers") or [{}])[0]
@@ -148,6 +154,8 @@ def validate_targets(root: Path = ROOT) -> None:
                 or assets.get("run_worker_first") != ["/documents/*"]
                 or assets.get("html_handling") != "none" or assets.get("not_found_handling") != "none"):
             raise ReleaseError(f"frontend/{target['frontend_config']} does not keep the required asset routing.")
+    if len(set(limiters.values())) != len(limiters):
+        raise ReleaseError("Release targets share a rate-limit namespace that must be separate.")
 
 
 def cloudflare(path: str, token: str) -> dict:

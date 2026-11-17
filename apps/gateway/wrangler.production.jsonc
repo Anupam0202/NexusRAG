@@ -27,6 +27,15 @@
       }
     ]
   },
+  // Each user's requests per minute, counted by Cloudflare across the Worker's isolates in a location (NX-25).
+  // The preview and production keep separate counters.
+  "ratelimits": [
+    {
+      "name": "USER_RATE_LIMITER",
+      "namespace_id": "4202",
+      "simple": { "limit": 60, "period": 60 }
+    }
+  ],
   "triggers": {
     "crons": ["*/5 * * * *"]
   }

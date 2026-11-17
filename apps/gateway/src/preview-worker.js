@@ -118,6 +118,19 @@ export function allowedOrigin(env, origin) {
   return Boolean(origin) && String(env.FRONTEND_ORIGIN || "").split(",").some((entry) => entry.trim() === origin);
 }
 
+// NX-25: Cloudflare's rate limiter counts a user's requests across the Worker's isolates in each location. Where the
+// binding is absent (local runs, tests) or does not answer, the per-isolate counter above decides instead.
+async function withinRequestLimit(env, userId) {
+  if (typeof env.USER_RATE_LIMITER?.limit === "function") {
+    try {
+      return (await env.USER_RATE_LIMITER.limit({ key: userId }))?.success !== false;
+    } catch {
+      return allowRequest(userId);
+    }
+  }
+  return allowRequest(userId);
+}
+
 function headers(request, env) {
   const output = new Headers(BASE_HEADERS);
   output.set("x-request-id", request.headers.get("cf-ray") || crypto.randomUUID());
@@ -847,7 +860,7 @@ async function handle(request, env = {}) {
   if (!configured(env)) return fail(request, env, "CONFIGURATION_ERROR", "The authenticated gateway is not configured.", 503);
   try {
     const user = await authenticate(request, env);
-    if (!allowRequest(user.id)) {
+    if (!(await withinRequestLimit(env, user.id))) {
       const response=fail(request,env,"TENANT_QUOTA_EXCEEDED","Per-user request limit reached.",429,true);
       response.headers.set("retry-after","60");return response;
     }
@@ -1354,5 +1367,5 @@ const dailyChecks=env=>Promise.all([checkGeminiModels(env).catch(()=>undefined),
 // Every run also finishes document, workspace and account deletions that could not complete when they were
 // requested, and carries out one workspace's retention run when one is due.
 async function scheduled(event,env,ctx){ctx.waitUntil(sweepJobs(env));ctx.waitUntil(sweepDeletions(env,deletionTools));ctx.waitUntil(sweepWorkspaceDeletions(env,workspaceDeletionTools));ctx.waitUntil(sweepAccountDeletions(env,accountDeletionTools));ctx.waitUntil(runDueRetention(env,{db:serviceRequest}));if(isDailyModelCheckWindow(event?.scheduledTime))ctx.waitUntil(dailyChecks(env))}
-export { allowRequest, handle, queue, scheduled, storageDelete };
+export { allowRequest, handle, queue, scheduled, storageDelete, withinRequestLimit };
 export default { fetch: handle, queue, scheduled };

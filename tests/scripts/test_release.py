@@ -128,6 +128,18 @@ class TargetIsolationTests(unittest.TestCase):
             self.assertEqual(release.build_env("candidate"), 0)
         self.assertEqual(out.getvalue(), f"NEXT_PUBLIC_API_URL={GATEWAY}\nNEXT_PUBLIC_SITE_URL={PUBLIC}\n")
 
+    def test_each_gateway_counts_requests_with_its_own_rate_limiter(self):
+        for name, change, message in (
+                ("apps/gateway/wrangler.preview.jsonc", lambda c: c.pop("ratelimits"), "must declare the USER_RATE_LIMITER"),
+                ("apps/gateway/wrangler.production.jsonc", lambda c: c["ratelimits"][0].update(namespace_id="limiter"), "must declare the USER_RATE_LIMITER"),
+                ("apps/gateway/wrangler.production.jsonc", lambda c: c["ratelimits"][0].update(namespace_id="4201"), "share a rate-limit namespace")):
+            with self.subTest(config=name, message=message), tempfile.TemporaryDirectory() as folder:
+                root = copied_repository(folder)
+                release.validate_targets(root)
+                rewrite_json(root / name, change)
+                with self.assertRaisesRegex(release.ReleaseError, message):
+                    release.validate_targets(root)
+
     def test_a_config_that_names_another_resource_is_refused(self):
         changes = {
             "apps/gateway/wrangler.preview.jsonc": lambda c: c.update(name="nexusrag-v6-preview-gateway"),

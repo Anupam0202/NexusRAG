@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { InvalidAccessToken, resetAccessTokenKeys, verifyAccessToken } from "../../apps/gateway/src/access-token.js";
-import { handle } from "../../apps/gateway/src/preview-worker.js";
+import { handle, withinRequestLimit } from "../../apps/gateway/src/preview-worker.js";
 
 const SUPABASE_URL = "https://project.supabase.invalid";
 const env = { SUPABASE_URL };
@@ -130,3 +130,29 @@ test("the gateway answers a checked token without asking Supabase Auth, and refu
   assert.equal(opaque.status, 200);
   assert.equal(calls.filter((url) => url.endsWith("/auth/v1/user")).length, 1, "other tokens still go to Supabase Auth");
 });
+
+test("Cloudflare's rate limiter decides per user when bound, and the per-isolate counter otherwise", async (t) => {
+  const keys = [];
+  const limiter = (success) => ({ limit: async ({ key }) => { keys.push(key); return { success }; } });
+  assert.equal(await withinRequestLimit({ USER_RATE_LIMITER: limiter(true) }, USER), true);
+  assert.equal(await withinRequestLimit({ USER_RATE_LIMITER: limiter(false) }, USER), false);
+  assert.deepEqual(keys, [USER, USER], "the user is the key");
+  const failing = { USER_RATE_LIMITER: { limit: async () => { throw new Error("unavailable"); } } };
+  assert.equal(await withinRequestLimit(failing, `fallback-${crypto.randomUUID()}`), true, "a limiter that fails leaves the per-isolate counter to decide");
+  const unbound = `unbound-${crypto.randomUUID()}`;
+  for (let index = 0; index < 60; index += 1) assert.equal(await withinRequestLimit({}, unbound), true);
+  assert.equal(await withinRequestLimit({}, unbound), false, "without the binding the sixty-first request in a minute is refused");
+
+  // Through the gateway: a refused request gets 429 with a retry time, before anything else is read.
+  resetAccessTokenKeys();
+  const key = await keyPair("k1"), list = keyList([key]);
+  t.mock.method(globalThis, "fetch", async (url, init) => list.fetchImpl(String(url), init));
+  const now = Math.floor(Date.now() / 1000);
+  const token = await sign(key, { iat: now - 60, exp: now + 3540 });
+  const response = await handle(new Request("https://gateway.invalid/api/v2/capabilities", { headers: { authorization: `Bearer ${token}` } }),
+    { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY: "sb_publishable_synthetic", SUPABASE_SERVICE_ROLE_KEY: "sb_secret_synthetic", USER_RATE_LIMITER: limiter(false) });
+  assert.equal(response.status, 429);
+  assert.equal(response.headers.get("retry-after"), "60");
+  assert.equal((await response.json()).error.code, "TENANT_QUOTA_EXCEEDED");
+});
+
