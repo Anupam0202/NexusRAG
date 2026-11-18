@@ -21,9 +21,10 @@ Set this as the session goal, in place of the old one:
 - **Code.** Everything in MASTER_PROMPT Tiers 0 to 2 is built and tested offline. Section 4 of PROGRESS.md lists
   each change with its commit and verification level. The gateway has 1,018 tests, the frontend 839 unit tests and
   204 research browser tests, and a fresh replay of the database migrations passes every assertion.
-- **CI.** Every job passes except V6 Foundation CI's npm audit gate (NX-48). A `picomatch` advisory published on
-  18 November has no fixed release yet. `picomatch` comes only with build and test tools; neither built Worker
-  contains it.
+- **CI.** Every job passes except two scans that advisories published on 18 November turned red, with no fix
+  available yet. The npm audit gate flags `picomatch` (NX-48), which comes only with build and test tools;
+  neither built Worker contains it. The container image scan flags OpenSSL `3.5.9-r0` in the frontend image
+  (NX-49), which is only the optional self-managed runtime.
 - **Preview.** The gateway Worker `nexusrag-v6-candidate-gateway` runs the branch (`81bab63` at the time of
   writing). Its smoke test, `/ready` and the live workspace-deletion journey (19 of 19) pass. The frontend Worker
   still runs an October build, because the preview workflow refuses this branch (environment branch rule). The
@@ -107,6 +108,7 @@ Set this as the session goal, in place of the old one:
      - NX-31: remove the Python backend.
      - NX-38: turn on Dependabot for Actions.
      - NX-48: wait for the `picomatch` fix, or accept a dated exception.
+     - NX-49: wait for Alpine's OpenSSL fix, or accept a dated exception.
 5. **Production environment.** Confirm that `Production` holds these secrets:
    - `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`.
    - `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY` and `SUPABASE_DB_URL`.
@@ -128,8 +130,10 @@ Set this as the session goal, in place of the old one:
    - Run `npm update picomatch` in `frontend/`, then `npm audit --audit-level=high`, lint, type-check and the unit
      tests.
    - Commit it as `chore(deps)`, push, and see V6 Foundation CI go fully green.
-2. Keep CI green on every push, and fix failures at their cause.
-3. Keep PROGRESS.md current (Handoff, Current state, Ledger status, done log), and keep PR #12's description current.
+2. **NX-49.** Once Alpine publishes an OpenSSL newer than `3.5.9-r0` for v3.24, re-run V6 Foundation CI. The
+   Dockerfile's `apk upgrade` takes the fix, and the image scan must pass.
+3. Keep CI green on every push, and fix failures at their cause.
+4. Keep PROGRESS.md current (Handoff, Current state, Ledger status, done log), and keep PR #12's description current.
 
 ### Phase B: the preview, after owner steps 1 to 3
 
@@ -236,7 +240,7 @@ Start a new branch from `main` after the merge (for example `chore/cleanup-after
 
 1. **Ledger.** Every NX item is fixed and verified at its level, or the owner accepted it in chat with a reason.
    Record the owner's words and the date in PROGRESS.md.
-2. **CI.** Green on PR #12, and after the merge on `main`, including the npm audit gate.
+2. **CI.** Green on PR #12, and after the merge on `main`, including the npm audit gate and the image scan.
 3. **Rehearsal.** No pending migration, no fixable advisor warning, and the grants checks pass.
 4. **Preview.** Both Workers run the branch head, the public address serves the app itself, and every phase B check
    passes live (level 4).

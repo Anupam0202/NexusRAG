@@ -35,8 +35,9 @@ Not verified or still failing:
 - Five rehearsal migrations unapplied: the Supabase connector's approval went unanswered on 15, 16, 17 and 18 November
 - Frontend preview: the `NexusRAG-Candidate-Preview` environment rejects this branch; production is unreleased
 - Production still defaults to `gemini-2.5-flash`, which Google shuts down on 2026-12-01: release before then
-- CI's npm audit gate fails since 18 November on a `picomatch` advisory (GHSA-fc5q-39xc-vjpf) that has no fixed
-  release yet; build and test tools only (NX-48). Every other check passes
+- CI fails two scans on advisories published on 18 November with no fix yet: the npm audit gate on `picomatch`
+  (NX-48, build and test tools only) and the frontend container image's OpenSSL `3.5.9-r0` (NX-49, the optional
+  self-managed image; the Workers do not use it). Every other check passes
 Owner decisions needed:
 - Gemini key with credit, or from a project without billing, in both GitHub environments' `GOOGLE_API_KEY`
   (recommended: a free-tier project key)
@@ -44,7 +45,7 @@ Owner decisions needed:
   workflow then applies the five migrations itself)
 - Supabase Auth URL configuration for both public addresses (values in `docs/DEPLOYMENT_PRODUCTION.md`)
 - Accept or decide the ledger items listed under "Ledger status", each with a recommendation there: NX-22, NX-25,
-  NX-32, NX-33, NX-35, NX-41, NX-42 (recommended: accept); NX-15, NX-31, NX-38, NX-40, NX-48 (decisions)
+  NX-32, NX-33, NX-35, NX-41, NX-42 (recommended: accept); NX-15, NX-31, NX-38, NX-40, NX-48, NX-49 (decisions)
 Session goal and ordered plan for the next sessions: `docs/completion/CONTINUATION_PROMPT.md` (18 November).
 Next three steps:
 1. Actions → Cloudflare Preview Deploy on this branch; then check https://nexusrag-preview.pages.dev serves the app
@@ -159,6 +160,8 @@ in chat with a reason. Where each one stands:
   - NX-42's remainder: provisional limits, and an alert on `LEASE_EXHAUSTED` (accept until there is real usage);
   - NX-48: the npm audit gate is red on a `picomatch` advisory with no fixed release yet, in build and test tools only
     (wait for the fix, which is one `npm update`; or accept a dated exception);
+  - NX-49: the container image scan is red on OpenSSL advisories with no fixed Alpine package yet, in the optional
+    self-managed image only (wait: the next build picks the fix up by itself; or accept a dated exception);
   - NX-15: finish Procurement and Passport (Tier 3) or remove them, D11; NX-31: remove the Python backend, D4;
     NX-38: enable Dependabot for Actions; NX-40: remove the PR3 redirect URLs from rehearsal's Auth settings.
 - The cleanup pull request after Tier 1, with the owner's approval (D13, D20 to D22): NX-29, NX-34, NX-37, NX-39,
