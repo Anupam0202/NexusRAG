@@ -47,7 +47,7 @@ if(sqlPackage){
 }
 // Ordinary pagination stays exercised even in a fresh isolated fixture process.
 for(let i=1;i<=101;i++)actors.add(`00000034-0000-4000-8000-${String(i).padStart(12,"0")}`);
-env.GOOGLE_API_KEY="synthetic-local-not-a-key";env.QDRANT_URL="https://research-qdrant.invalid";env.QDRANT_API_KEY="synthetic-local";
+env.GOOGLE_API_KEY="synthetic-local-not-a-key";env.QDRANT_URL="https://research-qdrant.invalid";env.QDRANT_COLLECTION="nexusrag-test";env.QDRANT_API_KEY="synthetic-local";
 const fixtureEvent=(event,body,extra={})=>{
   if(process.env.E2E_RESEARCH_EVENT_LOG==="1")console.log(JSON.stringify({marker:"SYNTHETIC_RESEARCH_EVENT",at:performance.now(),event,
     run_id:body.run_id??body.p_id,mode:runs.get(body.run_id??body.p_id)?.mode,generation:body.generation??body.p_generation,

@@ -93,7 +93,7 @@ export default {async fetch(request,env){if(new URL(request.url).pathname==="/he
  await worker.queue({messages:[{body:{kind:"research",workspace_id:${JSON.stringify(ws)},run_id:${JSON.stringify(runId)},generation:1,position},ack(){ack++},retry(){retry++}}]},
  {...env,INGESTION_QUEUE:{send:async body=>{sent.push(body)}}});return Response.json({ack,retry,sent,wall_ms:performance.now()-start});}};`);
 await writeFile(config,JSON.stringify({name:"nexusrag-synthetic-obligation-worker",main:entry,compatibility_date:"2026-09-20",vars:{SUPABASE_URL:base,
-  SUPABASE_SERVICE_ROLE_KEY:"synthetic-service",GOOGLE_API_KEY:"synthetic-not-live",QDRANT_URL:base,QDRANT_API_KEY:"synthetic-not-live"}}));
+  SUPABASE_SERVICE_ROLE_KEY:"synthetic-service",GOOGLE_API_KEY:"synthetic-not-live",QDRANT_URL:base,QDRANT_COLLECTION:"nexusrag-test",QDRANT_API_KEY:"synthetic-not-live"}}));
 let output="";
 try {
   runtime=await startLocalWorker({frontend:join(root,"frontend"),directory,configPath:config});

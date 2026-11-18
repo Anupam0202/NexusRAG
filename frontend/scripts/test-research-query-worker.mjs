@@ -43,7 +43,7 @@ export default {async fetch(request,env){const path=new URL(request.url).pathnam
 if(path==="/literals")return Response.json({results:${JSON.stringify(literalCases)}.map(([question,alternative])=>queryVariants(question,"QUICK_LOOKUP",{answer:JSON.stringify({queries:[alternative]}),model:"synthetic",usage:{}}))});
 return Response.json({hits:await searchChunkVariants(env,{queries:Array.from({length:8},(_,i)=>"Synthetic query "+i),workspaceId:${JSON.stringify(workspace)},documentIds:[${JSON.stringify(id)}],versionIds:[${JSON.stringify(id)}],indexGenerations:["synthetic"],limit:3,dataClassification:"non_sensitive",signal:AbortSignal.timeout(10000)})});}catch(error){return Response.json({code:error.code},{status:503});}}};`);
 await writeFile(config,JSON.stringify({name:"nexusrag-synthetic-query-worker",main:entry,compatibility_date:"2026-09-20",vars:{SUPABASE_URL:base,
-  SUPABASE_SERVICE_ROLE_KEY:"synthetic-service",GOOGLE_API_KEY:"synthetic-not-live",QDRANT_URL:base,QDRANT_API_KEY:"synthetic-not-live"}}));
+  SUPABASE_SERVICE_ROLE_KEY:"synthetic-service",GOOGLE_API_KEY:"synthetic-not-live",QDRANT_URL:base,QDRANT_COLLECTION:"nexusrag-test",QDRANT_API_KEY:"synthetic-not-live"}}));
 try {
   runtime=await startLocalWorker({frontend:join(root,"frontend"),directory,configPath:config});
   port=runtime.port;

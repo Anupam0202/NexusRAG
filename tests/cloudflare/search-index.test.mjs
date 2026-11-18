@@ -280,6 +280,18 @@ test("/ready answers 200 only when everything was reached, and remembers the ans
   const report = await degraded.json();
   assert.deepEqual([report.readiness, report.dependencies.search_index.state], ["DEGRADED", "NOT_ANSWERING"]);
   assert.equal((await handle(new Request("https://gateway.invalid/ready", { method: "POST" }), gateway)).status, 401, "only reads are public");
+
+  // Without a collection name the index is not configured, and it is not asked at all (NX-36).
+  reset();
+  const unnamed = services(() => collection(3));
+  t.mock.method(globalThis, "fetch", unnamed.fetch);
+  const { QDRANT_COLLECTION: _name, ...withoutName } = gateway;
+  const missing = await handle(new Request("https://gateway.invalid/ready"), withoutName);
+  assert.equal(missing.status, 503);
+  const missingReport = await missing.json();
+  assert.deepEqual([missingReport.readiness, missingReport.dependencies.search_index.state, missingReport.dependencies.search_index.collection],
+    ["DEGRADED", "NOT_CONFIGURED", null]);
+  assert.equal(unnamed.calls.qdrant.length, 0);
 });
 
 test("a search says when the index is not answering, is misconfigured or is empty", async (t) => {

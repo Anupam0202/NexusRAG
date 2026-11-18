@@ -17,7 +17,7 @@ import { runDueRetention, runRetentionNow, setRetention } from "./retention.js";
 import { DELETE_ACCOUNT_CONFIRMATION, deleteAccount, removeSignIn, sweepAccountDeletions } from "./account-deletion.js";
 import { DELETE_WORKSPACE_CONFIRMATION, beginWorkspaceDeletion, finishWorkspaceDeletion, removeWorkspaceIndexEntries,
   removeWorkspaceOriginals, sweepWorkspaceDeletions, workspaceDeletionReceipt } from "./workspace-deletion.js";
-import { indexUsable, keepIndexAwake, probeIndex } from "./search-index.js";
+import { indexCollection, indexUsable, keepIndexAwake, probeIndex } from "./search-index.js";
 import { handleQueue, sweepJobs } from "./worker-jobs.js";
 import { candidateChunkIds, rehydrateEvidence } from "./retrieval-authority.js";
 import { assessAnswer } from "./answer-evidence.js";
@@ -1242,7 +1242,7 @@ async function handle(request, env = {}) {
         totalDocuments = 0;
         totalChunks = 0;
       }
-      const qdrantConfigured = Boolean(env.QDRANT_URL && env.QDRANT_API_KEY);
+      const qdrantConfigured = Boolean(env.QDRANT_URL && env.QDRANT_API_KEY && indexCollection(env));
       const index = await indexProbe;
       // The database and the search index were asked; Gemini is not, because no free call shows its quota.
       const reached = supabaseDataApiReachable && indexUsable(index.state);
