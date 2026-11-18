@@ -88,6 +88,9 @@ Set this as the session goal, in place of the old one:
   `python3 scripts/migration_status.py status --applied <list_migrations JSON>`.
 - **Uploads.** The gateway accepts plain text, Markdown, CSV, JSON, PDF, DOCX, ZIP and PNG, JPEG, WebP and TIFF
   images, up to 10 MB (`SUPPORTED_WORKER_MIME` in `worker-pipeline.js`).
+- **Lockfile changes.** Use CI's Node 24 and npm 11: `PATH=/opt/node24/bin:$PATH`. The container's default npm 10
+  crashes in `npm update` on this tree (`Cannot read properties of null (reading 'edgesOut')`). The audit gate fails
+  only on high and critical advisories, so also look for moderate ones whose fix is within range.
 
 ## 4. Owner actions, in order
 
@@ -127,8 +130,8 @@ Set this as the session goal, in place of the old one:
 ### Phase A: any time
 
 1. **NX-48.** Once `picomatch` publishes a release that the advisory no longer covers:
-   - Run `npm update picomatch` in `frontend/`, then `npm audit --audit-level=high`, lint, type-check and the unit
-     tests.
+   - Run `npm update picomatch` in `frontend/` with Node 24's npm (section 3), then `npm audit --audit-level=high`,
+     lint, type-check and the unit tests.
    - Commit it as `chore(deps)`, push, and see V6 Foundation CI go fully green.
 2. **NX-49.** Once Alpine publishes an OpenSSL newer than `3.5.9-r0` for v3.24, re-run V6 Foundation CI. The
    Dockerfile's `apk upgrade` takes the fix, and the image scan must pass.
