@@ -9,8 +9,8 @@ confirmation). The F8 budgets are measured. The live journey still stops at inge
 on 17 November also answers HTTP 402 (no prepaid credit)
 
 ## Handoff 2026-11-17
-Branch and head: `codex/runtime-manifest-008`, last code commit `04d4e0c` (CI: see PR #12); PRs: #12 (draft)
-Deployed: candidate frontend `2fbc5c9` (October build) / gateway `cf9c862`; production unchanged (23 September Workers).
+Branch and head: `codex/runtime-manifest-008`, last code commit `7c11801` (CI: see PR #12); PRs: #12 (draft)
+Deployed: candidate frontend `2fbc5c9` (October build) / gateway `81bab63`; production unchanged (23 September Workers).
 Public addresses https://nexusrag.pages.dev and https://nexusrag-preview.pages.dev are live and forward to the Workers
 until a build made for them is released.
 Done this session:
@@ -44,7 +44,7 @@ Owner decisions needed:
   workflow then applies the five migrations itself)
 - Supabase Auth URL configuration for both public addresses (values in `docs/DEPLOYMENT_PRODUCTION.md`)
 - Accept or decide the ledger items listed under "Ledger status", each with a recommendation there: NX-22, NX-25,
-  NX-32, NX-33, NX-35, NX-41, NX-42 (recommended: accept); NX-15, NX-31, NX-38, NX-40 (decisions)
+  NX-32, NX-33, NX-35, NX-41, NX-42 (recommended: accept); NX-15, NX-31, NX-38, NX-40, NX-48 (decisions)
 Next three steps:
 1. Actions → Cloudflare Preview Deploy on this branch; then check https://nexusrag-preview.pages.dev serves the app
    itself and Google sign-in returns there
@@ -55,7 +55,8 @@ Next three steps:
 - main: `85b14f1`; working branch: `codex/runtime-manifest-008` (draft PR #12, owner-approved for direct
   commits on 2026-11-09); open PRs: #12
 - Plan: `docs/completion/MASTER_PROMPT.md`; repository notes: `CLAUDE.md`
-- Candidate preview: gateway `cf9c862` (previous version `1257b684`), released 2026-11-18 from a cloud session (smoke
+- Candidate preview: gateway `81bab63` (previous version `797eb124`), released 2026-11-18 (smoke test and `/ready`
+  passed); before it `cf9c862` (previous version `1257b684`), released 2026-11-18 from a cloud session (smoke
   test and `/ready` passed, the index found under its named collection; the workspace-deletion journey passed 19 of 19
   on it); before it `c7eb61c` and `e9b23af` (previous version `95890b72`), released 2026-11-17 from a cloud session (smoke
   test and `/ready` passed); before it `8bcfc22` (previous version `d30adcbe`), and before that
