@@ -32,7 +32,7 @@ Done this session:
   → `8bcfc22` → level 4 for the release, but a one-client burst passes both (a strict limit needs a Durable Object)
 Not verified or still failing:
 - Ingestion and answers: both Gemini keys answer HTTP 402 (prepaid projects without credit)
-- Five rehearsal migrations unapplied: the Supabase connector's approval went unanswered on 15, 16 and 17 November
+- Five rehearsal migrations unapplied: the Supabase connector's approval went unanswered on 15, 16, 17 and 18 November
 - Frontend preview: the `NexusRAG-Candidate-Preview` environment rejects this branch; production is unreleased
 - Production still defaults to `gemini-2.5-flash`, which Google shuts down on 2026-12-01: release before then
 - CI's npm audit gate fails since 18 November on a `picomatch` advisory (GHSA-fc5q-39xc-vjpf) that has no fixed
@@ -45,6 +45,7 @@ Owner decisions needed:
 - Supabase Auth URL configuration for both public addresses (values in `docs/DEPLOYMENT_PRODUCTION.md`)
 - Accept or decide the ledger items listed under "Ledger status", each with a recommendation there: NX-22, NX-25,
   NX-32, NX-33, NX-35, NX-41, NX-42 (recommended: accept); NX-15, NX-31, NX-38, NX-40, NX-48 (decisions)
+Session goal and ordered plan for the next sessions: `docs/completion/CONTINUATION_PROMPT.md` (18 November).
 Next three steps:
 1. Actions → Cloudflare Preview Deploy on this branch; then check https://nexusrag-preview.pages.dev serves the app
    itself and Google sign-in returns there

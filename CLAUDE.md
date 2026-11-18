@@ -54,7 +54,8 @@
 - From a Claude cloud session the gateway can be released with the saved Cloudflare token (`CLOUDFLARE_API_TOKEN=proxy-injected`), but the frontend cannot: its asset upload sends a short-lived upload token in the header the proxy overwrites. Deploy the frontend with the Cloudflare Preview Deploy workflow.
 - Tests must not depend on the wall clock: pass `now` explicitly (a fixed date in a test broke the suite a day later).
 - `NexusRAG-Recovery` was deleted on 2026-11-09; never reference it.
-- The plan is `docs/completion/MASTER_PROMPT.md`; progress is in `docs/completion/PROGRESS.md`.
+- The plan is `docs/completion/MASTER_PROMPT.md`; progress is in `docs/completion/PROGRESS.md`; the session goal and
+  the ordered remaining work are in `docs/completion/CONTINUATION_PROMPT.md`.
 
 ## Conventions
 - Commit as `Anupam Roy <42176802+Anupam0202@users.noreply.github.com>`; no AI attribution or branding anywhere.
