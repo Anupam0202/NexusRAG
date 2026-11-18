@@ -1,57 +1,44 @@
 # NexusRAG completion progress
-Last updated: 2026-11-17 — the app has plain public addresses: https://nexusrag.pages.dev (production) and
-https://nexusrag-preview.pages.dev (preview), Cloudflare Pages front doors that switch to serving the app by
-themselves when a build made for them is released, and until then send people on to the Workers (verified from
-outside on 17 November). Cloudflare holds only what the two environments use. The preview gateway runs `e9b23af`;
-workspace deletion, document deletion and retention are verified live there. Account deletion, CALCULATION runs,
-the reconciliation and the ranked keyword search wait for their five rehearsal migrations (the owner's
-confirmation). The F8 budgets are measured. The live journey still stops at ingestion: the key the owner supplied
-on 17 November also answers HTTP 402 (no prepaid credit)
+Last updated: 2026-11-18. The goal and the ordered remaining work are in `docs/completion/CONTINUATION_PROMPT.md`.
+Everything an agent can do without the owner is done; the Handoff below lists the owner's steps in order.
 
-## Handoff 2026-11-17
-Branch and head: `codex/runtime-manifest-008`, last code commit `7c11801` (CI: see PR #12); PRs: #12 (draft)
-Deployed: candidate frontend `2fbc5c9` (October build) / gateway `81bab63`; production unchanged (23 September Workers).
-Public addresses https://nexusrag.pages.dev and https://nexusrag-preview.pages.dev are live and forward to the Workers
-until a build made for them is released.
-Done this session:
-- Cloudflare cleanup: only the two environments' Workers, queues and the two front doors remain (PR3 Workers and queues
-  deleted) → verified by listing every resource type through the API
-- Public addresses → `6fb3123`, `ffbb53f` → level 4 for the forwarding (outside scans) and the gateway's origin list,
-  level 2 for serving through the binding (local Worker pair, release smoke passed)
-- NX-20 ranked keyword search for chat → `c05f319` → level 3 for the database (replay, eight broken variants refused),
-  level 1 for the gateway; the preview gateway runs it with the fallback until the migration is applied
-- Supabase advisors reviewed; 21 foreign keys indexed → `11f3066` → level 3 (replay; the new check catches a dropped index)
-- NX-42: a job that runs out of attempts no longer leaves its document "processing" for ever → `e9b23af` → level 1
-- F8: a chat answer makes one Qdrant request instead of two (no collection check before the search) → `fb372a3` → level 1
-- NX-19: no client role can reach a table or a privileged function on either hosted project → level 4; a replay
-  assertion keeps it so → `49e782c` → level 3
-- NX-36: no passage text in new index entries; no fallback to production's collection → `04d4e0c` → level 1
-- F8 budgets measured (see "Optimization budgets") → `4881f01` → level 4 for live figures; first-load JavaScript is
-  25.6 KiB larger than October's, 10.5 KiB of it avoidable by splitting `src/lib/api.ts` (F7)
-- NX-25: tokens checked in the gateway → `6e1d540` → level 4 (real tokens, tampering, sign-out); both request counters
-  → `8bcfc22` → level 4 for the release, but a one-client burst passes both (a strict limit needs a Durable Object)
-Not verified or still failing:
-- Ingestion and answers: both Gemini keys answer HTTP 402 (prepaid projects without credit)
-- Five rehearsal migrations unapplied: the Supabase connector's approval went unanswered on 15, 16, 17 and 18 November
-- Frontend preview: the `NexusRAG-Candidate-Preview` environment rejects this branch; production is unreleased
-- Production still defaults to `gemini-2.5-flash`, which Google shuts down on 2026-12-01: release before then
-- CI fails two scans on advisories published on 18 November with no fix yet: the npm audit gate on `picomatch`
-  (NX-48, build and test tools only) and the frontend container image's OpenSSL `3.5.9-r0` (NX-49, the optional
-  self-managed image; the Workers do not use it). Every other check passes
-Owner decisions needed:
-- Gemini key with credit, or from a project without billing, in both GitHub environments' `GOOGLE_API_KEY`
-  (recommended: a free-tier project key)
-- Allow this branch in `NexusRAG-Candidate-Preview` and add `SUPABASE_DB_URL` there (recommended: yes; the preview
-  workflow then applies the five migrations itself)
-- Supabase Auth URL configuration for both public addresses (values in `docs/DEPLOYMENT_PRODUCTION.md`)
-- Accept or decide the ledger items listed under "Ledger status", each with a recommendation there: NX-22, NX-25,
-  NX-32, NX-33, NX-35, NX-41, NX-42 (recommended: accept); NX-15, NX-31, NX-38, NX-40, NX-48, NX-49 (decisions)
-Session goal and ordered plan for the next sessions: `docs/completion/CONTINUATION_PROMPT.md` (18 November).
-Next three steps:
-1. Actions → Cloudflare Preview Deploy on this branch; then check https://nexusrag-preview.pages.dev serves the app
-   itself and Google sign-in returns there
-2. Reset the test accounts' trial counters, then `python3 scripts/preview_smoke.py` for the full two-account journey
-3. Owner walkthrough on the preview (`docs/completion/OWNER_WALKTHROUGH.md`), then merge PR #12 and run Production Deploy
+## Handoff 2026-11-18
+Branch: `codex/runtime-manifest-008` (draft PR #12; its page shows the head), last code commit `7c11801`. CI: V6 Database
+Rehearsal green; V6 Foundation CI green except two scans that advisories published on 18 November turned red (NX-48, NX-49).
+Deployed: preview gateway `81bab63` (smoke test, `/ready` and the workspace-deletion journey 19 of 19 passed); preview
+frontend `2fbc5c9` (October); production unchanged (23 September Workers, 46 migrations behind, `gemini-2.5-flash`).
+Plan and goal: `docs/completion/CONTINUATION_PROMPT.md`. Done on 17 and 18 November (commits in the done log): public
+addresses and Cloudflare cleanup; NX-20 ranked keyword search; NX-25 token checks and both request counters; 21
+foreign-key indexes; F8 budgets measured; NX-42 exhausted jobs fail their document; one Qdrant request per answer;
+NX-19 grants checked on both projects, with a replay assertion; NX-36 required collection name and no passage text in
+the index; NX-48 and NX-49 recorded.
+Still failing: ingestion and answers (both Gemini keys answer 402); five rehearsal migrations unapplied (the
+connector's approval went unanswered on 15 to 18 November); preview frontend refused by the environment's branch
+rule; production unreleased; NX-48 and NX-49 have no upstream fix yet.
+Agent work left: none that does not wait on a step below. A scheduled check (13:13 UTC, then every 12 hours) applies
+the `picomatch` and OpenSSL fixes when they appear.
+Owner actions, step by step:
+1. Gemini key, before 1 December: create a key in Google AI Studio in a project with credit, or in a free-tier
+   project without prepaid billing. GitHub → Settings → Environments: set it as the secret `GOOGLE_API_KEY` in both
+   `NexusRAG-Candidate-Preview` and `Production`.
+2. Preview environment: GitHub → Settings → Environments → `NexusRAG-Candidate-Preview` → Deployment branches and
+   tags: add `codex/runtime-manifest-008`. Add the secret `SUPABASE_DB_URL`: the rehearsal project's session-pooler
+   string (Supabase → project `ukgjygzfhyvnrsecdcuu` → Connect → Session pooler). The agent then runs the preview
+   workflow, which applies the five migrations (or approve the connector's prompt when the agent sends them).
+3. Supabase → Authentication → URL Configuration. Production (`fcjaomiceajcdownarel`): Site URL
+   `https://nexusrag.pages.dev`, add redirect `https://nexusrag.pages.dev/**`. Rehearsal (`ukgjygzfhyvnrsecdcuu`):
+   Site URL `https://nexusrag-preview.pages.dev`, add `https://nexusrag-preview.pages.dev/**`, remove the PR3 URLs.
+4. Reply in chat with ledger decisions ("Ledger status" gives each recommendation): accept or refuse NX-22, NX-25,
+   NX-32, NX-33's remainder, NX-35, NX-41 and NX-42's remainder; decide NX-15, NX-31, NX-38, NX-48 and NX-49.
+5. GitHub → Environments → `Production`: confirm these secrets exist: `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`,
+   `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SERVICE_ROLE_KEY` (an `sb_secret_` key), `SUPABASE_DB_URL`
+   (production's session pooler), `GEMINI_USER_KEY_ENCRYPTION_SECRET` (base64 of 32 random bytes, set once and never
+   replaced), `GOOGLE_API_KEY`, `QDRANT_URL`, `QDRANT_API_KEY`.
+6. Once the agent reports the preview journey passed: review and merge PR #12; Actions → Production Deploy → Run
+   workflow with `release_sha` set to the merge commit, and approve the environment; then walk through
+   `docs/completion/OWNER_WALKTHROUGH.md` on https://nexusrag.pages.dev and confirm in chat.
+7. Credential rotation (MASTER_PROMPT section F6), when you choose; the agent prepares the list.
+After each step the agent continues with the matching phase of CONTINUATION_PROMPT.md section 5.
 
 ## Current state
 - main: `85b14f1`; working branch: `codex/runtime-manifest-008` (draft PR #12, owner-approved for direct
