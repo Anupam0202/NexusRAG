@@ -28,6 +28,10 @@ Owner actions, step by step:
    tags: add `codex/runtime-manifest-008`. Add the secret `SUPABASE_DB_URL`: the rehearsal project's session-pooler
    string (Supabase → project `ukgjygzfhyvnrsecdcuu` → Connect → Session pooler). The agent then runs the preview
    workflow, which applies the five migrations (or approve the connector's prompt when the agent sends them).
+   Shortcut for steps 2's migrations and 3: a Supabase personal access token lets the agent do both itself. The
+   token saved in this cloud environment on 18 November is refused by Supabase ("JWT could not be decoded"), so
+   replace its value: cloud environment menu → Edit → Network secrets → `api.supabase.com`, with a token that
+   starts `sbp_` (Supabase → Account → Access Tokens), entered without "Bearer".
 3. Supabase → Authentication → URL Configuration. Production (`fcjaomiceajcdownarel`): Site URL
    `https://nexusrag.pages.dev`, add redirect `https://nexusrag.pages.dev/**`. Rehearsal (`ukgjygzfhyvnrsecdcuu`):
    Site URL `https://nexusrag-preview.pages.dev`, add `https://nexusrag-preview.pages.dev/**`, remove the PR3 URLs.
