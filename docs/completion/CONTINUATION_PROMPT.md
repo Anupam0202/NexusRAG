@@ -21,10 +21,9 @@ Set this as the session goal, in place of the old one:
 - **Code.** Everything in MASTER_PROMPT Tiers 0 to 2 is built and tested offline. Section 4 of PROGRESS.md lists
   each change with its commit and verification level. The gateway has 1,018 tests, the frontend 839 unit tests and
   204 research browser tests, and a fresh replay of the database migrations passes every assertion.
-- **CI.** Every job passes except two scans that advisories published on 18 November turned red, with no fix
-  available yet. The npm audit gate flags `picomatch` (NX-48), which comes only with build and test tools;
-  neither built Worker contains it. The container image scan flags OpenSSL `3.5.9-r0` in the frontend image
-  (NX-49), which is only the optional self-managed runtime.
+- **CI.** Every job passes except the container image scan, which flags OpenSSL `3.5.9-r0` in the frontend image
+  (NX-49, red since 18 November): OpenSSL has not released the fix (3.5.10), and the image is only the optional
+  self-managed runtime. The npm audit gate passes again since GitHub withdrew the `picomatch` advisory (NX-48).
 - **Preview.** The gateway Worker `nexusrag-v6-candidate-gateway` runs the branch (`81bab63` at the time of
   writing). Its smoke test, `/ready` and the live workspace-deletion journey (19 of 19) pass. The frontend Worker
   still runs an October build, because the preview workflow refuses this branch (environment branch rule). The
@@ -50,8 +49,8 @@ Set this as the session goal, in place of the old one:
 - Never print, log, commit or paste a secret, and check `git diff --cached` before every commit. Ask for
   credentials only through the environment's secret mechanisms (the session's credential request, or the owner's
   GitHub environment secrets), never in chat.
-- Never skip, disable or loosen a test or a CI gate. NX-48 stays red until `picomatch` is fixed or the owner
-  accepts a dated exception. Never spend money.
+- Never skip, disable or loosen a test or a CI gate. NX-49 stays red until Alpine ships the OpenSSL fix or the
+  owner accepts a dated exception. Never spend money.
 - Owner checkpoints (MASTER_PROMPT section 9). Ask first before deleting anything that holds data, spending money,
   rotating credentials or adding secrets, changing GitHub rulesets, branch protection, environments, collaborators
   or visibility, and merging. No need to ask for: preview releases (with smoke test and automatic rollback),
@@ -110,8 +109,7 @@ Set this as the session goal, in place of the old one:
      - NX-15: finish Procurement and Passport, or remove them.
      - NX-31: remove the Python backend.
      - NX-38: turn on Dependabot for Actions.
-     - NX-48: wait for the `picomatch` fix, or accept a dated exception.
-     - NX-49: wait for Alpine's OpenSSL fix, or accept a dated exception.
+     - NX-49: wait for Alpine's OpenSSL fix, or accept a dated exception (recommended: until 31 January 2027).
 5. **Production environment.** Confirm that `Production` holds these secrets:
    - `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`.
    - `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY` and `SUPABASE_DB_URL`.
@@ -119,8 +117,9 @@ Set this as the session goal, in place of the old one:
    - `GEMINI_USER_KEY_ENCRYPTION_SECRET`: the base64 form of 32 random bytes. Set it once and never replace it
      (NX-18).
    - `GOOGLE_API_KEY`, `QDRANT_URL` and `QDRANT_API_KEY`.
-6. **Release, after the preview journey passes.**
-   - Review and merge PR #12.
+6. **Release, after the preview journey passes, CI is green and the agent has made the trusted push (D2).**
+   - Review and merge PR #12. Settings → Rules shows what `main` requires; it reportedly includes the provider
+     checks and a `Preview` deployment, which the trusted push records.
    - Run Production Deploy with the merge commit as `release_sha`, and approve it.
    - Do the walkthrough in `docs/completion/OWNER_WALKTHROUGH.md` and confirm it in chat.
 7. **Credential rotation** (MASTER_PROMPT section F6), when the owner chooses. The agent prepares the list.
@@ -129,12 +128,12 @@ Set this as the session goal, in place of the old one:
 
 ### Phase A: any time
 
-1. **NX-48.** Once `picomatch` publishes a release that the advisory no longer covers:
-   - Run `npm update picomatch` in `frontend/` with Node 24's npm (section 3), then `npm audit --audit-level=high`,
-     lint, type-check and the unit tests.
-   - Commit it as `chore(deps)`, push, and see V6 Foundation CI go fully green.
-2. **NX-49.** Once Alpine publishes an OpenSSL newer than `3.5.9-r0` for v3.24, re-run V6 Foundation CI. The
-   Dockerfile's `apk upgrade` takes the fix, and the image scan must pass.
+1. **Dependencies.** NX-48 is resolved: GitHub withdrew the `picomatch` advisory on 18 November. If `npm audit`
+   reports a new advisory with a fix in range, update it with Node 24's npm (section 3), run
+   `npm audit --audit-level=high`, lint, type-check and the unit tests, and commit it as `chore(deps)`.
+2. **NX-49.** Once Alpine ships OpenSSL 3.5.10 for v3.24, re-run V6 Foundation CI's failed jobs. The Dockerfile's
+   `apk upgrade` takes the fix, and the image scan must pass. If the owner accepts a dated exception instead, make
+   it cover those five CVEs alone, end on the accepted date, and record the owner's words in PROGRESS.md.
 3. Keep CI green on every push, and fix failures at their cause.
 4. Keep PROGRESS.md current (Handoff, Current state, Ledger status, done log), and keep PR #12's description current.
 
@@ -170,8 +169,10 @@ Set this as the session goal, in place of the old one:
    workspaces and to use a stale document selection.
 7. **F8 timing.** Measure chat time to first token and total time, p50 and p95, over at least 20 answers. Record
    them beside PROGRESS.md's budget table.
-8. **Records.** Move the ledger items these checks close, and update PROGRESS.md and PR #12. When steps 1 to 7
-   pass, mark PR #12 ready for review and tell the owner.
+8. **Records.** Move the ledger items these checks close, and update PROGRESS.md and PR #12.
+9. **Trusted push (D2).** Once steps 1 to 7 pass and CI is green, push the head to `release/production-<date>`.
+   This runs the provider checks with the platform keys and records the `Preview` deployment on that commit,
+   which `main` reportedly requires. Then mark PR #12 ready for review and tell the owner.
 
 ### Phase C: production, after the owner merges and approves
 

@@ -4,20 +4,22 @@ Everything an agent can do without the owner is done; the Handoff below lists th
 
 ## Handoff 2026-11-18
 Branch: `codex/runtime-manifest-008` (draft PR #12; its page shows the head), last code commit `8315b8e`. CI: V6 Database
-Rehearsal green; V6 Foundation CI green except two scans that advisories published on 18 November turned red (NX-48, NX-49).
+Rehearsal green; V6 Foundation CI green except the image scan, red since 18 November on OpenSSL advisories with no
+fixed release (NX-49). NX-48's advisory was withdrawn on 18 November, and the audit gate passes again.
 Deployed: preview gateway `81bab63` (smoke test, `/ready` and the workspace-deletion journey 19 of 19 passed); preview
 frontend `2fbc5c9` (October); production unchanged (23 September Workers, 46 migrations behind, `gemini-2.5-flash`).
 Plan and goal: `docs/completion/CONTINUATION_PROMPT.md`. Done on 17 and 18 November (commits in the done log): public
 addresses and Cloudflare cleanup; NX-20 ranked keyword search; NX-25 token checks and both request counters; 21
 foreign-key indexes; F8 budgets measured; NX-42 exhausted jobs fail their document; one Qdrant request per answer;
 NX-19 grants checked on both projects, with a replay assertion; NX-36 required collection name and no passage text in
-the index; NX-48 and NX-49 recorded; three moderate advisories in the test and lint tools fixed.
+the index; NX-48 and NX-49 recorded, and NX-48 resolved by the advisory's withdrawal; three moderate advisories in
+the test and lint tools fixed.
 Still failing: ingestion and answers (both Gemini keys answer 402); five rehearsal migrations unapplied (the
 connector's approval went unanswered on 15 to 18 November); preview frontend refused by the environment's branch
-rule; production unreleased; NX-48 and NX-49 have no upstream fix yet.
-Agent work left: none that does not wait on a step below. CI is red only on NX-48 and NX-49: neither has a fix
-upstream, and their gates are not loosened without step 4. A scheduled check (13:13 UTC, then every 12 hours)
-applies the `picomatch` and OpenSSL fixes when they appear.
+rule; production unreleased; NX-49 has no upstream fix yet.
+Agent work left: none that does not wait on a step below. CI is red only on NX-49: OpenSSL has not released the
+fix, and the scan is not loosened without step 4. A scheduled check every 12 hours re-runs the scan, which takes
+the fix once Alpine ships OpenSSL 3.5.10.
 Owner actions, step by step:
 1. Gemini key, before 1 December: create a key in Google AI Studio in a project with credit, or in a free-tier
    project without prepaid billing. GitHub → Settings → Environments: set it as the secret `GOOGLE_API_KEY` in both
@@ -30,14 +32,18 @@ Owner actions, step by step:
    `https://nexusrag.pages.dev`, add redirect `https://nexusrag.pages.dev/**`. Rehearsal (`ukgjygzfhyvnrsecdcuu`):
    Site URL `https://nexusrag-preview.pages.dev`, add `https://nexusrag-preview.pages.dev/**`, remove the PR3 URLs.
 4. Reply in chat with ledger decisions ("Ledger status" gives each recommendation): accept or refuse NX-22, NX-25,
-   NX-32, NX-33's remainder, NX-35, NX-41 and NX-42's remainder; decide NX-15, NX-31, NX-38, NX-48 and NX-49.
-   For NX-48 and NX-49, reply "wait" (CI stays red until the fixes land) or "accept NX-48 until <date>" (the same
-   for NX-49): the agent then adds an exception for that one advisory alone, which ends on that date.
+   NX-32, NX-33's remainder, NX-35, NX-41 and NX-42's remainder; decide NX-15, NX-31, NX-38 and NX-49.
+   For NX-49, reply "wait" (CI stays red until Alpine ships the fix) or "accept NX-49 until <date>": the agent
+   then adds an exception for those five CVEs alone, which ends on that date. Recommended: accept it until
+   31 January 2027. OpenSSL rates the five Low and has not dated its fix release, the deployed Workers do not use
+   the image, and `main` reportedly requires CI to pass before the merge in step 6.
 5. GitHub → Environments → `Production`: confirm these secrets exist: `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`,
    `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SERVICE_ROLE_KEY` (an `sb_secret_` key), `SUPABASE_DB_URL`
    (production's session pooler), `GEMINI_USER_KEY_ENCRYPTION_SECRET` (base64 of 32 random bytes, set once and never
    replaced), `GOOGLE_API_KEY`, `QDRANT_URL`, `QDRANT_API_KEY`.
-6. Once the agent reports the preview journey passed: review and merge PR #12; Actions → Production Deploy → Run
+6. Once the agent reports the preview journey passed, CI green and the trusted push done (D2: the head pushed to
+   `release/production-*`, which records the provider checks and the `Preview` deployment that `main` reportedly
+   requires; Settings → Rules shows the rules): review and merge PR #12; Actions → Production Deploy → Run
    workflow with `release_sha` set to the merge commit, and approve the environment; then walk through
    `docs/completion/OWNER_WALKTHROUGH.md` on https://nexusrag.pages.dev and confirm in chat.
 7. Credential rotation (MASTER_PROMPT section F6), when you choose; the agent prepares the list.
@@ -130,7 +136,7 @@ Section 13 needs every ledger item (MASTER_PROMPT Part 2, section D) fixed and v
 in chat with a reason. Where each one stands:
 - Closed, fixed and verified live: NX-07, NX-16, NX-23, NX-47. Fixed and verified in CI: NX-09, NX-10, NX-11.
   Checked on both hosted projects, with a replay assertion that keeps it so: NX-19 (re-run after each migration batch).
-  Resolved: NX-43.
+  Resolved: NX-43; NX-48 (the advisory was withdrawn, 18 November).
 - Fixed in code; the live check waits for one of the owner's steps:
   - the frontend release (the preview environment's branch rule): NX-01, NX-28, NX-30;
   - a Gemini key with credit: NX-03, NX-06 (production must be released before 2026-12-01), NX-14 (its prepaid
@@ -148,10 +154,9 @@ in chat with a reason. Where each one stands:
   - NX-35: Workers Free or Paid with the F8 figures, D5 (stay on Free until there is real usage);
   - NX-41: leaked-password protection does not apply to Google-only sign-in (accept);
   - NX-42's remainder: provisional limits, and an alert on `LEASE_EXHAUSTED` (accept until there is real usage);
-  - NX-48: the npm audit gate is red on a `picomatch` advisory with no fixed release yet, in build and test tools only
-    (wait for the fix, which is one `npm update`; or accept a dated exception);
-  - NX-49: the container image scan is red on OpenSSL advisories with no fixed Alpine package yet, in the optional
-    self-managed image only (wait: the next build picks the fix up by itself; or accept a dated exception);
+  - NX-49: the container image scan is red on five OpenSSL CVEs that OpenSSL rates Low, in the optional
+    self-managed image only. Their fix waits for OpenSSL 3.5.10, which has no release date (accept a dated
+    exception, for example until 31 January 2027; the first build after Alpine ships the fix picks it up by itself);
   - NX-15: finish Procurement and Passport (Tier 3) or remove them, D11; NX-31: remove the Python backend, D4;
     NX-38: enable Dependabot for Actions; NX-40: remove the PR3 redirect URLs from rehearsal's Auth settings.
 - The cleanup pull request after Tier 1, with the owner's approval (D13, D20 to D22): NX-29, NX-34, NX-37, NX-39,
@@ -213,6 +218,7 @@ in chat with a reason. Where each one stands:
 | 2026-11-16 | NX-22 ingestion limits. A PDF or image cut off at 8,192 output tokens (about a dozen pages; it used to fail with "split the document") is read again with the model's published limit: 65,536 tokens for both pinned models, roughly 100 pages (Google's model pages, read 16 November). The job's lease is renewed during the read. The shared key's budget counts a file at no more input than a request can hold; one token per byte had made every PDF over 4 MB impossible on the trial. Word text comes from the elements Word shows. Every way a read can end has its own plain message, and nothing partial is indexed. Not done: a PDF's own text layer and splitting by page (a PDF parser does not fit the free plan's CPU limit) | 1 (986 gateway tests; 12 new, eleven broken variants each refused). The long read has run against a stand-in only | `e0d3b60` |
 | 2026-11-17 | NX-25, second half: a request must pass both the isolate's own counter (exact, but every isolate counts from zero) and Cloudflare's rate limiter (binding `USER_RATE_LIMITER`, 60 a minute per location; the preview and production use separate namespaces, which `release.py` checks). Cloudflare's count is approximate by design: live on the preview, 327 requests from one location in 45 seconds all passed it, and after both counters were required, 304 in 45 seconds still passed, because one client's requests are spread over many isolates, each counting from zero. The old per-isolate limit was never strict either. A strict per-user limit needs a Durable Object (not built; the ledger keeps this open for the owner to accept or ask for). A limiter that fails is logged and leaves the isolate's counter to decide | 1 (1,011 gateway and 30 release tests); 4 for the binding being accepted by the free plan and for the burst behaviour above | `b5125c9`, `b891b6e`, `8bcfc22` |
 | 2026-11-17 | NX-25, first half: the gateway checks access tokens itself against the project's published ES256 key (both projects publish one and sign with it: checked on a real rehearsal token), instead of asking Supabase Auth on every request, which also saves one of the 50 outbound requests a free-plan invocation may make. Signature, issuer, audience, role, expiry and user id are checked; the key list is cached and re-read for a rotated key; a token signed otherwise, or an unreadable key list, still goes to Supabase Auth; a failing token is refused, never handed on. Trade-off, already stated on the security page: after signing out, an access token works until it expires (an hour); membership is still checked on every request | 1 (1,010 gateway tests; a real ES256 key pair; removing any one of seven checks fails a test); 4 on the preview gateway `6e1d540`: a real rehearsal token is accepted and reads the database, a tampered one is refused (401), and after a global sign-out Supabase Auth refuses the token (403) while the gateway accepts it until it expires, which shows the check runs in the Worker | `6e1d540` |
+| 2026-11-18 | NX-48 resolved without a change, and NX-49 rechecked (the scheduled check, run at 20:55 UTC after a session restart). GitHub withdrew GHSA-fc5q-39xc-vjpf on 18 November, after the `picomatch` maintainers disputed it as not a vulnerability, and VulnCheck withdrew its record too; it had been published on 19 October and reviewed by GitHub on 17 November, when npm audit began reporting it. `npm audit` now reports nothing at any severity. NX-49 stays: OpenSSL published the five CVEs on 10 November and rates them Low (the scan reports NVD's scores); their fix is in OpenSSL's source for 3.5.10, which has no release date, so Alpine 3.24 still ships `3.5.9-r0`. Also corrected the dates recorded earlier ("published on 18 November") and added the trusted push (D2), which `main`'s protection reportedly needs, to the merge steps in the handoff and phase B | CI: the re-run of the failed jobs on `a30d62f` ([run 44309859367](https://github.com/Anupam0202/NexusRAG/actions/runs/44309859367), attempt 2) passed the audit gate with the lockfile unchanged; the image scan failed with the same ten OpenSSL findings | n/a (records only) |
 | 2026-11-18 | Dependencies checked ahead of the scheduled check: `picomatch` 4.0.7 is still the latest release, so NX-48 stays open. Three moderate advisories published in October had fixes within the ranges `package.json` allows, but the audit gate fails only on high findings, so they had stayed: two in `@vitest/mocker` (fixed by vitest 4.1.12) and one in `minimatch`, which typescript-eslint reached (fixed by 8.73.0, which needs minimatch 11.0.1 or later). All 12 findings left are the one `picomatch` advisory. The lockfile is now written with npm 11 on Node 24, as in CI; npm 10 crashes in `npm update` on this tree | 1 (lint, type-check and the 839 frontend unit tests; `npm audit`: no moderate findings, 12 high, all GHSA-fc5q-39xc-vjpf) | `8315b8e` |
 | 2026-11-18 | CI after NX-36: the research Worker harnesses CI runs from `frontend/scripts` named no collection, so the batch-transport step failed; they name a test collection now, and the status endpoint's `qdrant_configured` requires the name too. All ten Worker harness steps pass locally. The same run found NX-48 (a new `picomatch` advisory with no fix) | 1 (the ten harness steps; 1,018 gateway tests; `/ready` without a name is tested) | `7c11801` |
 | 2026-11-18 | NX-36: new index entries no longer carry the passage text; answers and research already rebuilt every passage from the database and checked its hash, so the copy in Qdrant was never used and only duplicated people's text on another provider. A gateway without `QDRANT_COLLECTION` now reports the index as not configured: the fallback was production's collection, so a preview gateway deployed without the name would have written into it (`release.py` always sets it, so neither environment was affected) | 1 (1,018 gateway tests; both new tests fail on the previous code; every test fixture now names its collection); released to the preview at `cf9c862`, where `/ready` finds the index under its named collection and the workspace-deletion journey passed 19 of 19, its index cleanup included | `04d4e0c` |
