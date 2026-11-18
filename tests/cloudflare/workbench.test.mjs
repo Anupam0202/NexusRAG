@@ -223,7 +223,7 @@ test("the gateway writes no receipt for cleanup that only the database can verif
     throw Error(`Unexpected cleanup call ${url.pathname}`);
   });
   const result = await handle(request(`/api/v1/documents/${finding}/delete`, { method: "POST" }),
-    { ...env, QDRANT_URL: "https://qdrant.invalid", QDRANT_API_KEY: "synthetic-qdrant" });
+    { ...env, QDRANT_URL: "https://qdrant.invalid", QDRANT_COLLECTION: "nexusrag-test", QDRANT_API_KEY: "synthetic-qdrant" });
   const body = await result.json();
   assert.equal(result.status, 202);
   assert.deepEqual([body.success, body.state, body.reason], [true, "PENDING", "REMOTE_TARGETS_PENDING"]);

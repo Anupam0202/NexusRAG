@@ -1106,3 +1106,33 @@ test("outgoing requests per invocation stay within the free plan's 50, and an an
     assert.ok(calls.total <= 40, `${name} makes ${calls.total} requests; the free plan allows 50 per invocation, and 10 are kept in reserve`);
   }
 });
+
+test("index entries carry no passage text: answers quote it from the database, checked against its hash", async (t) => {
+  const fixture = localAppFixture();
+  t.mock.method(globalThis, "fetch", fixture.fetch);
+  const headers = { authorization: "Bearer synthetic-oauth-token", "x-nexus-workspace-id": workspace };
+  const form = new FormData();
+  form.set("file", new File([fixture.source], "retention-policy.txt", { type: "text/plain" }));
+  form.set("data_classification", "non_sensitive"); form.set("non_sensitive_attested", "true");
+  const upload = await handle(new Request("https://gateway.invalid/api/v1/documents/upload", {
+    method: "POST", headers: { ...headers, "idempotency-key": crypto.randomUUID() }, body: form }), fixture.env);
+  assert.equal(upload.status, 202);
+  const { document } = await upload.json();
+  while (fixture.queue.sent.length) {
+    await handleQueue({ messages: [{ body: fixture.queue.sent.shift(), ack() {}, retry() { assert.fail("a batch was retried"); } }] }, fixture.env);
+  }
+  assert.equal(fixture.points.size, fixture.expectedChunks);
+  for (const point of fixture.points.values()) {
+    assert.equal(Object.hasOwn(point.payload, "content"), false, "the index holds identifiers and positions, not the passage");
+    assert.deepEqual(Object.keys(point.payload).sort(), ["chunk_id", "chunk_index", "document_id", "filename", "index_generation", "location", "page_number", "version_id", "workspace_id"]);
+  }
+  const response = await handle(new Request("https://gateway.invalid/api/v1/chat", {
+    method: "POST", headers: { ...headers, "content-type": "application/json", "idempotency-key": crypto.randomUUID() },
+    body: JSON.stringify({ question: "What retention period does the policy specify?", non_sensitive_attested: true, document_ids: [document.document_id], top_k: 8 }),
+  }), fixture.env);
+  const answer = await response.json();
+  assert.equal(response.status, 200, JSON.stringify(answer));
+  assert.match(answer.answer, /30-day retention policy/);
+  assert.ok(answer.sources.length > 0 && answer.sources.every((source) => source.content.length > 0 && source.metadata.authority === "SUPABASE_HASH_VERIFIED"));
+  assert.match(JSON.stringify(fixture.outbound), /sets evidence retention at 30 days/, "the model still reads the passages");
+});

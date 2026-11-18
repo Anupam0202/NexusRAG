@@ -9,7 +9,7 @@ const configured = {
   SUPABASE_PUBLISHABLE_KEY: "synthetic-publishable",
   SUPABASE_SERVICE_ROLE_KEY: "synthetic-service-secret",
   FRONTEND_ORIGIN: "https://frontend.invalid",
-  QDRANT_URL: "https://qdrant.invalid",
+  QDRANT_URL: "https://qdrant.invalid", QDRANT_COLLECTION: "nexusrag-test",
   QDRANT_API_KEY: "synthetic-qdrant-secret",
   GOOGLE_API_KEY: "synthetic-google-secret",
   RUNTIME_SERVICE_NAME: "nexusrag-test-gateway",
@@ -295,7 +295,7 @@ test("authenticated system status reports real data-API reachability without lea
       return new Response("[]", { status: 200, headers: { "content-type": "application/json" } });
     }
     // The search index is asked too: one read of the collection, with the service's key.
-    if (target === "https://qdrant.invalid/collections/nexusrag-v6-preview") {
+    if (target === "https://qdrant.invalid/collections/nexusrag-test") {
       assert.equal(init.headers["api-key"], "synthetic-qdrant-secret");
       return new Response(JSON.stringify({ result: { status: "green", points_count: 0 } }), { status: 200, headers: { "content-type": "application/json" } });
     }

@@ -1,7 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
-  DEFAULT_INDEX_COLLECTION,
   indexEndpoint,
   indexFailure,
   indexStateFor,
@@ -95,11 +94,18 @@ test("each index failure says whose problem it is and whether waiting helps", ()
   for (const failure of [silent, key, empty, limited, rejected, missing]) assert.doesNotMatch(failure.message, /qdrant/i, "the provider's name is an operator detail");
 });
 
-test("the index address comes from the environment and falls back to the documented collection", () => {
+test("the index address comes from the environment, and without a collection name the index is not configured", async () => {
   assert.deepEqual(indexEndpoint(index), { base: COLLECTION_URL, headers: { "content-type": "application/json", "api-key": "synthetic-qdrant-secret" } });
-  assert.equal(indexEndpoint({ QDRANT_URL: "https://qdrant.invalid", QDRANT_API_KEY: "k" }).base, `https://qdrant.invalid/collections/${DEFAULT_INDEX_COLLECTION}`);
   assert.equal(indexEndpoint({ ...index, QDRANT_COLLECTION: "a b/c" }).base, "https://qdrant.invalid/collections/a%20b%2Fc");
   assert.throws(() => indexEndpoint({ QDRANT_URL: "https://qdrant.invalid" }), (error) => error.code === "CONFIGURATION_ERROR");
+  // A missing name used to mean production's collection, so a preview gateway deployed without one would have
+  // written its documents into production's index (NX-36).
+  for (const name of [undefined, "", "   "]) {
+    const env = { QDRANT_URL: "https://qdrant.invalid", QDRANT_API_KEY: "k", QDRANT_COLLECTION: name };
+    assert.throws(() => indexEndpoint(env), (error) => error.code === "CONFIGURATION_ERROR", JSON.stringify(name));
+    const probed = await probeIndex(env, { now: 1_000, fetchImpl: async () => assert.fail("the index was asked") });
+    assert.deepEqual([probed.state, probed.collection], ["NOT_CONFIGURED", null]);
+  }
 });
 
 test("the probe is one light authenticated read of this environment's collection", async () => {

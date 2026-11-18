@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { deleteQdrantDocument, verifyQdrantGeneration } from '../../apps/gateway/src/worker-lifecycle.js';
 const workspace = '11111111-1111-4111-8111-111111111111';
-const env = { SUPABASE_URL: 'https://supabase.invalid', SUPABASE_SERVICE_ROLE_KEY: 'synthetic', QDRANT_URL: 'https://qdrant.invalid', QDRANT_API_KEY: 'synthetic' };
+const env = { SUPABASE_URL: 'https://supabase.invalid', SUPABASE_SERVICE_ROLE_KEY: 'synthetic', QDRANT_URL: 'https://qdrant.invalid', QDRANT_COLLECTION: 'nexusrag-test', QDRANT_API_KEY: 'synthetic' };
 const json = data => new Response(JSON.stringify(data));
 function mock(t, countResult, { unavailable = false } = {}) {
   const calls = [];

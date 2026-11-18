@@ -153,7 +153,7 @@ const controlledFetch=async(input,init={})=>{
 globalThis.fetch=async(...args)=>{try{return await controlledFetch(...args);}catch(error){peerFailure=error.stack;throw error;}};
 try {
   const env={SUPABASE_URL:"https://comparison-peer.invalid",SUPABASE_SERVICE_ROLE_KEY:"synthetic",GOOGLE_API_KEY:"synthetic-no-live-key",
-    QDRANT_URL:"https://comparison-qdrant.invalid",QDRANT_API_KEY:"synthetic",INGESTION_QUEUE:{send:async message=>sent.push(message)}};
+    QDRANT_URL:"https://comparison-qdrant.invalid",QDRANT_COLLECTION:"nexusrag-test",QDRANT_API_KEY:"synthetic",INGESTION_QUEUE:{send:async message=>sent.push(message)}};
   let message={kind:"research",run_id:run.id,workspace_id:ws,generation:1,position:0};
   for(let i=0;i<steps;i++) {
     const before=outbound;

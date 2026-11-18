@@ -95,7 +95,7 @@ globalThis.fetch=async(input,init={})=>{
   throw Error(`Unapproved local fixture egress ${url.hostname}`);
 };
 try {
-  const env={SUPABASE_URL:"https://executor-peer.invalid",SUPABASE_SERVICE_ROLE_KEY:"synthetic",GOOGLE_API_KEY:"synthetic-no-live-key",QDRANT_URL:"https://executor-qdrant.invalid",QDRANT_API_KEY:"synthetic",
+  const env={SUPABASE_URL:"https://executor-peer.invalid",SUPABASE_SERVICE_ROLE_KEY:"synthetic",GOOGLE_API_KEY:"synthetic-no-live-key",QDRANT_URL:"https://executor-qdrant.invalid",QDRANT_COLLECTION:"nexusrag-test",QDRANT_API_KEY:"synthetic",
     INGESTION_QUEUE:{send:async message=>sent.push(message)}};
   const message={kind:"research",run_id:run.id,workspace_id:ws,generation:1,position:0};
   assert.equal((await processResearchMessage(env,message,db)).position,1);

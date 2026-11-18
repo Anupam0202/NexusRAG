@@ -150,7 +150,7 @@ async function fixture(t,options={}) {
     }
     throw Error(`Unapproved fixture egress ${url.hostname}`);
   });
-  const env={SUPABASE_URL:"https://supabase.invalid",SUPABASE_SERVICE_ROLE_KEY:"synthetic",GOOGLE_API_KEY:"synthetic-not-a-key",QDRANT_URL:"https://qdrant.invalid",QDRANT_API_KEY:"synthetic",
+  const env={SUPABASE_URL:"https://supabase.invalid",SUPABASE_SERVICE_ROLE_KEY:"synthetic",GOOGLE_API_KEY:"synthetic-not-a-key",QDRANT_URL:"https://qdrant.invalid",QDRANT_COLLECTION:"nexusrag-test",QDRANT_API_KEY:"synthetic",
     INGESTION_QUEUE:{send:async value=>sent.push(value)}};
   return {env,db,run,calls,sent,provider,hash,reservations,reads};
 }

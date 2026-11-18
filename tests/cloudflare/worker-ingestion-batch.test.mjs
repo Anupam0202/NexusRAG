@@ -15,7 +15,7 @@ const configured = {
   SUPABASE_URL: "https://supabase.invalid",
   SUPABASE_PUBLISHABLE_KEY: "synthetic-publishable",
   SUPABASE_SERVICE_ROLE_KEY: "synthetic-service-only",
-  QDRANT_URL: "https://qdrant.invalid",
+  QDRANT_URL: "https://qdrant.invalid", QDRANT_COLLECTION: "nexusrag-test",
   QDRANT_API_KEY: "synthetic-qdrant-only",
   GOOGLE_API_KEY: "synthetic-gemini-only",
   GEMINI_EMBEDDING_MODEL: "gemini-embedding-001",

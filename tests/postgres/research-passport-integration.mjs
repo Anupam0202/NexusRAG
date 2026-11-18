@@ -123,7 +123,7 @@ globalThis.fetch=async(input,init={})=>{
   throw Error(`Unexpected controlled external path ${url.hostname}${url.pathname}`);
 };
 const env={SUPABASE_URL:"https://passport-peer.invalid",SUPABASE_SERVICE_ROLE_KEY:"synthetic-not-live",GOOGLE_API_KEY:"synthetic-not-live",
-  QDRANT_URL:"https://passport-qdrant.invalid",QDRANT_API_KEY:"synthetic-not-live",INGESTION_QUEUE:{send:async body=>sent.push(body)}};
+  QDRANT_URL:"https://passport-qdrant.invalid",QDRANT_COLLECTION:"nexusrag-test",QDRANT_API_KEY:"synthetic-not-live",INGESTION_QUEUE:{send:async body=>sent.push(body)}};
 const json=(_request,_env,value,status=200)=>new Response(JSON.stringify(value),{status});
 const message=value=>({kind:"research",workspace_id:ws,run_id:value.id,generation:value.generation,position:value.position});
 const read=id=>sql("select public.nexus_research_run(:'ctx'::jsonb,'read',:'plan'::uuid,:'id'::uuid);",{ctx,plan:plan.id,id});

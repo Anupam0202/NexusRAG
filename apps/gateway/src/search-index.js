@@ -5,12 +5,16 @@
 // cluster and one that is restarting look the same from here (no answer, or a 5xx from its load balancer), so
 // that state is called NOT_ANSWERING and its message names both causes.
 
-export const DEFAULT_INDEX_COLLECTION = "nexusrag-v6-preview";
 const PROBE_TIMEOUT_MS = 4_000;
 const remembered = new Map(); // collection address -> { at, result }; per isolate
 
+/**
+ * This environment's collection, or null. There is no default: one would be another environment's collection, so
+ * a gateway deployed without the name would write its documents into that index (NX-36).
+ */
 export function indexCollection(env) {
-  return String(env?.QDRANT_COLLECTION || DEFAULT_INDEX_COLLECTION);
+  const name = typeof env?.QDRANT_COLLECTION === "string" ? env.QDRANT_COLLECTION.trim() : "";
+  return name || null;
 }
 
 /** What an HTTP status from the index proves. 0 stands for no answer at all. */
@@ -41,7 +45,7 @@ export function indexFailure(state, httpStatus = 0) {
 
 /** Address and headers of this environment's collection. */
 export function indexEndpoint(env) {
-  if (!env?.QDRANT_URL || !env?.QDRANT_API_KEY) throw indexFailure("NOT_CONFIGURED");
+  if (!env?.QDRANT_URL || !env?.QDRANT_API_KEY || !indexCollection(env)) throw indexFailure("NOT_CONFIGURED");
   return {
     base: `${String(env.QDRANT_URL).replace(/\/+$/, "")}/collections/${encodeURIComponent(indexCollection(env))}`,
     headers: { "content-type": "application/json", "api-key": env.QDRANT_API_KEY },

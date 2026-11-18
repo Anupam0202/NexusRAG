@@ -86,7 +86,7 @@ for(const fault of [null,"partial-embedding","partial-query","nonfinite","quota"
     if(url.pathname.endsWith("/points/query/batch"))return json({result:body.searches.slice(0,fault==="partial-query"?1:2).map(()=>({points:[{id,score:0.8,payload:{workspace_id:workspace,document_id:id,version_id:id,index_generation:"g",chunk_id:id}}]}))});
     return json({});
   });
-  const run=()=>searchChunkVariants({SUPABASE_URL:"https://sql.invalid",SUPABASE_SERVICE_ROLE_KEY:"synthetic",GOOGLE_API_KEY:"synthetic",QDRANT_URL:"https://qdrant.invalid",QDRANT_API_KEY:"synthetic"},
+  const run=()=>searchChunkVariants({SUPABASE_URL:"https://sql.invalid",SUPABASE_SERVICE_ROLE_KEY:"synthetic",GOOGLE_API_KEY:"synthetic",QDRANT_URL:"https://qdrant.invalid",QDRANT_COLLECTION:"nexusrag-test",QDRANT_API_KEY:"synthetic"},
     {queries:["Original query","Alternative query"],workspaceId:workspace,documentIds:[id],versionIds:[id],indexGenerations:["g"],limit:3,dataClassification:"non_sensitive",signal:AbortSignal.timeout(1000)});
   if(fault)await assert.rejects(run,error=>error.code===(fault==="quota"?"QUOTA_EXHAUSTED":"PROVIDER_INVALID_RESPONSE"));
   else {

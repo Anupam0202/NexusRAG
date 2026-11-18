@@ -188,7 +188,8 @@ async function indexChunks(env, { workspaceId, documentId, versionId, generation
     for (const chunk of chunks) {
       const vector = await embedText(env, chunk.content, "RETRIEVAL_DOCUMENT", context);
       const id = await deterministicPointId(`${workspaceId}:${documentId}:${versionId}:${generation}:${chunk.chunk_index}`);
-      points.push({ id, vector, payload: { workspace_id: workspaceId, document_id: documentId, version_id: versionId, index_generation: generation, filename, chunk_id: id, chunk_index: chunk.chunk_index, page_number: 0, content: chunk.content, location: { char_start: chunk.start, char_end: chunk.end } } });
+      // No passage text: answers and research read it from the database and check its hash (NX-36).
+      points.push({ id, vector, payload: { workspace_id: workspaceId, document_id: documentId, version_id: versionId, index_generation: generation, filename, chunk_id: id, chunk_index: chunk.chunk_index, page_number: 0, location: { char_start: chunk.start, char_end: chunk.end } } });
     }
     const { base, headers } = await ensureQdrant(env, points[0].vector.length, initializeIndex);
     await providerJson(`${base}/points?wait=true`, { method: "PUT", headers, body: JSON.stringify({ points }) }, 30_000);
