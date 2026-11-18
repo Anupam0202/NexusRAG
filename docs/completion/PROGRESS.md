@@ -15,8 +15,9 @@ the index; NX-48 and NX-49 recorded; three moderate advisories in the test and l
 Still failing: ingestion and answers (both Gemini keys answer 402); five rehearsal migrations unapplied (the
 connector's approval went unanswered on 15 to 18 November); preview frontend refused by the environment's branch
 rule; production unreleased; NX-48 and NX-49 have no upstream fix yet.
-Agent work left: none that does not wait on a step below. A scheduled check (13:13 UTC, then every 12 hours) applies
-the `picomatch` and OpenSSL fixes when they appear.
+Agent work left: none that does not wait on a step below. CI is red only on NX-48 and NX-49: neither has a fix
+upstream, and their gates are not loosened without step 4. A scheduled check (13:13 UTC, then every 12 hours)
+applies the `picomatch` and OpenSSL fixes when they appear.
 Owner actions, step by step:
 1. Gemini key, before 1 December: create a key in Google AI Studio in a project with credit, or in a free-tier
    project without prepaid billing. GitHub → Settings → Environments: set it as the secret `GOOGLE_API_KEY` in both
@@ -30,6 +31,8 @@ Owner actions, step by step:
    Site URL `https://nexusrag-preview.pages.dev`, add `https://nexusrag-preview.pages.dev/**`, remove the PR3 URLs.
 4. Reply in chat with ledger decisions ("Ledger status" gives each recommendation): accept or refuse NX-22, NX-25,
    NX-32, NX-33's remainder, NX-35, NX-41 and NX-42's remainder; decide NX-15, NX-31, NX-38, NX-48 and NX-49.
+   For NX-48 and NX-49, reply "wait" (CI stays red until the fixes land) or "accept NX-48 until <date>" (the same
+   for NX-49): the agent then adds an exception for that one advisory alone, which ends on that date.
 5. GitHub → Environments → `Production`: confirm these secrets exist: `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`,
    `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SERVICE_ROLE_KEY` (an `sb_secret_` key), `SUPABASE_DB_URL`
    (production's session pooler), `GEMINI_USER_KEY_ENCRYPTION_SECRET` (base64 of 32 random bytes, set once and never
