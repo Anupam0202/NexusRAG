@@ -21,9 +21,8 @@ Set this as the session goal, in place of the old one:
 - **Code.** Everything in MASTER_PROMPT Tiers 0 to 2 is built and tested offline. Section 4 of PROGRESS.md lists
   each change with its commit and verification level. The gateway has 1,018 tests, the frontend 839 unit tests and
   204 research browser tests, and a fresh replay of the database migrations passes every assertion.
-- **CI.** Every job passes except the container image scan, which flags OpenSSL `3.5.9-r0` in the frontend image
-  (NX-49, red since 18 November): OpenSSL has not released the fix (3.5.10), and the image is only the optional
-  self-managed runtime. The npm audit gate passes again since GitHub withdrew the `picomatch` advisory (NX-48).
+- **CI.** Every job passes (19 November). The two scans that turned red on 18 November were cleared upstream with
+  no change here: GitHub withdrew the `picomatch` advisory (NX-48), and Alpine shipped an OpenSSL update (NX-49).
 - **Preview.** The gateway Worker `nexusrag-v6-candidate-gateway` runs the branch (`81bab63` at the time of
   writing). Its smoke test, `/ready` and the live workspace-deletion journey (19 of 19) pass. The frontend Worker
   still runs an October build, because the preview workflow refuses this branch (environment branch rule). The
@@ -49,8 +48,8 @@ Set this as the session goal, in place of the old one:
 - Never print, log, commit or paste a secret, and check `git diff --cached` before every commit. Ask for
   credentials only through the environment's secret mechanisms (the session's credential request, or the owner's
   GitHub environment secrets), never in chat.
-- Never skip, disable or loosen a test or a CI gate. NX-49 stays red until Alpine ships the OpenSSL fix or the
-  owner accepts a dated exception. Never spend money.
+- Never skip, disable or loosen a test or a CI gate. A new advisory without a fix stays red until the fix lands or
+  the owner accepts a dated exception. Never spend money.
 - Owner checkpoints (MASTER_PROMPT section 9). Ask first before deleting anything that holds data, spending money,
   rotating credentials or adding secrets, changing GitHub rulesets, branch protection, environments, collaborators
   or visibility, and merging. No need to ask for: preview releases (with smoke test and automatic rollback),
@@ -109,7 +108,6 @@ Set this as the session goal, in place of the old one:
      - NX-15: finish Procurement and Passport, or remove them.
      - NX-31: remove the Python backend.
      - NX-38: turn on Dependabot for Actions.
-     - NX-49: wait for Alpine's OpenSSL fix, or accept a dated exception (recommended: until 31 January 2027).
 5. **Production environment.** Confirm that `Production` holds these secrets:
    - `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`.
    - `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY` and `SUPABASE_DB_URL`.
@@ -131,9 +129,9 @@ Set this as the session goal, in place of the old one:
 1. **Dependencies.** NX-48 is resolved: GitHub withdrew the `picomatch` advisory on 18 November. If `npm audit`
    reports a new advisory with a fix in range, update it with Node 24's npm (section 3), run
    `npm audit --audit-level=high`, lint, type-check and the unit tests, and commit it as `chore(deps)`.
-2. **NX-49.** Once Alpine ships OpenSSL 3.5.10 for v3.24, re-run V6 Foundation CI's failed jobs. The Dockerfile's
-   `apk upgrade` takes the fix, and the image scan must pass. If the owner accepts a dated exception instead, make
-   it cover those five CVEs alone, end on the accepted date, and record the owner's words in PROGRESS.md.
+2. **Image scan.** NX-49 is resolved: Alpine shipped OpenSSL `3.5.9-r1` on 18 November and the scan passes. If it
+   reports a new finding, record it in the ledger, and re-run the failed jobs once Alpine ships the fix (the
+   Dockerfile's `apk upgrade` takes it); only the owner can accept a dated exception.
 3. Keep CI green on every push, and fix failures at their cause.
 4. Keep PROGRESS.md current (Handoff, Current state, Ledger status, done log), and keep PR #12's description current.
 
