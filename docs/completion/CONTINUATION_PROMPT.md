@@ -1,5 +1,8 @@
 # NexusRAG: continuation prompt (18 November 2026)
 
+> Superseded on 20 November 2026 by `docs/completion/GOAL.md`, after PR #12 was merged into `main`. Its sections 3
+> and 5 are still referenced from there.
+
 This prompt replaces the session goal set on 9 November ("follow MASTER_PROMPT.md until every item in section 13 is
 satisfied"). That goal could not stop while the remaining items waited on the repository owner, so every stop was
 refused in a loop. The plan, the issue ledger and the acceptance criteria stay in `docs/completion/MASTER_PROMPT.md`,

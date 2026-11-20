@@ -51,16 +51,18 @@
 - A Gemini key on a prepaid project with no credit answers HTTP 402 (since March 2026); the app reports `PROVIDER_CREDIT_EXHAUSTED`.
 - In vitest, `beforeEach(() => mock.mockReset())` returns the mock, which vitest then calls as a cleanup hook; use a block body.
 - The Workers named `*-preview` serve production; the `*-candidate-*` Workers are the preview. `scripts/release.py` holds both targets and refuses to mix their resources.
-- People reach the app at https://nexusrag.pages.dev (production) and https://nexusrag-preview.pages.dev (preview): Cloudflare Pages front doors (`apps/front-door/worker.js`, deployed with `scripts/front_door.py`) that hand every request to the frontend Worker through the `APP` service binding. A page is served there only when the Worker's build names that address (`site_url` in `/_nexus-build.json`, from `NEXT_PUBLIC_SITE_URL`); otherwise it goes to the build's address, or `FALLBACK_ORIGIN` for builds without one. The Worker sends pages opened on its own `workers.dev` address to the public one (sign-in returns only there), and the gateway's `FRONTEND_ORIGIN` lists both origins. This session's network allowlist does not include `*.pages.dev`; Cloudflare's URL scanner (`/urlscanner/v2/scan`, unlisted) can load them.
+- People reach the app at https://nexusrag.pages.dev (production) and https://nexusrag-preview.pages.dev (preview): Cloudflare Pages front doors (`apps/front-door/worker.js`, deployed with `scripts/front_door.py`) that hand every request to the frontend Worker through the `APP` service binding. A page is served there only when the Worker's build names that address (`site_url` in `/_nexus-build.json`, from `NEXT_PUBLIC_SITE_URL`); otherwise it goes to the build's address, or `FALLBACK_ORIGIN` for builds without one. The Worker sends pages opened on its own `workers.dev` address to the public one (sign-in returns only there), and the gateway's `FRONTEND_ORIGIN` lists both origins. Both addresses are on the NexusRAG cloud environment's allowlist (added 2026-11-20), so a session's Chromium can open them (launch it with `proxy: { server: process.env.HTTPS_PROXY }`).
 - From a Claude cloud session the gateway can be released with the saved Cloudflare token (`CLOUDFLARE_API_TOKEN=proxy-injected`), but the frontend cannot: its asset upload sends a short-lived upload token in the header the proxy overwrites. Deploy the frontend with the Cloudflare Preview Deploy workflow.
 - Tests must not depend on the wall clock: pass `now` explicitly (a fixed date in a test broke the suite a day later).
 - `NexusRAG-Recovery` was deleted on 2026-11-09; never reference it.
 - The plan is `docs/completion/MASTER_PROMPT.md`; progress is in `docs/completion/PROGRESS.md`; the session goal and
-  the ordered remaining work are in `docs/completion/CONTINUATION_PROMPT.md`.
+  the ordered remaining work are in `docs/completion/GOAL.md` (it replaces CONTINUATION_PROMPT.md).
 
 ## Conventions
 - Commit as `Anupam Roy <42176802+Anupam0202@users.noreply.github.com>`; no AI attribution or branding anywhere.
-- Work on `codex/runtime-manifest-008` (PR #12) until the owner merges it.
-- Conventional Commits; draft PRs with Problem / Solution / Test evidence; the owner merges.
+- PR #12 was merged on 2026-11-20 (`90d1b80`). New work goes on a branch from `main` and a pull request, squash-merged
+  once every required check passes on its exact head; the provider checks and the `Preview` deployment come from
+  pushing that head to `release/production-<yyyymmdd>` (GOAL.md section 4, "Merging").
+- Conventional Commits; PRs with Problem / Solution / Test evidence; under the owner's grant of 2026-11-20 the agent merges them when every required check passes (GOAL.md section 2).
 - Check `git diff --cached` for secrets before every commit.
 - Progress lives in `docs/completion/PROGRESS.md`.
