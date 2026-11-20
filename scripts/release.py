@@ -2,7 +2,8 @@
 
 The candidate preview and production use the same code path, from GitHub Actions or a terminal:
 
-  python3 scripts/release.py plan     --target candidate
+  python3 scripts/release.py plan      --target candidate
+  python3 scripts/release.py preflight --target candidate                    # before anything changes
   python3 scripts/release.py env      --target candidate                     # public build settings
   python3 scripts/release.py gateway  --target candidate --sha <commit> [--secrets-file FILE] [--allow-index-down]
   python3 scripts/release.py frontend --target candidate --sha <commit>     # after `npm run cf:build`
@@ -15,6 +16,10 @@ A target can only ever bind its own Supabase project, Workers, queues and Qdrant
 The app and its API share the target's public address: its front door (apps/front-door) hands the gateway's
 paths to the gateway Worker. Every command that builds or releases refuses to start while that address does not
 answer /health as the target's gateway; deploy the front door first with `python3 scripts/front_door.py deploy`.
+
+`preflight` checks, without changing anything, what a release needs: SUPABASE_DB_URL (when set) names the target's
+own Supabase project, Cloudflare accepts the token for the target's Workers, and the public address answers as the
+gateway. The deploy workflows run it before they snapshot or migrate a database.
 
 The gateway smoke test also asks the new version's `/ready` endpoint, so a release whose gateway cannot use
 its database or its search index is rolled back. `--allow-index-down` accepts one case only: a search index
@@ -169,6 +174,9 @@ def cloudflare(path: str, token: str) -> dict:
         with request.urlopen(call, timeout=30) as response:
             body = json.loads(response.read(4 * 1024 * 1024))
     except error.HTTPError as exc:
+        if exc.code in (401, 403):
+            raise ReleaseError(f"Cloudflare refused the API token (HTTP {exc.code}) for {path.split('?')[0]}: set "
+                               "CLOUDFLARE_API_TOKEN to a token that can edit this account's Workers and Queues.") from None
         raise ReleaseError(f"Cloudflare API returned HTTP {exc.code} for {path.split('?')[0]}") from None
     except (error.URLError, TimeoutError, OSError, ValueError) as exc:
         raise ReleaseError(f"Cloudflare API request failed: {type(exc).__name__}") from None
@@ -207,6 +215,48 @@ def require_front_door(name: str, target: dict) -> None:
             f"{target['public_url']}/health is not answered by {target['gateway_worker']} (HTTP {status}). Deploy the "
             f"front door first: python3 scripts/front_door.py deploy --target {name}. If it is deployed, the gateway "
             "is not answering; roll it back with `release.py rollback`.")
+
+
+SUPABASE_REF = re.compile(r"[a-z0-9]{20}")
+
+
+def database_project(url: str) -> str | None:
+    """The Supabase project a database connection string names: the pooler's user `postgres.<ref>`, or the direct
+    host `db.<ref>.supabase.co`. None for anything else. Only the user and host are read, never the password."""
+    try:
+        parts = parse.urlsplit(url)
+        user, host = parts.username or "", parts.hostname or ""
+    except ValueError:
+        return None
+    ref = user.split(".", 1)[1] if user.startswith("postgres.") else None
+    if ref is None:
+        match = re.fullmatch(r"db\.([a-z0-9]+)\.supabase\.co", host)
+        ref = match.group(1) if match else None
+    return ref if ref and SUPABASE_REF.fullmatch(ref) else None
+
+
+def preflight(name: str) -> int:
+    """What a release needs, checked before anything changes: the database address (when set) names the target's own
+    project, Cloudflare accepts the token for the target's Workers, and the public address answers as the gateway.
+    The deploy workflows run it before the snapshot and migrations, so a wrong secret stops a release untouched."""
+    target = TARGETS[name]
+    env = require_env("CLOUDFLARE_API_TOKEN", "CLOUDFLARE_ACCOUNT_ID")
+    database_url = os.environ.get("SUPABASE_DB_URL", "")
+    if database_url:
+        found = database_project(database_url)
+        if found != target["supabase_ref"]:
+            named = f"names the Supabase project {found}" if found else "names no Supabase project"
+            raise ReleaseError(f"SUPABASE_DB_URL {named}, but the {name} target uses {target['supabase_ref']}: set it to "
+                               f"the session-pooler connection string of {target['supabase_ref']}. Nothing was changed.")
+    account, token = env["CLOUDFLARE_ACCOUNT_ID"], env["CLOUDFLARE_API_TOKEN"]
+    origins(target, account, token)
+    for worker in (target["gateway_worker"], target["frontend_worker"]):
+        active_version(worker, account, token)
+    require_front_door(name, target)
+    print(f"Ready to release {name}: {'the database is ' + target['supabase_ref'] + '; ' if database_url else ''}"
+          f"Cloudflare accepts the token for {target['gateway_worker']} and {target['frontend_worker']}; "
+          f"{target['public_url']} answers as the gateway.")
+    return 0
 
 
 def active_version(worker: str, account: str, token: str) -> str | None:
@@ -518,7 +568,7 @@ def plan(name: str) -> int:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("command", choices=["plan", "env", "gateway", "frontend", "rollback"])
+    parser.add_argument("command", choices=["plan", "preflight", "env", "gateway", "frontend", "rollback"])
     parser.add_argument("--target", choices=sorted(TARGETS), required=True)
     parser.add_argument("--sha", help="full commit SHA being released")
     parser.add_argument("--component", choices=["gateway", "frontend"], help="Worker to roll back")
@@ -531,6 +581,8 @@ def main(argv: list[str] | None = None) -> int:
         validate_targets()
         if args.command == "plan":
             return plan(args.target)
+        if args.command == "preflight":
+            return preflight(args.target)
         if args.command == "env":
             return build_env(args.target)
         if args.command == "rollback":

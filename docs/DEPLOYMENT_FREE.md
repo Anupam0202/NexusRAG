@@ -18,7 +18,9 @@ the candidate preview". The workflow applies pending migrations to the rehearsal
 both (restoring the previous version on failure) and runs the browser tests against the preview.
 
 The GitHub environment `NexusRAG-Candidate-Preview` needs the same names as production (see
-`docs/DEPLOYMENT_PRODUCTION.md`), with the rehearsal project's values. `SUPABASE_DB_URL` is optional there.
+`docs/DEPLOYMENT_PRODUCTION.md`), with the rehearsal project's values. `SUPABASE_DB_URL` is optional there; when
+set it must be the rehearsal project's session-pooler string (user `postgres.ukgjygzfhyvnrsecdcuu`), and the release
+refuses any other project's before it changes anything.
 
 ## Deploying the gateway from a terminal
 

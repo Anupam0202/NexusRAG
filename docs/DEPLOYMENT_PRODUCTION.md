@@ -47,9 +47,9 @@ Add these to the GitHub `Production` environment (Settings → Environments → 
 
 | Kind | Name | Value |
 |---|---|---|
-| Secret | `CLOUDFLARE_API_TOKEN` | Token that can edit Workers and Queues |
+| Secret | `CLOUDFLARE_API_TOKEN` | Token that can edit Workers and Queues (Cloudflare's "Edit Cloudflare Workers" template plus Account → Queues → Edit) |
 | Secret | `SUPABASE_SERVICE_ROLE_KEY` | A secret key (`sb_secret_...`, Settings → API Keys) of the production project; the legacy `service_role` key also works until Supabase retires it at the end of 2026 |
-| Secret | `SUPABASE_DB_URL` | Session-pooler connection string of the production database (Supabase → Connect) |
+| Secret | `SUPABASE_DB_URL` | Session-pooler connection string of the production database, `fcjaomiceajcdownarel` (Supabase → Connect → Direct → Session pooler; user `postgres.fcjaomiceajcdownarel`, port 5432). The release refuses another project's address before it changes anything |
 | Secret | `GEMINI_USER_KEY_ENCRYPTION_SECRET` | Base64 of 32 random bytes (`openssl rand -base64 32`). Keep a copy: it decrypts every stored user key. Never just replace it: to rotate, see the next row |
 | Secret (optional) | `GEMINI_USER_KEY_ENCRYPTION_SECRET_PREVIOUS` | Only while rotating: the old encryption secret, so keys it sealed still open. The daily cron re-seals them with the new one and logs `byok_reencryption`; remove this once it reports nothing left |
 | Secret | `GOOGLE_API_KEY` | Platform Gemini key (trial chats and the daily model check) |
