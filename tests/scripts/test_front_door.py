@@ -15,9 +15,15 @@ PROJECT = "/accounts/account/pages/projects/nexusrag"
 class Cloudflare:
     """The parts of the Cloudflare API the front door uses. `subdomain` is the address a new project gets."""
 
-    def __init__(self, exists=False, subdomain="nexusrag.pages.dev", stages=("queued", "deploy:success"), project=PROJECT):
+    def __init__(self, exists=False, subdomain="nexusrag.pages.dev", stages=("queued", "deploy:success"), project=PROJECT,
+                 health=((200, "nexusrag-v6-preview-gateway"),)):
         self.exists, self.subdomain, self.stages, self.calls = exists, subdomain, list(stages), []
-        self.project = project
+        self.project, self.health, self.asked = project, list(health), []
+
+    def gateway_behind(self, public_url):
+        """Who answers /health at the public address, as (HTTP status, service): the last answer repeats."""
+        self.asked.append(public_url)
+        return self.health.pop(0) if len(self.health) > 1 else self.health[0]
 
     def __call__(self, method, path, token, *, body=None, form=None, missing_ok=False):
         assert token == ENV["CLOUDFLARE_API_TOKEN"]
@@ -43,6 +49,7 @@ class Cloudflare:
     def run(self, *argv):
         out, err = io.StringIO(), io.StringIO()
         with mock.patch.dict(os.environ, ENV, clear=True), mock.patch.object(front_door, "api", self), \
+             mock.patch.object(front_door, "gateway_behind", self.gateway_behind), \
              mock.patch.object(front_door.time, "sleep"), mock.patch("sys.stdout", out), mock.patch("sys.stderr", err):
             code = front_door.main(list(argv))
         return code, out.getvalue(), err.getvalue()
@@ -57,9 +64,12 @@ class FrontDoorTests(unittest.TestCase):
         self.assertIn(("POST", "/accounts/account/pages/projects"), methods)
         patch = next(body for method, path, body, _ in cloudflare.calls if method == "PATCH")
         config = patch["deployment_configs"]["production"]
-        self.assertEqual(config["services"], {"APP": {"service": "nexusrag-v6-frontend-preview", "environment": "production"}})
+        self.assertEqual(config["services"], {"APP": {"service": "nexusrag-v6-frontend-preview", "environment": "production"},
+                                              "GATEWAY": {"service": "nexusrag-v6-preview-gateway", "environment": "production"}})
         self.assertEqual(config["env_vars"]["FALLBACK_ORIGIN"],
                          {"type": "plain_text", "value": "https://nexusrag-v6-frontend-preview.example.workers.dev"})
+        self.assertEqual(config["env_vars"]["PUBLIC_ORIGIN"], {"type": "plain_text", "value": "https://nexusrag.pages.dev"},
+                         "every other address of the project is sent to the public one")
         self.assertLess(methods.index(("PATCH", PROJECT)), methods.index(("POST", f"{PROJECT}/deployments")),
                         "bindings are set before the deployment that reads them")
         form = next(form for method, path, _, form in cloudflare.calls if path.endswith("/deployments") and method == "POST")
@@ -82,10 +92,31 @@ class FrontDoorTests(unittest.TestCase):
         self.assertFalse([call for call in cloudflare.calls if call[0] in {"PATCH", "POST"}])
 
     def test_the_preview_front_door_binds_only_the_preview_worker(self):
-        cloudflare = Cloudflare(subdomain="nexusrag-preview.pages.dev", project="/accounts/account/pages/projects/nexusrag-preview")
+        cloudflare = Cloudflare(subdomain="nexusrag-preview.pages.dev", project="/accounts/account/pages/projects/nexusrag-preview",
+                                health=((200, "nexusrag-v6-candidate-gateway"),))
         self.assertEqual(cloudflare.run("deploy", "--target", "candidate")[0], 0)
+        self.assertEqual(set(cloudflare.asked), {"https://nexusrag-preview.pages.dev"})
         patch = next(body for method, _, body, _ in cloudflare.calls if method == "PATCH")
-        self.assertEqual(patch["deployment_configs"]["production"]["services"]["APP"]["service"], "nexusrag-v6-candidate-frontend")
+        services = patch["deployment_configs"]["production"]["services"]
+        self.assertEqual(services["APP"]["service"], "nexusrag-v6-candidate-frontend")
+        self.assertEqual(services["GATEWAY"]["service"], "nexusrag-v6-candidate-gateway")
+        self.assertEqual(patch["deployment_configs"]["production"]["env_vars"]["PUBLIC_ORIGIN"]["value"],
+                         "https://nexusrag-preview.pages.dev")
+
+    def test_the_deploy_waits_until_the_address_answers_as_the_gateway(self):
+        # The frontend's own not-found page answers until the new deployment reaches every location.
+        cloudflare = Cloudflare(exists=True, health=((404, None), (404, None), (200, "nexusrag-v6-preview-gateway")))
+        code, out, err = cloudflare.run("deploy", "--target", "production")
+        self.assertEqual(code, 0, err)
+        self.assertEqual(cloudflare.asked, ["https://nexusrag.pages.dev"] * 3)
+        self.assertIn("its API from nexusrag-v6-preview-gateway", out)
+
+        for answer in ((404, None), (200, "nexusrag-v6-candidate-gateway"), (0, None)):
+            with self.subTest(answer=answer):
+                code, _, err = Cloudflare(exists=True, health=(answer,)).run("deploy", "--target", "production")
+                self.assertEqual(code, 1)
+                self.assertIn("https://nexusrag.pages.dev/health is not answered by nexusrag-v6-preview-gateway", err)
+                self.assertIn("GATEWAY binding", err)
 
     def test_a_deployment_that_fails_is_reported(self):
         code, _, err = Cloudflare(stages=("deploy:failure",)).run("deploy", "--target", "production")
@@ -96,7 +127,7 @@ class FrontDoorTests(unittest.TestCase):
         cloudflare = Cloudflare()
         code, out, _ = cloudflare.run("plan", "--target", "production")
         self.assertEqual(code, 0)
-        self.assertEqual(json.loads(out)["binding"], {"APP": "nexusrag-v6-frontend-preview"})
+        self.assertEqual(json.loads(out)["bindings"], {"APP": "nexusrag-v6-frontend-preview", "GATEWAY": "nexusrag-v6-preview-gateway"})
         self.assertEqual(cloudflare.calls, [])
 
     def test_settings_are_required(self):

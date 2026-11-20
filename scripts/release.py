@@ -12,6 +12,10 @@ Environment: CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID; for the gateway als
 SUPABASE_PUBLISHABLE_KEY. WRANGLER overrides the wrangler command (default: the pinned npx version).
 A target can only ever bind its own Supabase project, Workers, queues and Qdrant collection.
 
+The app and its API share the target's public address: its front door (apps/front-door) hands the gateway's
+paths to the gateway Worker. Every command that builds or releases refuses to start while that address does not
+answer /health as the target's gateway; deploy the front door first with `python3 scripts/front_door.py deploy`.
+
 The gateway smoke test also asks the new version's `/ready` endpoint, so a release whose gateway cannot use
 its database or its search index is rolled back. `--allow-index-down` accepts one case only: a search index
 that does not answer (for example a suspended free cluster that is being reactivated).
@@ -41,7 +45,8 @@ API = "https://api.cloudflare.com/client/v4"
 
 # The Workers named "*-preview" have served production since September 2026 (decision D8): releasing into them
 # keeps the queue and the stored secrets. People reach each target at its public address, a Cloudflare Pages project
-# (the front door, apps/front-door) that hands every request to the frontend Worker (scripts/front_door.py).
+# (the front door, apps/front-door) that hands the gateway's API and probes to the gateway Worker and every other
+# request to the frontend Worker (scripts/front_door.py).
 TARGETS = {
     "candidate": {
         "gateway_worker": "nexusrag-v6-candidate-gateway",
@@ -173,14 +178,35 @@ def cloudflare(path: str, token: str) -> dict:
 
 
 def origins(target: dict, account: str, token: str) -> dict[str, str]:
-    """Where a target is reached: the gateway, the app's public address (`frontend`, what people open and what the
-    build is made for) and the frontend Worker's own address, which sends pages on to the public one."""
+    """Where a target is reached: the app and its API at the public address (what people open, what the build is
+    made for and what the smoke tests use), and the frontend Worker's own address, which sends pages on to it."""
     subdomain = cloudflare(f"/accounts/{account}/workers/subdomain", token)["result"]["subdomain"]
     return {
-        "gateway": f"https://{target['gateway_worker']}.{subdomain}.workers.dev",
+        "gateway": target["public_url"],
         "frontend": target["public_url"],
         "frontend_worker": f"https://{target['frontend_worker']}.{subdomain}.workers.dev",
     }
+
+
+def gateway_behind(public_url: str) -> tuple[int, object]:
+    """Who answers /health at an address: (HTTP status, the service it names, or None). The gateway names itself
+    there whether or not its configuration is complete."""
+    status, body = fetch(f"{public_url}/health")
+    try:
+        return status, json.loads(body).get("service")
+    except (ValueError, AttributeError):
+        return status, None
+
+
+def require_front_door(name: str, target: dict) -> None:
+    """Refuse to build or release while the public address does not hand the API to this target's gateway: a build
+    made for that address could not reach its API, and a gateway smoke test there would roll back a good release."""
+    status, service = gateway_behind(target["public_url"])
+    if service != target["gateway_worker"]:
+        raise ReleaseError(
+            f"{target['public_url']}/health is not answered by {target['gateway_worker']} (HTTP {status}). Deploy the "
+            f"front door first: python3 scripts/front_door.py deploy --target {name}. If it is deployed, the gateway "
+            "is not answering; roll it back with `release.py rollback`.")
 
 
 def active_version(worker: str, account: str, token: str) -> str | None:
@@ -402,6 +428,7 @@ def release_gateway(name: str, sha: str, secrets_file: str | None, allow_index_d
         raise ReleaseError("The secrets file does not exist.")
     models = generation_models(os.environ.get("GEMINI_MODEL"))
     embedding = embedding_model(os.environ.get("GEMINI_EMBEDDING_MODEL"))
+    require_front_door(name, target)
     urls = origins(target, env["CLOUDFLARE_ACCOUNT_ID"], env["CLOUDFLARE_API_TOKEN"])
     previous = active_version(target["gateway_worker"], env["CLOUDFLARE_ACCOUNT_ID"], env["CLOUDFLARE_API_TOKEN"])
     ensure_queues(target)
@@ -447,6 +474,7 @@ def release_frontend(name: str, sha: str) -> int:
             content = path.read_text(encoding="utf-8", errors="ignore")
             if any(ref in content for ref in other_refs(name)):
                 raise ReleaseError(f"The frontend build contains another environment's Supabase project: {path.name}")
+    require_front_door(name, target)
     urls = origins(target, env["CLOUDFLARE_ACCOUNT_ID"], env["CLOUDFLARE_API_TOKEN"])
     previous = active_version(target["frontend_worker"], env["CLOUDFLARE_ACCOUNT_ID"], env["CLOUDFLARE_API_TOKEN"])
     result = subprocess.run(["npm", "run", "cf:deploy", "--", "--config", target["frontend_config"]], cwd=ROOT / "frontend", check=False)
@@ -463,6 +491,7 @@ def build_env(name: str) -> int:
     env = require_env("CLOUDFLARE_API_TOKEN", "CLOUDFLARE_ACCOUNT_ID", "NEXT_PUBLIC_SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY")
     if env["NEXT_PUBLIC_SUPABASE_URL"] != supabase_url(target):
         raise ReleaseError(f"The {name} frontend may only use the Supabase project {target['supabase_ref']}.")
+    require_front_door(name, target)
     urls = origins(target, env["CLOUDFLARE_ACCOUNT_ID"], env["CLOUDFLARE_API_TOKEN"])
     print(f"NEXT_PUBLIC_API_URL={urls['gateway']}")
     print(f"NEXT_PUBLIC_SITE_URL={urls['frontend']}")

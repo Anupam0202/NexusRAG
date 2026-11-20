@@ -1,5 +1,6 @@
 """Give a NexusRAG target its plain public address: the front door, a Cloudflare Pages project whose code
-(apps/front-door/worker.js) hands every request to the target's frontend Worker through a service binding.
+(apps/front-door/worker.js) hands the gateway's API and probes to the target's gateway Worker and every other
+request to its frontend Worker, each through a service binding, so the app and its API share one address.
 
   python3 scripts/front_door.py plan   --target production
   python3 scripts/front_door.py deploy --target production
@@ -7,8 +8,10 @@
 Environment: CLOUDFLARE_API_TOKEN (with Pages edit access) and CLOUDFLARE_ACCOUNT_ID.
 
 `deploy` creates the Pages project when it is missing, refuses one whose address Cloudflare gave differently (the
-name is taken by another account), binds the frontend Worker as APP, and uploads only the front door's code: no files
-and no upload token, so it also works from a session whose proxy replaces every Cloudflare Authorization header.
+name is taken by another account), binds the frontend Worker as APP and the gateway Worker as GATEWAY, and uploads
+only the front door's code: no files and no upload token, so it also works from a session whose proxy replaces every
+Cloudflare Authorization header. It then waits until the address answers /health as the gateway, which is what
+scripts/release.py checks before it builds or releases anything for that address.
 
 Deploying never breaks the app: the front door serves a build made for its address and sends the visitors of any
 other build to the address that build names (FALLBACK_ORIGIN, the Worker's own, for builds older than the field).
@@ -26,15 +29,21 @@ import uuid
 from urllib import error, parse, request
 
 if __package__:
-    from .release import API, ROOT, TARGETS, ReleaseError, require_env, validate_targets
+    from .release import API, ROOT, TARGETS, ReleaseError, gateway_behind, require_env, validate_targets
 else:
-    from release import API, ROOT, TARGETS, ReleaseError, require_env, validate_targets
+    from release import API, ROOT, TARGETS, ReleaseError, gateway_behind, require_env, validate_targets
 
 FRONT_DOOR = ROOT / "apps" / "front-door" / "worker.js"
 # The same runtime date as the app's Workers, which the pinned wrangler also runs locally.
 COMPATIBILITY_DATE = "2026-09-20"
 PRODUCTION_BRANCH = "main"
-BINDING = "APP"
+APP_BINDING = "APP"
+GATEWAY_BINDING = "GATEWAY"
+
+
+def bindings(target: dict) -> dict[str, str]:
+    """The Worker behind each of the front door's bindings."""
+    return {APP_BINDING: target["frontend_worker"], GATEWAY_BINDING: target["gateway_worker"]}
 
 
 def api(method: str, path: str, token: str, *, body: dict | None = None, form: list[tuple] | None = None,
@@ -95,12 +104,14 @@ def worker_origin(target: dict, account: str, token: str) -> str:
 
 
 def production_config(target: dict, fallback: str) -> dict:
-    """What the front door runs with: the frontend Worker as APP, and where older builds are served."""
+    """What the front door runs with: the frontend Worker as APP, the gateway Worker as GATEWAY, its one public
+    address (every other address of the project is sent there), and where older builds are served."""
     return {
         "compatibility_date": COMPATIBILITY_DATE,
         "compatibility_flags": [],
-        "services": {BINDING: {"service": target["frontend_worker"], "environment": "production"}},
-        "env_vars": {"FALLBACK_ORIGIN": {"type": "plain_text", "value": fallback}},
+        "services": {binding: {"service": worker, "environment": "production"} for binding, worker in bindings(target).items()},
+        "env_vars": {"FALLBACK_ORIGIN": {"type": "plain_text", "value": fallback},
+                     "PUBLIC_ORIGIN": {"type": "plain_text", "value": target["public_url"]}},
     }
 
 
@@ -147,7 +158,18 @@ def deploy(name: str, attempts: int = 30, pause: float = 4.0) -> int:
             time.sleep(pause)
     else:
         raise ReleaseError(f"The front door deployment {deployment} did not finish in time; check the Pages project.")
-    print(f"The front door {target['public_url']} serves {target['frontend_worker']} (deployment {deployment}).")
+    for attempt in range(attempts):
+        status, service = gateway_behind(target["public_url"])
+        if service == target["gateway_worker"]:
+            break
+        if attempt + 1 < attempts:
+            time.sleep(pause)
+    else:
+        raise ReleaseError(f"The front door deployment {deployment} is live, but {target['public_url']}/health is not "
+                           f"answered by {target['gateway_worker']} (HTTP {status}). Check the GATEWAY binding in the "
+                           "Pages project and that the gateway Worker answers.")
+    print(f"The front door {target['public_url']} serves {target['frontend_worker']} and its API from "
+          f"{target['gateway_worker']} (deployment {deployment}).")
     print(f"Pages of builds made for another address go there; older builds go to {fallback}.")
     return 0
 
@@ -155,7 +177,7 @@ def deploy(name: str, attempts: int = 30, pause: float = 4.0) -> int:
 def plan(name: str) -> int:
     target = TARGETS[name]
     print(json.dumps({"target": name, "pages_project": target["pages_project"], "public_url": target["public_url"],
-                      "binding": {BINDING: target["frontend_worker"]}, "compatibility_date": COMPATIBILITY_DATE,
+                      "bindings": bindings(target), "compatibility_date": COMPATIBILITY_DATE,
                       "code": str(FRONT_DOOR.relative_to(ROOT))}, indent=2))
     return 0
 

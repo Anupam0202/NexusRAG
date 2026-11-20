@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import frontDoor, { buildAddress, isPageRequest } from "../../apps/front-door/worker.js";
+import frontDoor, { buildAddress, isGatewayPath, isPageRequest } from "../../apps/front-door/worker.js";
 
 const PUBLIC = "https://nexusrag.pages.dev";
 const WORKER = "https://nexusrag-v6-frontend-preview.example.workers.dev";
@@ -95,4 +95,77 @@ test("only browser page loads count as page requests", () => {
   assert.equal(isPageRequest(page("/", { method: "HEAD" })), true);
   assert.equal(isPageRequest(new Request(`${PUBLIC}/`)), false);
   assert.equal(isPageRequest(page("/", { method: "DELETE" })), false);
+});
+
+/** The gateway Worker behind the GATEWAY binding. */
+function gateway() {
+  const calls = [];
+  return { calls, async fetch(request) { calls.push(request); return Response.json({ served: new URL(request.url).pathname }); } };
+}
+
+test("the gateway's API and probes are served on the public address, with the request untouched", async () => {
+  const APP = app({ site_url: PUBLIC });
+  const GATEWAY = gateway();
+  for (const request of [
+    new Request(`${PUBLIC}/api/v1/documents?limit=5`, { headers: { Authorization: "Bearer synthetic", Accept: "application/json" } }),
+    new Request(`${PUBLIC}/api/v2/research/plans`, { method: "POST", body: "{}", headers: { "Content-Type": "application/json" } }),
+    new Request(`${PUBLIC}/api/v1/chat`, { method: "POST", body: "{}", headers: { Accept: "text/event-stream" } }),
+    new Request(`${PUBLIC}/health`),
+    new Request(`${PUBLIC}/ready`, { headers: { Accept: "text/html" } }),
+  ]) {
+    const response = await frontDoor.fetch(request, { APP, GATEWAY, FALLBACK_ORIGIN: WORKER });
+    assert.equal(response.status, 200, request.url);
+    assert.equal(GATEWAY.calls.at(-1), request, "the original request, with its method, headers and body, reaches the gateway");
+  }
+  assert.equal(APP.calls.length, 0, "no API request reaches the frontend Worker, and no build identity is read for it");
+});
+
+test("pages that only look like gateway paths stay with the app", async () => {
+  const APP = app({ site_url: PUBLIC });
+  const GATEWAY = gateway();
+  for (const path of ["/", "/api", "/apis/overview", "/evidence-api", "/healthz", "/ready/now", "/research"]) {
+    assert.equal(isGatewayPath(path), false, path);
+    const response = await frontDoor.fetch(page(path), { APP, GATEWAY, FALLBACK_ORIGIN: WORKER });
+    assert.equal(response.status, 200, path);
+  }
+  assert.equal(GATEWAY.calls.length, 0);
+});
+
+test("without the gateway binding, its paths answer 503 and pages are still served", async () => {
+  const APP = app({ site_url: PUBLIC });
+  const unavailable = await frontDoor.fetch(new Request(`${PUBLIC}/api/v1/status`), { APP, FALLBACK_ORIGIN: WORKER });
+  assert.equal(unavailable.status, 503);
+  assert.equal(unavailable.headers.get("Cache-Control"), "no-store");
+  assert.equal(APP.calls.length, 0, "an API request is never handed to the frontend Worker");
+  assert.equal((await frontDoor.fetch(page("/"), { APP, FALLBACK_ORIGIN: WORKER })).status, 200);
+});
+
+test("a deployment's own address sends every request to the public address, keeping method, path and query", async () => {
+  const APP = app({ site_url: PUBLIC });
+  const GATEWAY = gateway();
+  const env = { APP, GATEWAY, FALLBACK_ORIGIN: WORKER, PUBLIC_ORIGIN: PUBLIC };
+  for (const [request, location] of [
+    [new Request("https://8150beca.nexusrag.pages.dev/research?plan=1", { headers: { Accept: "text/html" } }), `${PUBLIC}/research?plan=1`],
+    [new Request("https://8150beca.nexusrag.pages.dev/api/v1/chat", { method: "POST", body: "{}" }), `${PUBLIC}/api/v1/chat`],
+    [new Request("https://8150beca.nexusrag.pages.dev/health"), `${PUBLIC}/health`],
+    [new Request("http://nexusrag.pages.dev/documents"), `${PUBLIC}/documents`],
+  ]) {
+    const response = await frontDoor.fetch(request, env);
+    assert.equal(response.status, 308, request.url);
+    assert.equal(response.headers.get("Location"), location);
+    assert.equal(response.headers.get("Cache-Control"), "no-store");
+  }
+  assert.equal(APP.calls.length + GATEWAY.calls.length, 0, "nothing is served at another address");
+});
+
+test("the public address itself, and a front door with no public address set, serve as before", async () => {
+  const APP = app({ site_url: PUBLIC });
+  const GATEWAY = gateway();
+  assert.equal((await frontDoor.fetch(new Request(`${PUBLIC}/health`), { APP, GATEWAY, PUBLIC_ORIGIN: PUBLIC })).status, 200);
+  assert.equal((await frontDoor.fetch(page("/"), { APP, GATEWAY, PUBLIC_ORIGIN: `${PUBLIC}/` })).status, 200, "a trailing slash names the same origin");
+  const local = new Request("http://localhost:8788/health");
+  assert.equal((await frontDoor.fetch(local, { APP, GATEWAY })).status, 200, "without PUBLIC_ORIGIN (a local run) nothing is redirected");
+  for (const invalid of ["http://nexusrag.pages.dev", "https://user:secret@nexusrag.pages.dev", "not a url", ""]) {
+    assert.equal((await frontDoor.fetch(local, { APP, GATEWAY, PUBLIC_ORIGIN: invalid })).status, 200, String(invalid));
+  }
 });
