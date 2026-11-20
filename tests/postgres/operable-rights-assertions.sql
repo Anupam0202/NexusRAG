@@ -21,6 +21,16 @@ begin
   r := public.v6_reserve_many(w, 'qdrant', '{"requests":1}', 'operable-unreviewed', 'interactive', 'provider_operation', 'unknown');
   if r->>'state' <> 'RIGHTS_BLOCKED' or r->>'reason' <> 'PROVIDER_REVIEW_REQUIRED' then raise exception 'unreviewed provider admitted: %', r; end if;
 
+  -- 1b. Erasure never waits on the review (NX-50): removing what an infrastructure provider already holds is admitted
+  --     without one, within the same budgets. Gemini is never erasure, and erasure opens nothing else.
+  r := public.v6_reserve_many(w, 'qdrant', '{"requests":2}', 'operable-erasure-unreviewed', 'background', 'erasure', 'unknown');
+  if r->>'state' <> 'READY' then raise exception 'erasure waited on the provider review: %', r; end if;
+  if public.v6_settle_many(r->'reservations', false)->>'state' <> 'RELEASED' then raise exception 'erasure reservation was not released'; end if;
+  r := public.v6_reserve_many(w, 'gemini', '{"requests":1}', 'operable-erasure-gemini', 'background', 'erasure', 'unknown');
+  if r->>'state' <> 'RIGHTS_BLOCKED' or r->>'reason' <> 'ACTION_NOT_ALLOWED' then raise exception 'Gemini admitted as erasure: %', r; end if;
+  r := public.v6_reserve_many(w, 'qdrant', '{"requests":1}', 'operable-still-unreviewed', 'background', 'provider_operation', 'unknown');
+  if r->>'state' <> 'RIGHTS_BLOCKED' or r->>'reason' <> 'PROVIDER_REVIEW_REQUIRED' then raise exception 'erasure opened other calls: %', r; end if;
+
   -- 2. Only a confirmed account can be recorded as the reviewer, and the review makes the provider usable.
   begin
     perform public.nexus_record_provider_review('qdrant', 'nobody@example.invalid', 'https://qdrant.tech/legal/terms_and_conditions/', repeat('e', 64), '{}');
@@ -115,6 +125,11 @@ begin
     if has_function_privilege('anon', name, 'execute') or has_function_privilege('authenticated', name, 'execute') then
       raise exception 'browser role can execute %', name; end if;
   end loop;
+  -- Only v6_reserve_many decides what counts as erasure; the gateway cannot reserve around it.
+  if has_function_privilege('service_role', 'public.nexus_reserve_budget(uuid,text,text,bigint,text,text,boolean)', 'execute')
+     or has_function_privilege('anon', 'public.nexus_reserve_budget(uuid,text,text,bigint,text,text,boolean)', 'execute')
+     or has_function_privilege('authenticated', 'public.nexus_reserve_budget(uuid,text,text,bigint,text,text,boolean)', 'execute') then
+    raise exception 'a client role can reserve budget without the admission checks'; end if;
   if has_table_privilege('anon', 'public.provider_budget_defaults', 'select')
      or has_table_privilege('authenticated', 'public.provider_budget_defaults', 'select') then
     raise exception 'browser role can read budget defaults'; end if;

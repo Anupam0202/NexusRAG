@@ -204,9 +204,11 @@ async function verifiedQdrantCount(response, failureCode) {
     throw error(failureCode, "Qdrant did not return a valid exact vector count.", 503, true);
   return count;
 }
+// Removing entries is erasure: the database admits it without a current review of Qdrant's terms (NX-50), within
+// the same budgets, because the review governs what may be sent to a provider, not removing what it already holds.
 async function del(env,filter,workspaceId,priority="background"){
   const{base:root,headers}=indexEndpoint(env);
-  return metered(env,{workspaceId,provider:"qdrant",priority},{requests:2},async()=>{
+  return metered(env,{workspaceId,provider:"qdrant",priority,action:"erasure"},{requests:2},async()=>{
     let response=await boundedQdrantFetch(`${root}/points/delete?wait=true`,{method:"POST",headers,body:JSON.stringify({filter})});
     if(!response.ok)throw error("QDRANT_DELETE_FAILED","Qdrant deletion failed.",503,true);
     response=await boundedQdrantFetch(`${root}/points/count`,{method:"POST",headers,body:JSON.stringify({exact:true,filter})});
