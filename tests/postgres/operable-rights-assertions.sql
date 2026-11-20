@@ -16,13 +16,6 @@ declare
   a constant uuid := '22222222-2222-4222-8222-222222222222';
   r jsonb; first jsonb; second jsonb; n bigint; boundary timestamptz;
 begin
-  -- 0. The operator's review reads each terms page itself, so the address must serve the terms as text. Google's
-  --    https://ai.google.dev/gemini-api/terms now draws them in the browser (its HTML holds only the title).
-  if (select terms_url from public.provider_registry where id = 'gemini') is distinct from 'https://aistudio.google.com/docs/terms.md' then
-    raise exception 'the Gemini terms address does not serve the terms as text: %',
-      (select terms_url from public.provider_registry where id = 'gemini');
-  end if;
-
   -- 1. Nothing is approved by migration: an unreviewed provider is blocked with a reason.
   if public.nexus_provider_rights_current('qdrant') then raise exception 'qdrant was approved without a review'; end if;
   r := public.v6_reserve_many(w, 'qdrant', '{"requests":1}', 'operable-unreviewed', 'interactive', 'provider_operation', 'unknown');

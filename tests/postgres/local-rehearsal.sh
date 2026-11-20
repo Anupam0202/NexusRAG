@@ -67,6 +67,7 @@ PSQL=(psql -X -v ON_ERROR_STOP=1 -d "$PGDATABASE")
 "${PSQL[@]}" -f "$ROOT/supabase/migrations/20261117090000_ranked_keyword_search.sql"
 "${PSQL[@]}" -f "$ROOT/supabase/migrations/20261117120000_foreign_key_indexes.sql"
 "${PSQL[@]}" -f "$ROOT/supabase/migrations/20261120160000_gemini_terms_address.sql"
+"${PSQL[@]}" -f "$TESTS/provider-terms-address-assertions.sql"
 "${PSQL[@]}" -f "$TESTS/fixtures.sql"
 "${PSQL[@]}" -f "$TESTS/research-plan-assertions.sql"
 "${PSQL[@]}" -f "$TESTS/research-passport-subject-assertions.sql"
