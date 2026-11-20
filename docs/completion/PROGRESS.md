@@ -1,88 +1,59 @@
 # NexusRAG completion progress
-Last updated: 2026-11-20 (both targets released, one address each). The goal and the ordered remaining work are in `docs/completion/GOAL.md`.
-Everything an agent can do without the owner is done; the Handoff below lists the owner's steps in order.
+Last updated: 2026-11-20 (late: front doors redeployed from `main`, master goal version 2). The goal and the ordered
+remaining work are in `docs/completion/GOAL.md`.
 
-## Handoff 2026-11-20 (evening)
-`main` has every pull request through the one that switched off the `workers.dev` addresses; each merge had every
-required check green on its exact head (V6 Foundation CI, V6 Database Rehearsal, V6 Live Provider Validation).
-Released: production runs `2845818` at https://nexusrag.pages.dev (Production Deploy run 44751846631: gateway and
-frontend smoke tests, 52 browser tests); the preview runs `c56ec45` at https://nexusrag-preview.pages.dev (Cloudflare
-Preview Deploy run 44756110282). Each address serves its app and its API through its front door; the four Workers'
-`workers.dev` and version preview addresses are off (error 1042); both Supabase projects accept sign-in returns only
-on their `pages.dev` address; both databases have every migration; Gemini and Qdrant answer with the owner's new keys.
-Goal and plan: `docs/completion/GOAL.md`.
-Agent work next: the live journeys on the preview (GOAL.md phase B step 2), then phase C.
-Owner actions, step by step:
-1. Sign in once with Google on each address, read the current terms of Google Gemini, Qdrant Cloud and Supabase
-   (Storage), then tell the agent "I have read the terms" and the email you signed in with. The agent then records the
-   provider review in both deployments; until it does, no document can be processed.
-2. Ledger decisions in chat ("Ledger status").
-3. The walkthrough on production after the live journeys, and the credential rotation (MASTER_PROMPT F6).
-4. GitHub → the repository page → About (gear icon) → Website: `https://nexusrag.pages.dev`.
-5. Revoke the Supabase access tokens that were pasted into the chat.
+## Handoff 2026-11-20 (late)
+`main` has every pull request through the master goal's version 2 (`docs/completion/GOAL.md`, which says what is
+left and in what order); each merge had every required check green on its exact head. Released: production runs
+`2845818` at https://nexusrag.pages.dev and the preview runs `c56ec45` at https://nexusrag-preview.pages.dev, both
+`/ready` READY; `main` differs from them only in release tooling, Worker configs and documents.
+Done since the evening Handoff:
+- the one-address pull request merged (`ce70830`); both front doors redeployed from `main`, their stale
+  `FALLBACK_ORIGIN` variable removed (a deploy now removes the settings it no longer sets) and their older
+  deployments deleted;
+- the Provider Review workflow masks the reviewer's email before any step runs (the repository's logs are public);
+- the owner signed in with Google on production and wrote "I have read the terms and accept best recommendations"
+  (their decisions are under "Ledger status");
+- found live: NX-50, erasure waits on the provider review. Production's document `6e799056`, marked for deletion on
+  23 September, is still stored; every cron attempt logs `document_deletion_open` with `PROVIDER_REVIEW_REQUIRED`.
+Agent work next (GOAL.md phase 1): record production's provider review unless a session already has, check that the
+stuck deletion finishes, fix NX-50, release `main` to both targets and rerun both journeys; then phase 2.
+Owner actions (GOAL.md section 5): the walkthrough after phase 2; the Supabase secret keys before the end of 2026;
+the repository's website and branch settings; revoking the Supabase tokens pasted into the chat; whether the 13:37
+snapshot schema may be dropped.
 
 ## Current state
-- main: every pull request through the `workers.dev` switch-off (2026-11-20); new work goes on a branch from `main`
-  and a pull request
-- Released 2026-11-20: production `2845818` (Production Deploy run 44751846631), preview `c56ec45` (Cloudflare Preview
-  Deploy run 44756110282); `/ready` READY on both public addresses.
-- Public addresses: the front doors `nexusrag` (deployment `32165068`) and `nexusrag-preview` (deployment `d5626b22`)
-  hand the API to the gateways; each project keeps only its active deployment, whose own `<id>.<project>.pages.dev`
-  address answers 308 to the public one. The four Workers have no `workers.dev` or version preview address.
-- Plan: `docs/completion/MASTER_PROMPT.md`; repository notes: `CLAUDE.md`
-- Candidate preview: gateway `81bab63` (previous version `797eb124`), released 2026-11-18 (smoke test and `/ready`
-  passed); before it `cf9c862` (previous version `1257b684`), released 2026-11-18 from a cloud session (smoke
-  test and `/ready` passed, the index found under its named collection; the workspace-deletion journey passed 19 of 19
-  on it); before it `c7eb61c` and `e9b23af` (previous version `95890b72`), released 2026-11-17 from a cloud session (smoke
-  test and `/ready` passed); before it `8bcfc22` (previous version `d30adcbe`), and before that
-  `6e1d540` (version `c5d60d8c`, 11:44 UTC); before it, `c05f319` released 08:12 UTC
-  from a cloud session (smoke test and `/ready` passed: database reachable, search index ready, collection
-  `nexusrag-v6-candidate` empty). Until `20261117090000_ranked_keyword_search` is applied to rehearsal, its chat uses
-  the bounded keyword read (`coverage.lexical_search: FIRST_PASSAGES`). The release of `6fb3123` at 06:55 UTC is the
-  one checked live below. Its `FRONTEND_ORIGIN` lists https://nexusrag-preview.pages.dev and the frontend
-  Worker's own address; a preflight from each is allowed, and one from production's address or another site is
-  refused. The workspace-deletion journey passed 19 of 19 checks on it afterwards (its upload fails at processing
-  on the Gemini key's 402, as expected). Its cron treats a missing database function as unavailable, so it runs
-  safely before the remaining migrations; account deletion, CALCULATION runs and the daily reconciliation line stay
-  unavailable there until then. Frontend is still the old build `2fbc5c9`, whose `/research`, `/radar`,
-  `/evidence-api` and unknown paths return 500 (NX-01): a cloud session cannot upload frontend assets, and the
-  preview workflow rejects this branch (environment branch rule).
-- Rehearsal Supabase (`ukgjygzfhyvnrsecdcuu`): 54 migrations applied (`20261113190000_workspace_deletion` on
-  2026-11-15, when the owner answered the Supabase connector's confirmation); pending:
-  `20261113210000_account_deletion`, `20261114090000_research_calculation_runs` and
-  `20261114120000_storage_reconciliation`, and since 17 November `20261117090000_ranked_keyword_search` and
-  `20261117120000_foreign_key_indexes` (the
-  confirmation was asked on 15, 16 and 17 November and timed out unanswered each time). Nothing is stored or open: no documents, no stored files, no open deletions.
-  Advisors: only leaked-password protection (an Auth setting). Both test accounts' trial counters were reset after
-  the journey on `cf9c862` (18 November); each journey uses account A's trial document, so reset them again
-  before the next one (next steps, item 2). Provider reviews recorded for Gemini, Qdrant
-  and Supabase Storage (staging attestation by test account A, valid to 2027-11-12). Two test accounts
-  (`nexus-e2e-a@nexusrag.test`, `nexus-e2e-b@nexusrag.test`), each with an approved workspace; their passwords were
-  set anew on 2026-11-15 and exist only in the build session, so set new ones (a bcrypt hash in
-  `auth.users.encrypted_password`) when a later session needs to sign in.
-- Production: `nexusrag-v6-frontend-preview` v29 → `nexusrag-v6-preview-gateway` v52, both from 23 September,
-  on Supabase `fcjaomiceajcdownarel` (35 migrations applied, nine of them under names the repository no longer
-  uses; matched by name, 46 of the repository's 72 are pending, checked 17 November with `scripts/migration_status.py
-  status --applied` on its migration list) and collection
-  `nexusrag-v6-preview`. The live gateway still defaults to `gemini-2.5-flash` with `thinkingBudget: 0`, has no
-  `GEMINI_USER_KEY_ENCRYPTION_SECRET`, and nothing has been changed there.
-- Gemini: the candidate Worker's shared key answers **HTTP 402** (its Google project is prepaid and has no
-  credit; Google enforces this since March 2026). Every ingestion and every chat on the shared key fails.
-- Public addresses (17 November): Pages projects `nexusrag` → https://nexusrag.pages.dev, bound to
-  `nexusrag-v6-frontend-preview`, and `nexusrag-preview` → https://nexusrag-preview.pages.dev, bound to
-  `nexusrag-v6-candidate-frontend` (deployed with `scripts/front_door.py`; code `apps/front-door/worker.js`). Both
-  Workers still run builds from before the front door, so page requests are sent on (302) to the Workers' own
-  addresses; Cloudflare's URL scanner, run from outside, followed the preview address to the app, with every file
-  served (200). The service-binding path is exercised by the first release made for the public address. This
-  session cannot open `*.pages.dev` (network allowlist).
-- Cloudflare (17 November): Workers `nexusrag-v6-candidate-gateway`, `nexusrag-v6-candidate-frontend`,
-  `nexusrag-v6-preview-gateway`, `nexusrag-v6-frontend-preview`; queues `nexusrag-v6-candidate-ingestion`,
-  `nexusrag-v6-preview-ingestion` and their DLQs; the two Pages projects above. The retired PR3 Workers
-  (`nexusrag-v6-pr3-gateway`, `nexusrag-v6-pr3-frontend`) and queues (`nexusrag-v6-pr3-ingestion` and its DLQ)
-  were deleted on 17 November at the owner's request. No KV, D1, R2, Hyperdrive or zones.
-- Qdrant: cluster `fc0c77d2-d9fd-4648-8459-09fa74372f16` (AWS eu-west-2) stopped serving between 9 and 11
-  November and serves again since 12 November. The preview gateway reaches it with its own key (`/ready`:
-  READY). The daily keep-alive is live on the preview from `4864133`; production gets it with the release.
+- `main`: every pull request through the master goal's version 2 (20 November); new work goes on a branch from
+  `main` and a pull request.
+- Production, https://nexusrag.pages.dev: gateway `nexusrag-v6-preview-gateway` and frontend
+  `nexusrag-v6-frontend-preview` at `2845818` (Production Deploy run 44751846631, 20 November); Supabase
+  `fcjaomiceajcdownarel` with every migration (81 recorded, the last `20261120133842`); 8 accounts; 8 documents from
+  June to September 2026: seven without a published version (shown as "Upload again", NX-03) and `6e799056`, marked
+  for deletion on 23 September (operation `dbcc76fa`, blocked by NX-50); Qdrant collection `nexusrag-v6-preview`; no
+  provider review recorded yet; snapshot schema `backup_20261120133700_2845818` kept until the owner decides.
+- Preview, https://nexusrag-preview.pages.dev: gateway `nexusrag-v6-candidate-gateway` and frontend
+  `nexusrag-v6-candidate-frontend` at `c56ec45` (Cloudflare Preview Deploy run 44756110282); Supabase
+  `ukgjygzfhyvnrsecdcuu`, built from the baseline, with every later migration (59 recorded, the last
+  `20261120135522`); 4 accounts, no documents; provider reviews: a staging attestation by test account A, valid until
+  2027-11-12; Qdrant collection `nexusrag-v6-candidate`. Test accounts `nexus-e2e-a@nexusrag.test` and
+  `nexus-e2e-b@nexusrag.test`, each with an approved workspace; account A has used its trial document.
+- Front doors: Pages projects `nexusrag` (deployment `13344750`) and `nexusrag-preview` (deployment `e2434644`),
+  deployed from `main` with `scripts/front_door.py` on 20 November. Each binds its frontend Worker as `APP` and its
+  gateway Worker as `GATEWAY`, has one variable (`PUBLIC_ORIGIN`) and keeps only that deployment, whose own
+  `<id>.<project>.pages.dev` address answers 308 to the public one.
+- Cloudflare: Workers `nexusrag-v6-preview-gateway`, `nexusrag-v6-frontend-preview`, `nexusrag-v6-candidate-gateway`
+  and `nexusrag-v6-candidate-frontend`, none with a `workers.dev` or version preview address (error 1042); queues
+  `nexusrag-v6-preview-ingestion`, `nexusrag-v6-candidate-ingestion` and their DLQs; the two Pages projects. No KV,
+  D1, R2, Hyperdrive or zones.
+- Supabase Auth: each project's Site URL and redirect list name only its `pages.dev` address (set by the owner on
+  20 November; the probe refuses the old `workers.dev`, `vercel.app` and PR3 addresses).
+- Providers: Gemini answers with the owner's key of 20 November in all three GitHub environments (live validation on
+  `main`; the preview journey used `gemini-3.5-flash-lite` and `gemini-embedding-001`). Qdrant cluster
+  `fc0c77d2-d9fd-4648-8459-09fa74372f16` (AWS eu-west-2), with the owner's key of 20 November, is READY on both
+  gateways and kept awake by the daily cron.
+- Live journeys on the preview, 20 November: core 26 of 26 (Ready in 10 s, a cited answer, isolation, deletion with
+  receipts); workspace deletion stopped at account A's free-trial limit (BYOK_REQUIRED), as expected.
+- Plan: `docs/completion/MASTER_PROMPT.md`; goal: `docs/completion/GOAL.md`; repository notes: `CLAUDE.md`.
 
 ## Optimization budgets (F8), measured 2026-11-17
 No numeric targets are agreed yet, so the target is no regression (section F8). "Before" is the October candidate
@@ -104,37 +75,39 @@ gzip -9. Live figures are Workers Logs and Cloudflare's analytics for the 7 days
 | Subrequests | — | candidate gateway 3.5 per invocation on average (11,617 over 3,339) | 50 per invocation | Mostly the five-minute cron |
 | Database size | — | rehearsal 18.3 MiB; production 16.8 MiB | — | |
 | Stored files | — | rehearsal none; production 7 files, 366 KiB | — | |
-| Orphans | — | rehearsal none; production: no file without a document, one document whose file is gone | 0 | That document is the one stuck in deletion since 22 September (NX-47); the production release finishes it. Qdrant points not counted: this session has no key for the cluster |
+| Orphans | — | rehearsal none; production: no file without a document, one document whose file is gone | 0 | That document is the one marked for deletion on 23 September (NX-47); on 20 November its deletion still waited on the provider review (NX-50). Qdrant points not counted: this session has no key for the cluster |
 | CI wall-clock | 19m41s to 23m52s for V6 Foundation CI (12 October) | V6 Foundation CI 20m56s, V6 Database Rehearsal 7m30s (`729c4ec`) | — | No regression |
-| Chat time to first token and total time, p50 and p95 | — | not measured | — | Every Gemini call fails with HTTP 402; measure once a key works |
+| Chat time to first token and total time, p50 and p95 | — | not measured | — | The key works since 20 November; measured over 20 answers in GOAL.md phase 2 |
 
-## Ledger status, 2026-11-17
+## Ledger status, 2026-11-20
 Section 13 needs every ledger item (MASTER_PROMPT Part 2, section D) fixed and verified, or accepted by the owner
 in chat with a reason. Where each one stands:
-- Closed, fixed and verified live: NX-07, NX-16, NX-23, NX-47. Fixed and verified in CI: NX-09, NX-10, NX-11.
-  Checked on both hosted projects, with a replay assertion that keeps it so: NX-19 (re-run after each migration batch).
-  Resolved: NX-43; NX-48 (the advisory was withdrawn, 18 November); NX-49 (Alpine's OpenSSL update, 19 November).
-- Fixed in code; the live check waits for one of the owner's steps:
-  - the frontend release (the preview environment's branch rule): NX-01, NX-28, NX-30;
-  - a Gemini key with credit: NX-03, NX-06 (production must be released before 2026-12-01), NX-14 (its prepaid
-    message already shows live), NX-21, NX-24, NX-36, and NX-22's long PDF;
-  - the five rehearsal migrations: NX-17, NX-20, NX-27, then a re-run of NX-19's grants check and the advisors;
-  - the two-account journey with ingestion (`scripts/preview_smoke.py`): NX-04, NX-05, NX-33;
-  - the production release and its secrets (`docs/DEPLOYMENT_PRODUCTION.md`): NX-02, NX-08, NX-12 and NX-13's
-    workflows, NX-18 (one encryption secret for production), NX-26 (Supabase secret keys before the end of 2026).
-- For the owner to accept or decide (recommendation in brackets):
-  - NX-22: no PDF text layer or page splitting on the free plan (accept);
-  - NX-25: the per-user limit is approximate; a strict one needs a Durable Object (accept for now);
-  - NX-32: claims are safe while each environment has its own Supabase project (accept);
-  - NX-33's remainder: RPCs take the Worker's context; moving reads to the user's token is long-term work (accept,
-    once the two-account journey passes);
-  - NX-35: Workers Free or Paid with the F8 figures, D5 (stay on Free until there is real usage);
-  - NX-41: leaked-password protection does not apply to Google-only sign-in (accept);
-  - NX-42's remainder: provisional limits, and an alert on `LEASE_EXHAUSTED` (accept until there is real usage);
-  - NX-15: finish Procurement and Passport (Tier 3) or remove them, D11; NX-31: remove the Python backend, D4;
-    NX-38: enable Dependabot for Actions; NX-40: remove the PR3 redirect URLs from rehearsal's Auth settings.
-- The cleanup pull request after Tier 1, with the owner's approval (D13, D20 to D22): NX-29, NX-34, NX-37, NX-39,
-  NX-44, NX-45, NX-46; it also splits `src/lib/api.ts`, which F8 found in every page's first load.
+- Closed, fixed and verified live: NX-02 (both targets released on 20 November), NX-07, NX-08 (production has every
+  migration), NX-12 and NX-13 (both deploy workflows ran end to end on 20 November), NX-16, NX-23, NX-40 (both Auth
+  allow-lists name only `pages.dev`), and NX-47 on the preview. Fixed and verified in CI: NX-09, NX-10, NX-11.
+  Checked on both hosted projects, with a replay assertion that keeps it so: NX-19 (re-run after each migration
+  batch). Resolved: NX-43, NX-48, NX-49.
+- Released on both targets and passing the releases' browser tests; GOAL.md phase 2's check of every page closes
+  them: NX-01, NX-28, NX-30.
+- Released; the live check is in GOAL.md phase 2: NX-03, NX-04, NX-05 (the core journey's isolation checks passed on
+  20 November; the two-tab check is left), NX-06 (live validation passed; production runs the model policy before
+  1 December), NX-14, NX-17, NX-18 (each release installs its environment's encryption secret, and Production Deploy
+  refuses to run without it), NX-20, NX-21, NX-22's long PDF, NX-24, NX-27, NX-36.
+- Open: NX-50 (erasure waits on the provider review; GOAL.md phase 1); NX-47 on production (finishes once the review
+  is recorded); NX-26 (the Supabase secret keys, an owner input before the end of 2026).
+- The owner's decisions, 20 November ("I have read the terms and accept best recommendations"):
+  - accepted as they are: NX-22's remainder (no PDF text layer or page splitting on the free plan), NX-25 (the
+    per-user limit is approximate; a strict one needs a Durable Object), NX-32 (claims are safe while each
+    environment has its own Supabase project), NX-33's remainder (RPCs take the Worker's context; moving reads to
+    the user's token is long-term work), NX-41 (leaked-password protection does not apply to Google-only sign-in)
+    and NX-42's remainder (provisional limits; an alert on `LEASE_EXHAUSTED` once there is real usage);
+  - NX-35: stay on Workers Free until there is real usage (D5);
+  - NX-15: remove Procurement and Passport for now (D11); NX-31: remove the Python backend (D4); NX-38: add
+    Dependabot for GitHub Actions;
+  - the cleanup pull requests (D13, D20 to D22): NX-29, NX-34, NX-37, NX-39, NX-44 with its table drops, NX-45,
+    NX-46, and the split of `src/lib/api.ts`;
+  - production is verified with the preview's test accounts plus the owner's own walkthrough; no test accounts are
+    created in production.
 
 ## Inventory (read-only, 2026-11-09, updated where noted)
 - Gemini: `gemini-2.5-flash` and `gemini-2.5-pro` shut down on 2026-12-01 (calls reroute to
@@ -192,6 +165,10 @@ in chat with a reason. Where each one stands:
 | 2026-11-16 | NX-22 ingestion limits. A PDF or image cut off at 8,192 output tokens (about a dozen pages; it used to fail with "split the document") is read again with the model's published limit: 65,536 tokens for both pinned models, roughly 100 pages (Google's model pages, read 16 November). The job's lease is renewed during the read. The shared key's budget counts a file at no more input than a request can hold; one token per byte had made every PDF over 4 MB impossible on the trial. Word text comes from the elements Word shows. Every way a read can end has its own plain message, and nothing partial is indexed. Not done: a PDF's own text layer and splitting by page (a PDF parser does not fit the free plan's CPU limit) | 1 (986 gateway tests; 12 new, eleven broken variants each refused). The long read has run against a stand-in only | `e0d3b60` |
 | 2026-11-17 | NX-25, second half: a request must pass both the isolate's own counter (exact, but every isolate counts from zero) and Cloudflare's rate limiter (binding `USER_RATE_LIMITER`, 60 a minute per location; the preview and production use separate namespaces, which `release.py` checks). Cloudflare's count is approximate by design: live on the preview, 327 requests from one location in 45 seconds all passed it, and after both counters were required, 304 in 45 seconds still passed, because one client's requests are spread over many isolates, each counting from zero. The old per-isolate limit was never strict either. A strict per-user limit needs a Durable Object (not built; the ledger keeps this open for the owner to accept or ask for). A limiter that fails is logged and leaves the isolate's counter to decide | 1 (1,011 gateway and 30 release tests); 4 for the binding being accepted by the free plan and for the burst behaviour above | `b5125c9`, `b891b6e`, `8bcfc22` |
 | 2026-11-17 | NX-25, first half: the gateway checks access tokens itself against the project's published ES256 key (both projects publish one and sign with it: checked on a real rehearsal token), instead of asking Supabase Auth on every request, which also saves one of the 50 outbound requests a free-plan invocation may make. Signature, issuer, audience, role, expiry and user id are checked; the key list is cached and re-read for a rotated key; a token signed otherwise, or an unreadable key list, still goes to Supabase Auth; a failing token is refused, never handed on. Trade-off, already stated on the security page: after signing out, an access token works until it expires (an hour); membership is still checked on every request | 1 (1,010 gateway tests; a real ES256 key pair; removing any one of seven checks fails a test); 4 on the preview gateway `6e1d540`: a real rehearsal token is accepted and reads the database, a tampered one is refused (401), and after a global sign-out Supabase Auth refuses the token (403) while the gateway accepts it until it expires, which shows the check runs in the Worker | `6e1d540` |
+| 2026-11-20 | Found live: NX-50, erasure waits on the operator's provider review. Production's document `6e799056`, marked for deletion on 23 September, was still stored after the release: operation `dbcc76fa` is `blocked`, its two index targets verified in September, the original files and the database rows left; every five-minute cron attempt logs `document_deletion_open` with `PROVIDER_REVIEW_REQUIRED`, because index deletions go through the same metered admission as processing (`worker-lifecycle.js` `del` → `metered` → `v6_reserve_budget`), which refuses without a current review. Workspace and account deletion and retention runs share the path, on every deployment, whenever a review is missing or lapses | 4 (found live) | GOAL.md phase 1 |
+| 2026-11-20 | Master goal version 2 (`docs/completion/GOAL.md`): what complete means, the owner's grant and the 20 November decisions, the credentials a session reaches, the owner's remaining inputs, phases 1 to 5 and the acceptance checklist. The owner's ledger decisions recorded under "Ledger status" | n/a | this change |
+| 2026-11-20 | The Provider Review workflow masks the reviewer's email: it is read from the event payload and masked before any step runs, and is never an `env:` value, which each step's public log prints in clear. `front_door.py deploy` removes the variables and bindings it no longer sets (Cloudflare merges a PATCH into the project's settings, so `FALLBACK_ORIGIN` had stayed on both projects) | 2; 4 for the front doors | this change |
+| 2026-11-20 | PR #18 merged (`ce70830`): the four Workers stay off `workers.dev`. Both front doors redeployed from `main` (deployments `e2434644` preview and `13344750` production), without `FALLBACK_ORIGIN`, and their four older deployments deleted. Checked: `/ready` READY on both, home pages 200 served directly, a deployment's own address 308 to the public one, the four `workers.dev` addresses error 1042 | 4 | `ce70830` |
 | 2026-11-20 | One address per target, finished (GOAL.md phase B2): the owner set both Supabase projects' Site URL and redirect list to their `pages.dev` address only (probe: `pages.dev` returns accepted, the old `workers.dev`, `vercel.app` and PR3 returns refused); `workers_dev` and `preview_urls` are off in the four Wrangler configs and `release.py` refuses a config that turns either on; the four Workers' `workers.dev` addresses were turned off live (error 1042); `FRONTEND_ORIGIN` names only the public address and the front door no longer gets a `workers.dev` fallback. Both public addresses stayed READY. | 3 (Supabase probes; the four old addresses answer 1042; both public addresses READY) | the one-address pull request |
 | 2026-11-20 | Released both targets. Production: Production Deploy run 44751846631 (`2845818`; database already migrated; gateway and frontend smoke tests and 52 browser tests passed). The attempt before it, run 44750151552, was rolled back automatically because production's `QDRANT_API_KEY` was refused; the owner replaced it. The preview: runs 44750157831 (`2845818`) and 44756110282 (`c56ec45`, after the owner's new Qdrant key, the first release through `release.py preflight`). In Chromium every main page of https://nexusrag.pages.dev renders at that address with no console error, failed request or policy violation; `/research` and unknown paths no longer crash on the preview (NX-01 live). The owner's new `GOOGLE_API_KEY` answers real requests (live validation on `main`). | 3 | runs 44751846631, 44756110282 |
 | 2026-11-20 | Incident: Cloudflare Preview Deploy run 44745817620 (13:37 UTC) applied 35 migrations, `035_atomic_workspace_management_and_finding_exports` to `20261117120000_foreign_key_indexes`, to the production database: `NexusRAG-Candidate-Preview`'s `SUPABASE_DB_URL` named `fcjaomiceajcdownarel`, and nothing compared the database address with the target. The snapshot `backup_20261120133700_2845818` was taken first; the production log shows no error afterwards and the September gateway still answers. The run then stopped at the candidate's Cloudflare token (HTTP 401) before deploying. Fix: `release.py preflight`, run in both workflows' configuration step before any snapshot or migration, refuses a database address that names another project (or none), a Cloudflare token Cloudflare refuses (now named as such), and a public address that does not answer as the gateway. | 2 (unit and workflow-order tests); the incident facts from the run log and both projects' migration lists | the release-preflight pull request |
@@ -260,43 +237,17 @@ twelfth, "ingestion completes", fails with the gateway's own explanation: "Gemin
 the API key's project has no prepaid credit left."
 
 ## Blockers and owner decisions
-Owner actions, most urgent first (none can be done from a cloud session):
-1. **Gemini key.** Replace the shared key with one that works: create a key in Google AI Studio in a project
-   without prepaid billing (free tier), or add credit to the current project. Put it in the candidate Worker
-   secret `GOOGLE_API_KEY` and the GitHub environments' `GOOGLE_API_KEY`. Until then nothing that uses the
-   shared key can be verified live. The key supplied on 17 November belongs to a prepaid project without credit
-   too (HTTP 402 on both pinned models, checked twice that day).
-1a. **Supabase Auth addresses** (Authentication → URL Configuration), before the first release made for the
-   public addresses: production `fcjaomiceajcdownarel` — Site URL `https://nexusrag.pages.dev`, add redirect URL
-   `https://nexusrag.pages.dev/**`; rehearsal `ukgjygzfhyvnrsecdcuu` — Site URL
-   `https://nexusrag-preview.pages.dev`, add `https://nexusrag-preview.pages.dev/**`, and remove the retired PR3
-   redirect URLs. Optional, same visit: rename the production project from its generated name
-   (`supabase-camel-drawer`) to `NexusRAG`.
-2. **Preview deploys from this branch** (this also applies the pending rehearsal migrations without the Supabase
-   connector, if `SUPABASE_DB_URL` is set in that environment). In GitHub → Settings → Environments → `NexusRAG-Candidate-Preview`,
-   allow `codex/runtime-manifest-008` (or all branches) under deployment branches. The frontend preview cannot
-   be deployed any other way.
-3. **Keys for this cloud environment** (environment menu → Edit → Network secrets): Gemini (host
-   `generativelanguage.googleapis.com`, header `x-goog-api-key`) and Qdrant (host
-   `fc0c77d2-d9fd-4648-8459-09fa74372f16.eu-west-2-0.aws.cloud.qdrant.io`, header `api-key`).
-4. **Before the first production release:** add `SUPABASE_DB_URL` and `GEMINI_USER_KEY_ENCRYPTION_SECRET` to the
-   GitHub `Production` environment (list in `docs/DEPLOYMENT_PRODUCTION.md`). After the release, run the Provider
-   Review workflow with `record`, then approve processing in each workspace.
-5. **Merge PR #12** when ready; the ruleset's provider checks need a trusted push (D2) and item 1.
-6. **1 December fallback, only if production is not released by 28 November:** production's September gateway
-   reads `env.GEMINI_MODEL` (default `gemini-2.5-flash`, which Google reroutes to `gemini-3.5-flash-lite` on
-   1 December) and always sends `thinkingBudget: 0`. Setting the production gateway variable
-   `GEMINI_MODEL=gemini-2.5-flash-lite` (no shutdown date announced; a 2.5 model, so it accepts that setting)
-   keeps production chat working. Check afterwards that the active version is still the 23 September code
-   (`cd25c30b`), because Cloudflare's settings view shows the rolled-back 25 September version. The release
-   itself also stops production putting the Gemini key in request URLs.
-7. **Supabase secret keys, before 31 December 2026.** Supabase stops accepting the legacy `service_role` and `anon`
-   keys at the end of 2026. In each project (rehearsal `ukgjygzfhyvnrsecdcuu`, production `fcjaomiceajcdownarel`):
-   Settings → API Keys → create the secret key, then put it in place of the old value of `SUPABASE_SERVICE_ROLE_KEY`
-   in that project's Worker secret and GitHub environment. The code accepts either kind (done log, NX-26) once
-   it is released; `/ready` shows at once whether the database accepts the new key. Check too that the gateway's
-   `SUPABASE_PUBLISHABLE_KEY` and the frontend's `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` are `sb_publishable_...`
-   keys rather than the legacy `anon` key (the frontend still falls back to `NEXT_PUBLIC_SUPABASE_ANON_KEY`).
+Owner actions, in order (GOAL.md section 5 has each step):
+1. The walkthrough on production once GOAL.md phase 2 passes (checklist: `docs/completion/OWNER_WALKTHROUGH.md`),
+   confirmed in chat.
+2. Supabase secret keys before 31 December 2026 (NX-26): in each project (rehearsal `ukgjygzfhyvnrsecdcuu`,
+   production `fcjaomiceajcdownarel`), Settings → API Keys → create a secret key and put it in place of
+   `SUPABASE_SERVICE_ROLE_KEY` in that project's GitHub environment. The agent releases and verifies both targets;
+   then the legacy keys can be disabled.
+3. Repository settings: Website `https://nexusrag.pages.dev`; "Automatically delete head branches"; delete the merged
+   branches the agent lists (a session cannot delete branches).
+4. Revoke the Supabase access tokens pasted into the chat on 20 November; say whether production's snapshot schema
+   `backup_20261120133700_2845818` may be dropped.
 
 Decisions (D25 delegates product and technical decisions; exceptions in `MASTER_PROMPT.md`, section 9):
 - D24 Gemini model policy: `gemini-3.5-flash-lite` → `gemini-3.1-flash-lite` → `gemini-flash-latest`;
@@ -308,48 +259,28 @@ Decisions (D25 delegates product and technical decisions; exceptions in `MASTER_
   after sign-up. They end when the terms change, on revocation, or when the approver stops being an owner.
 - 2026-11-12: default daily budgets live in `provider_budget_defaults` (sized to the free tiers).
 - 2026-11-12: the rehearsal project's provider reviews are a staging attestation by a test account; production
-  needs the owner's own review (item 4).
+  needs the owner's own review (GOAL.md phase 1).
+- 2026-11-20: the owner's ledger decisions ("Ledger status").
+- 2026-11-20: erasure never waits on the operator's provider review (NX-50). Reason: the review decides what may be
+  sent to a provider, not whether data already stored there may be removed.
 
 ## Next steps (exact commands)
-0. When the owner approves the Supabase connector's confirmation: apply `20261113210000_account_deletion.sql`, then
-   `20261114090000_research_calculation_runs.sql`, then `20261114120000_storage_reconciliation.sql`, then
-   `20261117090000_ranked_keyword_search.sql` and `20261117120000_foreign_key_indexes.sql`, to rehearsal
-   (without their outer `begin`/`commit`), check `get_advisors` and run
-   `select public.nexus_storage_reconciliation(3600, 0)` once. Workspace deletion is applied and verified (16
-   November; rerun it with `python3 scripts/preview_smoke.py --journey workspace-deletion`). Account deletion:
-   check it with a third, throwaway test account only (never A or B): create the account, give it a workspace with a
-   conversation, delete the account under Settings → Security, then check `account_deletions` shows it `verified`,
-   the sign-in is gone and no table holds its rows. CALCULATION: create a Calculation plan over a document that
-   states two figures and run it (needs a working Gemini key).
-1. Preview gateway release (works from a cloud session). Release from a clean checkout of the commit
-   (`git worktree add --detach <dir> <sha>`): the script deploys whatever is in the working directory.
-   `CLOUDFLARE_API_TOKEN=proxy-injected CLOUDFLARE_ACCOUNT_ID=84e80d9629e0a6e6e5b31dbe85146acf
-   SUPABASE_URL=https://ukgjygzfhyvnrsecdcuu.supabase.co SUPABASE_PUBLISHABLE_KEY=<rehearsal publishable key>
-   WRANGLER="$PWD/frontend/node_modules/.bin/wrangler" python3 scripts/release.py gateway --target candidate
-   --sha "$(git rev-parse HEAD)"`
-2. Live journey: reset the test accounts' trial counters on rehearsal (`update public.nexus_account_usage set
-   lifetime_documents = 0, free_chat_queries = 0 where user_id in (<the two test users>)`), then
-   `python3 scripts/preview_smoke.py --report <file>` with the variables in its docstring.
-3. Once a Gemini key works: `python3 scripts/check_gemini_models.py`, then
-   `LIVE_EXTERNAL_VALIDATION=true PROVIDER_UNDER_TEST=gemini python3 scripts/live_provider_validation.py`, then
-   test whether `gemini-3.5-flash-lite` accepts `thinkingBudget: 0`. If it does not, production chat breaks on
-   2026-12-01 unless this gateway is released first (delegated, D25).
-4. Once the Qdrant key is added: `GET /collections` and `GET /cluster` on the cluster address; record
-   collections, point counts, vector size and payload indexes here.
-5. Frontend preview: Actions → Cloudflare Preview Deploy → Run workflow on this branch with "deploy candidate
-   preview" ticked; then check `/research`, `/radar`, `/evidence-api` return 200 and an unknown path 404, and that
-   signed-in pages show no Content-Security-Policy errors in the browser console (the release checks the home page's
-   policy; signed-in use was checked offline only). This is the first build made for
-   https://nexusrag-preview.pages.dev: check that the address now serves the app itself (no redirect), that Google
-   sign-in returns there, and that the Worker's own address sends pages to it.
-6. NX-20 is built for chat; apply `20261117090000_ranked_keyword_search.sql` with the other pending rehearsal
-   migrations (item 0), then ask a question whose answer is in a late passage of a long document and check the
-   answer's `coverage.lexical_search` is `RANKED`.
-6b. Once a Gemini key works: upload a PDF of 40 to 80 pages on the preview and check that it becomes Ready with
-   `read: full` in its version's extraction manifest (NX-22); the long read has only run against a stand-in. The
-   preview gateway already runs it (since `739c7c2`).
-6a. Once the Qdrant key is available (item 4): `python3 scripts/reconciliation.py report --target candidate`, which
-   is the first run of the index part against a real cluster (it reads entries with the scroll API; the gateway's
-   daily check uses one facet request and reports `NOT_COUNTABLE` if the cluster cannot answer it).
-7. Hosted migration status: save `list_migrations` output to a file, then
-   `python3 scripts/migration_status.py status --applied <file>`.
+GOAL.md section 6 sets the order; these are the commands.
+1. Provider review (production): Actions → Provider Review → target `production`, action `status`. If a provider is
+   not current: action `record`, `reviewer_email` = the owner's account (the most recent Google sign-in in
+   production's `auth.users`; never repeat it anywhere), `i_have_read_the_terms` ticked. Then the stuck deletion:
+   `select state, verified_at from public.deletion_operations where id = 'dbcc76fa-f348-46a3-91b3-83b879f353e8'`
+   (read-only, through the connector), until it is `verified`.
+2. Releases: Actions → Cloudflare Preview Deploy → branch `main`, `deploy_candidate_preview` ticked; then Actions →
+   Production Deploy → `release_sha` = the current `main` commit. Check `/ready` on both addresses afterwards.
+3. Journeys: on rehearsal, delete the two test accounts' rows in `public.nexus_account_operations` and
+   `public.nexus_account_usage`; then, with the variables in `scripts/preview_smoke.py`'s docstring and
+   `SMOKE_GATEWAY_URL=https://nexusrag-preview.pages.dev`, run
+   `python3 scripts/preview_smoke.py --journey workspace-deletion --report <file>` and `--journey core`.
+4. Hosted migration status: save the connector's `list_migrations` output to a file and run
+   `python3 scripts/migration_status.py status --applied <file>`, or with `SUPABASE_DB_URL` set, without `--applied`.
+5. Reconciliation: Actions → Store Reconciliation → each target, action `report`.
+6. Front doors: `CLOUDFLARE_API_TOKEN=proxy-injected CLOUDFLARE_ACCOUNT_ID=84e80d9629e0a6e6e5b31dbe85146acf
+   python3 scripts/front_door.py deploy --target candidate|production`, then delete the project's older deployments.
+7. Workers logs: `POST https://api.cloudflare.com/client/v4/accounts/84e80d9629e0a6e6e5b31dbe85146acf/workers/observability/telemetry/query`
+   with a filter on `$metadata.service`; warnings such as `document_deletion_open` are in each event's `source`.
