@@ -119,11 +119,8 @@ class TestFileValidation:
         assert "Invoice Total 123" in docs[0].page_content
 
     def test_gemini_ocr_uses_current_failover_chain(self, monkeypatch):
-        monkeypatch.setenv("LLM_MODEL_NAME", "gemini-2.5-flash")
-        monkeypatch.setenv(
-            "LLM_FALLBACK_MODELS",
-            "gemini-2.5-flash-lite,gemini-2.0-flash,gemini-2.0-flash-lite",
-        )
+        monkeypatch.delenv("LLM_MODEL_NAME", raising=False)
+        monkeypatch.delenv("LLM_FALLBACK_MODELS", raising=False)
         get_settings.cache_clear()
 
         try:
@@ -131,13 +128,28 @@ class TestFileValidation:
         finally:
             get_settings.cache_clear()
 
-        assert models[:4] == [
-            "gemini-2.5-flash",
-            "gemini-2.5-flash-lite",
-            "gemini-2.0-flash",
-            "gemini-2.0-flash-lite",
+        assert models == [
+            "gemini-3.5-flash-lite",
+            "gemini-3.1-flash-lite",
+            "gemini-flash-latest",
         ]
-        assert "gemini-1.5-pro" not in models
+
+    def test_gemini_ocr_keeps_configured_models_first(self, monkeypatch):
+        monkeypatch.setenv("LLM_MODEL_NAME", "gemini-3.6-flash")
+        monkeypatch.setenv("LLM_FALLBACK_MODELS", "gemini-3.1-flash-lite")
+        get_settings.cache_clear()
+
+        try:
+            models = GeminiVisionOCR._configured_models()
+        finally:
+            get_settings.cache_clear()
+
+        assert models == [
+            "gemini-3.6-flash",
+            "gemini-3.1-flash-lite",
+            "gemini-3.5-flash-lite",
+            "gemini-flash-latest",
+        ]
 
 
 class TestSmartChunker:

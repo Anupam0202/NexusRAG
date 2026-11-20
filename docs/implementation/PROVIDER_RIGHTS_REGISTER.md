@@ -7,8 +7,11 @@ Review again by: 2026-12-20
 
 No recurring public connector is enabled. The runtime default remains
 `REVIEW_REQUIRED`; an undocumented quota is denied and paid fallback is false.
-This means the definition-of-done gate for **enabled** sources is satisfied
-without silently enabling a source whose rights are uncertain.
+This satisfies only the fail-closed safety guard against unapproved source
+activation. It does **not** satisfy live connector or complete-product
+acceptance: disabled sources remain unavailable until current rights, access,
+workspace authorization, runtime wiring and live acceptance are established.
+The historical review date is not evidence of a fresh provider-terms check.
 
 | Provider | Decision | Enforced client posture | Official evidence |
 | --- | --- | --- | --- |

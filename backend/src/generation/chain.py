@@ -22,13 +22,14 @@ from collections import deque
 from collections.abc import AsyncIterator
 from datetime import date
 from typing import Any
+from uuid import UUID
 
 from langchain_core.documents import Document
 from langchain_core.messages import HumanMessage, SystemMessage
 
 from config.settings import Settings, get_settings
 from src.generation.llm import get_llm_provider
-from src.generation.memory import SessionMemoryStore
+from src.generation.memory import ConversationMemory, SessionMemoryStore
 from src.generation.prompts import PromptManager
 from src.retrieval.cache import SemanticCache
 from src.retrieval.retriever import HybridRetriever, QueryType
@@ -91,6 +92,7 @@ class RAGChain:
         top_k: int | None = None,
         use_reranking: bool | None = None,
         retrieval_filters: dict[str, Any] | None = None,
+        isolated_context: str | None = None,
     ) -> dict[str, Any]:
         """Full blocking RAG query → returns structured response dict."""
         t0 = time.perf_counter()
@@ -98,13 +100,21 @@ class RAGChain:
         scoped_workspace_id = normalize_workspace_id(workspace_id)
         scoped_session_id = self._session_key(scoped_workspace_id, session_id)
         safe_filters = self._normalize_retrieval_filters(retrieval_filters)
-        cache_namespace = self._retrieval_namespace(safe_filters)
 
         # Memory
-        memory = self._memory_store.get(scoped_session_id)
+        # Private turns use an owned, caller-authorized snapshot. Failed/cleared
+        # turns cannot publish uncommitted history to shared process memory.
+        memory = ConversationMemory(self._settings) if isolated_context else self._memory_store.get(scoped_session_id)
         if conversation_history:
             for m in conversation_history:
                 memory.add(m["role"], m["content"])
+        history_msgs = memory.get_context_messages()
+        cache_namespace = self._query_cache_namespace(
+            safe_filters, history_msgs, top_k=top_k,
+            use_reranking=use_reranking, mode="query",
+        )
+        if isolated_context:
+            cache_namespace = hashlib.sha256(f"{isolated_context}:{cache_namespace}".encode()).hexdigest()
 
         # Cache
         cached = self._cache.get(
@@ -114,12 +124,14 @@ class RAGChain:
         )
         if cached is not None:
             logger.info("cache_hit")
+            memory.add("user", question)
+            memory.add("assistant", cached["answer"][:3000])
             cached["response_time_seconds"] = round(time.perf_counter() - t0, 3)
             cached["from_cache"] = True
+            cached.setdefault("metadata", {})["from_cache"] = True
             return cached
 
         # Retrieve
-        history_msgs = memory.get_context_messages()
         retrieval = self._retriever.retrieve(
             safe_q,
             workspace_id=scoped_workspace_id,
@@ -158,8 +170,8 @@ class RAGChain:
             answer = self._invoke_llm_messages(messages, workspace_id=scoped_workspace_id)
         except Exception as exc:
             generation_fallback = True
-            generation_error = getattr(exc, "message", str(exc))
-            logger.warning("generation_fallback_used", error=generation_error)
+            generation_error = "Generation unavailable; retrieved excerpts only."
+            logger.warning("generation_fallback_used", error_type=type(exc).__name__)
             answer = self._build_extractive_fallback_answer(docs, generation_error)
 
         # Update memory
@@ -266,10 +278,10 @@ class RAGChain:
             answer = self._invoke_llm_messages(messages, workspace_id=scoped_workspace_id)
         except Exception as exc:
             generation_fallback = True
-            generation_error = getattr(exc, "message", str(exc))
+            generation_error = "Generation unavailable; retrieved excerpts only."
             logger.warning(
                 "durable_document_generation_fallback_used",
-                error=generation_error,
+                error_type=type(exc).__name__,
             )
             answer = self._build_extractive_fallback_answer(safe_docs, generation_error)
 
@@ -351,12 +363,16 @@ class RAGChain:
         scoped_workspace_id = normalize_workspace_id(workspace_id)
         scoped_session_id = self._session_key(scoped_workspace_id, session_id)
         safe_filters = self._normalize_retrieval_filters(retrieval_filters)
-        cache_namespace = self._retrieval_namespace(safe_filters)
 
         memory = self._memory_store.get(scoped_session_id)
         if conversation_history:
             for m in conversation_history:
                 memory.add(m["role"], m["content"])
+        history_msgs = memory.get_context_messages()
+        cache_namespace = self._query_cache_namespace(
+            safe_filters, history_msgs, top_k=top_k,
+            use_reranking=use_reranking, mode="stream",
+        )
 
         # Cache check
         cached = self._cache.get(
@@ -365,13 +381,20 @@ class RAGChain:
             namespace=cache_namespace,
         )
         if cached is not None:
+            memory.add("user", question)
+            memory.add("assistant", cached["answer"][:3000])
             yield {"type": "token", "content": cached["answer"]}
             yield {"type": "sources", "sources": cached.get("sources", [])}
-            yield {"type": "done", "metadata": {**cached.get("metadata", {}), "from_cache": True}}
+            yield {
+                "type": "done",
+                "metadata": {
+                    **cached.get("metadata", {}), "from_cache": True,
+                    "response_time_seconds": round(time.perf_counter() - t0, 3),
+                },
+            }
             return
 
         # Retrieve
-        history_msgs = memory.get_context_messages()
         retrieval = self._retriever.retrieve(
             safe_q,
             workspace_id=scoped_workspace_id,
@@ -414,8 +437,8 @@ class RAGChain:
                 yield {"type": "token", "content": token}
         except Exception as exc:
             generation_fallback = True
-            generation_error = getattr(exc, "message", str(exc))
-            logger.warning("stream_generation_fallback_used", error=generation_error)
+            generation_error = "Generation unavailable; retrieved excerpts only."
+            logger.warning("stream_generation_fallback_used", error_type=type(exc).__name__)
             full_answer = self._build_extractive_fallback_answer(docs, generation_error)
             yield {"type": "token", "content": full_answer}
 
@@ -561,7 +584,7 @@ class RAGChain:
             except TypeError:
                 documents = self._vector_store.list_documents()
         except Exception as exc:
-            logger.warning("document_inventory_unavailable", error=str(exc))
+            logger.warning("document_inventory_unavailable", error_type=type(exc).__name__)
             return docs
 
         if not documents:
@@ -663,6 +686,26 @@ class RAGChain:
         if not normalized:
             return "workspace"
         return "filtered:" + json.dumps(normalized, sort_keys=True, separators=(",", ":"))
+
+    @classmethod
+    def _query_cache_namespace(
+        cls,
+        filters: dict[str, Any],
+        history: list[dict[str, str]],
+        *,
+        top_k: int | None,
+        use_reranking: bool | None,
+        mode: str,
+    ) -> str:
+        # History affects retrieval, not evidence. Never expose its text in metadata.
+        context = {
+            "filters": cls._retrieval_namespace(filters), "history": history,
+            "top_k": top_k, "use_reranking": use_reranking, "mode": mode,
+        }
+        digest = hashlib.sha256(
+            json.dumps(context, sort_keys=True, separators=(",", ":")).encode()
+        ).hexdigest()
+        return "query-context-v1:" + digest
 
     @staticmethod
     def _answer_history_notice() -> str:
@@ -888,6 +931,11 @@ class RAGChain:
 
     @staticmethod
     def _session_key(workspace_id: str | None, session_id: str | None) -> str:
+        if session_id:
+            try:
+                session_id = str(UUID(session_id))
+            except (ValueError, TypeError, AttributeError):
+                pass  # Non-UUID local/demo sessions retain their existing keys.
         return f"{normalize_workspace_id(workspace_id)}:{session_id or 'default'}"
 
     def clear_session(self, session_id: str, *, workspace_id: str | None = None) -> None:

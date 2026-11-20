@@ -1,0 +1,2 @@
+# Structured workflow assertions in the ordinary script regression suite.
+PyYAML==6.0.3

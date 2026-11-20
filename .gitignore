@@ -90,6 +90,7 @@ frontend/.env.local
 .vercel/
 frontend/.vercel/
 .turbo/
+.wrangler/
 
 # ─── Docker ──────────────────────────────────────────────────
 *.tar

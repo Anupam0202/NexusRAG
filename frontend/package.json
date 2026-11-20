@@ -10,8 +10,8 @@
     "test": "vitest run",
     "test:e2e": "playwright test",
     "test:visual:prepare": "node scripts/materialize-visual-baselines.mjs",
-    "cf:build": "opennextjs-cloudflare build && node scripts/copy-prerendered-routes.mjs",
-    "cf:preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
+    "cf:build": "opennextjs-cloudflare build && node scripts/copy-prerendered-routes.mjs && node scripts/write-page-policy.mjs",
+    "cf:preview": "npm run cf:build && opennextjs-cloudflare preview",
     "cf:deploy": "opennextjs-cloudflare deploy",
     "test:e2e:authenticated": "node scripts/run-authenticated-e2e.mjs"
   },
@@ -21,7 +21,7 @@
     "clsx": "^2.1.1",
     "framer-motion": "^11.2.0",
     "lucide-react": "^0.400.0",
-    "next": "^16.3.8",
+    "next": "16.4.5",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
     "react-dropzone": "^14.2.3",
@@ -33,8 +33,8 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.4",
-    "@opennextjs/cloudflare": "^1.20.9",
-    "@playwright/test": "^1.60.0",
+    "@opennextjs/cloudflare": "^1.20.16",
+    "@playwright/test": "^1.63.0",
     "@tailwindcss/postcss": "^4.3.3",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
@@ -49,24 +49,33 @@
     "eslint-plugin-react-hooks": "^7.1.1",
     "globals": "^17.13.0",
     "jsdom": "^29.1.1",
-    "playwright": "^1.60.0",
+    "jsonld": "9.0.0",
+    "playwright": "^1.63.0",
     "postcss": "^8.5.28",
     "tailwindcss": "^4.3.3",
     "typescript": "^5.5.0",
     "typescript-eslint": "^8.71.1",
+    "vite": "8.3.6",
     "vitest": "^4.1.11",
     "wrangler": "^4.148.0"
   },
   "overrides": {
     "@babel/core": "^7.29.7",
     "js-yaml": "4.3.2",
-    "undici": "7.30.0",
+    "undici": "7.30.2",
     "postcss": "^8.5.28",
     "sharp": "0.35.5",
     "nanoid": "3.3.18",
     "browserslist": "4.28.9",
     "brace-expansion@1": "1.1.21",
     "brace-expansion@>=3": "5.0.12",
-    "source-map-js": "1.2.2"
+    "source-map-js": "1.2.2",
+    "zod": "4.6.7",
+    "@opennextjs/cloudflare": {
+      "glob": "14.0.4"
+    },
+    "@node-minify/core": {
+      "glob": "14.0.4"
+    }
   }
 }

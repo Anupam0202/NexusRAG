@@ -5,6 +5,7 @@ Shared pytest fixtures for the entire test suite.
 from __future__ import annotations
 
 from unittest.mock import MagicMock
+from uuid import uuid4
 
 import pytest
 from fastapi.testclient import TestClient
@@ -112,7 +113,9 @@ def test_client() -> TestClient:
 
     app.dependency_overrides[get_rag_chain] = lambda: mock_chain
 
-    client = TestClient(app)
+    # Each independent test gets its own synthetic client address. Requests within
+    # a test still share the unchanged production 120/minute limiter.
+    client = TestClient(app, client=(f"synthetic-{uuid4()}", 50000))
     client.mock_chain = mock_chain  # type: ignore[attr-defined]
     yield client
 

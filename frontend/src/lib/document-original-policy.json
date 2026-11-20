@@ -1,0 +1,6 @@
+{
+  "schema_version": "document-original/1",
+  "maximum_bytes": 524288000,
+  "timeout_ms": 180000,
+  "quota_provider": "supabase_storage"
+}

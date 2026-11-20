@@ -1,6 +1,26 @@
 # Local PostgreSQL rehearsal
 
-This suite applies the clean NexusRAG baseline plus candidate migrations 027–034 to a **fresh disposable PostgreSQL 17 database** with the real `pgcrypto` and `pgvector` extensions. It uses independent `psql` connections to exercise locking, reservation races, same-key idempotency, settlement replay, account trial limits, and rollback-safe transactional state. It also verifies durable extraction staging/replay/lease scoping and purge-on-terminal publication, synthetic Storage policy stand-ins, explicit denial of sensitive/unknown Gemini classifications unless provider and workspace review evidence is present, and service-role-only access to the user-key vault.
+## Supplied snapshot Radar (062)
+
+The ordered suite now includes `20261026123000_radar_supplied_snapshots.sql`
+after the finding-package migration. Its rollback-only assertions exercise actual
+retained document versions, baseline/change capture, exact-pair independent
+review, a source-backed Finding and the existing independent Finding review and
+rights-bound package path. The native Gateway integration runs before the final
+stateful package fixture. Both preserve ordinary quota/role assertions and use
+explicit selected-chunk coverage; they do not fetch a provider, invoke AI or
+enable recurring work. This candidate has no hosted-install approval.
+
+The existing schema inventory assertion accounts for the five new RLS tables.
+The logical backup/restore still compares every table and function count from
+the actual disposable database; its counts are not a substitute for hosted
+Supabase or private-user acceptance.
+
+## Manual retention claim (042)
+
+The current rehearsal also applies forward migration 042 after the baseline and 026-041 described below. Its scoped, service-only manual claim rechecks confirmed owner/admin authority and shares the scheduler lease. Assertions cover manual/scheduler exclusion, foreign actors, expired leases, disabled policy, browser denial and completion replay. These are synthetic SQL tests, not authorization for hosted migrations or proof of external deletion fencing. The separate retention concurrency script tests database row locking and exact-claim completion.
+
+This suite applies the clean NexusRAG baseline plus candidate forward migrations through 041 to a **fresh disposable PostgreSQL 17 database** with the real `pgcrypto` and `pgvector` extensions. It uses independent `psql` connections to exercise locking, reservation races, same-key idempotency, settlement replay, account trial limits, and rollback-safe transactional state. It also verifies durable extraction staging/replay/lease scoping and purge-on-terminal publication, synthetic Storage policy stand-ins, explicit denial of sensitive/unknown Gemini classifications unless provider and workspace review evidence is present, and service-role-only access to the user-key vault. Migration 038 adds terms-bound owner decisions, stale version/terms rejection, disabled-provider revocation, durable audit, and separate BYOK/operator-funded denial after a provider terms change. Migration 039 uses the canonical Supabase `auth.role()` helper and tests modern `request.jwt.claims` with the legacy setting empty, including denied browser roles. Migration 040 adds service-only, hash-only, confirmed-recipient invitation authority, replay/expiry/revocation/issuer-demotion tests and concurrent acceptance/pending-capacity checks. Delivery is a manually shared one-time code, not an email-service claim. Migration 041 fences scheduler completion/retry by exact worker/expiry/current policy and database time after obtaining the row lock. Tests cover stale same-worker claims, foreign workspace/worker, changed/disabled policy, expiry, response-loss retry replay, simultaneous completion and post-lock expiry. These schedule-write guarantees do not establish atomic external deletion or prevent cleanup already in progress. No real approval is created by these synthetic tests.
 
 The CI rehearsal creates a custom-format `pg_dump` from that disposable database, restores it into a separate disposable database, then compares row digests for every table in `public`, `auth`, and `storage`, plus extension versions and function counts. Both databases and the backup artifact are removed at job cleanup. This is a real logical backup/restore rehearsal for the synthetic PostgreSQL schema, not a Supabase-managed backup, production restore, or proof of provider-specific managed Auth/Storage behavior.
 

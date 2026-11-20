@@ -2,11 +2,12 @@
 from __future__ import annotations
 
 from datetime import date, datetime
+from dataclasses import asdict
 from decimal import Decimal
 from typing import Literal
 
-from fastapi import APIRouter, Depends
-from pydantic import BaseModel, Field
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from src.api.auth import WorkspaceContext, WorkspaceRole, require_enterprise_workspace_role
 from src.api.dependencies import verify_api_key
@@ -23,7 +24,7 @@ from src.domain.product_passport import (
     PassportClaimStatus,
     ProductPassport,
 )
-from src.domain.research_planner import MODE_LIMITS, ResearchMode, ResearchPlan
+from src.domain.research_planner import MODE_LIMITS, PassportSubject, ResearchMode, ResearchPlan
 from src.domain.setup_center import CHECK_IDS
 from src.domain.standards_mapping import mapping_report
 
@@ -104,6 +105,21 @@ class PassportExportInput(BaseModel):
     claims: list[PassportClaimInput] = Field(max_length=200)
 
 
+class PassportSubjectInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    product_id: str = Field(min_length=1, max_length=128)
+    product_name: str = Field(min_length=1, max_length=256)
+    product_version: str = Field(min_length=1, max_length=128)
+    supplier: str = Field(min_length=1, max_length=256)
+
+    @field_validator("product_id", "product_name", "product_version", "supplier")
+    @classmethod
+    def normalize_identity_text(cls, value: str) -> str:
+        if not value.strip() or "\0" in value:
+            raise ValueError("Declared product identity must contain nonempty text")
+        return value.strip()
+
+
 class ResearchPlanInput(BaseModel):
     plan_id: str = Field(min_length=1, max_length=128)
     mode: ResearchMode
@@ -118,6 +134,15 @@ class ResearchPlanInput(BaseModel):
     rights_constraints: list[str] = Field(default_factory=list, max_length=100)
     expected_calculations: list[str] = Field(default_factory=list, max_length=50)
     completion_criteria: list[str] = Field(min_length=1, max_length=50)
+    passport_subject: PassportSubjectInput | None = None
+
+    @model_validator(mode="after")
+    def validate_passport_mode(self) -> "ResearchPlanInput":
+        if "passport_subject" in self.model_fields_set and (
+            self.passport_subject is None or self.mode != ResearchMode.PRODUCT_PASSPORT
+        ):
+            raise ValueError("Declared product identity requires a complete Product Passport subject")
+        return self
 
 
 @router.get("/capabilities")
@@ -127,18 +152,20 @@ async def capabilities(
     return {
         "profile": "ZERO_COST_LOW_TRAFFIC",
         "workspace_bound": workspace is not None,
+        "execution_state": "LOCAL_HELPERS_ONLY",
+        "production_verified": False,
         "paid_fallback": False,
         "products": {
-            "evidence_workbench": "FOUNDATION_READY",
-            "terms_quota_radar": "FOUNDATION_READY",
-            "obligation_compiler": "FOUNDATION_READY",
+            "evidence_workbench": "FOUNDATION_ONLY",
+            "terms_quota_radar": "FOUNDATION_ONLY",
+            "obligation_compiler": "FOUNDATION_ONLY",
             "procurement_graph": "PROVIDER_REVIEW",
-            "counterparty_graph": "FOUNDATION_READY",
-            "product_passport": "FOUNDATION_READY",
+            "counterparty_graph": "FOUNDATION_ONLY",
+            "product_passport": "FOUNDATION_ONLY",
             "scientific_workbench": "CONNECTORS_PENDING",
             "open_source_assurance": "PROVIDER_REVIEW",
             "public_risk": "PROVIDER_REVIEW",
-            "evidence_api_mcp": "CONTRACT_READY",
+            "evidence_api_mcp": "DECLARATION_ONLY",
         },
     }
 
@@ -152,6 +179,8 @@ async def mcp_operations(
         "workspace_binding_required": True,
         "unrestricted_bulk_export": False,
         "autonomous_destructive_tools": False,
+        "execution_state": "DECLARATIONS_ONLY",
+        "executable": False,
         "operations": [
             {
                 "name": item.name,
@@ -209,6 +238,7 @@ async def create_research_plan(
         tuple(payload.rights_constraints),
         tuple(payload.expected_calculations),
         tuple(payload.completion_criteria),
+        PassportSubject(**payload.passport_subject.model_dump()) if payload.passport_subject else None,
     )
     limits = MODE_LIMITS[plan.mode]
     return {
@@ -222,7 +252,10 @@ async def create_research_plan(
             "max_runtime_seconds": limits.max_runtime_seconds,
             "requires_review": limits.requires_review,
         },
-        "state": "PLANNED",
+        "state": "VALIDATED_NOT_PERSISTED",
+        "execution_supported": False,
+        "persistence_state": "NOT_PERSISTED",
+        **({"passport_subject": asdict(plan.passport_subject)} if plan.passport_subject else {}),
     }
 
 
@@ -254,6 +287,9 @@ async def assess_evidence_claim(
         "status": claim.status.value,
         "confidence": claim.confidence,
         "citation_count": len(claim.citations),
+        "assessment_basis": "CALLER_ASSERTED_CITATION_FLAGS",
+        "source_entailment_verified": False,
+        "persistence_state": "NOT_PERSISTED",
     }
 
 
@@ -262,12 +298,15 @@ async def run_calculation(
     payload: CalculationInput,
     _workspace: WorkspaceContext | None = Depends(VIEWER),
 ) -> dict:
-    result = calculate(
-        payload.operation,
-        Quantity(payload.left.value, payload.left.unit, tuple(payload.left.evidence_ids)),
-        Quantity(payload.right.value, payload.right.unit, tuple(payload.right.evidence_ids)),
-        precision=payload.precision,
-    )
+    try:
+        result = calculate(
+            payload.operation,
+            Quantity(payload.left.value, payload.left.unit, tuple(payload.left.evidence_ids)),
+            Quantity(payload.right.value, payload.right.unit, tuple(payload.right.evidence_ids)),
+            precision=payload.precision,
+        )
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
     return {
         "operation": result.operation.value,
         "value": str(result.value),
@@ -275,14 +314,19 @@ async def run_calculation(
         "formula": result.formula,
         "evidence_ids": result.evidence_ids,
         "precision": result.precision,
+        "rounding": "ROUND_HALF_EVEN",
+        "input_evidence_state": "CALLER_ASSERTED_NOT_VERIFIED",
+        "persistence_state": "NOT_PERSISTED",
     }
 
 
 @router.post("/obligations/review")
 async def review_obligation(
     payload: ObligationReviewInput,
-    _workspace: WorkspaceContext | None = Depends(EDITOR),
+    workspace: WorkspaceContext | None = Depends(EDITOR),
 ) -> dict:
+    if workspace is None:
+        raise HTTPException(status_code=403, detail="Authenticated workspace context is required")
     candidate = Obligation(
         payload.obligation_id,
         payload.authority,
@@ -294,13 +338,16 @@ async def review_obligation(
     )
     result = review(
         candidate,
-        reviewer_id=payload.reviewer_id,
+        reviewer_id=workspace.user.id,
         approve=payload.decision == "approve",
     )
     return {
         "obligation_id": result.obligation_id,
         "state": result.state.value,
         "reviewer_id": result.reviewer_id,
+        "execution_state": "LOCAL_REVIEW_HELPER_ONLY",
+        "input_evidence_state": "CALLER_ASSERTED_NOT_VERIFIED",
+        "persistence_state": "NOT_PERSISTED",
     }
 
 
@@ -328,5 +375,8 @@ async def export_passport(
     return {
         "format": "application/ld+json",
         "receipt_sha256": passport.canonical_receipt(),
+        "receipt_basis": "CALLER_ASSERTED_DOCUMENT_HASH_NOT_CERTIFICATION",
+        "input_evidence_state": "CALLER_ASSERTED_NOT_VERIFIED",
+        "persistence_state": "NOT_PERSISTED",
         "document": passport.export_jsonld(),
     }

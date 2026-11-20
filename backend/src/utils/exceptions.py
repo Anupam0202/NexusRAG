@@ -83,7 +83,9 @@ class GenerationError(RAGException):
     """Raised when LLM generation fails."""
 
     def __init__(self, message: str = "Generation failed", **kw: Any) -> None:
-        super().__init__(message, code="GENERATION_ERROR", **kw)
+        # A subclass's specific code must not collide with a hardcoded keyword.
+        code = kw.pop("code", "GENERATION_ERROR")
+        super().__init__(message, code=code, **kw)
 
 
 class RateLimitError(GenerationError):

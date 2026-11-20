@@ -3,7 +3,8 @@
 import type { SourceChunk } from "@/types";
 import { motion } from "framer-motion";
 import { X, ExternalLink } from "lucide-react";
-import { fileIcon } from "@/lib/utils";
+import { cn, fileIcon } from "@/lib/utils";
+import { passageText } from "@/lib/sources";
 
 interface Props {
   sources: SourceChunk[];
@@ -79,8 +80,8 @@ export function SourcePanel({ sources, onClose }: Props) {
                 </div>
               )}
 
-              <div className="rounded-lg bg-[var(--bg-secondary)] p-2.5 text-xs text-[var(--text-secondary)] font-mono leading-relaxed max-h-28 overflow-y-auto">
-                {src.content}
+              <div className={cn("rounded-lg bg-[var(--bg-secondary)] p-2.5 text-xs text-[var(--text-secondary)] leading-relaxed max-h-28 overflow-y-auto", src.deleted ? "italic" : "font-mono")}>
+                {passageText(src)}
               </div>
             </div>
           ))}

@@ -1,11 +1,17 @@
-import { copyFile, mkdir, readdir, stat } from "node:fs/promises";
+import { copyFile, mkdir, readdir } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+// Pages are served by the Worker (OpenNext renders clean URLs), which gives each one its policy
+// (src/lib/security-headers.ts). The only page published as a static asset is the document shell, which the Worker
+// itself fetches for every /documents/<id> link. Any other HTML among the assets would be served without the Worker,
+// and so without its policy, at a URL ending in .html; the build fails instead.
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const appOutput = path.join(root, ".next", "server", "app");
 const staticAssets = path.join(root, ".open-next", "assets");
-const requiredAssets = [
+const documentShell = "documents/__static_document__.html";
+// Pages that must stay prerendered: they may not depend on request data.
+const requiredPrerendered = [
   "index.html",
   "auth/login.html",
   "auth/callback.html",
@@ -17,8 +23,9 @@ const requiredAssets = [
   "documents.html",
   "evidence-os.html",
   "findings.html",
+  "radar.html",
   "settings/billing-or-usage.html",
-  "documents/__static_document__.html",
+  documentShell,
 ];
 
 async function walk(directory, prefix = "") {
@@ -29,36 +36,28 @@ async function walk(directory, prefix = "") {
     if (entry.isDirectory()) {
       files.push(...(await walk(absolute, relative)));
     } else if (entry.isFile() && entry.name.endsWith(".html")) {
-      files.push(relative);
+      files.push(relative.split(path.sep).join("/"));
     }
   }
   return files;
 }
 
-const generatedHtml = await walk(appOutput);
-const copied = new Set();
-for (const relative of generatedHtml) {
-  const destinationRelative =
-    relative === "_not-found.html" ? "404.html" : relative;
-  const destination = path.join(staticAssets, destinationRelative);
-  await mkdir(path.dirname(destination), { recursive: true });
-  await copyFile(path.join(appOutput, relative), destination);
-  copied.add(destinationRelative.split(path.sep).join("/"));
+const prerendered = new Set(await walk(appOutput));
+const missing = requiredPrerendered.filter((page) => !prerendered.has(page));
+if (missing.length) {
+  throw new Error(`These pages were not prerendered: ${missing.join(", ")}`);
 }
 
-for (const required of requiredAssets) {
-  const candidate = path.join(staticAssets, required);
-  let exists = false;
-  try {
-    exists = (await stat(candidate)).isFile();
-  } catch {
-    // Report a build failure below rather than deploying an SSR fallback.
-  }
-  if (!exists) {
-    throw new Error(`Required static route asset was not generated: ${required}`);
-  }
+const destination = path.join(staticAssets, documentShell);
+await mkdir(path.dirname(destination), { recursive: true });
+await copyFile(path.join(appOutput, documentShell), destination);
+
+const published = await walk(staticAssets);
+const unexpected = published.filter((page) => page !== documentShell);
+if (unexpected.length) {
+  throw new Error(`These pages would be served without the Worker's policy: ${unexpected.join(", ")}`);
 }
 
 console.log(
-  `Published ${copied.size} pre-rendered HTML routes as Workers Static Assets; required routes verified.`
+  `Verified ${requiredPrerendered.length} prerendered pages; published the document shell as the only static page.`
 );

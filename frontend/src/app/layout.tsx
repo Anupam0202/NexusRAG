@@ -8,6 +8,7 @@ import { PageTransition } from "@/components/layout/PageTransition";
 import { Toaster } from "sonner";
 import { ApiKeyModal } from "@/components/chat/ApiKeyModal";
 import { AuthProvider } from "@/components/auth/AuthProvider";
+import { WorkspaceDiscoveryBoundary } from "@/components/auth/WorkspaceDiscoveryBoundary";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -17,7 +18,7 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: "NexusRAG Evidence Intelligence OS",
-  description: "Rights-aware evidence workflows with reviewable claims, provenance, quotas, and portable evidence packages.",
+  description: "Ask questions about your documents and get answers with citations you can check, then save and review them as findings.",
   keywords: ["evidence intelligence", "RAG", "provenance", "research", "document intelligence", "NexusRAG"],
   icons: {
     icon: "/favicon.svg",
@@ -40,7 +41,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <Sidebar />
           <div className="flex flex-1 flex-col overflow-hidden min-w-0">
             <Header />
-            <PageTransition>{children}</PageTransition>
+            <PageTransition><WorkspaceDiscoveryBoundary>{children}</WorkspaceDiscoveryBoundary></PageTransition>
           </div>
           <ApiKeyModal />
           <Toaster

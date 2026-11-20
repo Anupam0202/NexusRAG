@@ -1,0 +1,33 @@
+name: Gemini Model Check
+# Model policy D24: fail (and notify the owner) when Google stops listing a configured Gemini model, so a
+# retirement is handled before users see errors. Lists models only; sends no content and uses no quota.
+
+on:
+  schedule:
+    - cron: "23 7 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gemini-model-check
+  cancel-in-progress: true
+
+jobs:
+  models:
+    name: Configured Gemini models are served
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment: Preview
+    env:
+      GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+      # Empty means the gateway's default model policy; set these repository variables to override.
+      GEMINI_MODEL: ${{ vars.GEMINI_MODEL }}
+      GEMINI_EMBEDDING_MODEL: ${{ vars.GEMINI_EMBEDDING_MODEL }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with: {python-version: "3.13"}
+      - name: Check configured models against Google's model list
+        run: python3 scripts/check_gemini_models.py

@@ -4,7 +4,7 @@ NexusRAG is designed around tenant isolation, durable auth context, and defensiv
 
 ## Implemented Controls
 
-- Supabase JWT validation and workspace-scoped API context.
+- Supabase access tokens are checked in the gateway against the project's published signing keys (ES256: signature, issuer, audience, role and expiry, `access-token.js`); a token signed any other way is checked by Supabase Auth. Signing out ends refresh sessions at once, and an access token already issued stays valid until it expires (an hour), as the security page tells people. Workspace membership is checked in the database on every request, so removing a member or deleting an account takes effect immediately.
 - Supabase Auth is the sole identity and session authority; NexusRAG never receives Google or GitHub credentials.
 - The candidate frontend offers Google and GitHub OAuth. Supabase provider
   activation and real Google callback verification remain environment setup
@@ -13,6 +13,7 @@ NexusRAG is designed around tenant isolation, durable auth context, and defensiv
 - Public sign-in and callback responses avoid provider-detail and token leakage.
 - Account-security controls use explicit Supabase sign-out scopes instead of relying on the SDK's global default.
 - Workspace membership checks for protected document, chat, settings, analytics, and key routes.
+- Each user's requests are limited to 60 a minute by two counters that must both allow a request: one in each Worker isolate and Cloudflare's rate limiter, shared by the isolates in a location. Cloudflare's count is approximate, so a short burst can exceed the limit.
 - Supabase Storage and metadata tables are authoritative; Cloudflare local state and Qdrant vectors are not customer-record authorities.
 - File validation for extension, empty content, upload size, and magic bytes for PDFs and common image formats.
 - Filename sanitization to strip paths, dangerous characters, and control characters.

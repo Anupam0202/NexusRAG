@@ -1,7 +1,8 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { getSettings, getSystemStatus, updateSettings, setWorkspaceId } = vi.hoisted(() => ({
+const { account, getSettings, getSystemStatus, updateSettings, setWorkspaceId } = vi.hoisted(() => ({
+  account: { id: "user-a", email: null },
   getSettings: vi.fn(),
   getSystemStatus: vi.fn(),
   updateSettings: vi.fn(),
@@ -17,6 +18,8 @@ vi.mock("@/hooks/useAuthGate", () => ({
 
 vi.mock("@/hooks/useStore", () => ({
   useStore: (selector: (state: object) => unknown) => selector({
+    authMode: "authenticated",
+    authUser: account,
     workspaceId: "workspace-test",
     setWorkspaceId,
   }),
@@ -40,7 +43,7 @@ vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 import SettingsPage from "./page";
 
 const settings = {
-  llm_model_name: "gemini-2.5-flash",
+  llm_model_name: "gemini-3.5-flash-lite",
   llm_temperature: 0.1,
   retrieval_top_k: 8,
   enable_reranking: false,
@@ -55,6 +58,7 @@ const settings = {
 
 describe("SettingsPage", () => {
   beforeEach(() => {
+    account.id = "user-a";
     getSettings.mockReset().mockResolvedValue(settings);
     getSystemStatus.mockReset().mockResolvedValue({
       settings: { memory_constrained: true, use_lightweight_embeddings: true },
@@ -71,7 +75,7 @@ describe("SettingsPage", () => {
     expect(screen.getByRole("slider", { name: "Context Window" })).toBeDisabled();
     expect(screen.getByRole("switch", { name: /Re-ranking/i })).toBeDisabled();
     expect(screen.getByText(/prior chat messages are not sent to Gemini/i)).toBeVisible();
-    expect(screen.getByText("gemini-2.5-flash")).toBeVisible();
+    expect(screen.getByText("gemini-3.5-flash-lite")).toBeVisible();
   });
 
   it("saves only supported, bounded settings through the workspace API", async () => {
@@ -85,6 +89,17 @@ describe("SettingsPage", () => {
       llm_temperature: 0.45,
       retrieval_top_k: 8,
       hybrid_search_alpha: 0.6,
-    }));
+    }, { workspaceId: "workspace-test", expectedUserId: "user-a" }));
   });
+
+  it("removes the previous account draft before a replacement settings read resolves", async () => {
+    const view = render(<SettingsPage />);
+    await screen.findByRole("slider", { name: "Temperature" });
+    getSettings.mockImplementationOnce(() => new Promise(() => {}));
+    account.id = "user-b";
+    view.rerender(<SettingsPage />);
+    expect(screen.queryByRole("slider", { name: "Temperature" })).not.toBeInTheDocument();
+    expect(getSettings).toHaveBeenLastCalledWith({ workspaceId: "workspace-test", expectedUserId: "user-b" });
+  });
+
 });

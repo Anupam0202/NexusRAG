@@ -1,6 +1,9 @@
-import { chunkText, indexChunks, MAX_DOCUMENT_CHUNKS, MAX_INDEX_BATCH_CHUNKS, sha256 } from "./worker-pipeline.js";
+import { chunkText, indexChunks, MAX_DOCUMENT_CHUNKS, MAX_INDEX_BATCH_CHUNKS, sha256, TOO_LONG_TO_INDEX } from "./worker-pipeline.js";
 import { deleteQdrantGeneration, extractFileText, verifyQdrantGeneration } from "./worker-lifecycle.js";
 import { loadUserGeminiKey } from "./user-gemini-key.js";
+import { embeddingModel } from "./gemini-models.js";
+import { processResearchMessage, sweepResearchRuns } from "./research-executor.js";
+import { serviceHeaders } from "./supabase-keys.js";
 
 const iso = () => new Date().toISOString();
 const err = (code, message, retryable = false) => Object.assign(new Error(message), { code, status: 503, retryable });
@@ -8,8 +11,7 @@ async function db(env, path, init = {}) {
   const response = await fetch(`${env.SUPABASE_URL}/rest/v1/${path}`, {
     ...init,
     headers: {
-      apikey: env.SUPABASE_SERVICE_ROLE_KEY,
-      authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
+      ...serviceHeaders(env),
       "content-type": "application/json",
       prefer: "return=representation",
       ...(init.headers || {}),
@@ -31,6 +33,23 @@ function queueMessage(job, batchOffset = 0) {
   };
 }
 
+// A document that never had a usable version must not stay "pending" for ever.
+const failUnpublishedDocument = (env, job) => db(env, `documents?id=eq.${job.document_id}&workspace_id=eq.${job.workspace_id}&active_version_id=is.null&status=in.(queued,processing)`, {
+  method: "PATCH", body: JSON.stringify({ status: "failed" }),
+}).catch(() => null);
+
+/** A job that has used all its attempts fails, with its version, and so does a document that never had a usable version. */
+async function failExhaustedJob(env, job) {
+  await db(env, `ingestion_jobs?id=eq.${job.id}&status=in.(queued,retry_wait,processing)`, {
+    method: "PATCH",
+    body: JSON.stringify({ status: "failed", stage: "failed", error_code: "LEASE_EXHAUSTED", error_message: "Maximum batch attempts exhausted.", completed_at: iso(), lease_owner: null, lease_expires_at: null }),
+  });
+  await db(env, `document_versions?id=eq.${job.version_id}&publication_state=neq.ready`, {
+    method: "PATCH", body: JSON.stringify({ publication_state: "failed", failure_code: "LEASE_EXHAUSTED" }),
+  }).catch(() => null);
+  await failUnpublishedDocument(env, job);
+}
+
 async function claim(env, message) {
   const rows = await db(env, `ingestion_jobs?id=eq.${message.job_id}&workspace_id=eq.${message.workspace_id}&select=*&limit=1`);
   const job = rows?.[0];
@@ -42,13 +61,7 @@ async function claim(env, message) {
   if (!Number.isSafeInteger(offset) || offset < 0 || (message.batch_offset != null && Number(message.batch_offset) !== offset)) return null;
   if (job.cancellation_requested_at || (job.available_at && Date.parse(job.available_at) > Date.now())) return null;
   if (Number(job.attempts || 0) >= Number(job.max_attempts || 3)) {
-    await db(env, `ingestion_jobs?id=eq.${job.id}&status=in.(queued,retry_wait,processing)`, {
-      method: "PATCH",
-      body: JSON.stringify({ status: "failed", stage: "failed", error_code: "LEASE_EXHAUSTED", error_message: "Maximum batch attempts exhausted.", completed_at: iso(), lease_owner: null, lease_expires_at: null }),
-    });
-    await db(env, `document_versions?id=eq.${job.version_id}&publication_state=neq.ready`, {
-      method: "PATCH", body: JSON.stringify({ publication_state: "failed", failure_code: "LEASE_EXHAUSTED" }),
-    }).catch(() => null);
+    await failExhaustedJob(env, job);
     return null;
   }
   if (job.status === "processing" && Date.parse(job.lease_expires_at) > Date.now()) return null;
@@ -72,6 +85,21 @@ async function beat(env, claimResult, patch) {
     body: JSON.stringify({ heartbeat_at: iso(), lease_expires_at: new Date(Date.now() + 300000).toISOString(), ...patch }),
   });
   if (!out?.[0]) throw err("STALE_WORKER", "Lease or lifecycle changed.");
+}
+
+// Reading a long document can take minutes, longer than a lease lasts. The lease is renewed meanwhile, and the
+// read is given up as soon as the lease is gone: the document was deleted, or another run took the job.
+const LEASE_RENEWAL_MS = 120_000;
+async function whileHoldingLease(env, claimResult, work) {
+  const givenUp = new AbortController();
+  const timer = setInterval(() => {
+    beat(env, claimResult, {}).catch((error) => { if (error?.code === "STALE_WORKER") givenUp.abort(); });
+  }, LEASE_RENEWAL_MS);
+  try {
+    return await work(givenUp.signal);
+  } finally {
+    clearInterval(timer);
+  }
 }
 
 async function checkpointBatch(env, claimResult, payload) {
@@ -152,14 +180,15 @@ async function processIngestionMessage(env, message) {
       if (offset !== 0) throw err("VERSION_CONFLICT", "Durable extraction staging is missing for a resumed batch.");
       const key = version.original_key.split("/").map(encodeURIComponent).join("/");
       const original = await fetch(`${env.SUPABASE_URL}/storage/v1/object/${encodeURIComponent(version.original_bucket)}/${key}`, {
-        headers: { apikey: env.SUPABASE_SERVICE_ROLE_KEY, authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}` },
+        headers: serviceHeaders(env),
       });
       if (!original.ok) throw err("PERSISTENCE_UNAVAILABLE", "Original unavailable.", true);
       const file = new File([await original.arrayBuffer()], document.filename, { type: document.content_type });
-      const extracted = await extractFileText(env, file, { workspaceId: job.workspace_id, priority: "background", dataClassification: version.data_classification, userApiKey, credentialMode });
+      const extracted = await whileHoldingLease(env, claimResult, (signal) => extractFileText(env, file, { workspaceId: job.workspace_id, priority: "background",
+        dataClassification: version.data_classification, actorId: document.uploaded_by, userApiKey, credentialMode, signal }));
       const chunks = chunkText(extracted.text);
       if (!chunks.length) throw err("EMPTY_DOCUMENT", "The document contains no indexable text.");
-      if (chunks.length > MAX_DOCUMENT_CHUNKS) throw err("CAPACITY_REACHED", "Document exceeds the 400-chunk bounded ingestion limit.");
+      if (chunks.length > MAX_DOCUMENT_CHUNKS) throw err("CAPACITY_REACHED", TOO_LONG_TO_INDEX);
       extractionManifest = { ...(extracted.manifest || {}), method: extracted.method };
       totalChunks = chunks.length;
       const extractionRows = await Promise.all(chunks.map(async (chunk) => ({
@@ -170,7 +199,7 @@ async function processIngestionMessage(env, message) {
       })));
       const stored = await rpc(env, "workbench_store_extracted_chunks", {
         ...extractionIdentity,
-        p_space: env.GEMINI_EMBEDDING_MODEL || "gemini-embedding-001",
+        p_space: embeddingModel(env),
         p_index: generation,
         p_manifest: extractionManifest,
         p_total_chunks: totalChunks,
@@ -196,7 +225,7 @@ async function processIngestionMessage(env, message) {
     const points = await indexChunks(env, {
       workspaceId: job.workspace_id, documentId: job.document_id, versionId: job.version_id,
       generation, filename: document.filename, chunks: batch, initializeIndex: offset === 0,
-      dataClassification: version.data_classification, userApiKey, credentialMode,
+      dataClassification: version.data_classification, actorId: document.uploaded_by, userApiKey, credentialMode,
     });
     const stagedChunks = await Promise.all(points.map(async (point, index) => {
       const chunk = batch[index];
@@ -210,7 +239,7 @@ async function processIngestionMessage(env, message) {
     const staged = await rpc(env, "workbench_stage_chunk_batch", {
       p_job: job.id, p_workspace: job.workspace_id, p_owner: claimResult.owner,
       p_generation: claimResult.generation, p_version: job.version_id, p_epoch: Number(job.lifecycle_epoch),
-      p_space: env.GEMINI_EMBEDDING_MODEL || "gemini-embedding-001", p_index: generation,
+      p_space: embeddingModel(env), p_index: generation,
       p_manifest: extractionManifest, p_total_chunks: totalChunks, p_offset: offset, p_chunks: stagedChunks,
     });
     if (Number(staged?.count) < offset + batch.length) throw err("INGESTION_FAILED", "Staged batch was not durably recorded.", true);
@@ -264,6 +293,7 @@ async function processIngestionMessage(env, message) {
     if (!retry) await db(env, `document_versions?id=eq.${job.version_id}&publication_state=neq.ready`, {
       method: "PATCH", body: JSON.stringify({ publication_state: "failed", failure_code: error.code || "INGESTION_FAILED" }),
     }).catch(() => null);
+    if (!retry) await failUnpublishedDocument(env, job);
     error.retryable = retry;
     throw error;
   }
@@ -272,7 +302,8 @@ async function processIngestionMessage(env, message) {
 async function handleQueue(batch, env) {
   for (const message of batch.messages) {
     try {
-      await processIngestionMessage(env, message.body);
+      if (message.body?.kind === "research") await processResearchMessage(env, message.body, db);
+      else await processIngestionMessage(env, message.body);
       message.ack();
     } catch (error) {
       if (error.retryable) message.retry({ delaySeconds: 15 });
@@ -292,12 +323,7 @@ async function sweepJobs(env) {
   let enqueued = 0;
   for (const job of unique.values()) {
     if (Number(job.attempts || 0) >= Number(job.max_attempts || 3)) {
-      await db(env, `ingestion_jobs?id=eq.${job.id}&status=in.(queued,retry_wait,processing)`, {
-        method: "PATCH", body: JSON.stringify({ status: "failed", stage: "failed", error_code: "LEASE_EXHAUSTED", error_message: "Maximum batch attempts exhausted.", completed_at: iso(), lease_owner: null, lease_expires_at: null }),
-      });
-      await db(env, `document_versions?id=eq.${job.version_id}&publication_state=neq.ready`, {
-        method: "PATCH", body: JSON.stringify({ publication_state: "failed", failure_code: "LEASE_EXHAUSTED" }),
-      }).catch(() => null);
+      await failExhaustedJob(env, job);
       continue;
     }
     const offset = Number(job.payload?.batch_offset || 0);
@@ -305,6 +331,10 @@ async function sweepJobs(env) {
     await env.INGESTION_QUEUE.send(queueMessage(job, offset));
     enqueued += 1;
   }
-  return { enqueued };
+  // Older hosted schemas may not contain research runs yet. Existing ingestion
+  // recovery must continue, while a missing new table is not research success.
+  let researchEnqueued = null;
+  try { researchEnqueued = await sweepResearchRuns(env, db); } catch { /* Next cron or explicit start retries dispatch, never generation. */ }
+  return { enqueued, research_enqueued: researchEnqueued, research_dispatch_state: researchEnqueued === null ? "UNAVAILABLE" : "CHECKED" };
 }
-export { handleQueue, processIngestionMessage, sweepJobs };
+export { handleQueue, processIngestionMessage, sweepJobs, whileHoldingLease };

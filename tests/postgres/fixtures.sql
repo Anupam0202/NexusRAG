@@ -10,7 +10,9 @@ INSERT INTO public.workspace_members(workspace_id,user_id,role) VALUES
  ('11111111-1111-4111-8111-111111111111','22222222-2222-4222-8222-222222222222','owner'),
  ('44444444-4444-4444-8444-444444444444','33333333-3333-4333-8333-333333333333','owner');
 INSERT INTO public.provider_registry(id,display_name,authority,documentation_url,terms_url,status)
-VALUES ('gemini','Synthetic rehearsal provider','Synthetic only','https://example.invalid/docs','https://example.invalid/terms','APPROVED');
+VALUES ('gemini','Synthetic rehearsal provider','Synthetic only','https://example.invalid/docs','https://example.invalid/terms','APPROVED')
+ON CONFLICT (id) DO UPDATE SET display_name=excluded.display_name,authority=excluded.authority,
+  documentation_url=excluded.documentation_url,terms_url=excluded.terms_url,status=excluded.status;
 INSERT INTO public.provider_terms_snapshots(provider_id,revision,checked_at,content_hash,retrieval_method,terms,materiality,approved_by)
 VALUES ('gemini',1,now(),repeat('c',64),'STATIC_HTML','{"fixture":"synthetic only"}'::jsonb,'RIGHTS_REVIEW',
         '22222222-2222-4222-8222-222222222222');
@@ -20,8 +22,8 @@ SET review_owner='22222222-2222-4222-8222-222222222222',
     terms_hash=(SELECT content_hash FROM public.provider_terms_snapshots WHERE provider_id='gemini' AND revision=1)
 WHERE id='gemini';
 INSERT INTO public.workspace_provider_policies(workspace_id,provider_id,status,allowed_actions,rights_hash,reviewed_by,reviewed_at)
-VALUES ('11111111-1111-4111-8111-111111111111','gemini','APPROVED',ARRAY['gemini_non_sensitive'],repeat('a',64),'22222222-2222-4222-8222-222222222222',now()),
-       ('44444444-4444-4444-8444-444444444444','gemini','APPROVED',ARRAY['gemini_non_sensitive'],repeat('b',64),'33333333-3333-4333-8333-333333333333',now());
+VALUES ('11111111-1111-4111-8111-111111111111','gemini','APPROVED',ARRAY['gemini_non_sensitive'],repeat('c',64),'22222222-2222-4222-8222-222222222222',now()),
+       ('44444444-4444-4444-8444-444444444444','gemini','APPROVED',ARRAY['gemini_non_sensitive'],repeat('c',64),'33333333-3333-4333-8333-333333333333',now());
 INSERT INTO public.resource_budgets(scope_key,workspace_id,provider_id,dimension,hard_limit,window_kind,reset_at,state)
 SELECT scope,workspace_id,'gemini',dimension,100,'daily','2030-01-01T00:00:00Z','READY'
 FROM (VALUES

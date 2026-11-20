@@ -34,10 +34,10 @@ BEGIN
  IF r->>'state' <> 'RIGHTS_BLOCKED' THEN RAISE EXCEPTION 'null action admitted: %',r; END IF;
  r := public.v6_reserve_many('11111111-1111-4111-8111-111111111111','gemini','{"requests":1}'::jsonb,'pg-null-class','interactive','gemini_non_sensitive',NULL);
  IF r->>'state' <> 'RIGHTS_BLOCKED' THEN RAISE EXCEPTION 'null classification admitted: %',r; END IF;
- UPDATE public.workspace_provider_policies SET reviewed_at=now()-interval '31 days'
+ UPDATE public.workspace_provider_policies SET reviewed_at=now()+interval '1 hour'
  WHERE workspace_id='11111111-1111-4111-8111-111111111111' AND provider_id='gemini';
- r := public.v6_reserve_many('11111111-1111-4111-8111-111111111111','gemini','{"requests":1}'::jsonb,'pg-stale-review','interactive','gemini_non_sensitive','non_sensitive');
- IF r->>'state' <> 'RIGHTS_BLOCKED' THEN RAISE EXCEPTION 'stale privacy review admitted: %',r; END IF;
+ r := public.v6_reserve_many('11111111-1111-4111-8111-111111111111','gemini','{"requests":1}'::jsonb,'pg-future-review','interactive','gemini_non_sensitive','non_sensitive');
+ IF r->>'state' <> 'RIGHTS_BLOCKED' OR r->>'reason' <> 'WORKSPACE_APPROVAL_REQUIRED' THEN RAISE EXCEPTION 'future-dated owner approval admitted: %',r; END IF;
  UPDATE public.workspace_provider_policies SET reviewed_at=now()
  WHERE workspace_id='11111111-1111-4111-8111-111111111111' AND provider_id='gemini';
 END $$;

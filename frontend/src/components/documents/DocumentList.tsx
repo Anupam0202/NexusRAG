@@ -2,9 +2,10 @@
 
 import Link from "@/components/layout/StaticLink";
 import type { DocumentMetadata } from "@/types";
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import { ExternalLink, Eye, RefreshCw, Trash2, FileText } from "lucide-react";
 import { cn, formatBytes, fileIcon } from "@/lib/utils";
+import { documentStatusExplanation, documentStatusLabel } from "@/lib/document-status";
 
 interface Props {
   documents: DocumentMetadata[];
@@ -14,6 +15,8 @@ interface Props {
   onRefresh: () => void;
   onSelect: (document: DocumentMetadata) => void;
   disabledReason?: string;
+  canMutate: boolean;
+  mutationDisabledReason?: string;
 }
 
 export function DocumentList({
@@ -24,9 +27,15 @@ export function DocumentList({
   onRefresh,
   onSelect,
   disabledReason,
+  canMutate,
+  mutationDisabledReason,
 }: Props) {
+  const reducedMotion = useReducedMotion();
   return (
     <section>
+      {mutationDisabledReason && !disabledReason && (
+        <p role="status" className="mb-3 text-xs text-[var(--text-muted)]">{mutationDisabledReason}</p>
+      )}
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-base font-semibold">
           Document Library
@@ -61,9 +70,9 @@ export function DocumentList({
           {documents.map((doc, i) => (
             <motion.article
               key={doc.document_id}
-              initial={{ opacity: 0, y: 8 }}
+              initial={reducedMotion ? false : { opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.05, duration: 0.3 }}
+              transition={{ delay: reducedMotion ? 0 : Math.min(i * 0.025, 0.15), duration: reducedMotion ? 0 : 0.2 }}
               className="group flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] px-3 py-2.5 transition hover:shadow-md md:px-4 md:py-3"
             >
               <button
@@ -80,13 +89,15 @@ export function DocumentList({
                     {doc.file_size_bytes > 0 && ` - ${formatBytes(doc.file_size_bytes)}`}
                   </p>
                 </div>
-                <span className={cn(
+                <span title={documentStatusExplanation(doc.status) ?? undefined} className={cn(
                   "hidden rounded-full px-2 py-0.5 text-[10px] font-bold uppercase sm:inline-block",
                   doc.status === "ready"
                     ? "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300"
-                    : "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700"
+                    : doc.status === "error" || doc.status === "needs_upload"
+                      ? "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300"
+                      : "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700"
                 )}>
-                  {doc.status}
+                  {documentStatusLabel(doc.status)}
                 </span>
                 <span className="hidden rounded-lg p-2 text-[var(--text-muted)] sm:inline-flex">
                   <Eye size={15} />
@@ -101,22 +112,25 @@ export function DocumentList({
                 <ExternalLink size={15} />
               </Link>
               <button
+                disabled={!canMutate}
                 onClick={(event) => {
                   event.stopPropagation();
-                  onReindex(doc.document_id);
+                  if (canMutate) onReindex(doc.document_id);
                 }}
                 aria-label={`Re-index ${doc.filename}`}
-                title="Re-index"
-                className="rounded-lg p-2 text-[var(--text-muted)] transition hover:bg-[var(--bg-hover)] hover:text-brand-500 shrink-0"
+                title={mutationDisabledReason ?? "Re-index"}
+                className="rounded-lg p-2 text-[var(--text-muted)] transition hover:bg-[var(--bg-hover)] hover:text-brand-500 shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <RefreshCw size={15} />
               </button>
               <button
+                disabled={!canMutate}
                 onClick={(event) => {
                   event.stopPropagation();
-                  onDelete(doc.document_id);
+                  if (canMutate) onDelete(doc.document_id);
                 }}
                 aria-label={`Delete ${doc.filename}`}
+                title={mutationDisabledReason ?? "Delete"}
                 className="rounded-lg p-2 text-[var(--text-muted)] hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all shrink-0"
               >
                 <Trash2 size={15} />

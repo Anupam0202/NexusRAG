@@ -1,0 +1,66 @@
+name: Store Reconciliation
+# Compares file storage and the search index with the database (NX-27): a stored file or index entries that no
+# document names are a deleted document's content that is still there; a document whose original or passages are
+# gone can no longer be downloaded, re-indexed or answered from. The gateway logs the counts once a day as
+# `store_reconciliation`; this workflow shows them and removes leftovers.
+#
+# Run it by hand; nothing here runs on a schedule or on push. A report changes nothing, prints counts only (this
+# log is public and file names are not) and fails when anything is out of step. A removal deletes only what a
+# fresh report lists, and only when "expect" is the count that report shows.
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: Deployment to check
+        required: true
+        type: choice
+        options: [candidate, production]
+      action:
+        description: Report, or remove the leftovers the latest report counted
+        required: true
+        default: report
+        type: choice
+        options: [report, remove-files, remove-index-entries]
+      expect:
+        description: For a removal - the count the latest report shows for it
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: store-reconciliation-${{ inputs.target }}
+  cancel-in-progress: false
+
+jobs:
+  reconcile:
+    name: Reconciliation (${{ inputs.target }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: ${{ inputs.target == 'production' && 'Production' || 'NexusRAG-Candidate-Preview' }}
+    env:
+      SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      QDRANT_URL: ${{ secrets.QDRANT_URL }}
+      QDRANT_API_KEY: ${{ secrets.QDRANT_API_KEY }}
+      RECONCILE_TARGET: ${{ inputs.target }}
+      RECONCILE_ACTION: ${{ inputs.action }}
+      RECONCILE_EXPECT: ${{ inputs.expect }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with: {python-version: "3.13"}
+      - name: Report, or remove what the latest report counted
+        run: |
+          set -euo pipefail
+          case "$RECONCILE_ACTION" in
+            report)
+              python3 scripts/reconciliation.py report --target "$RECONCILE_TARGET" ;;
+            remove-files|remove-index-entries)
+              [[ "$RECONCILE_EXPECT" =~ ^[0-9]+$ ]] || { echo "::error::Enter the count the latest report shows in \"expect\"."; exit 1; }
+              python3 scripts/reconciliation.py "$RECONCILE_ACTION" --target "$RECONCILE_TARGET" --expect "$RECONCILE_EXPECT" ;;
+            *)
+              echo "::error::Unknown action."; exit 1 ;;
+          esac

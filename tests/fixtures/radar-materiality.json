@@ -1,0 +1,202 @@
+[
+  {
+    "name": "quota value with unchanged keyword",
+    "before": "Daily quota: 100 requests per account.",
+    "after": "Daily quota: 10 requests per account.",
+    "materiality": "OPERATIONAL",
+    "signals": [
+      "quota"
+    ]
+  },
+  {
+    "name": "quota period",
+    "before": "Quota: 100 requests per day.",
+    "after": "Quota: 100 requests per hour.",
+    "materiality": "OPERATIONAL",
+    "signals": [
+      "quota"
+    ]
+  },
+  {
+    "name": "price with unchanged context",
+    "before": "Pricing is $0.10 per thousand tokens.",
+    "after": "Pricing is $0.20 per thousand tokens.",
+    "materiality": "OPERATIONAL",
+    "signals": [
+      "pricing",
+      "token"
+    ]
+  },
+  {
+    "name": "currency",
+    "before": "Pricing: 20 USD.",
+    "after": "Pricing: 20 EUR.",
+    "materiality": "OPERATIONAL",
+    "signals": [
+      "pricing"
+    ]
+  },
+  {
+    "name": "deprecation date",
+    "before": "Sunset date: 2026-12-01.",
+    "after": "Sunset date: 2026-11-01.",
+    "materiality": "OPERATIONAL",
+    "signals": [
+      "sunset"
+    ]
+  },
+  {
+    "name": "model version",
+    "before": "Model example-1 is available.",
+    "after": "Model example-2 is available.",
+    "materiality": "OPERATIONAL",
+    "signals": [
+      "model"
+    ]
+  },
+  {
+    "name": "schema version",
+    "before": "Schema version 1.0 accepts a string.",
+    "after": "Schema version 1.1 accepts an array.",
+    "materiality": "OPERATIONAL",
+    "signals": [
+      "schema"
+    ]
+  },
+  {
+    "name": "unrelated footer number",
+    "before": "Quota: 100 requests per day. Page views: 12.",
+    "after": "Quota: 100 requests per day. Page views: 13.",
+    "materiality": "EDITORIAL",
+    "signals": []
+  },
+  {
+    "name": "unrelated editorial sentence",
+    "before": "Quota: 100 requests per day. Welcome to the guide.",
+    "after": "Quota: 100 requests per day. Welcome to the updated guide.",
+    "materiality": "EDITORIAL",
+    "signals": []
+  },
+  {
+    "name": "normalization only",
+    "before": "Quota: 100\n requests per day.",
+    "after": "Quota: 100 requests   per day.",
+    "materiality": "NONE",
+    "signals": []
+  },
+  {
+    "name": "punctuation and case",
+    "before": "Quota: 100 requests per day.",
+    "after": "QUOTA 100 requests per day!",
+    "materiality": "EDITORIAL",
+    "signals": []
+  },
+  {
+    "name": "numeric formatting",
+    "before": "Quota: 1,000.00 requests per day.",
+    "after": "Quota: 1000 requests per day.",
+    "materiality": "EDITORIAL",
+    "signals": []
+  },
+  {
+    "name": "unchanged context reordered",
+    "before": "Quota: 100 per day. Model example-1 is available.",
+    "after": "Model example-1 is available. Quota: 100 per day.",
+    "materiality": "EDITORIAL",
+    "signals": []
+  },
+  {
+    "name": "existing terms review precedence",
+    "before": "Quota: 100 per day.",
+    "after": "Quota: 10 per day. Commercial use requires a licence.",
+    "materiality": "RIGHTS_REVIEW",
+    "signals": [
+      "commercial use",
+      "licen",
+      "quota"
+    ]
+  },
+  {
+    "name": "exact unchanged snapshot",
+    "before": "Synthetic source 📊 quota: 100.",
+    "after": "Synthetic source 📊 quota: 100.",
+    "materiality": "NONE",
+    "signals": []
+  },
+  {
+    "name": "Unicode whitespace matches existing normalized representation",
+    "before": "Quota:\u001c100 requests.",
+    "after": "Quota: 100 requests.",
+    "materiality": "NONE",
+    "signals": []
+  },
+  {
+    "name": "BOM is retained source text, not swallowed whitespace",
+    "before": "﻿Quota: 100 requests.",
+    "after": "Quota: 100 requests.",
+    "materiality": "EDITORIAL",
+    "signals": []
+  },
+  {
+    "name": "large exact quota integers do not round through floats",
+    "before": "Quota: 9007199254740992 per day.",
+    "after": "Quota: 9007199254740993 per day.",
+    "materiality": "OPERATIONAL",
+    "signals": [
+      "quota"
+    ]
+  },
+  {
+    "name": "percentage operational limit",
+    "before": "Rate limit: 0.01%.",
+    "after": "Rate limit: 0.02%.",
+    "materiality": "OPERATIONAL",
+    "signals": [
+      "rate limit"
+    ]
+  },
+  {
+    "name": "leading decimal has its exact fractional value",
+    "before": "Pricing: $.10 per token.",
+    "after": "Pricing: $10 per token.",
+    "materiality": "OPERATIONAL",
+    "signals": [
+      "pricing",
+      "token"
+    ]
+  },
+  {
+    "name": "Unicode inequality changes an operational bound",
+    "before": "Quota ≤100 requests.",
+    "after": "Quota ≥100 requests.",
+    "materiality": "OPERATIONAL",
+    "signals": [
+      "quota"
+    ]
+  },
+  {
+    "name": "Unicode currency symbols retain pricing meaning",
+    "before": "Pricing: ₹100.",
+    "after": "Pricing: ₽100.",
+    "materiality": "OPERATIONAL",
+    "signals": [
+      "pricing"
+    ]
+  },
+  {
+    "name": "retained BOM is not a clause whitespace separator",
+    "before": "Quota: 100.﻿Page views: 12.",
+    "after": "Quota: 100.﻿Page views: 13.",
+    "materiality": "OPERATIONAL",
+    "signals": [
+      "quota"
+    ]
+  },
+  {
+    "name": "leading and explicit zero decimals have equal value",
+    "before": "Pricing: $.10 per token.",
+    "after": "Pricing: $0.10 per token.",
+    "materiality": "EDITORIAL",
+    "signals": []
+  }
+]

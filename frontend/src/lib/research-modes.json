@@ -1,0 +1,86 @@
+{
+  "QUICK_LOOKUP": {
+    "max_subquestions": 1,
+    "max_sources": 8,
+    "max_query_variants": 2,
+    "max_runtime_seconds": 30,
+    "requires_review": false
+  },
+  "EVIDENCE_ANSWER": {
+    "max_subquestions": 4,
+    "max_sources": 20,
+    "max_query_variants": 4,
+    "max_runtime_seconds": 90,
+    "requires_review": false
+  },
+  "DEEP_RESEARCH": {
+    "max_subquestions": 12,
+    "max_sources": 60,
+    "max_query_variants": 8,
+    "max_runtime_seconds": 600,
+    "requires_review": true
+  },
+  "COMPARE": {
+    "max_subquestions": 8,
+    "max_sources": 40,
+    "max_query_variants": 6,
+    "max_runtime_seconds": 300,
+    "requires_review": true
+  },
+  "TIMELINE": {
+    "max_subquestions": 8,
+    "max_sources": 40,
+    "max_query_variants": 6,
+    "max_runtime_seconds": 300,
+    "requires_review": true
+  },
+  "CONTRADICTION_ANALYSIS": {
+    "max_subquestions": 10,
+    "max_sources": 50,
+    "max_query_variants": 8,
+    "max_runtime_seconds": 420,
+    "requires_review": true
+  },
+  "CALCULATION": {
+    "max_subquestions": 6,
+    "max_sources": 30,
+    "max_query_variants": 4,
+    "max_runtime_seconds": 180,
+    "requires_review": true
+  },
+  "OBLIGATION_ANALYSIS": {
+    "max_subquestions": 10,
+    "max_sources": 50,
+    "max_query_variants": 8,
+    "max_runtime_seconds": 420,
+    "requires_review": true
+  },
+  "ENTITY_INVESTIGATION": {
+    "max_subquestions": 10,
+    "max_sources": 50,
+    "max_query_variants": 8,
+    "max_runtime_seconds": 420,
+    "requires_review": true
+  },
+  "DUE_DILIGENCE": {
+    "max_subquestions": 12,
+    "max_sources": 60,
+    "max_query_variants": 8,
+    "max_runtime_seconds": 600,
+    "requires_review": true
+  },
+  "PRODUCT_PASSPORT": {
+    "max_subquestions": 12,
+    "max_sources": 60,
+    "max_query_variants": 8,
+    "max_runtime_seconds": 600,
+    "requires_review": true
+  },
+  "PROCUREMENT_RESEARCH": {
+    "max_subquestions": 10,
+    "max_sources": 50,
+    "max_query_variants": 8,
+    "max_runtime_seconds": 420,
+    "requires_review": true
+  }
+}

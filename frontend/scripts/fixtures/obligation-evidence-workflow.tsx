@@ -1,0 +1,13 @@
+import React from "react";
+import {createRoot} from "react-dom/client";
+import EvidenceApiPage from "../../src/app/evidence-api/page";
+import FindingsPage from "../../src/app/findings/page";
+import {useStore} from "../../src/hooks/useStore";
+import "../../src/app/globals.css";
+const query=new URLSearchParams(location.search),seed=window.__OBLIGATION_FIXTURE__;
+const actor=query.get("actor")||sessionStorage.getItem("synthetic-obligation-actor")||seed.actor;
+const theme=query.get("theme")||sessionStorage.getItem("synthetic-obligation-theme")||"light";
+seed.actor=actor;sessionStorage.setItem("synthetic-obligation-actor",actor);sessionStorage.setItem("synthetic-obligation-theme",theme);document.documentElement.classList.toggle("dark",theme==="dark");
+useStore.setState({...useStore.getInitialState(),authMode:"authenticated",authUser:{id:actor,email:null},workspaceId:seed.workspace,workspaceDiscovery:"ready"});
+document.title="NexusRAG synthetic obligation evidence workflow";
+createRoot(document.getElementById("root")!).render(<React.StrictMode><main style={{height:"100dvh"}}>{location.pathname==="/findings"?<FindingsPage/>:<EvidenceApiPage/>}</main></React.StrictMode>);

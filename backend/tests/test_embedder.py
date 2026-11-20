@@ -56,3 +56,23 @@ def test_embedder_caches_query_and_document_embeddings(monkeypatch):
     assert fake.document_calls == [["alpha", "beta"]]
     assert first == [first[0], first[0], first[2]]
     assert second == [first[0], first[2]]
+
+
+def test_neural_model_receives_pinned_revision_and_cache_identity(monkeypatch):
+    import sys
+    from types import SimpleNamespace
+    from config.settings import Settings
+
+    captured = {}
+
+    def fake_embeddings(**kwargs):
+        captured.update(kwargs)
+        return object()
+
+    monkeypatch.setitem(sys.modules, "langchain_huggingface", SimpleNamespace(HuggingFaceEmbeddings=fake_embeddings))
+    settings = Settings(embedding_revision="a" * 40, enable_lightweight_embeddings=False)
+    embedder = Embedder(settings=settings)
+    assert embedder.model is not None
+    assert captured["model_kwargs"] == {"device": "cpu", "revision": "a" * 40}
+    other = Embedder(settings=Settings(embedding_revision="b" * 40))
+    assert embedder._cache_key("same content") != other._cache_key("same content")

@@ -47,6 +47,21 @@ MODE_LIMITS = {
 
 
 @dataclass(frozen=True, slots=True)
+class PassportSubject:
+    product_id: str
+    product_name: str
+    product_version: str
+    supplier: str
+
+    def __post_init__(self) -> None:
+        for field, maximum in (("product_id", 128), ("product_name", 256), ("product_version", 128), ("supplier", 256)):
+            value = getattr(self, field)
+            if not isinstance(value, str) or not value.strip() or "\0" in value or len(value) > maximum:
+                raise ValueError(f"{field} must contain 1 to {maximum} characters")
+            object.__setattr__(self, field, value.strip())
+
+
+@dataclass(frozen=True, slots=True)
 class ResearchPlan:
     plan_id: str
     workspace_id: str
@@ -62,6 +77,7 @@ class ResearchPlan:
     rights_constraints: tuple[str, ...]
     expected_calculations: tuple[str, ...]
     completion_criteria: tuple[str, ...]
+    passport_subject: PassportSubject | None = None
 
     def __post_init__(self) -> None:
         if not self.plan_id or not self.workspace_id or not self.question.strip():
@@ -78,6 +94,8 @@ class ResearchPlan:
             raise ValueError("Public sources require rights constraints")
         if not self.completion_criteria:
             raise ValueError("Completion criteria are required")
+        if self.passport_subject is not None and self.mode != ResearchMode.PRODUCT_PASSPORT:
+            raise ValueError("Declared product identity requires Product Passport mode")
 
 
 class RunStage(StrEnum):

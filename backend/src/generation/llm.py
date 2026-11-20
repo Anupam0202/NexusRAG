@@ -125,7 +125,7 @@ class LLMProvider:
                 self._model_name = name
                 logger.info("model_initialised", model=name)
             except Exception as exc:
-                logger.warning("model_init_failed", model=name, error=str(exc))
+                logger.warning("model_init_failed", model=name, error_type=type(exc).__name__)
                 self._rotate_candidate(exc)
 
         if self._model is None:
@@ -183,7 +183,7 @@ class LLMProvider:
                 state.model_name = name
                 logger.info("scoped_model_initialised", model=name)
             except Exception as exc:
-                logger.warning("scoped_model_init_failed", model=name, error=str(exc))
+                logger.warning("scoped_model_init_failed", model=name, error_type=type(exc).__name__)
                 self._rotate_scoped_candidate(state, exc)
 
         if state.model is None:
@@ -218,7 +218,7 @@ class LLMProvider:
             "model_failover_initiated",
             failed_model=old_name,
             next_model=self._candidates[0],
-            error=str(exc),
+            error_type=type(exc).__name__,
         )
 
     def _rotate_scoped_candidate(self, state: _ScopedModelState, exc: Exception) -> None:
@@ -252,7 +252,7 @@ class LLMProvider:
             "scoped_model_failover_initiated",
             failed_model=old_name,
             next_model=state.candidates[0],
-            error=str(exc),
+            error_type=type(exc).__name__,
         )
 
     @property
@@ -529,10 +529,14 @@ class LLMProvider:
     def _classify_and_raise(exc: Exception) -> None:
         msg = str(exc).lower()
         if any(kw in msg for kw in ("429", "quota", "rate limit", "resource exhausted")):
-            raise RateLimitError(f"LLM rate limit: {exc}") from exc
+            raise RateLimitError("LLM rate limit reached. Retry after the provider resets.") from exc
         if any(kw in msg for kw in ("401", "403", "invalid", "api key")):
-            raise GenerationError(f"LLM auth error: {exc}") from exc
-        raise GenerationError(f"LLM error: {exc}") from exc
+            raise GenerationError(
+                "LLM authentication failed. Review the authorized provider credential."
+            ) from exc
+        raise GenerationError(
+            "LLM provider request failed. Retry or inspect provider status."
+        ) from exc
 
 
 @lru_cache(maxsize=1)

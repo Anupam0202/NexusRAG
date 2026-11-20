@@ -4,7 +4,8 @@
 
 // ── Documents ────────────────────────────────────────────────
 
-export type DocumentStatus = "pending" | "processing" | "ready" | "error";
+/** "ready" means the document can be answered from; "needs_upload" is a document from before versions existed. */
+export type DocumentStatus = "pending" | "processing" | "ready" | "error" | "needs_upload";
 
 export interface DocumentMetadata {
   document_id: string;
@@ -61,9 +62,11 @@ export interface DocumentUploadResponse {
 export interface DocumentChunkPreview {
   chunk_index: number;
   content: string;
+  original_content_hash?: string;
+  location?: unknown;
   page_number: number;
   section_title?: string | null;
-  token_count: number;
+  token_count?: number | null;
   metadata: Record<string, unknown>;
 }
 
@@ -73,6 +76,11 @@ export interface DocumentChunkListResponse {
   chunks: DocumentChunkPreview[];
   total: number;
   query?: string | null;
+  total_is_exact?: boolean;
+  next_after?: number | null;
+  version_id?: string;
+  authority?: string;
+  coverage?: {state:string;maximum_chunks:number};
 }
 
 // ── Chat ─────────────────────────────────────────────────────
@@ -85,6 +93,8 @@ export interface ChatMessage {
 
 export interface SourceChunk {
   content: string;
+  /** True when the document was deleted afterwards; the passage text has been removed. */
+  deleted?: boolean;
   filename: string;
   page_number: number;
   chunk_index: number;
@@ -221,6 +231,8 @@ export interface WorkspaceSummary {
 export interface WorkspaceListResponse {
   workspaces: WorkspaceSummary[];
   total: number;
+  total_is_exact?: boolean;
+  next_after?: string | null;
 }
 
 export interface WorkspaceCreateRequest {
@@ -238,10 +250,13 @@ export interface WorkspaceMember {
 }
 
 export interface WorkspaceMembersResponse {
+  invitation_supported?: boolean;
   management_supported?: boolean;
   workspace_id: string;
   members: WorkspaceMember[];
   total: number;
+  total_is_exact?: boolean;
+  next_after?: string | null;
 }
 
 export interface WorkspaceMemberCreateRequest {
@@ -278,8 +293,37 @@ export interface PrivacySettingsResponse {
   next_retention_at?: string | null;
 }
 
+/** The answer to deleting one's own account. PENDING: the account can no longer be used; what it owned is still being erased. */
+export interface AccountDeletionReceipt {
+  account_deleted: true;
+  state: "DELETED" | "PENDING";
+  workspaces_deleted: number;
+  message: string;
+}
+
+/** One retention run: what it removed, and whether more is left for the next run. */
+export interface RetentionRunReceipt {
+  workspace_deleted: false;
+  cutoff: string | null;
+  /** Removed from the workspace at once; their stored copies are erased in the background. */
+  documents_deleted: number;
+  documents_pending_erasure: number;
+  documents_kept_for_radar: number;
+  chat_messages_deleted: number;
+  chat_sessions_deleted: number;
+  chat_titles_cleared: number;
+  workbench_runs_redacted: number;
+  research_runs_deleted: number;
+  runs_kept_for_findings: number;
+  more_remaining: boolean;
+  failures: [];
+}
+
 export interface WorkspaceLifecycleResponse {
   workspace_deleted: boolean;
+  /** PENDING: gone for every member already; its stored data is still being erased in the background. */
+  state?: "DELETED" | "PENDING";
+  message?: string;
   documents_deleted: number;
   chat_sessions_deleted: number;
   local_chunks_deleted: number;
@@ -290,6 +334,7 @@ export interface WorkspaceLifecycleResponse {
 // ── Analytics ────────────────────────────────────────────────
 
 export interface AnalyticsSummary {
+  measurement_states?: { avg_response_time?: "NOT_MEASURED" | "MEASURED"; avg_confidence?: "NOT_MEASURED" | "MEASURED"; cache?: "DISABLED" | "MEASURED" };
   total_queries: number;
   total_documents: number;
   total_chunks: number;
@@ -435,6 +480,9 @@ export interface SystemCapabilities {
 }
 
 export interface SystemStatusResponse {
+  readiness?: string;
+  /** What the gateway reached when asked: the database and the search index are probed, Gemini is not. */
+  dependency_status?: { supabase_data_api?: string; qdrant?: string; gemini?: string };
   service: string;
   status: string;
   version: string;

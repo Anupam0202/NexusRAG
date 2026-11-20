@@ -38,12 +38,15 @@ jobs:
       QDRANT_API_KEY: ${{ secrets.QDRANT_API_KEY }}
       QDRANT_COLLECTION_PREFIX: ${{ vars.QDRANT_COLLECTION_PREFIX || 'nexusrag-ci' }}
       GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
-      GEMINI_MODEL: gemini-2.5-flash
+      # Empty means the gateway's default model policy (D24); set the GEMINI_MODEL variable to override.
+      GEMINI_MODEL: ${{ vars.GEMINI_MODEL }}
       VALIDATION_REPORT: artifacts/live-provider-${{ matrix.provider }}-validation.json
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with: {python-version: "3.13"}
+      - name: Install script regression dependencies
+        run: python3 -m pip install -r tests/scripts/requirements.txt
       - name: Test bounded provider request contracts
         run: python3 -m unittest discover -s tests/scripts -p 'test_*.py'
       - name: Validate protected secret presence
@@ -58,7 +61,7 @@ jobs:
           fi
       - name: Run bounded disposable validation
         run: python3 scripts/live_provider_validation.py
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: always()
         with:
           name: v6-live-${{ matrix.provider }}-validation

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Github, Loader2, LogOut, ShieldCheck, ShieldEllipsis } from "lucide-react";
 import { toast } from "sonner";
 import { AuthRequiredState } from "@/components/auth/AuthRequiredState";
+import { DeleteAccountSection } from "@/components/settings/DeleteAccountSection";
 import { GoogleMark } from "@/components/auth/GoogleMark";
 import { useStore } from "@/hooks/useStore";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
@@ -14,6 +15,11 @@ type SignOutScope = "local" | "global";
 const SUPPORTED_PROVIDERS: OAuthProvider[] = ["google", "github"];
 
 export default function SecuritySettingsPage() {
+  const identity = useStore((state) => JSON.stringify([state.authMode, state.authUser?.id]));
+  return <AccountSecurity key={identity} />;
+}
+
+function AccountSecurity() {
   const authMode = useStore((state) => state.authMode);
   const authUser = useStore((state) => state.authUser);
   const setWorkspaceId = useStore((state) => state.setWorkspaceId);
@@ -201,6 +207,8 @@ export default function SecuritySettingsPage() {
             </button>
           </div>
         </section>
+
+        <DeleteAccountSection />
       </div>
     </div>
   );

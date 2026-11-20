@@ -16,10 +16,18 @@ CREATE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql STABLE AS $$
  SELECT nullif(current_setting('request.jwt.claim.sub',true),'')::uuid
 $$;
 CREATE FUNCTION auth.role() RETURNS text LANGUAGE sql STABLE AS $$
- SELECT nullif(current_setting('request.jwt.claim.role',true),'')
+ SELECT coalesce(nullif(current_setting('request.jwt.claim.role',true),''),
+   nullif(current_setting('request.jwt.claims',true),'')::jsonb ->> 'role')
 $$;
-GRANT USAGE ON SCHEMA auth TO authenticated;
-GRANT EXECUTE ON FUNCTION auth.uid(),auth.role() TO authenticated,service_role;
+CREATE FUNCTION auth.jwt() RETURNS jsonb LANGUAGE sql STABLE AS $$
+ SELECT coalesce(nullif(current_setting('request.jwt.claims',true),'')::jsonb,'{}'::jsonb)
+$$;
+CREATE TABLE auth.sessions (
+ id uuid PRIMARY KEY, user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+ not_after timestamptz
+);
+GRANT USAGE ON SCHEMA auth TO authenticated,service_role;
+GRANT EXECUTE ON FUNCTION auth.uid(),auth.role(),auth.jwt() TO authenticated,service_role;
 CREATE SCHEMA storage;
 CREATE TABLE storage.buckets (
  id text PRIMARY KEY, name text NOT NULL, public boolean NOT NULL DEFAULT false,
@@ -27,7 +35,9 @@ CREATE TABLE storage.buckets (
 );
 CREATE TABLE storage.objects (
  id uuid PRIMARY KEY DEFAULT gen_random_uuid(), bucket_id text NOT NULL, name text NOT NULL,
- owner_id uuid, metadata jsonb NOT NULL DEFAULT '{}'::jsonb
+ owner_id uuid, metadata jsonb NOT NULL DEFAULT '{}'::jsonb,
+ -- As on hosted Supabase: when the object was stored, and whether it is only the marker of a deleted version.
+ created_at timestamptz NOT NULL DEFAULT now(), is_delete_marker boolean NOT NULL DEFAULT false
 );
 ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY;
 GRANT USAGE ON SCHEMA storage TO authenticated,service_role;
