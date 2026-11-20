@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { deflateRawSync } from "node:zlib";
 import { modelLimits, resetGeminiModelMemory } from "../../apps/gateway/src/gemini-models.js";
-import { docxText, extractFileText } from "../../apps/gateway/src/worker-lifecycle.js";
+import { docxText, extractFileText, READ_TIME_LIMITS } from "../../apps/gateway/src/worker-lifecycle.js";
 import { chunkText, TOO_LONG_TO_INDEX } from "../../apps/gateway/src/worker-pipeline.js";
 import { whileHoldingLease } from "../../apps/gateway/src/worker-jobs.js";
 
@@ -113,6 +113,45 @@ test("a large file is never counted at more input than a request to its model ca
   calls = gateway(t, read("Scanned text"));
   const image = await extractFileText(env, new File(["synthetic image bytes"], "scan.png", { type: "image/png" }), context);
   assert.deepEqual([image.method, calls.reserved[0].input_tokens, calls.requests[0].file.mimeType], ["gemini-ocr-v1", 21 + 256, "image/png"]);
+});
+
+test("a first read has time for a multi-page PDF, and a full read for a long one", () => {
+  // Live on the preview, 20 November: a 30-page PDF, whose text fits the first read, ran past the old 55-second
+  // limit on all three attempts and failed. The job's lease is renewed while a read runs, so neither limit is tied
+  // to the lease; each only bounds a read that never answers.
+  assert.ok(READ_TIME_LIMITS.first >= 180_000, `first read limit ${READ_TIME_LIMITS.first} ms`);
+  assert.ok(READ_TIME_LIMITS.full >= READ_TIME_LIMITS.first);
+});
+
+test("every read is logged with its model, size and outcome, and never with the document's text", async (t) => {
+  const logs = [];
+  t.mock.method(console, "log", (line) => logs.push(JSON.parse(line)));
+  gateway(t, json({ candidates: [{ content: { parts: [{ text: "[PAGE 1] Retention is 30 days." }] }, finishReason: "STOP" }],
+    usageMetadata: { promptTokenCount: 1290, candidatesTokenCount: 14, thoughtsTokenCount: 0 } }));
+  await extractFileText(env, pdf(), context);
+  assert.equal(logs.length, 1);
+  assert.equal(logs[0].event, "gemini_read");
+  assert.deepEqual([logs[0].model, logs[0].read, logs[0].outcome, logs[0].status, logs[0].finish, logs[0].output_tokens, logs[0].input_tokens],
+    ["gemini-3.5-flash-lite", "first", "ok", 200, "STOP", 14, 1290]);
+  assert.ok(Number.isSafeInteger(logs[0].ms) && logs[0].ms >= 0);
+  assert.ok(!JSON.stringify(logs).includes("Retention"), "no document text in the log");
+  t.mock.restoreAll();
+
+  // A refused read keeps Gemini's own reason, so an operator can tell an overload from anything else.
+  const failed = [];
+  t.mock.method(console, "log", (line) => failed.push(JSON.parse(line)));
+  gateway(t, json({ error: { code: 503, message: "The model is overloaded. Please try again later.", status: "UNAVAILABLE" } }, 503));
+  await assert.rejects(extractFileText(env, pdf(), context), (error) => error.code === "EXTRACTION_FAILED" && error.retryable === true);
+  assert.deepEqual([failed[0].event, failed[0].outcome, failed[0].status, failed[0].reason, failed[0].detail],
+    ["gemini_read", "failed", 503, "UNAVAILABLE", "The model is overloaded. Please try again later."]);
+  t.mock.restoreAll();
+
+  // No answer at all is logged as such.
+  const silent = [];
+  t.mock.method(console, "log", (line) => silent.push(JSON.parse(line)));
+  gateway(t, () => { throw new TypeError("synthetic network failure"); });
+  await assert.rejects(extractFileText(env, pdf(), context), (error) => error.code === "EXTRACTION_FAILED");
+  assert.deepEqual([silent[0].event, silent[0].outcome], ["gemini_read", "no_answer"]);
 });
 
 test("no answer in time is a failure worth retrying; a job that gave the read up gets its own abort back", async (t) => {
