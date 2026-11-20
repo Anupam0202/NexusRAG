@@ -94,8 +94,20 @@ async function unzipEntries(bytes) {
 // A short document is read in one call of this size. One that is cut off there is read again with the model's
 // full output limit, so only long documents wait for that and are counted at it.
 const FIRST_READ_TOKENS = 8_192;
-const FIRST_READ_TIMEOUT_MS = 55_000;
-const FULL_READ_TIMEOUT_MS = 600_000;
+// How long a read may go without an answer. A first read of a multi-page PDF can take Gemini over a minute (live on
+// 20 November a 30-page PDF ran past the old 55-second limit on every attempt); the job's lease is renewed while a
+// read runs, so these only bound a read that never answers.
+const READ_TIME_LIMITS = Object.freeze({ first: 240_000, full: 600_000 });
+// What each read did, for the operator: model, which read, outcome, time and sizes. Never any document text; a
+// refused read adds Gemini's own status and the start of its message, which describe the error, not the file.
+function logRead(entry) { console.log(JSON.stringify({ event: "gemini_read", ...entry })); }
+function geminiError(detail) {
+  try {
+    const failure = JSON.parse(detail)?.error || {};
+    return { reason: typeof failure.status === "string" ? failure.status.slice(0, 40) : undefined,
+      detail: typeof failure.message === "string" ? failure.message.slice(0, 160) : undefined };
+  } catch { return {}; }
+}
 // Rough size of a full page of text, used only to tell a person how long a document may be.
 const TOKENS_PER_PAGE = 650;
 const cutOff = (result) => (result?.candidates || []).some((item) => item?.finishReason === "MAX_TOKENS");
@@ -105,13 +117,15 @@ async function extractGemini(env, bytes, mimeType, context) {
   if (!apiKey) throw error("CONFIGURATION_ERROR", "Gemini extraction is not configured.", 503);
   if (context?.dataClassification !== "non_sensitive") throw error("RIGHTS_BLOCKED", "Gemini may process only explicitly attested non-sensitive data.", 403);
   const data = bytesToBase64(bytes);
-  let model, outputTokens;
+  let model, outputTokens, started;
   const read = async (full) => {
+    const which = full ? "full" : "first";
     const response = await withGenerationModel(env, async (candidate) => {
       model = candidate;
+      started = Date.now();
       const limits = modelLimits(candidate);
       outputTokens = full ? limits.outputTokens : Math.min(FIRST_READ_TOKENS, limits.outputTokens);
-      const timeout = AbortSignal.timeout(full ? FULL_READ_TIMEOUT_MS : FIRST_READ_TIMEOUT_MS);
+      const timeout = AbortSignal.timeout(full ? READ_TIME_LIMITS.full : READ_TIME_LIMITS.first);
       const thinkingConfig = thinkingConfigFor(candidate);
       // A request can never count more input than the model accepts, however large the file is.
       const dimensions = { requests: 1, input_tokens: Math.min(bytes.length + 256, limits.inputTokens), output_tokens: outputTokens };
@@ -122,18 +136,26 @@ async function extractGemini(env, bytes, mimeType, context) {
       }).catch((cause) => {
         // A job that gave the read up gets its own abort back; otherwise no answer came in time.
         if (context?.signal?.aborted) throw cause;
+        logRead({ model: candidate, read: which, outcome: "no_answer", ms: Date.now() - started });
         throw error("EXTRACTION_FAILED", "Gemini did not finish reading this document in time. Try again shortly.", 503, true);
       }));
       if (!attempt.ok) {
         // Same specific failures as every other Gemini call; a plain outage keeps the extraction code.
-        const failure = providerFailure("https://generativelanguage.googleapis.com/", attempt.status, await attempt.text().catch(() => ""));
+        const detail = await attempt.text().catch(() => "");
+        logRead({ model: candidate, read: which, outcome: "failed", status: attempt.status, ms: Date.now() - started, ...geminiError(detail) });
+        const failure = providerFailure("https://generativelanguage.googleapis.com/", attempt.status, detail);
         if (failure.code === "PROVIDER_UNAVAILABLE" && !failure.modelUnavailable)
           throw error("EXTRACTION_FAILED", `Gemini could not read this document right now (HTTP ${attempt.status}). Try again shortly.`, 503, true);
         throw failure;
       }
       return attempt;
     });
-    return response.json();
+    const result = await response.json();
+    const usage = result?.usageMetadata || {};
+    logRead({ model, read: which, outcome: "ok", status: 200, ms: Date.now() - started,
+      finish: (result?.candidates || [])[0]?.finishReason, input_tokens: usage.promptTokenCount,
+      output_tokens: usage.candidatesTokenCount, thought_tokens: usage.thoughtsTokenCount });
+    return result;
   };
   let result = await read(false);
   let full = false;
@@ -228,4 +250,4 @@ async function verifyQdrantGeneration(env,w,d,v,g,expected,priority="background"
     return{verified:true,count};
   });
 }
-export { deleteQdrantDocument, deleteQdrantGeneration, docxText, extractFileText, hybridFuse, lexicalScore, qdrantDeletionFilter, unzipEntries, verifyQdrantGeneration };
+export { deleteQdrantDocument, deleteQdrantGeneration, docxText, extractFileText, hybridFuse, lexicalScore, qdrantDeletionFilter, READ_TIME_LIMITS, unzipEntries, verifyQdrantGeneration };
