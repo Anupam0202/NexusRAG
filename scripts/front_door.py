@@ -109,6 +109,17 @@ def production_config(target: dict) -> dict:
     }
 
 
+def with_stale_removed(config: dict, current: dict) -> dict:
+    """`config` as a PATCH body. Cloudflare merges the variables and bindings a PATCH names into the project's, so each
+    one the project still has but `config` no longer sets is named with null, which removes it."""
+    body = dict(config)
+    for key in ("env_vars", "services"):
+        stale = sorted(set((current or {}).get(key) or {}) - set(config.get(key) or {}))
+        if stale:
+            body[key] = {**config.get(key, {}), **{name: None for name in stale}}
+    return body
+
+
 def ensure_project(target: dict, account: str, token: str) -> dict:
     path = f"/accounts/{account}/pages/projects/{target['pages_project']}"
     project = api("GET", path, token, missing_ok=True)
@@ -129,11 +140,11 @@ def deploy(name: str, attempts: int = 30, pause: float = 4.0) -> int:
     env = require_env("CLOUDFLARE_API_TOKEN", "CLOUDFLARE_ACCOUNT_ID")
     account, token = env["CLOUDFLARE_ACCOUNT_ID"], env["CLOUDFLARE_API_TOKEN"]
     code = FRONT_DOOR.read_bytes()
-    ensure_project(target, account, token)
+    current = (ensure_project(target, account, token).get("deployment_configs") or {}).get("production") or {}
     path = f"/accounts/{account}/pages/projects/{target['pages_project']}"
     # Bindings and variables are read when a deployment is made, so they are set first.
-    api("PATCH", path, token, body={"production_branch": PRODUCTION_BRANCH,
-                                    "deployment_configs": {"production": production_config(target)}})
+    config = with_stale_removed(production_config(target), current)
+    api("PATCH", path, token, body={"production_branch": PRODUCTION_BRANCH, "deployment_configs": {"production": config}})
     created = api("POST", f"{path}/deployments", token, form=[
         ("manifest", "{}"),
         ("branch", PRODUCTION_BRANCH),

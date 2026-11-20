@@ -44,9 +44,19 @@ jobs:
       SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL }}
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
       REVIEW_ACTION: ${{ inputs.action }}
-      REVIEWER_EMAIL: ${{ inputs.reviewer_email }}
       TERMS_READ: ${{ inputs.i_have_read_the_terms }}
     steps:
+      - name: Mask the reviewer's email
+        # The repository is public, and so are its Actions logs. Each step's log lists its env: values in clear,
+        # so the email is never one: it is read from the event payload and masked before any later step runs.
+        run: |
+          set -euo pipefail
+          reviewer="$(jq -r '.inputs.reviewer_email // ""' "$GITHUB_EVENT_PATH")"
+          if [ -n "$reviewer" ]; then
+            echo "::add-mask::$reviewer"
+            delimiter="reviewer-$(openssl rand -hex 16)"
+            { echo "REVIEWER_EMAIL<<$delimiter"; echo "$reviewer"; echo "$delimiter"; } >> "$GITHUB_ENV"
+          fi
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with: {python-version: "3.13"}
@@ -55,7 +65,7 @@ jobs:
           set -euo pipefail
           if [ "$REVIEW_ACTION" = record ]; then
             test "$TERMS_READ" = true || { echo "::error::Tick the box to confirm you have read the terms."; exit 1; }
-            python3 scripts/provider_review.py record --reviewer-email "$REVIEWER_EMAIL" --i-have-read-the-terms
+            python3 scripts/provider_review.py record --reviewer-email "${REVIEWER_EMAIL:-}" --i-have-read-the-terms
           else
             python3 scripts/provider_review.py status
           fi
