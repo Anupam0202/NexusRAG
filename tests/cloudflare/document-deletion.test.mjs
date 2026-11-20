@@ -40,14 +40,18 @@ function database({ rpc = {}, targets = TARGETS } = {}) {
 // The quota ledger and the search index. `qdrant` decides what the index answers.
 function providers(qdrant = (url) => url.endsWith("/points/count") ? json({ result: { count: 0 } }) : json({ status: "ok" })) {
   const calls = [];
+  const reservations = [];
   const fetch = async (rawUrl, init = {}) => {
     const url = String(rawUrl);
-    if (url.endsWith("/rpc/v6_reserve_many")) return json({ state: "READY", reservations: [{ id: operationId, amount: 2 }] });
+    if (url.endsWith("/rpc/v6_reserve_many")) {
+      reservations.push(JSON.parse(init.body));
+      return json({ state: "READY", reservations: [{ id: operationId, amount: 2 }] });
+    }
     if (url.endsWith("/rpc/v6_settle_many")) return json({ state: "SETTLED" });
     if (url.startsWith("https://qdrant.invalid/")) { calls.push({ url, body: JSON.parse(init.body) }); return qdrant(url, init); }
     throw new Error(`unexpected request: ${url}`);
   };
-  return { fetch, calls };
+  return { fetch, calls, reservations };
 }
 const READY = { nexus_begin_document_purge: { state: "READY" } };
 const purged = (removed = { chunks: 3, answers_with_passages_removed: 0 }) => (_body, state) => {
@@ -81,6 +85,19 @@ test("a deletion removes the index entries, then the original, then the rows, ea
   const receiptCall = store.calls.find((call) => call.path.startsWith("deletion_receipts"));
   assert.equal(receiptCall.path, "deletion_receipts?on_conflict=workspace_id,target_id,provider");
   assert.match(receiptCall.headers.prefer, /resolution=ignore-duplicates/);
+});
+
+test("index entries are removed as erasure, which never waits on the operator's provider review (NX-50)", async (t) => {
+  // The database admits an erasure without a current review of the provider's terms; every other Qdrant call still
+  // needs one. Production's document marked for deletion on 23 September stayed stored because this was missing.
+  const index = providers();
+  t.mock.method(globalThis, "fetch", index.fetch);
+  const store = database({ rpc: { ...READY, nexus_purge_document: purged() } });
+  await finishDocumentDeletion(env, ids, { db: store.db, removeOriginal: async () => {} });
+  assert.equal(index.reservations.length, 1);
+  assert.equal(index.reservations[0].p_provider, "qdrant");
+  assert.equal(index.reservations[0].p_action, "erasure");
+  assert.equal(index.reservations[0].p_workspace, workspace);
 });
 
 test("nothing is removed while a processing step may still be writing", async (t) => {
