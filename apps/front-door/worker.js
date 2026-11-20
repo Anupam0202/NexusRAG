@@ -11,27 +11,36 @@
  * front door, or a misrouted binding), the visitor is sent there instead (FALLBACK_ORIGIN for builds that name no
  * address), so this address switches over by itself when a build made for it is released.
  *
+ * The app has this one address (PUBLIC_ORIGIN). Every Pages deployment also answers at its own
+ * <id>.<project>.pages.dev address, and plain http:// reaches the project too, so a request on any other address is
+ * sent here with its method, path and query (308) before anything is served.
+ *
  * Deployed with scripts/front_door.py; docs/DEPLOYMENT_PRODUCTION.md has the runbook.
  */
 const BUILD_IDENTITY = "/_nexus-build.json";
 
 export default {
   async fetch(request, env) {
-    if (isGatewayPath(new URL(request.url).pathname)) return env.GATEWAY ? env.GATEWAY.fetch(request) : unavailable();
+    const here = new URL(request.url);
+    const publicOrigin = httpsOrigin(env.PUBLIC_ORIGIN);
+    if (publicOrigin && here.origin !== publicOrigin) return redirect(here, publicOrigin, 308);
+    if (isGatewayPath(here.pathname)) return env.GATEWAY ? env.GATEWAY.fetch(request) : unavailable();
     if (!env.APP) return unavailable();
     if (isPageRequest(request)) {
-      const here = new URL(request.url);
       const home = await buildAddress(request, env);
-      if (home && home !== here.origin) {
-        return new Response(null, {
-          status: 302,
-          headers: { Location: new URL(`${here.pathname}${here.search}`, home).toString(), "Cache-Control": "no-store" },
-        });
-      }
+      if (home && home !== here.origin) return redirect(here, home, 302);
     }
     return env.APP.fetch(request);
   },
 };
+
+/** The same path and query at another origin. Never stored, so a change of address is never remembered wrongly. */
+function redirect(url, origin, status) {
+  return new Response(null, {
+    status,
+    headers: { Location: new URL(`${url.pathname}${url.search}`, origin).toString(), "Cache-Control": "no-store" },
+  });
+}
 
 /** The gateway's own paths: its API under /api/ and its two probes. The app has no pages there. */
 export function isGatewayPath(pathname) {

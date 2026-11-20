@@ -104,13 +104,14 @@ def worker_origin(target: dict, account: str, token: str) -> str:
 
 
 def production_config(target: dict, fallback: str) -> dict:
-    """What the front door runs with: the frontend Worker as APP, the gateway Worker as GATEWAY, and where older
-    builds are served."""
+    """What the front door runs with: the frontend Worker as APP, the gateway Worker as GATEWAY, its one public
+    address (every other address of the project is sent there), and where older builds are served."""
     return {
         "compatibility_date": COMPATIBILITY_DATE,
         "compatibility_flags": [],
         "services": {binding: {"service": worker, "environment": "production"} for binding, worker in bindings(target).items()},
-        "env_vars": {"FALLBACK_ORIGIN": {"type": "plain_text", "value": fallback}},
+        "env_vars": {"FALLBACK_ORIGIN": {"type": "plain_text", "value": fallback},
+                     "PUBLIC_ORIGIN": {"type": "plain_text", "value": target["public_url"]}},
     }
 
 

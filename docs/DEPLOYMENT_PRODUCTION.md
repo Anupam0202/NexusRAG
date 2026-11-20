@@ -10,8 +10,10 @@ People open production at **https://nexusrag.pages.dev**. Behind that address it
 `https://nexusrag.pages.dev` is the front door: a Cloudflare Pages project, `nexusrag`, whose only code
 (`apps/front-door/worker.js`) hands the gateway's API and probes (`/api/*`, `/health`, `/ready`) to the gateway Worker
 and everything else to the frontend Worker, each through a service binding. The browser keeps the plain address for
-the app and its API, while both keep running and releasing as their Workers. Pages is the only free Cloudflare
-product with a one-word address; a custom domain would replace it later without changing the app.
+the app and its API, while both keep running and releasing as their Workers. Every other address of the project
+(each deployment's own `<id>.nexusrag.pages.dev`, and plain `http://`) is sent to `https://nexusrag.pages.dev` with a
+308, so the app has exactly one address. Pages is the only free Cloudflare product with a one-word address; a custom
+domain would replace it later without changing the app.
 
 Before a page is served, the front door reads the build's `/_nexus-build.json`. A build made for the public address
 (`site_url`) is served there. Any other build, including the one production ran before the front door existed, has

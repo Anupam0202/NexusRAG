@@ -139,3 +139,33 @@ test("without the gateway binding, its paths answer 503 and pages are still serv
   assert.equal(APP.calls.length, 0, "an API request is never handed to the frontend Worker");
   assert.equal((await frontDoor.fetch(page("/"), { APP, FALLBACK_ORIGIN: WORKER })).status, 200);
 });
+
+test("a deployment's own address sends every request to the public address, keeping method, path and query", async () => {
+  const APP = app({ site_url: PUBLIC });
+  const GATEWAY = gateway();
+  const env = { APP, GATEWAY, FALLBACK_ORIGIN: WORKER, PUBLIC_ORIGIN: PUBLIC };
+  for (const [request, location] of [
+    [new Request("https://8150beca.nexusrag.pages.dev/research?plan=1", { headers: { Accept: "text/html" } }), `${PUBLIC}/research?plan=1`],
+    [new Request("https://8150beca.nexusrag.pages.dev/api/v1/chat", { method: "POST", body: "{}" }), `${PUBLIC}/api/v1/chat`],
+    [new Request("https://8150beca.nexusrag.pages.dev/health"), `${PUBLIC}/health`],
+    [new Request("http://nexusrag.pages.dev/documents"), `${PUBLIC}/documents`],
+  ]) {
+    const response = await frontDoor.fetch(request, env);
+    assert.equal(response.status, 308, request.url);
+    assert.equal(response.headers.get("Location"), location);
+    assert.equal(response.headers.get("Cache-Control"), "no-store");
+  }
+  assert.equal(APP.calls.length + GATEWAY.calls.length, 0, "nothing is served at another address");
+});
+
+test("the public address itself, and a front door with no public address set, serve as before", async () => {
+  const APP = app({ site_url: PUBLIC });
+  const GATEWAY = gateway();
+  assert.equal((await frontDoor.fetch(new Request(`${PUBLIC}/health`), { APP, GATEWAY, PUBLIC_ORIGIN: PUBLIC })).status, 200);
+  assert.equal((await frontDoor.fetch(page("/"), { APP, GATEWAY, PUBLIC_ORIGIN: `${PUBLIC}/` })).status, 200, "a trailing slash names the same origin");
+  const local = new Request("http://localhost:8788/health");
+  assert.equal((await frontDoor.fetch(local, { APP, GATEWAY })).status, 200, "without PUBLIC_ORIGIN (a local run) nothing is redirected");
+  for (const invalid of ["http://nexusrag.pages.dev", "https://user:secret@nexusrag.pages.dev", "not a url", ""]) {
+    assert.equal((await frontDoor.fetch(local, { APP, GATEWAY, PUBLIC_ORIGIN: invalid })).status, 200, String(invalid));
+  }
+});

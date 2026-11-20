@@ -68,6 +68,8 @@ class FrontDoorTests(unittest.TestCase):
                                               "GATEWAY": {"service": "nexusrag-v6-preview-gateway", "environment": "production"}})
         self.assertEqual(config["env_vars"]["FALLBACK_ORIGIN"],
                          {"type": "plain_text", "value": "https://nexusrag-v6-frontend-preview.example.workers.dev"})
+        self.assertEqual(config["env_vars"]["PUBLIC_ORIGIN"], {"type": "plain_text", "value": "https://nexusrag.pages.dev"},
+                         "every other address of the project is sent to the public one")
         self.assertLess(methods.index(("PATCH", PROJECT)), methods.index(("POST", f"{PROJECT}/deployments")),
                         "bindings are set before the deployment that reads them")
         form = next(form for method, path, _, form in cloudflare.calls if path.endswith("/deployments") and method == "POST")
@@ -98,6 +100,8 @@ class FrontDoorTests(unittest.TestCase):
         services = patch["deployment_configs"]["production"]["services"]
         self.assertEqual(services["APP"]["service"], "nexusrag-v6-candidate-frontend")
         self.assertEqual(services["GATEWAY"]["service"], "nexusrag-v6-candidate-gateway")
+        self.assertEqual(patch["deployment_configs"]["production"]["env_vars"]["PUBLIC_ORIGIN"]["value"],
+                         "https://nexusrag-preview.pages.dev")
 
     def test_the_deploy_waits_until_the_address_answers_as_the_gateway(self):
         # The frontend's own not-found page answers until the new deployment reaches every location.
