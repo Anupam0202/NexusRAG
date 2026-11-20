@@ -1,56 +1,42 @@
 # NexusRAG completion progress
-Last updated: 2026-11-19. The goal and the ordered remaining work are in `docs/completion/CONTINUATION_PROMPT.md`.
+Last updated: 2026-11-20. The goal and the ordered remaining work are in `docs/completion/GOAL.md`.
 Everything an agent can do without the owner is done; the Handoff below lists the owner's steps in order.
 
-## Handoff 2026-11-19
-Branch: `codex/runtime-manifest-008` (draft PR #12; its page shows the head), last code commit `8315b8e`. CI: V6 Database
-Rehearsal and V6 Foundation CI green (19 November). Both scans that turned red on 18 November were cleared
-upstream with no change here and no gate loosened: the `picomatch` advisory was withdrawn (NX-48), and Alpine
-shipped an OpenSSL update (NX-49).
-Deployed: preview gateway `81bab63` (smoke test, `/ready` and the workspace-deletion journey 19 of 19 passed); preview
-frontend `2fbc5c9` (October); production unchanged (23 September Workers, 46 migrations behind, `gemini-2.5-flash`).
-Plan and goal: `docs/completion/CONTINUATION_PROMPT.md`. Done on 17 and 18 November (commits in the done log): public
-addresses and Cloudflare cleanup; NX-20 ranked keyword search; NX-25 token checks and both request counters; 21
-foreign-key indexes; F8 budgets measured; NX-42 exhausted jobs fail their document; one Qdrant request per answer;
-NX-19 grants checked on both projects, with a replay assertion; NX-36 required collection name and no passage text in
-the index; NX-48 and NX-49 recorded and both resolved upstream; three moderate advisories in the test and lint
-tools fixed.
-Still failing: ingestion and answers (both Gemini keys answer 402); five rehearsal migrations unapplied (the
-connector's approval went unanswered on 15 to 18 November); preview frontend refused by the environment's branch
-rule; production unreleased.
-Agent work left: none that does not wait on a step below. CI is green.
-Owner actions, step by step:
-1. Gemini key, before 1 December: create a key in Google AI Studio in a project with credit, or in a free-tier
-   project without prepaid billing. GitHub → Settings → Environments: set it as the secret `GOOGLE_API_KEY` in both
-   `NexusRAG-Candidate-Preview` and `Production`.
-2. Preview environment: GitHub → Settings → Environments → `NexusRAG-Candidate-Preview` → Deployment branches and
-   tags: add `codex/runtime-manifest-008`. Add the secret `SUPABASE_DB_URL`: the rehearsal project's session-pooler
-   string (Supabase → project `ukgjygzfhyvnrsecdcuu` → Connect → Session pooler). The agent then runs the preview
-   workflow, which applies the five migrations (or approve the connector's prompt when the agent sends them).
-   Shortcut for step 2's migrations and for step 3: a Supabase personal access token lets the agent do both. The
-   token saved in this cloud environment on 18 November is refused by Supabase ("JWT could not be decoded"), so
-   replace its value: cloud environment menu → Edit → Network secrets → `api.supabase.com`, with a token that
-   starts `sbp_` (Supabase → Account → Access Tokens), entered without "Bearer".
-3. Supabase → Authentication → URL Configuration. Production (`fcjaomiceajcdownarel`): Site URL
-   `https://nexusrag.pages.dev`, add redirect `https://nexusrag.pages.dev/**`. Rehearsal (`ukgjygzfhyvnrsecdcuu`):
-   Site URL `https://nexusrag-preview.pages.dev`, add `https://nexusrag-preview.pages.dev/**`, remove the PR3 URLs.
-4. Reply in chat with ledger decisions ("Ledger status" gives each recommendation): accept or refuse NX-22, NX-25,
-   NX-32, NX-33's remainder, NX-35, NX-41 and NX-42's remainder; decide NX-15, NX-31 and NX-38.
-5. GitHub → Environments → `Production`: confirm these secrets exist: `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`,
-   `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SERVICE_ROLE_KEY` (an `sb_secret_` key), `SUPABASE_DB_URL`
-   (production's session pooler), `GEMINI_USER_KEY_ENCRYPTION_SECRET` (base64 of 32 random bytes, set once and never
-   replaced), `GOOGLE_API_KEY`, `QDRANT_URL`, `QDRANT_API_KEY`.
-6. Once the agent reports the preview journey passed, CI green and the trusted push done (D2: the head pushed to
-   `release/production-*`, which records the provider checks and the `Preview` deployment that `main` reportedly
-   requires; Settings → Rules shows the rules): review and merge PR #12; Actions → Production Deploy → Run
-   workflow with `release_sha` set to the merge commit, and approve the environment; then walk through
-   `docs/completion/OWNER_WALKTHROUGH.md` on https://nexusrag.pages.dev and confirm in chat.
-7. Credential rotation (MASTER_PROMPT section F6), when you choose; the agent prepares the list.
-After each step the agent continues with the matching phase of CONTINUATION_PROMPT.md section 5.
+## Handoff 2026-11-20
+`main` is `90d1b80`: PR #12 was squash-merged on 20 November, its 217 commits on top of `85b14f1`, with every
+required check green on the exact head `d6a5b95` (same tree): V6 Foundation CI, V6 Database Rehearsal, and V6 Live
+Provider Validation (Gemini and Qdrant READY, which also recorded the required `Preview` deployment).
+Goal and plan: `docs/completion/GOAL.md` (it replaces CONTINUATION_PROMPT.md); the owner granted full permission on
+20 November.
+Deployed: production unchanged (September Workers: in Chromium every page shows "Backend offline", sign-in offers
+GitHub only, `/pricing`, `/security` and `/research` answer 404); preview gateway `81bab63`; preview frontend from
+October (Error 1101 on every page that is not prerendered, fixed on `main`).
+Blocked: Production Deploy run 44669070315 stopped at its configuration check because `SUPABASE_DB_URL` is missing from
+the `Production` environment (nothing changed; every other secret is present). Cloudflare Preview Deploy from `main`
+(run 44669231783) was refused because `NexusRAG-Candidate-Preview` does not allow `main`. Neither Supabase project
+accepts its `pages.dev` address as a sign-in return (probed 20 November). The Supabase access token saved on the
+cloud environment is refused.
+Agent work left: none that does not wait on a step below.
+Owner actions, step by step (GOAL.md section 5):
+1. GitHub → Settings → Environments → `Production` → Add secret `SUPABASE_DB_URL`: production's session-pooler
+   connection string (Supabase → project `fcjaomiceajcdownarel` → Connect → Session pooler, with the database
+   password). The agent then runs Production Deploy, which snapshots the database, applies the migrations and
+   releases both Workers with smoke tests and rollback.
+2. GitHub → Settings → Environments → `NexusRAG-Candidate-Preview` → Deployment branches and tags: add `main`; Add
+   secret `SUPABASE_DB_URL`: the rehearsal project's session-pooler string (project `ukgjygzfhyvnrsecdcuu`). The
+   agent then runs the preview release, which applies the five rehearsal migrations.
+3. Supabase → Authentication → URL Configuration. Production: Site URL `https://nexusrag.pages.dev`, add redirect
+   `https://nexusrag.pages.dev/**`. Rehearsal: Site URL `https://nexusrag-preview.pages.dev`, add
+   `https://nexusrag-preview.pages.dev/**`, remove the PR3 URLs. Or replace the cloud environment's network secret
+   for `api.supabase.com` with a personal access token that starts `sbp_` (Supabase → Account → Access Tokens), and
+   the agent does this step itself.
+4. Give `Production` and `NexusRAG-Candidate-Preview` the same working `GOOGLE_API_KEY` as the `Preview` environment
+   (its key passed the live check on 20 November), before 1 December.
+5. Ledger decisions in chat ("Ledger status"), the walkthrough after the release, and the credential rotation (F6).
+After each step the agent continues with the matching phase of GOAL.md section 6.
 
 ## Current state
-- main: `85b14f1`; working branch: `codex/runtime-manifest-008` (draft PR #12, owner-approved for direct
-  commits on 2026-11-09); open PRs: #12
+- main: `90d1b80` (PR #12 squash-merged on 2026-11-20); new work goes on a branch from `main` and a pull request
 - Plan: `docs/completion/MASTER_PROMPT.md`; repository notes: `CLAUDE.md`
 - Candidate preview: gateway `81bab63` (previous version `797eb124`), released 2026-11-18 (smoke test and `/ready`
   passed); before it `cf9c862` (previous version `1257b684`), released 2026-11-18 from a cloud session (smoke
@@ -214,6 +200,8 @@ in chat with a reason. Where each one stands:
 | 2026-11-16 | NX-22 ingestion limits. A PDF or image cut off at 8,192 output tokens (about a dozen pages; it used to fail with "split the document") is read again with the model's published limit: 65,536 tokens for both pinned models, roughly 100 pages (Google's model pages, read 16 November). The job's lease is renewed during the read. The shared key's budget counts a file at no more input than a request can hold; one token per byte had made every PDF over 4 MB impossible on the trial. Word text comes from the elements Word shows. Every way a read can end has its own plain message, and nothing partial is indexed. Not done: a PDF's own text layer and splitting by page (a PDF parser does not fit the free plan's CPU limit) | 1 (986 gateway tests; 12 new, eleven broken variants each refused). The long read has run against a stand-in only | `e0d3b60` |
 | 2026-11-17 | NX-25, second half: a request must pass both the isolate's own counter (exact, but every isolate counts from zero) and Cloudflare's rate limiter (binding `USER_RATE_LIMITER`, 60 a minute per location; the preview and production use separate namespaces, which `release.py` checks). Cloudflare's count is approximate by design: live on the preview, 327 requests from one location in 45 seconds all passed it, and after both counters were required, 304 in 45 seconds still passed, because one client's requests are spread over many isolates, each counting from zero. The old per-isolate limit was never strict either. A strict per-user limit needs a Durable Object (not built; the ledger keeps this open for the owner to accept or ask for). A limiter that fails is logged and leaves the isolate's counter to decide | 1 (1,011 gateway and 30 release tests); 4 for the binding being accepted by the free plan and for the burst behaviour above | `b5125c9`, `b891b6e`, `8bcfc22` |
 | 2026-11-17 | NX-25, first half: the gateway checks access tokens itself against the project's published ES256 key (both projects publish one and sign with it: checked on a real rehearsal token), instead of asking Supabase Auth on every request, which also saves one of the 50 outbound requests a free-plan invocation may make. Signature, issuer, audience, role, expiry and user id are checked; the key list is cached and re-read for a rotated key; a token signed otherwise, or an unreadable key list, still goes to Supabase Auth; a failing token is refused, never handed on. Trade-off, already stated on the security page: after signing out, an access token works until it expires (an hour); membership is still checked on every request | 1 (1,010 gateway tests; a real ES256 key pair; removing any one of seven checks fails a test); 4 on the preview gateway `6e1d540`: a real rehearsal token is accepted and reads the database, a tampered one is refused (401), and after a global sign-out Supabase Auth refuses the token (403) while the gateway accepts it until it expires, which shows the check runs in the Worker | `6e1d540` |
+| 2026-11-20 | PR #12 merged into `main` as `90d1b80` (squash, 217 commits), at the owner's request. The merge first named two missing requirements, "Bounded gemini validation" and a successful `Preview` deployment; the trusted push of the exact head to `release/production-20261120` (D2) ran V6 Live Provider Validation, whose Gemini and Qdrant checks passed (the `Preview` environment's Gemini key works) and recorded the deployment, and the merge then went through | CI on the head ([foundation](https://github.com/Anupam0202/NexusRAG/actions/runs/44495098342), [rehearsal](https://github.com/Anupam0202/NexusRAG/actions/runs/44495098492)) and [live provider validation](https://github.com/Anupam0202/NexusRAG/actions/runs/44667324802); the merge commit's tree equals the head's | `90d1b80` |
+| 2026-11-20 | Production Deploy of `90d1b80` stopped safely at its configuration check: `SUPABASE_DB_URL` is missing from the `Production` environment; nothing was changed. Cloudflare Preview Deploy from `main` was refused because its environment does not allow `main`. In Chromium, production (September build) shows "Backend offline" and GitHub-only sign-in, and the preview's October frontend still crashes with Error 1101 off the prerendered pages. Neither Supabase project accepts its `pages.dev` address as a sign-in return | [production run](https://github.com/Anupam0202/NexusRAG/actions/runs/44669070315), [preview run](https://github.com/Anupam0202/NexusRAG/actions/runs/44669231783); browser screenshots in the session; the Auth probe in GOAL.md section 4 | n/a (records only) |
 | 2026-11-19 | NX-49 fixed without a change here, found by the scheduled check: Alpine 3.24 published OpenSSL `3.5.9-r1` (`libssl3` and `libcrypto3`, built 18 November 23:31 UTC), the Dockerfile's `apk upgrade` took it, and the scanner no longer matches the five CVEs. OpenSSL's own 3.5.10 is still unreleased. V6 Foundation CI is green in full again, with both of 18 November's red scans cleared upstream and neither gate loosened. The same check found `npm audit` clean and the saved Supabase access token still refused | CI: the re-run of the failed jobs on `9ba33ef` ([run 44408142054](https://github.com/Anupam0202/NexusRAG/actions/runs/44408142054), attempt 2): every job passes; the image scan reports `Findings: {}` with no match ignored | n/a (records only) |
 | 2026-11-18 | NX-48 resolved without a change, and NX-49 rechecked (the scheduled check, run at 20:55 UTC after a session restart). GitHub withdrew GHSA-fc5q-39xc-vjpf on 18 November, after the `picomatch` maintainers disputed it as not a vulnerability, and VulnCheck withdrew its record too; it had been published on 19 October and reviewed by GitHub on 17 November, when npm audit began reporting it. `npm audit` now reports nothing at any severity. NX-49 stays: OpenSSL published the five CVEs on 10 November and rates them Low (the scan reports NVD's scores); their fix is in OpenSSL's source for 3.5.10, which has no release date, so Alpine 3.24 still ships `3.5.9-r0`. Also corrected the dates recorded earlier ("published on 18 November") and added the trusted push (D2), which `main`'s protection reportedly needs, to the merge steps in the handoff and phase B | CI: the re-run of the failed jobs on `a30d62f` ([run 44309859367](https://github.com/Anupam0202/NexusRAG/actions/runs/44309859367), attempt 2) passed the audit gate with the lockfile unchanged; the image scan failed with the same ten OpenSSL findings | n/a (records only) |
 | 2026-11-18 | Dependencies checked ahead of the scheduled check: `picomatch` 4.0.7 is still the latest release, so NX-48 stays open. Three moderate advisories published in October had fixes within the ranges `package.json` allows, but the audit gate fails only on high findings, so they had stayed: two in `@vitest/mocker` (fixed by vitest 4.1.12) and one in `minimatch`, which typescript-eslint reached (fixed by 8.73.0, which needs minimatch 11.0.1 or later). All 12 findings left are the one `picomatch` advisory. The lockfile is now written with npm 11 on Node 24, as in CI; npm 10 crashes in `npm update` on this tree | 1 (lint, type-check and the 839 frontend unit tests; `npm audit`: no moderate findings, 12 high, all GHSA-fc5q-39xc-vjpf) | `8315b8e` |
