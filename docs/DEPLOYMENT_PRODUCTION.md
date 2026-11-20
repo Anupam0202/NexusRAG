@@ -85,7 +85,8 @@ No document can be processed until two things are on record. Neither needs SQL.
 
 1. **The operator's provider review.** Read the current terms of the Gemini API, Qdrant Cloud and Supabase,
    then run **Actions → Provider Review → Run workflow** with target `production`, action `record`, your own
-   signed-in account's email, and the confirmation box ticked. The review is valid for 365 days; the same
+   signed-in account's email, and the confirmation box ticked. The workflow masks the email before any step
+   runs, so it never appears in the public log. The review is valid for 365 days; the same
    workflow with action `status` shows when it lapses. If a provider's terms have changed since the last
    review, workspace owners are asked to approve again.
 2. **Each workspace owner's approval.** The documents page shows a notice with a link to

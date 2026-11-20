@@ -137,6 +137,22 @@ class CommandTests(unittest.TestCase):
         self.assertIn('test "$TERMS_READ" = true', text)
         self.assertIn("inputs.target == 'production' && 'Production' || 'NexusRAG-Candidate-Preview'", text)
 
+    def test_workflow_masks_the_reviewer_email_before_any_step_can_print_it(self):
+        # The repository is public, and so are its Actions logs. Every step's log starts with the values of the
+        # env: entries in clear, so the email must never be one; the first step reads it from the event payload
+        # and masks it before any later step sees it.
+        text = (ROOT / ".github/workflows/provider-review.yml").read_text()
+        job = yaml.safe_load(text)["jobs"]["review"]
+        self.assertNotRegex(text, r"\$\{\{[^}]*reviewer_email")
+        for scope in [job] + job["steps"]:
+            self.assertNotIn("REVIEWER_EMAIL", scope.get("env") or {})
+        first = job["steps"][0]
+        self.assertNotIn("uses", first)
+        self.assertIn(".inputs.reviewer_email", first["run"])
+        self.assertIn('"$GITHUB_EVENT_PATH"', first["run"])
+        self.assertLess(first["run"].index("::add-mask::"), first["run"].index("GITHUB_ENV"))
+        self.assertIn('--reviewer-email "${REVIEWER_EMAIL:-}"', job["steps"][-1]["run"])
+
 
 if __name__ == "__main__":
     unittest.main()
