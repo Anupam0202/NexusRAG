@@ -8,8 +8,9 @@ People open production at **https://nexusrag.pages.dev**. Behind that address it
 ## The public address
 
 `https://nexusrag.pages.dev` is the front door: a Cloudflare Pages project, `nexusrag`, whose only code
-(`apps/front-door/worker.js`) hands every request to the frontend Worker through a service binding, so the browser
-keeps the plain address while the app keeps running and releasing as its Worker. Pages is the only free Cloudflare
+(`apps/front-door/worker.js`) hands the gateway's API and probes (`/api/*`, `/health`, `/ready`) to the gateway Worker
+and everything else to the frontend Worker, each through a service binding. The browser keeps the plain address for
+the app and its API, while both keep running and releasing as their Workers. Pages is the only free Cloudflare
 product with a one-word address; a custom domain would replace it later without changing the app.
 
 Before a page is served, the front door reads the build's `/_nexus-build.json`. A build made for the public address
@@ -18,15 +19,18 @@ its pages sent on to the Worker's own address, so the switch happens by itself w
 public address goes live. From then on the Worker sends pages opened on its own address to the public one, because
 sign-in returns only to the address the build names. The gateway accepts both origins (`FRONTEND_ORIGIN`).
 
-The front door is set up once, and again only when its code changes:
+The app is built to call its API at the public address (`NEXT_PUBLIC_API_URL`), and the release smoke tests use it
+too, so `scripts/release.py` refuses to build or release while the address does not answer `/health` as the target's
+gateway. The front door is set up once, and again whenever its code changes:
 
 ```bash
 CLOUDFLARE_API_TOKEN=... CLOUDFLARE_ACCOUNT_ID=... python3 scripts/front_door.py deploy --target production
 ```
 
 The token needs Pages edit access (the Workers token in the GitHub environment does not need it). The script
-creates the project if it is missing, binds the frontend Worker as `APP`, and refuses a project whose address
-Cloudflare gave differently. It uploads only the front door's code.
+creates the project if it is missing, binds the frontend Worker as `APP` and the gateway Worker as `GATEWAY`, refuses
+a project whose address Cloudflare gave differently, uploads only the front door's code, and then waits until the
+address answers `/health` as the gateway.
 
 In Supabase (project `fcjaomiceajcdownarel` → Authentication → URL Configuration), before the first release made
 for the public address:

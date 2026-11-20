@@ -15,9 +15,10 @@ from scripts import release
 ROOT = Path(__file__).resolve().parents[2]
 SHA = "a" * 40
 PREVIOUS = "11111111-2222-4333-8444-555555555555"
-GATEWAY = "https://nexusrag-v6-candidate-gateway.example.workers.dev"
 SITE = "https://nexusrag-v6-candidate-frontend.example.workers.dev"
 PUBLIC = "https://nexusrag-preview.pages.dev"
+# The front door hands the gateway's paths to the gateway, so the app and its API share the public address.
+GATEWAY = PUBLIC
 URLS = {"gateway": GATEWAY, "frontend": PUBLIC, "frontend_worker": SITE}
 MODELS = ("gemini-3.5-flash-lite", "gemini-3.1-flash-lite", "gemini-flash-latest")
 CONFIGS = [
@@ -74,8 +75,15 @@ PAGE_POLICY = ("frame-ancestors 'none'; base-uri 'self'; object-src 'none'; form
                f"connect-src 'self' {GATEWAY} {SUPABASE}")
 
 
+# What the public address answers at /health before its front door hands the gateway's paths to the gateway: the
+# app's own page for an unknown path.
+FRONT_DOOR_WITHOUT_GATEWAY = (404, "<title>NexusRAG</title><h1>Page not found</h1>")
+
+
 def healthy_frontend(sha=SHA, unknown=404, research=200, site=SITE):
     def fetch(url):
+        if url == f"{PUBLIC}/health":
+            return 200, json.dumps({"service": "nexusrag-v6-candidate-gateway"})
         if url == f"{site}/":
             return 200, "<title>NexusRAG</title>"
         if url.endswith("/_nexus-build.json"):
@@ -111,22 +119,37 @@ class TargetIsolationTests(unittest.TestCase):
                 with self.assertRaisesRegex(release.ReleaseError, message):
                     release.validate_targets()
 
-    def test_origins_are_the_public_address_and_the_workers_own(self):
+    def test_the_app_and_its_api_share_the_public_address(self):
         answer = {"success": True, "result": {"subdomain": "example"}}
         with mock.patch.object(release, "cloudflare", return_value=answer) as cloudflare:
             urls = release.origins(release.TARGETS["production"], "account", "token")
         cloudflare.assert_called_once_with("/accounts/account/workers/subdomain", "token")
-        self.assertEqual(urls, {"gateway": "https://nexusrag-v6-preview-gateway.example.workers.dev",
-                                "frontend": "https://nexusrag.pages.dev",
+        self.assertEqual(urls, {"gateway": "https://nexusrag.pages.dev", "frontend": "https://nexusrag.pages.dev",
                                 "frontend_worker": "https://nexusrag-v6-frontend-preview.example.workers.dev"})
 
     def test_the_build_is_made_for_the_public_address(self):
         env = {"CLOUDFLARE_API_TOKEN": "token", "CLOUDFLARE_ACCOUNT_ID": "account",
                "NEXT_PUBLIC_SUPABASE_URL": SUPABASE, "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY": "sb_publishable_synthetic"}
         with mock.patch.dict(os.environ, env, clear=True), mock.patch.object(release, "origins", return_value=URLS), \
+             mock.patch.object(release, "fetch", side_effect=healthy_gateway()) as fetch, \
              mock.patch("sys.stdout", io.StringIO()) as out:
             self.assertEqual(release.build_env("candidate"), 0)
-        self.assertEqual(out.getvalue(), f"NEXT_PUBLIC_API_URL={GATEWAY}\nNEXT_PUBLIC_SITE_URL={PUBLIC}\n")
+        fetch.assert_called_once_with(f"{PUBLIC}/health")
+        self.assertEqual(out.getvalue(), f"NEXT_PUBLIC_API_URL={PUBLIC}\nNEXT_PUBLIC_SITE_URL={PUBLIC}\n")
+
+    def test_nothing_is_built_for_a_public_address_that_does_not_reach_the_gateway(self):
+        env = {"CLOUDFLARE_API_TOKEN": "token", "CLOUDFLARE_ACCOUNT_ID": "account",
+               "NEXT_PUBLIC_SUPABASE_URL": SUPABASE, "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY": "sb_publishable_synthetic"}
+        other = json.dumps({"service": "nexusrag-v6-preview-gateway"})
+        for answer in (FRONT_DOOR_WITHOUT_GATEWAY, (200, other), (0, "URLError")):
+            with self.subTest(answer=answer), mock.patch.dict(os.environ, env, clear=True), \
+                 mock.patch.object(release, "origins", return_value=URLS), \
+                 mock.patch.object(release, "fetch", return_value=answer), \
+                 mock.patch("sys.stdout", io.StringIO()) as out, mock.patch("sys.stderr", io.StringIO()) as err:
+                self.assertEqual(release.main(["env", "--target", "candidate"]), 1)
+                self.assertEqual(out.getvalue(), "")
+                self.assertIn(f"{PUBLIC}/health is not answered by nexusrag-v6-candidate-gateway", err.getvalue())
+                self.assertIn("python3 scripts/front_door.py deploy --target candidate", err.getvalue())
 
     def test_each_gateway_counts_requests_with_its_own_rate_limiter(self):
         for name, change, message in (
@@ -373,6 +396,16 @@ class ReleaseFlowTests(unittest.TestCase):
         self.assertFalse([call for call in wrangler.call_args_list if call.args[0] == "rollback"])
         self.assertIn("no earlier version exists", printed)
 
+    def test_no_gateway_is_released_while_the_public_address_does_not_reach_it(self):
+        def front_door_without_gateway(url):
+            return FRONT_DOOR_WITHOUT_GATEWAY if url == f"{PUBLIC}/health" else healthy_gateway()(url)
+        code, printed, wrangler, written = self.run_gateway(front_door_without_gateway)
+        self.assertEqual(code, 1)
+        self.assertIn("is not answered by nexusrag-v6-candidate-gateway (HTTP 404)", printed)
+        self.assertIn("python3 scripts/front_door.py deploy --target candidate", printed)
+        wrangler.assert_not_called()
+        self.assertEqual(written, "")
+
     def test_a_target_refuses_another_environments_database(self):
         code, printed, wrangler, _ = self.run_gateway(
             healthy_gateway(), extra_env={"SUPABASE_URL": "https://fcjaomiceajcdownarel.supabase.co"})
@@ -403,6 +436,23 @@ class ReleaseFlowTests(unittest.TestCase):
                 with self.assertRaisesRegex(release.ReleaseError, "another environment's Supabase project"):
                     release.release_frontend("candidate", SHA)
                 run.assert_not_called()
+
+    def test_no_frontend_is_released_while_the_public_address_does_not_reach_the_gateway(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            assets = root / "frontend/.open-next/assets"
+            assets.mkdir(parents=True)
+            (assets / "_nexus-build.json").write_text(json.dumps({"source_commit": SHA}))
+            env = {"CLOUDFLARE_API_TOKEN": "token", "CLOUDFLARE_ACCOUNT_ID": "account"}
+            with mock.patch.object(release, "ROOT", root), mock.patch.dict(os.environ, env, clear=True), \
+                 mock.patch.object(release, "origins", return_value=URLS), \
+                 mock.patch.object(release, "active_version", return_value=PREVIOUS), \
+                 mock.patch.object(release, "fetch", return_value=FRONT_DOOR_WITHOUT_GATEWAY), \
+                 mock.patch.object(release.subprocess, "run") as run, mock.patch.object(release, "wrangler") as wrangler:
+                with self.assertRaisesRegex(release.ReleaseError, "front_door.py deploy --target candidate"):
+                    release.release_frontend("candidate", SHA)
+            run.assert_not_called()
+            wrangler.assert_not_called()
 
     def test_frontend_release_deploys_then_rolls_back_on_a_failed_smoke_test(self):
         with tempfile.TemporaryDirectory() as folder:

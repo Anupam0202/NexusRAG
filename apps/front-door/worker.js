@@ -3,7 +3,9 @@
  * https://nexusrag.pages.dev (the preview's is https://nexusrag-preview.pages.dev). Pages is the only free Cloudflare
  * product with a one-word address; the app itself keeps running, and releasing, as its frontend Worker.
  *
- * Every request goes to that Worker through the APP service binding, so the browser keeps the public address. A page
+ * The gateway's API (/api/...) and its probes (/health, /ready) go to the gateway Worker through the GATEWAY service
+ * binding, so the app and its API share this one address and neither Worker needs an address of its own. Everything
+ * else goes to the frontend Worker through the APP binding, so the browser keeps the public address. A page
  * request is first checked against the build the Worker serves: its /_nexus-build.json names the address it was made
  * for (`site_url`), and sign-in returns only to that address. When that is not this one (a build from before the
  * front door, or a misrouted binding), the visitor is sent there instead (FALLBACK_ORIGIN for builds that name no
@@ -15,6 +17,7 @@ const BUILD_IDENTITY = "/_nexus-build.json";
 
 export default {
   async fetch(request, env) {
+    if (isGatewayPath(new URL(request.url).pathname)) return env.GATEWAY ? env.GATEWAY.fetch(request) : unavailable();
     if (!env.APP) return unavailable();
     if (isPageRequest(request)) {
       const here = new URL(request.url);
@@ -29,6 +32,11 @@ export default {
     return env.APP.fetch(request);
   },
 };
+
+/** The gateway's own paths: its API under /api/ and its two probes. The app has no pages there. */
+export function isGatewayPath(pathname) {
+  return pathname.startsWith("/api/") || pathname === "/health" || pathname === "/ready";
+}
 
 /** A browser asking for a page, as opposed to a file or data, which are always served here. */
 export function isPageRequest(request) {

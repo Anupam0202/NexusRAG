@@ -183,8 +183,9 @@ Nothing deploys automatically. A preview deploy is opt-in: a manual run of the C
 not production acceptance. Production is released by a manual run of the Production Deploy workflow. Every release checks
 `/health` and `/ready` on the new version and rolls back automatically on failure. The preview and production use
 separate Workers, queues, collections and Supabase projects, and the release script refuses to mix them. People
-reach each one at its public address, a small Cloudflare Pages project (`apps/front-door`) that hands every request
-to the frontend Worker; `scripts/front_door.py` sets it up.
+reach each one at its public address, a small Cloudflare Pages project (`apps/front-door`) that hands the API to the
+gateway Worker and every other request to the frontend Worker, so the app and its API share one address;
+`scripts/front_door.py` sets it up.
 
 - Preview: [docs/DEPLOYMENT_FREE.md](docs/DEPLOYMENT_FREE.md)
 - Production: [docs/DEPLOYMENT_PRODUCTION.md](docs/DEPLOYMENT_PRODUCTION.md)

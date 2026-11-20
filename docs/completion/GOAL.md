@@ -110,6 +110,12 @@ new SQL file, migration names, uploads, Node 24 for lockfile changes). In additi
   with `x-goog-api-key`; 402 means a prepaid project without credit.
 - **Production frontend build variables**: `NEXT_PUBLIC_OAUTH_PROVIDERS` decides the sign-in buttons (production's
   September build shows GitHub only); check that it names the providers enabled in production's Supabase Auth.
+- **One address per target** (the owner's request of 20 November: only https://nexusrag.pages.dev and
+  https://nexusrag-preview.pages.dev). The front doors hand `/api/*`, `/health` and `/ready` to the gateway Workers,
+  builds call their API at the public address, and `scripts/release.py` refuses to build or release while the address
+  does not answer `/health` as the target's gateway (redeploy the front door with `scripts/front_door.py deploy`).
+  The Workers' own `workers.dev` addresses stay on until both targets run builds made for their public addresses:
+  until then the front doors send pages there and the old builds call the gateways there.
 
 ## 5. Owner inputs (only the owner can give these)
 
@@ -152,6 +158,18 @@ GitHub's settings, never chat.
    address, Gemini checks, `preview_smoke.py` (both journeys), account deletion with a throwaway account, a
    CALCULATION plan, a late-passage answer ranked `RANKED`, a 40 to 80 page PDF, the index payload, BYOK keys,
    two-user isolation, and chat timing p50/p95 over 20 answers.
+
+### Phase B2: one address per target, after phases A and B
+
+1. Check that no page or API call reaches a `workers.dev` address: both public addresses serve their pages
+   themselves (no redirect) and the browser check shows API calls only to the public address and Supabase.
+2. Turn off `workers.dev` and version preview addresses on the four Workers: `workers_dev: false` in their four
+   wrangler configs (so no release turns them back on) and the Workers subdomain API for the live Workers. Drop the
+   `workers.dev` entries from `FRONTEND_ORIGIN`, the front door's `FALLBACK_ORIGIN` and the frontend's redirect, and
+   from the release checks.
+3. Supabase Auth on both projects: Site URL and redirect list name only the `pages.dev` address (input 3).
+4. Remove the old addresses from the documents (MASTER_PROMPT inventory, the Cloudflare ledger, runbooks) and set
+   the GitHub repository's website to https://nexusrag.pages.dev (the owner, in the repository settings).
 
 ### Phase C: find and fix every bug (every session, until none is left)
 
@@ -197,17 +215,19 @@ evidence. GitHub: an issue per bug, closed with its evidence; a pull request per
    https://nexusrag.pages.dev serves the app itself; Google sign-in returns there.
 3. **Preview**: both Workers on `main`; no pending migration on rehearsal; https://nexusrag-preview.pages.dev serves
    the app itself.
-4. **Live journeys pass in a real browser** on the preview, and on production with test accounts the owner approves:
+4. **One address per target**: no `workers.dev` address answers for the four Workers; Supabase Auth, the documents
+   and the GitHub repository name only the two `pages.dev` addresses.
+5. **Live journeys pass in a real browser** on the preview, and on production with test accounts the owner approves:
    sign-in, workspace creation and approval, uploading each supported type to Ready, a streamed grounded answer
    with citations, research runs (CALCULATION included), findings and evidence packages, document, workspace and
    account deletion, retention, and two-user isolation.
-5. **No open bug**: no open bug issue; no Worker exceptions or 5xx in the logs of the last day of journeys; Supabase
+6. **No open bug**: no open bug issue; no Worker exceptions or 5xx in the logs of the last day of journeys; Supabase
    advisors without a fixable warning; grants checks pass on both projects; reconciliation finds no orphans.
-6. **Ledger**: every NX item fixed and verified at its level, or accepted by the owner in chat with the date and
+7. **Ledger**: every NX item fixed and verified at its level, or accepted by the owner in chat with the date and
    their words recorded.
-7. **Security and operations**: credential rotation done; scheduled checks running; budgets measured (F8, chat
+8. **Security and operations**: credential rotation done; scheduled checks running; budgets measured (F8, chat
    timing included).
-8. **Documents**: README and runbooks match the app; PROGRESS.md ends with the release summary; the owner confirmed
+9. **Documents**: README and runbooks match the app; PROGRESS.md ends with the release summary; the owner confirmed
    the walkthrough in chat.
 
 ## 10. Pausing and resuming
