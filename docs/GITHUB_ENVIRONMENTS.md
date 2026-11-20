@@ -36,10 +36,11 @@ environment variables:
 The workflows accept a few older aliases so rotations are non-disruptive, but
 new configuration should use the canonical names above.
 
-`NEXT_PUBLIC_API_URL` and `NEXT_PUBLIC_SITE_URL` are derived at deployment time
-from the Cloudflare Workers subdomain and the reviewed Worker names. They may be
-set as Preview variables only when a deliberate custom origin must override the
-standard `workers.dev` origins.
+`NEXT_PUBLIC_API_URL` and `NEXT_PUBLIC_SITE_URL` are not configured here: the
+deploy workflows take both from `scripts/release.py env`, which sets them to the
+target's public address (https://nexusrag.pages.dev for production,
+https://nexusrag-preview.pages.dev for the preview). That address's front door
+also serves the API, and the release refuses to build while it does not.
 
 ## Protection and ownership
 
