@@ -219,6 +219,7 @@ jobs:
           cp "$GITHUB_WORKSPACE/supabase/migrations/20261114120000_storage_reconciliation.sql" "$source_dir/supabase/migrations/"
           cp "$GITHUB_WORKSPACE/supabase/migrations/20261117090000_ranked_keyword_search.sql" "$source_dir/supabase/migrations/"
           cp "$GITHUB_WORKSPACE/supabase/migrations/20261117120000_foreign_key_indexes.sql" "$source_dir/supabase/migrations/"
+          cp "$GITHUB_WORKSPACE/supabase/migrations/20261120160000_gemini_terms_address.sql" "$source_dir/supabase/migrations/"
           mkdir -p "$source_dir/scripts"
           cp "$GITHUB_WORKSPACE/scripts/migration_status.py" "$source_dir/scripts/"
           chmod -R a+rX "$source_dir"

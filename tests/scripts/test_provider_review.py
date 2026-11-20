@@ -24,6 +24,16 @@ class FingerprintTests(unittest.TestCase):
         self.assertRegex(first, r"^[0-9a-f]{64}$")
         self.assertGreater(length, 500)
 
+    def test_terms_published_as_markdown_are_read_as_text(self):
+        # Google publishes the Gemini API terms as Markdown at aistudio.google.com/docs/terms.md; its HTML page
+        # draws them in the browser and holds only the title.
+        markdown = ("# Gemini API Additional Terms of Service\n\n" + ("You may use the service. " * 40) + "\n").encode()
+        digest, length = review.terms_fingerprint(markdown)
+        self.assertRegex(digest, r"^[0-9a-f]{64}$")
+        self.assertGreater(length, 500)
+        with self.assertRaisesRegex(review.ReviewError, "too little text"):
+            review.terms_fingerprint(b"<html><head><title>Gemini API Additional Terms of Service</title></head><body><div id=app></div></body></html>")
+
     def test_a_page_without_real_text_is_refused(self):
         with self.assertRaisesRegex(review.ReviewError, "too little text"):
             review.terms_fingerprint(b"<html><script>" + b"x" * 5000 + b"</script><body>Sign in</body></html>")
