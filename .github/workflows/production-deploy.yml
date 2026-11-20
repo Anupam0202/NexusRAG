@@ -72,6 +72,8 @@ jobs:
           python3 -c 'import base64,os; assert len(base64.b64decode(os.environ["GEMINI_USER_KEY_ENCRYPTION_SECRET"],validate=True))==32, "encryption secret must be base64-encoded 32-byte key material"'
           python3 -c 'import base64,os; v=os.environ.get("GEMINI_USER_KEY_ENCRYPTION_SECRET_PREVIOUS",""); assert not v or len(base64.b64decode(v,validate=True))==32, "previous encryption secret must be base64-encoded 32-byte key material"'
           python3 scripts/release.py plan --target production
+          # Before any snapshot or migration: the database must be this target's, and Cloudflare must accept the token.
+          python3 scripts/release.py preflight --target production
           code="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' --connect-timeout 10 --max-time 30 \
             --config <(service_headers) \
             "$SUPABASE_URL/auth/v1/admin/users?per_page=1")"

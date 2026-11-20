@@ -12,7 +12,7 @@ Store only credentials as environment secrets:
 
 | Name | Purpose |
 | --- | --- |
-| `CLOUDFLARE_API_TOKEN` | Scoped Workers Scripts edit token |
+| `CLOUDFLARE_API_TOKEN` | Token that can edit the account's Workers and Queues ("Edit Cloudflare Workers" template plus Account → Queues → Edit) |
 | `QDRANT_API_KEY` | Qdrant Cloud credential |
 | `GEMINI_API_KEY` | Gemini API credential |
 

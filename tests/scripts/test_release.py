@@ -477,6 +477,82 @@ class ReleaseFlowTests(unittest.TestCase):
                     self.assertEqual(run.call_args.args[0], ["npm", "run", "cf:deploy", "--", "--config", "wrangler.jsonc"])
                     self.assertEqual(bool(wrangler.call_args_list), expected == 1)
 
+    def test_a_database_address_names_its_project(self):
+        pooler = "postgresql://postgres.ukgjygzfhyvnrsecdcuu:synthetic-password@aws-1-us-east-1.pooler.supabase.com:5432/postgres"
+        direct = "postgresql://postgres:synthetic-password@db.fcjaomiceajcdownarel.supabase.co:5432/postgres"
+        self.assertEqual(release.database_project(pooler), "ukgjygzfhyvnrsecdcuu")
+        self.assertEqual(release.database_project(direct), "fcjaomiceajcdownarel")
+        for other in ("postgresql://postgres:pw@localhost:5432/postgres", "not a url", "",
+                      "postgresql://postgres.short:pw@aws-0-us-east-1.pooler.supabase.com:5432/postgres"):
+            self.assertIsNone(release.database_project(other), other)
+
+    def preflight(self, env, fetch=None, cloudflare=None):
+        answers = {"/accounts/account/workers/subdomain": {"success": True, "result": {"subdomain": "example"}}}
+        calls = []
+
+        def api(path, token):
+            calls.append(path)
+            if cloudflare is not None:
+                raise cloudflare
+            return answers.get(path, {"success": True, "result": {"deployments": []}})
+        with mock.patch.dict(os.environ, env, clear=True), mock.patch.object(release, "cloudflare", side_effect=api), \
+             mock.patch.object(release, "fetch", side_effect=fetch or healthy_gateway()), \
+             mock.patch.object(release, "wrangler") as wrangler, mock.patch.object(release.subprocess, "run") as run, \
+             mock.patch("sys.stdout", io.StringIO()) as out, mock.patch("sys.stderr", io.StringIO()) as err:
+            code = release.main(["preflight", "--target", "candidate"])
+        wrangler.assert_not_called()
+        run.assert_not_called()
+        return code, out.getvalue(), err.getvalue(), calls
+
+    def test_preflight_checks_what_a_release_needs_without_changing_anything(self):
+        env = {"CLOUDFLARE_API_TOKEN": "token", "CLOUDFLARE_ACCOUNT_ID": "account",
+               "SUPABASE_DB_URL": "postgresql://postgres.ukgjygzfhyvnrsecdcuu:synthetic-password@aws-1-us-east-1.pooler.supabase.com:5432/postgres"}
+        code, out, err, calls = self.preflight(env)
+        self.assertEqual(code, 0, err)
+        self.assertEqual(calls, ["/accounts/account/workers/subdomain",
+                                 "/accounts/account/workers/scripts/nexusrag-v6-candidate-gateway/deployments",
+                                 "/accounts/account/workers/scripts/nexusrag-v6-candidate-frontend/deployments"])
+        self.assertIn("nexusrag-v6-candidate-gateway", out)
+        without_database = {key: value for key, value in env.items() if key != "SUPABASE_DB_URL"}
+        self.assertEqual(self.preflight(without_database)[0], 0, "the preview may release without a database address")
+
+    def test_preflight_refuses_another_projects_database_before_anything_else(self):
+        env = {"CLOUDFLARE_API_TOKEN": "token", "CLOUDFLARE_ACCOUNT_ID": "account",
+               "SUPABASE_DB_URL": "postgresql://postgres.fcjaomiceajcdownarel:synthetic-password@aws-1-us-east-1.pooler.supabase.com:5432/postgres"}
+        code, out, err, calls = self.preflight(env)
+        self.assertEqual(code, 1)
+        self.assertIn("SUPABASE_DB_URL names the Supabase project fcjaomiceajcdownarel", err)
+        self.assertIn("the candidate target uses ukgjygzfhyvnrsecdcuu", err)
+        self.assertEqual(calls, [])
+        self.assertNotIn("synthetic-password", out + err)
+        code, _, err, _ = self.preflight({**env, "SUPABASE_DB_URL": "postgresql://postgres:synthetic-password@localhost/postgres"})
+        self.assertEqual(code, 1)
+        self.assertIn("SUPABASE_DB_URL names no Supabase project", err)
+        self.assertNotIn("synthetic-password", err)
+
+    def test_preflight_names_a_refused_token_and_a_front_door_without_the_gateway(self):
+        env = {"CLOUDFLARE_API_TOKEN": "token", "CLOUDFLARE_ACCOUNT_ID": "account"}
+        refused = release.ReleaseError("Cloudflare refused the API token (HTTP 401) for /accounts/account/workers/subdomain")
+        code, _, err, _ = self.preflight(env, cloudflare=refused)
+        self.assertEqual(code, 1)
+        self.assertIn("Cloudflare refused the API token (HTTP 401)", err)
+        code, _, err, _ = self.preflight(env, fetch=lambda url: FRONT_DOOR_WITHOUT_GATEWAY)
+        self.assertEqual(code, 1)
+        self.assertIn("is not answered by nexusrag-v6-candidate-gateway", err)
+
+    def test_cloudflare_says_when_it_refuses_the_token(self):
+        def refuse(code):
+            def urlopen(call, timeout):
+                raise release.error.HTTPError(call.full_url, code, "refused", {}, io.BytesIO(b"{}"))
+            return urlopen
+        for code in (401, 403):
+            with mock.patch.object(release.request, "urlopen", side_effect=refuse(code)):
+                with self.assertRaisesRegex(release.ReleaseError, rf"Cloudflare refused the API token \(HTTP {code}\).*CLOUDFLARE_API_TOKEN"):
+                    release.cloudflare("/accounts/account/workers/subdomain", "token")
+        with mock.patch.object(release.request, "urlopen", side_effect=refuse(500)):
+            with self.assertRaisesRegex(release.ReleaseError, "Cloudflare API returned HTTP 500"):
+                release.cloudflare("/accounts/account/workers/subdomain", "token")
+
     def test_active_version_reads_the_deployment_taking_traffic(self):
         body = {"result": {"deployments": [{"versions": [{"version_id": "old", "percentage": 10}, {"version_id": PREVIOUS, "percentage": 90}]}]}}
         with mock.patch.object(release, "cloudflare", return_value=body):
@@ -537,7 +613,13 @@ class WorkflowTests(unittest.TestCase):
         self.assertEqual(jobs["frontend"]["name"], "Build and deploy OpenNext frontend")
         for job in jobs.values():
             self.assertEqual(job["if"], "${{ github.event_name == 'workflow_dispatch' && inputs.deploy_candidate_preview }}")
-        self.assertEqual(text.count("--target candidate"), 4)
+        self.assertEqual(text.count("--target candidate"), 5)
+        gateway = self.steps(jobs["gateway"])
+        order = ["Check required configuration", "Apply pending migrations to the rehearsal database",
+                 "Deploy the gateway, smoke-test and roll back on failure"]
+        self.assertEqual([step for step in gateway if step in order], order)
+        configuration = next(step["run"] for step in jobs["gateway"]["steps"] if step.get("name") == "Check required configuration")
+        self.assertIn("python3 scripts/release.py preflight --target candidate", configuration)
         self.assertNotIn("--target production", text)
         self.assertNotIn("preview_target.py", text)
         self.assertIn("--secrets-file", text)
@@ -550,7 +632,7 @@ class WorkflowTests(unittest.TestCase):
         self.assertEqual(set(triggers), {"workflow_dispatch"})
         self.assertNotIn("deploy-production", text)
         self.assertNotIn("check_execution_ledger", text)
-        self.assertEqual(text.count("--target production"), 6)
+        self.assertEqual(text.count("--target production"), 7)
         self.assertNotIn("--target candidate", text)
         self.assertEqual(workflow["permissions"], {"contents": "read"})
         gateway = self.steps(workflow["jobs"]["gateway"])
@@ -562,6 +644,8 @@ class WorkflowTests(unittest.TestCase):
         configuration = next(step["run"] for step in workflow["jobs"]["gateway"]["steps"] if step.get("name") == "Check required configuration")
         for secret in ("SUPABASE_DB_URL", "GEMINI_USER_KEY_ENCRYPTION_SECRET", "QDRANT_API_KEY"):
             self.assertIn(secret, configuration)
+        # Checked before the snapshot and migrations, so a wrong database or a refused token changes nothing.
+        self.assertIn("python3 scripts/release.py preflight --target production", configuration)
         self.assertIn("migration_status.py apply --snapshot-label", text)
         self.assertIn("--secrets-file", text)
         frontend = workflow["jobs"]["frontend"]
