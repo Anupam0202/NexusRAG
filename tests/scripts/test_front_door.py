@@ -16,9 +16,9 @@ class Cloudflare:
     """The parts of the Cloudflare API the front door uses. `subdomain` is the address a new project gets."""
 
     def __init__(self, exists=False, subdomain="nexusrag.pages.dev", stages=("queued", "deploy:success"), project=PROJECT,
-                 health=((200, "nexusrag-v6-preview-gateway"),)):
+                 health=((200, "nexusrag-v6-preview-gateway"),), config=None):
         self.exists, self.subdomain, self.stages, self.calls = exists, subdomain, list(stages), []
-        self.project, self.health, self.asked = project, list(health), []
+        self.project, self.health, self.asked, self.config = project, list(health), [], config
 
     def gateway_behind(self, public_url):
         """Who answers /health at the public address, as (HTTP status, service): the last answer repeats."""
@@ -32,7 +32,12 @@ class Cloudflare:
         if path == "/accounts/account/workers/subdomain":
             return {"success": True, "result": {"subdomain": "example"}}
         if (method, path) == ("GET", self.project):
-            return {"success": True, "result": {"name": "nexusrag", "subdomain": self.subdomain}} if self.exists else {"success": False, "status": 404}
+            if not self.exists:
+                return {"success": False, "status": 404}
+            result = {"name": "nexusrag", "subdomain": self.subdomain}
+            if self.config is not None:
+                result["deployment_configs"] = {"production": self.config}
+            return {"success": True, "result": result}
         if (method, path) == ("POST", "/accounts/account/pages/projects"):
             self.exists = True
             return {"success": True, "result": {"name": body["name"], "subdomain": self.subdomain}}
@@ -82,6 +87,21 @@ class FrontDoorTests(unittest.TestCase):
         cloudflare = Cloudflare(exists=True)
         self.assertEqual(cloudflare.run("deploy", "--target", "production")[0], 0)
         self.assertNotIn(("POST", "/accounts/account/pages/projects"), [(m, p) for m, p, _, _ in cloudflare.calls])
+
+    def test_settings_the_front_door_no_longer_uses_are_removed_not_left_behind(self):
+        # Cloudflare merges the variables and bindings a PATCH names into the project's, so one the code stopped
+        # setting stays until the PATCH sets it to null.
+        old = {"env_vars": {"PUBLIC_ORIGIN": {"type": "plain_text", "value": "https://nexusrag.pages.dev"},
+                            "FALLBACK_ORIGIN": {"type": "plain_text", "value": "https://old.example.workers.dev"}},
+               "services": {"APP": {"service": "nexusrag-v6-frontend-preview", "environment": "production"},
+                            "OLD": {"service": "retired-worker", "environment": "production"}}}
+        cloudflare = Cloudflare(exists=True, config=old)
+        self.assertEqual(cloudflare.run("deploy", "--target", "production")[0], 0)
+        config = next(body for method, _, body, _ in cloudflare.calls if method == "PATCH")["deployment_configs"]["production"]
+        self.assertIsNone(config["env_vars"]["FALLBACK_ORIGIN"])
+        self.assertEqual(config["env_vars"]["PUBLIC_ORIGIN"]["value"], "https://nexusrag.pages.dev")
+        self.assertIsNone(config["services"]["OLD"])
+        self.assertEqual(config["services"]["GATEWAY"]["service"], "nexusrag-v6-preview-gateway")
 
     def test_an_address_cloudflare_gave_differently_is_refused_before_anything_is_deployed(self):
         cloudflare = Cloudflare(exists=True, subdomain="nexusrag-4kd.pages.dev")
