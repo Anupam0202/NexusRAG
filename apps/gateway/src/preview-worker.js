@@ -382,8 +382,11 @@ function documentView(row) {
   };
 }
 
+// A job's row keeps the error of an earlier attempt after a later one runs or publishes the document, so only a
+// job that failed, was cancelled or waits to try again reports it.
 function jobView(job, document = null) {
-  return { job_id: job.id, document_id: job.document_id, filename: document?.filename || job.payload?.filename || "document", status: job.status === "retry_wait" ? "queued" : job.status, stage: job.stage || job.status, progress: Number(job.progress || 0), message: job.error_message || `Ingestion ${job.status}`, error_message: job.error_message || null, created_at: job.created_at, updated_at: job.updated_at, started_at: job.started_at, completed_at: job.completed_at, document: document ? documentView(document) : null };
+  const error = ["failed", "cancelled", "retry_wait"].includes(job.status) ? job.error_message || null : null;
+  return { job_id: job.id, document_id: job.document_id, filename: document?.filename || job.payload?.filename || "document", status: job.status === "retry_wait" ? "queued" : job.status, stage: job.stage || job.status, progress: Number(job.progress || 0), message: error || `Ingestion ${job.status}`, error_message: error, created_at: job.created_at, updated_at: job.updated_at, started_at: job.started_at, completed_at: job.completed_at, document: document ? documentView(document) : null };
 }
 
 async function loadBoundDocument(env, workspace, documentId) {
