@@ -14,7 +14,7 @@ Cloudflare Authorization header. It then waits until the address answers /health
 scripts/release.py checks before it builds or releases anything for that address.
 
 Deploying never breaks the app: the front door serves a build made for its address and sends the visitors of any
-other build to the address that build names (FALLBACK_ORIGIN, the Worker's own, for builds older than the field).
+other build to the address that build names. The Workers have no workers.dev address, so this is their only one.
 Runbook: docs/DEPLOYMENT_PRODUCTION.md ("The public address").
 """
 from __future__ import annotations
@@ -98,20 +98,14 @@ def multipart(fields: list[tuple]) -> tuple[bytes, str]:
     return b"".join(parts), f"multipart/form-data; boundary={boundary}"
 
 
-def worker_origin(target: dict, account: str, token: str) -> str:
-    subdomain = api("GET", f"/accounts/{account}/workers/subdomain", token)["result"]["subdomain"]
-    return f"https://{target['frontend_worker']}.{subdomain}.workers.dev"
-
-
-def production_config(target: dict, fallback: str) -> dict:
-    """What the front door runs with: the frontend Worker as APP, the gateway Worker as GATEWAY, its one public
-    address (every other address of the project is sent there), and where older builds are served."""
+def production_config(target: dict) -> dict:
+    """What the front door runs with: the frontend Worker as APP, the gateway Worker as GATEWAY, and its one public
+    address (every other address of the project is sent there)."""
     return {
         "compatibility_date": COMPATIBILITY_DATE,
         "compatibility_flags": [],
         "services": {binding: {"service": worker, "environment": "production"} for binding, worker in bindings(target).items()},
-        "env_vars": {"FALLBACK_ORIGIN": {"type": "plain_text", "value": fallback},
-                     "PUBLIC_ORIGIN": {"type": "plain_text", "value": target["public_url"]}},
+        "env_vars": {"PUBLIC_ORIGIN": {"type": "plain_text", "value": target["public_url"]}},
     }
 
 
@@ -135,12 +129,11 @@ def deploy(name: str, attempts: int = 30, pause: float = 4.0) -> int:
     env = require_env("CLOUDFLARE_API_TOKEN", "CLOUDFLARE_ACCOUNT_ID")
     account, token = env["CLOUDFLARE_ACCOUNT_ID"], env["CLOUDFLARE_API_TOKEN"]
     code = FRONT_DOOR.read_bytes()
-    fallback = worker_origin(target, account, token)
     ensure_project(target, account, token)
     path = f"/accounts/{account}/pages/projects/{target['pages_project']}"
     # Bindings and variables are read when a deployment is made, so they are set first.
     api("PATCH", path, token, body={"production_branch": PRODUCTION_BRANCH,
-                                    "deployment_configs": {"production": production_config(target, fallback)}})
+                                    "deployment_configs": {"production": production_config(target)}})
     created = api("POST", f"{path}/deployments", token, form=[
         ("manifest", "{}"),
         ("branch", PRODUCTION_BRANCH),
@@ -170,7 +163,6 @@ def deploy(name: str, attempts: int = 30, pause: float = 4.0) -> int:
                            "Pages project and that the gateway Worker answers.")
     print(f"The front door {target['public_url']} serves {target['frontend_worker']} and its API from "
           f"{target['gateway_worker']} (deployment {deployment}).")
-    print(f"Pages of builds made for another address go there; older builds go to {fallback}.")
     return 0
 
 

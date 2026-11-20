@@ -1,55 +1,34 @@
 # NexusRAG completion progress
-Last updated: 2026-11-20 (after the release preflight). The goal and the ordered remaining work are in `docs/completion/GOAL.md`.
+Last updated: 2026-11-20 (both targets released, one address each). The goal and the ordered remaining work are in `docs/completion/GOAL.md`.
 Everything an agent can do without the owner is done; the Handoff below lists the owner's steps in order.
 
-## Handoff 2026-11-20
-`main` is `e7eda08`: PR #14 (one address per target) on top of PR #13 (this goal) and PR #12 (`90d1b80`, squash-merged
-on 20 November, its 217 commits on top of `85b14f1`). Each merge had every required check green on its exact head:
-V6 Foundation CI, V6 Database Rehearsal, and V6 Live Provider Validation (Gemini and Qdrant READY, which also records
-the required `Preview` deployment).
-One address per target (the owner's request of 20 November): both front doors, deployed from `main`, hand `/api/*`,
-`/health` and `/ready` to their gateway and send every other address of their Pages project to the public one; their
-older deployments are deleted. The next release of each target builds the app for its public address; then GOAL.md
-phase B2 switches off the four Workers' `workers.dev` addresses.
-Goal and plan: `docs/completion/GOAL.md` (it replaces CONTINUATION_PROMPT.md); the owner granted full permission on
-20 November.
-Deployed: production's Workers are still the September ones (every page shows "Backend offline"), but its database
-now has `main`'s schema. On 20 November at 13:37 UTC a Cloudflare Preview Deploy run (44745817620) applied 35
-migrations to it, because `NexusRAG-Candidate-Preview`'s `SUPABASE_DB_URL` named the production project. It took the
-snapshot `backup_20261120133700_2845818` first; production's database log shows no error since, and its gateway still
-answers (`/health` READY, signed-out API 401). The run then stopped at the candidate's Cloudflare token (HTTP 401)
-before deploying anything. `release.py preflight` now refuses both before any database is touched. Preview gateway
-`81bab63`; preview frontend from October (Error 1101 on every page that is not prerendered, fixed on `main`); the
-rehearsal database still has its five pending migrations.
-Agent work left: none that does not wait on a step below. Production's release is next and urgent: its database is
-ahead of its Workers.
+## Handoff 2026-11-20 (evening)
+`main` has every pull request through the one that switched off the `workers.dev` addresses; each merge had every
+required check green on its exact head (V6 Foundation CI, V6 Database Rehearsal, V6 Live Provider Validation).
+Released: production runs `2845818` at https://nexusrag.pages.dev (Production Deploy run 44751846631: gateway and
+frontend smoke tests, 52 browser tests); the preview runs `c56ec45` at https://nexusrag-preview.pages.dev (Cloudflare
+Preview Deploy run 44756110282). Each address serves its app and its API through its front door; the four Workers'
+`workers.dev` and version preview addresses are off (error 1042); both Supabase projects accept sign-in returns only
+on their `pages.dev` address; both databases have every migration; Gemini and Qdrant answer with the owner's new keys.
+Goal and plan: `docs/completion/GOAL.md`.
+Agent work next: the live journeys on the preview (GOAL.md phase B step 2), then phase C.
 Owner actions, step by step:
-1. GitHub → Settings → Environments → `NexusRAG-Candidate-Preview` → secret `SUPABASE_DB_URL`: replace it with the
-   rehearsal project's session-pooler string (project `ukgjygzfhyvnrsecdcuu`: user `postgres.ukgjygzfhyvnrsecdcuu`,
-   port 5432). `Production`'s must name `fcjaomiceajcdownarel`; the preflight refuses either one otherwise.
-2. In both `Production` and `NexusRAG-Candidate-Preview`, set `CLOUDFLARE_API_TOKEN` to a new token made from
-   Cloudflare's "Edit Cloudflare Workers" template plus Account → Queues → Edit (the candidate's answers HTTP 401).
-   The agent then runs Production Deploy (its migrations are already applied) and the preview release.
-3. Supabase → Authentication → URL Configuration. Production: Site URL `https://nexusrag.pages.dev`, redirect URLs
-   only `https://nexusrag.pages.dev/**`. Rehearsal: Site URL `https://nexusrag-preview.pages.dev`, redirect URLs only
-   `https://nexusrag-preview.pages.dev/**`. The access token saved for `api.supabase.com` still reaches Supabase
-   without its `Bearer` prefix, so the agent cannot do this step.
-4. Done on 20 November: `main` allowed in `NexusRAG-Candidate-Preview`; a new `GOOGLE_API_KEY` in all three
-   environments (the Gemini Model Check found all four configured models served with it).
-5. Ledger decisions in chat ("Ledger status"), the walkthrough after the release, and the credential rotation (F6);
-   revoke the Supabase access tokens that were pasted into the chat.
-6. GitHub → the repository page → About (gear icon) → Website: `https://nexusrag.pages.dev`. It still shows the
-   candidate's old `workers.dev` address, and no tool available to the agent changes repository settings.
-After each step the agent continues with the matching phase of GOAL.md section 6.
+1. Sign in once with Google on each address, read the current terms of Google Gemini, Qdrant Cloud and Supabase
+   (Storage), then tell the agent "I have read the terms" and the email you signed in with. The agent then records the
+   provider review in both deployments; until it does, no document can be processed.
+2. Ledger decisions in chat ("Ledger status").
+3. The walkthrough on production after the live journeys, and the credential rotation (MASTER_PROMPT F6).
+4. GitHub → the repository page → About (gear icon) → Website: `https://nexusrag.pages.dev`.
+5. Revoke the Supabase access tokens that were pasted into the chat.
 
 ## Current state
-- main: `e7eda08` (PR #14 squash-merged on 2026-11-20, after PR #12 and PR #13); new work goes on a branch from
-  `main` and a pull request
-- Public addresses: the front doors `nexusrag` (deployment `32165068`, from `e7eda08`) and `nexusrag-preview`
-  (deployment `d5626b22`, the same code from the pull request's branch) hand the API to the gateways. Each project
-  keeps only its active deployment, whose own `<id>.<project>.pages.dev` address answers 308 to the public one.
-  Pages still go to the Workers' own addresses until each target's next release (their builds name no public
-  address).
+- main: every pull request through the `workers.dev` switch-off (2026-11-20); new work goes on a branch from `main`
+  and a pull request
+- Released 2026-11-20: production `2845818` (Production Deploy run 44751846631), preview `c56ec45` (Cloudflare Preview
+  Deploy run 44756110282); `/ready` READY on both public addresses.
+- Public addresses: the front doors `nexusrag` (deployment `32165068`) and `nexusrag-preview` (deployment `d5626b22`)
+  hand the API to the gateways; each project keeps only its active deployment, whose own `<id>.<project>.pages.dev`
+  address answers 308 to the public one. The four Workers have no `workers.dev` or version preview address.
 - Plan: `docs/completion/MASTER_PROMPT.md`; repository notes: `CLAUDE.md`
 - Candidate preview: gateway `81bab63` (previous version `797eb124`), released 2026-11-18 (smoke test and `/ready`
   passed); before it `cf9c862` (previous version `1257b684`), released 2026-11-18 from a cloud session (smoke
@@ -213,6 +192,8 @@ in chat with a reason. Where each one stands:
 | 2026-11-16 | NX-22 ingestion limits. A PDF or image cut off at 8,192 output tokens (about a dozen pages; it used to fail with "split the document") is read again with the model's published limit: 65,536 tokens for both pinned models, roughly 100 pages (Google's model pages, read 16 November). The job's lease is renewed during the read. The shared key's budget counts a file at no more input than a request can hold; one token per byte had made every PDF over 4 MB impossible on the trial. Word text comes from the elements Word shows. Every way a read can end has its own plain message, and nothing partial is indexed. Not done: a PDF's own text layer and splitting by page (a PDF parser does not fit the free plan's CPU limit) | 1 (986 gateway tests; 12 new, eleven broken variants each refused). The long read has run against a stand-in only | `e0d3b60` |
 | 2026-11-17 | NX-25, second half: a request must pass both the isolate's own counter (exact, but every isolate counts from zero) and Cloudflare's rate limiter (binding `USER_RATE_LIMITER`, 60 a minute per location; the preview and production use separate namespaces, which `release.py` checks). Cloudflare's count is approximate by design: live on the preview, 327 requests from one location in 45 seconds all passed it, and after both counters were required, 304 in 45 seconds still passed, because one client's requests are spread over many isolates, each counting from zero. The old per-isolate limit was never strict either. A strict per-user limit needs a Durable Object (not built; the ledger keeps this open for the owner to accept or ask for). A limiter that fails is logged and leaves the isolate's counter to decide | 1 (1,011 gateway and 30 release tests); 4 for the binding being accepted by the free plan and for the burst behaviour above | `b5125c9`, `b891b6e`, `8bcfc22` |
 | 2026-11-17 | NX-25, first half: the gateway checks access tokens itself against the project's published ES256 key (both projects publish one and sign with it: checked on a real rehearsal token), instead of asking Supabase Auth on every request, which also saves one of the 50 outbound requests a free-plan invocation may make. Signature, issuer, audience, role, expiry and user id are checked; the key list is cached and re-read for a rotated key; a token signed otherwise, or an unreadable key list, still goes to Supabase Auth; a failing token is refused, never handed on. Trade-off, already stated on the security page: after signing out, an access token works until it expires (an hour); membership is still checked on every request | 1 (1,010 gateway tests; a real ES256 key pair; removing any one of seven checks fails a test); 4 on the preview gateway `6e1d540`: a real rehearsal token is accepted and reads the database, a tampered one is refused (401), and after a global sign-out Supabase Auth refuses the token (403) while the gateway accepts it until it expires, which shows the check runs in the Worker | `6e1d540` |
+| 2026-11-20 | One address per target, finished (GOAL.md phase B2): the owner set both Supabase projects' Site URL and redirect list to their `pages.dev` address only (probe: `pages.dev` returns accepted, the old `workers.dev`, `vercel.app` and PR3 returns refused); `workers_dev` and `preview_urls` are off in the four Wrangler configs and `release.py` refuses a config that turns either on; the four Workers' `workers.dev` addresses were turned off live (error 1042); `FRONTEND_ORIGIN` names only the public address and the front door no longer gets a `workers.dev` fallback. Both public addresses stayed READY. | 3 (Supabase probes; the four old addresses answer 1042; both public addresses READY) | the one-address pull request |
+| 2026-11-20 | Released both targets. Production: Production Deploy run 44751846631 (`2845818`; database already migrated; gateway and frontend smoke tests and 52 browser tests passed). The attempt before it, run 44750151552, was rolled back automatically because production's `QDRANT_API_KEY` was refused; the owner replaced it. The preview: runs 44750157831 (`2845818`) and 44756110282 (`c56ec45`, after the owner's new Qdrant key, the first release through `release.py preflight`). In Chromium every main page of https://nexusrag.pages.dev renders at that address with no console error, failed request or policy violation; `/research` and unknown paths no longer crash on the preview (NX-01 live). The owner's new `GOOGLE_API_KEY` answers real requests (live validation on `main`). | 3 | runs 44751846631, 44756110282 |
 | 2026-11-20 | Incident: Cloudflare Preview Deploy run 44745817620 (13:37 UTC) applied 35 migrations, `035_atomic_workspace_management_and_finding_exports` to `20261117120000_foreign_key_indexes`, to the production database: `NexusRAG-Candidate-Preview`'s `SUPABASE_DB_URL` named `fcjaomiceajcdownarel`, and nothing compared the database address with the target. The snapshot `backup_20261120133700_2845818` was taken first; the production log shows no error afterwards and the September gateway still answers. The run then stopped at the candidate's Cloudflare token (HTTP 401) before deploying. Fix: `release.py preflight`, run in both workflows' configuration step before any snapshot or migration, refuses a database address that names another project (or none), a Cloudflare token Cloudflare refuses (now named as such), and a public address that does not answer as the gateway. | 2 (unit and workflow-order tests); the incident facts from the run log and both projects' migration lists | the release-preflight pull request |
 | 2026-11-20 | Owner inputs arrived: `SUPABASE_DB_URL` in `Production` and `NexusRAG-Candidate-Preview`, `main` allowed in `NexusRAG-Candidate-Preview` (its old rules removed), a new `GOOGLE_API_KEY` in all three environments. Gemini Model Check run 44744223496 with the new key: all four configured models served. The 10:13 UTC check before them found nothing changed (Production Deploy run 44717418506 stopped at its configuration check; Cloudflare Preview Deploy run 44717423796 was refused). | n/a | n/a |
 | 2026-11-20 | One address per target, at the owner's request (only https://nexusrag.pages.dev and https://nexusrag-preview.pages.dev): the front doors hand `/api/*`, `/health` and `/ready` to the gateways through a `GATEWAY` binding and send every other address of their Pages project (each deployment's own `<id>.<project>.pages.dev`, plain `http://`) to the public one with a 308; `scripts/release.py` builds the app for its public address and refuses to build or release while that address does not answer `/health` as the target's gateway, and `scripts/front_door.py deploy` waits for that answer. Both front doors deployed; their older deployments, which still served the app at their own addresses, deleted (four on the preview, two on production). | 3 (preview: `/health` and `/ready` from the gateway, signed-out API 401, CORS preflight from the public origin allowed, the test account's signed-in `/api/v2/capabilities` 200 as at the gateway's own address, the deployment's own address 308 to the public one; production: `/health` from the production gateway, signed-out API 401; its September gateway answers `/ready` with 401 and allows only its own frontend's origin, the same at its own address, until its release) | PR #14, `e7eda08` |

@@ -151,12 +151,18 @@ def validate_targets(root: Path = ROOT) -> None:
             raise ReleaseError(f"{target['gateway_config']} does not match the {name} target.")
         if gateway.get("observability", {}).get("redact_query_string") is not True:
             raise ReleaseError(f"{target['gateway_config']} must redact query strings in logs.")
+        if gateway.get("workers_dev") is not False or gateway.get("preview_urls") is not False:
+            raise ReleaseError(f"{target['gateway_config']} must keep workers.dev and version preview addresses off: "
+                               "the app has one address, its front door.")
         frontend = json.loads(strip_jsonc((root / "frontend" / target["frontend_config"]).read_text(encoding="utf-8")))
         service = (frontend.get("services") or [{}])[0].get("service")
         if frontend.get("name") != target["frontend_worker"] or service != target["frontend_worker"]:
             raise ReleaseError(f"frontend/{target['frontend_config']} does not match the {name} target.")
         if frontend.get("observability", {}).get("redact_query_string") is not True:
             raise ReleaseError(f"frontend/{target['frontend_config']} must redact query strings in logs.")
+        if frontend.get("workers_dev") is not False or frontend.get("preview_urls") is not False:
+            raise ReleaseError(f"frontend/{target['frontend_config']} must keep workers.dev and version preview addresses "
+                               "off: the app has one address, its front door.")
         assets = frontend.get("assets", {})
         # Unknown paths must reach the Worker and return 404 rather than crash it (NX-01), and original
         # documents must pass through the wrapper.
@@ -185,15 +191,10 @@ def cloudflare(path: str, token: str) -> dict:
     return body
 
 
-def origins(target: dict, account: str, token: str) -> dict[str, str]:
-    """Where a target is reached: the app and its API at the public address (what people open, what the build is
-    made for and what the smoke tests use), and the frontend Worker's own address, which sends pages on to it."""
-    subdomain = cloudflare(f"/accounts/{account}/workers/subdomain", token)["result"]["subdomain"]
-    return {
-        "gateway": target["public_url"],
-        "frontend": target["public_url"],
-        "frontend_worker": f"https://{target['frontend_worker']}.{subdomain}.workers.dev",
-    }
+def origins(target: dict) -> dict[str, str]:
+    """Where a target is reached: the app and its API share the public address, which is what people open, what the
+    build is made for and what the smoke tests use. The Workers have no address of their own (workers_dev is off)."""
+    return {"gateway": target["public_url"], "frontend": target["public_url"]}
 
 
 def gateway_behind(public_url: str) -> tuple[int, object]:
@@ -249,7 +250,6 @@ def preflight(name: str) -> int:
             raise ReleaseError(f"SUPABASE_DB_URL {named}, but the {name} target uses {target['supabase_ref']}: set it to "
                                f"the session-pooler connection string of {target['supabase_ref']}. Nothing was changed.")
     account, token = env["CLOUDFLARE_ACCOUNT_ID"], env["CLOUDFLARE_API_TOKEN"]
-    origins(target, account, token)
     for worker in (target["gateway_worker"], target["frontend_worker"]):
         active_version(worker, account, token)
     require_front_door(name, target)
@@ -479,15 +479,15 @@ def release_gateway(name: str, sha: str, secrets_file: str | None, allow_index_d
     models = generation_models(os.environ.get("GEMINI_MODEL"))
     embedding = embedding_model(os.environ.get("GEMINI_EMBEDDING_MODEL"))
     require_front_door(name, target)
-    urls = origins(target, env["CLOUDFLARE_ACCOUNT_ID"], env["CLOUDFLARE_API_TOKEN"])
+    urls = origins(target)
     previous = active_version(target["gateway_worker"], env["CLOUDFLARE_ACCOUNT_ID"], env["CLOUDFLARE_API_TOKEN"])
     ensure_queues(target)
     variables = {
         "SUPABASE_URL": env["SUPABASE_URL"],
         "SUPABASE_PUBLISHABLE_KEY": env["SUPABASE_PUBLISHABLE_KEY"],
         "QDRANT_COLLECTION": target["qdrant_collection"],
-        # The public address, and the Worker's own one for pages opened there before a release reached them.
-        "FRONTEND_ORIGIN": f"{urls['frontend']},{urls['frontend_worker']}",
+        # The app's only address; its pages call the API there, so CORS matters only for other origins.
+        "FRONTEND_ORIGIN": urls["frontend"],
         "RUNTIME_SERVICE_NAME": target["gateway_worker"],
         # --keep-vars would keep a stale model on the Worker, so every release states the policy (D24).
         "GEMINI_MODEL": ",".join(models),
@@ -525,7 +525,7 @@ def release_frontend(name: str, sha: str) -> int:
             if any(ref in content for ref in other_refs(name)):
                 raise ReleaseError(f"The frontend build contains another environment's Supabase project: {path.name}")
     require_front_door(name, target)
-    urls = origins(target, env["CLOUDFLARE_ACCOUNT_ID"], env["CLOUDFLARE_API_TOKEN"])
+    urls = origins(target)
     previous = active_version(target["frontend_worker"], env["CLOUDFLARE_ACCOUNT_ID"], env["CLOUDFLARE_API_TOKEN"])
     result = subprocess.run(["npm", "run", "cf:deploy", "--", "--config", target["frontend_config"]], cwd=ROOT / "frontend", check=False)
     if result.returncode != 0:
@@ -542,7 +542,7 @@ def build_env(name: str) -> int:
     if env["NEXT_PUBLIC_SUPABASE_URL"] != supabase_url(target):
         raise ReleaseError(f"The {name} frontend may only use the Supabase project {target['supabase_ref']}.")
     require_front_door(name, target)
-    urls = origins(target, env["CLOUDFLARE_ACCOUNT_ID"], env["CLOUDFLARE_API_TOKEN"])
+    urls = origins(target)
     print(f"NEXT_PUBLIC_API_URL={urls['gateway']}")
     print(f"NEXT_PUBLIC_SITE_URL={urls['frontend']}")
     return 0

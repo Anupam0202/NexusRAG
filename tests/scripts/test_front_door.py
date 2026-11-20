@@ -66,10 +66,9 @@ class FrontDoorTests(unittest.TestCase):
         config = patch["deployment_configs"]["production"]
         self.assertEqual(config["services"], {"APP": {"service": "nexusrag-v6-frontend-preview", "environment": "production"},
                                               "GATEWAY": {"service": "nexusrag-v6-preview-gateway", "environment": "production"}})
-        self.assertEqual(config["env_vars"]["FALLBACK_ORIGIN"],
-                         {"type": "plain_text", "value": "https://nexusrag-v6-frontend-preview.example.workers.dev"})
-        self.assertEqual(config["env_vars"]["PUBLIC_ORIGIN"], {"type": "plain_text", "value": "https://nexusrag.pages.dev"},
-                         "every other address of the project is sent to the public one")
+        self.assertEqual(config["env_vars"], {"PUBLIC_ORIGIN": {"type": "plain_text", "value": "https://nexusrag.pages.dev"}},
+                         "every other address of the project is sent to the public one, and no workers.dev address is named")
+        self.assertNotIn("/accounts/account/workers/subdomain", [path for _, path, _, _ in cloudflare.calls])
         self.assertLess(methods.index(("PATCH", PROJECT)), methods.index(("POST", f"{PROJECT}/deployments")),
                         "bindings are set before the deployment that reads them")
         form = next(form for method, path, _, form in cloudflare.calls if path.endswith("/deployments") and method == "POST")
