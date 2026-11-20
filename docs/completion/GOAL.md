@@ -29,9 +29,9 @@ Set it with `/goal` followed by this text:
   `main` on 20 November and each project keeps only that deployment. The four Workers' `workers.dev` and version
   preview addresses are off (error 1042), and the configs and `release.py` keep them off. Both Supabase projects
   accept sign-in returns only on their `pages.dev` address.
-- **Databases.** Both have every migration. Production holds 8 accounts and 8 documents from before the rebuild
-  (shown as "Upload again", NX-03). Its snapshot schema `backup_20261120133700_2845818`, from the 13:37 incident
-  (PROGRESS.md "Done log"), is kept until the owner decides.
+- **Databases.** Both have every migration. Production holds 8 accounts and 8 documents from before the rebuild:
+  seven shown as "Upload again" (NX-03) and one waiting to be erased (NX-50). Its snapshot schema
+  `backup_20261120133700_2845818`, from the 13:37 incident (PROGRESS.md "Done log"), is kept until the owner decides.
 - **Providers.** The owner's new keys work. Gemini passed live validation on `main`, and the preview journey
   ingested and answered with `gemini-3.5-flash-lite` and `gemini-embedding-001`. Qdrant: both gateways are READY.
   Cloudflare: both deploy environments.
@@ -99,8 +99,9 @@ Never, grant or not:
 
 ## 4. Access and facts that save a session time
 
-CONTINUATION_PROMPT section 3 still holds: the frontend is released only by the workflows; waiting uses background
-timers; it covers wiring a new SQL file, migration names, uploads, and Node 24 for lockfile changes. In addition:
+CONTINUATION_PROMPT section 3 still holds. It covers releasing the frontend (only through the workflows), waiting
+with background timers, wiring a new SQL file, migration names, uploads, and Node 24 for lockfile changes. In
+addition:
 
 - **Credentials a session reaches.**
   - **Cloudflare:** the cloud environment injects a working token for `api.cloudflare.com`; send
@@ -119,9 +120,9 @@ timers; it covers wiring a new SQL file, migration names, uploads, and Node 24 f
 - **Merging.**
   - `main` requires, on the pull request's exact head: V6 Foundation CI, V6 Database Rehearsal, "Bounded gemini
     validation", "Bounded qdrant validation" and a successful `Preview` deployment. It also requires linear history.
-  - Once the pull request is ready and CI is green, push its head:
-    `git push origin <head-sha>:refs/heads/release/production-<yyyymmdd>-<n>`, using the next unused `n`. Wait for
-    that run (V6 Live Provider Validation), then merge with `merge_method: squash` and `expectedHeadSha`.
+  - Push the pull request's head: `git push origin <head-sha>:refs/heads/release/production-<yyyymmdd>-<n>`, using
+    the next unused `n`. That starts V6 Live Provider Validation, which can run alongside CI. When every check is
+    green, mark the pull request ready and merge with `merge_method: squash` and `expectedHeadSha`.
   - A transient `PROVIDER_UNAVAILABLE` from Gemini gets one rerun of the failed job.
   - Do not merge while Production Deploy is running: its frontend job checks that the release is still the current
     `main` commit.
