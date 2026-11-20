@@ -18,7 +18,10 @@ Set it with `/goal` followed by this text:
 
 ## 1. Where things stand on 20 November
 
-- **`main` is `90d1b80`.** PR #12 (217 commits) was squash-merged on 20 November with every required check green on
+- **One address per target** (PR #14, `main` `e7eda08`): both front doors hand the API to the gateways and send
+  every other address of their Pages project to the public one. Pages still go to the Workers' own addresses until
+  each target's next release; then phase B2.
+- **`main` was `90d1b80`.** PR #12 (217 commits) was squash-merged on 20 November with every required check green on
   its exact head `d6a5b95`, whose tree is identical: V6 Foundation CI, V6 Database Rehearsal, and V6 Live Provider
   Validation ("Bounded gemini validation" and "Bounded qdrant validation", which also record the required `Preview`
   deployment).
