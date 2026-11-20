@@ -16,10 +16,10 @@ the app and its API, while both keep running and releasing as their Workers. Eve
 domain would replace it later without changing the app.
 
 Before a page is served, the front door reads the build's `/_nexus-build.json`. A build made for the public address
-(`site_url`) is served there. Any other build, including the one production ran before the front door existed, has
-its pages sent on to the Worker's own address, so the switch happens by itself when the first release made for the
-public address goes live. From then on the Worker sends pages opened on its own address to the public one, because
-sign-in returns only to the address the build names. The gateway accepts both origins (`FRONTEND_ORIGIN`).
+(`site_url`) is served there; a build made for another address has its pages sent to that address. The Workers have
+no address of their own: `workers_dev` and `preview_urls` are off in all four Wrangler configs, and
+`scripts/release.py` refuses a config that turns either back on. The gateway's `FRONTEND_ORIGIN` names only the
+public address.
 
 The app is built to call its API at the public address (`NEXT_PUBLIC_API_URL`), and the release smoke tests use it
 too, so `scripts/release.py` refuses to build or release while the address does not answer `/health` as the target's
@@ -34,12 +34,11 @@ creates the project if it is missing, binds the frontend Worker as `APP` and the
 a project whose address Cloudflare gave differently, uploads only the front door's code, and then waits until the
 address answers `/health` as the gateway.
 
-In Supabase (project `fcjaomiceajcdownarel` → Authentication → URL Configuration), before the first release made
-for the public address:
+In Supabase (project `fcjaomiceajcdownarel` → Authentication → URL Configuration), set on 20 November 2026:
 
 - **Site URL:** `https://nexusrag.pages.dev`
-- **Redirect URLs:** add `https://nexusrag.pages.dev/**`. The Worker's own `workers.dev` entry can be removed once
-  a release made for the public address has run.
+- **Redirect URLs:** only `https://nexusrag.pages.dev/**`. Sign-in returns to `/auth/callback?next=…` on the public
+  address.
 
 ## Before the first release
 

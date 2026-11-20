@@ -1,8 +1,9 @@
 {
-  // Standard workers.dev origins are derived by the protected Preview workflow.
+  // No workers.dev address: people and the API reach this Worker only through the front door.
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "nexusrag-v6-candidate-frontend",
   "main": "worker.js",
+  "workers_dev": false,
   "preview_urls": false,
   "compatibility_date": "2026-09-20",
   "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],

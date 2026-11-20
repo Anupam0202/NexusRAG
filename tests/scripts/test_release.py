@@ -19,7 +19,7 @@ SITE = "https://nexusrag-v6-candidate-frontend.example.workers.dev"
 PUBLIC = "https://nexusrag-preview.pages.dev"
 # The front door hands the gateway's paths to the gateway, so the app and its API share the public address.
 GATEWAY = PUBLIC
-URLS = {"gateway": GATEWAY, "frontend": PUBLIC, "frontend_worker": SITE}
+URLS = {"gateway": GATEWAY, "frontend": PUBLIC}
 MODELS = ("gemini-3.5-flash-lite", "gemini-3.1-flash-lite", "gemini-flash-latest")
 CONFIGS = [
     "apps/gateway/wrangler.preview.jsonc", "apps/gateway/wrangler.production.jsonc",
@@ -119,13 +119,11 @@ class TargetIsolationTests(unittest.TestCase):
                 with self.assertRaisesRegex(release.ReleaseError, message):
                     release.validate_targets()
 
-    def test_the_app_and_its_api_share_the_public_address(self):
-        answer = {"success": True, "result": {"subdomain": "example"}}
-        with mock.patch.object(release, "cloudflare", return_value=answer) as cloudflare:
-            urls = release.origins(release.TARGETS["production"], "account", "token")
-        cloudflare.assert_called_once_with("/accounts/account/workers/subdomain", "token")
-        self.assertEqual(urls, {"gateway": "https://nexusrag.pages.dev", "frontend": "https://nexusrag.pages.dev",
-                                "frontend_worker": "https://nexusrag-v6-frontend-preview.example.workers.dev"})
+    def test_the_app_and_its_api_share_the_public_address_and_nothing_else(self):
+        with mock.patch.object(release, "cloudflare") as cloudflare:
+            urls = release.origins(release.TARGETS["production"])
+        cloudflare.assert_not_called()
+        self.assertEqual(urls, {"gateway": "https://nexusrag.pages.dev", "frontend": "https://nexusrag.pages.dev"})
 
     def test_the_build_is_made_for_the_public_address(self):
         env = {"CLOUDFLARE_API_TOKEN": "token", "CLOUDFLARE_ACCOUNT_ID": "account",
@@ -215,10 +213,27 @@ class TargetIsolationTests(unittest.TestCase):
             with self.assertRaisesRegex(release.ReleaseError, "wrapper frontend/worker.js is missing"):
                 release.validate_targets(root)
 
-    def test_versioned_preview_urls_are_disabled_everywhere(self):
+    def test_workers_dev_and_version_preview_addresses_are_off_everywhere(self):
         for name in CONFIGS[:4]:
             with self.subTest(config=name):
-                self.assertIs(json.loads(release.strip_jsonc((ROOT / name).read_text()))["preview_urls"], False)
+                config = json.loads(release.strip_jsonc((ROOT / name).read_text()))
+                self.assertIs(config["workers_dev"], False)
+                self.assertIs(config["preview_urls"], False)
+
+    def test_a_config_that_turns_a_workers_dev_address_back_on_is_refused(self):
+        changes = {
+            "apps/gateway/wrangler.preview.jsonc": lambda c: c.update(workers_dev=True),
+            "apps/gateway/wrangler.production.jsonc": lambda c: c.pop("workers_dev"),
+            "frontend/wrangler.jsonc": lambda c: c.update(preview_urls=True),
+            "frontend/wrangler.production.jsonc": lambda c: c.pop("workers_dev"),
+        }
+        for name, change in changes.items():
+            with self.subTest(config=name), tempfile.TemporaryDirectory() as folder:
+                root = copied_repository(folder)
+                release.validate_targets(root)
+                rewrite_json(root / name, change)
+                with self.assertRaisesRegex(release.ReleaseError, "must keep workers.dev and version preview addresses off"):
+                    release.validate_targets(root)
 
 
 class SmokeTests(unittest.TestCase):
@@ -358,7 +373,7 @@ class ReleaseFlowTests(unittest.TestCase):
         self.assertEqual(variables["QDRANT_COLLECTION"], "nexusrag-v6-candidate")
         self.assertEqual(variables["GEMINI_MODEL"], ",".join(MODELS))
         self.assertEqual(variables["GEMINI_EMBEDDING_MODEL"], "gemini-embedding-001")
-        self.assertEqual(variables["FRONTEND_ORIGIN"], f"{PUBLIC},{SITE}")
+        self.assertEqual(variables["FRONTEND_ORIGIN"], PUBLIC, "the app's only address")
         self.assertEqual(variables["SUPABASE_URL"], "https://ukgjygzfhyvnrsecdcuu.supabase.co")
         self.assertFalse([call for call in wrangler.call_args_list if call.args[0] == "rollback"])
         self.assertIn("Smoke test: passed", printed)
@@ -509,8 +524,7 @@ class ReleaseFlowTests(unittest.TestCase):
                "SUPABASE_DB_URL": "postgresql://postgres.ukgjygzfhyvnrsecdcuu:synthetic-password@aws-1-us-east-1.pooler.supabase.com:5432/postgres"}
         code, out, err, calls = self.preflight(env)
         self.assertEqual(code, 0, err)
-        self.assertEqual(calls, ["/accounts/account/workers/subdomain",
-                                 "/accounts/account/workers/scripts/nexusrag-v6-candidate-gateway/deployments",
+        self.assertEqual(calls, ["/accounts/account/workers/scripts/nexusrag-v6-candidate-gateway/deployments",
                                  "/accounts/account/workers/scripts/nexusrag-v6-candidate-frontend/deployments"])
         self.assertIn("nexusrag-v6-candidate-gateway", out)
         without_database = {key: value for key, value in env.items() if key != "SUPABASE_DB_URL"}
@@ -532,7 +546,7 @@ class ReleaseFlowTests(unittest.TestCase):
 
     def test_preflight_names_a_refused_token_and_a_front_door_without_the_gateway(self):
         env = {"CLOUDFLARE_API_TOKEN": "token", "CLOUDFLARE_ACCOUNT_ID": "account"}
-        refused = release.ReleaseError("Cloudflare refused the API token (HTTP 401) for /accounts/account/workers/subdomain")
+        refused = release.ReleaseError("Cloudflare refused the API token (HTTP 401) for /accounts/account/workers/scripts/x/deployments")
         code, _, err, _ = self.preflight(env, cloudflare=refused)
         self.assertEqual(code, 1)
         self.assertIn("Cloudflare refused the API token (HTTP 401)", err)

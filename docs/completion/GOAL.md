@@ -16,42 +16,23 @@ Set it with `/goal` followed by this text:
 > remaining item needs an owner input from GOAL.md section 5, each one has been asked for in this session, and a
 > scheduled task will resume the work within 12 hours. A pause is not completion.
 
-## 1. Where things stand on 20 November
+## 1. Where things stand on 20 November (evening)
 
-- **One address per target** (PR #14, `main` `e7eda08`): both front doors hand the API to the gateways and send
-  every other address of their Pages project to the public one. Pages still go to the Workers' own addresses until
-  each target's next release; then phase B2.
-- **`main` was `90d1b80`.** PR #12 (217 commits) was squash-merged on 20 November with every required check green on
-  its exact head `d6a5b95`, whose tree is identical: V6 Foundation CI, V6 Database Rehearsal, and V6 Live Provider
-  Validation ("Bounded gemini validation" and "Bounded qdrant validation", which also record the required `Preview`
-  deployment).
-- **Production still runs the September build.** In Chromium on 20 November, https://nexusrag.pages.dev forwards to
-  the September frontend Worker: every page shows "Backend offline", sign-in offers GitHub only, and `/pricing`,
-  `/security` and `/research` answer 404. Production Deploy ([run 44669070315]) stopped at "Check required
-  configuration": **`SUPABASE_DB_URL` is missing from the `Production` environment**. Nothing was changed; every
-  other production secret and variable it checks is present. The production database is 46 migrations behind by
-  name plus the five below, and its gateway still defaults to `gemini-2.5-flash`, which Google shuts down on
-  **1 December 2026**.
-- **The preview frontend still runs an October build.** https://nexusrag-preview.pages.dev forwards to it, and
-  `/pricing`, `/security`, `/research` and unknown paths crash with Error 1101 (NX-01, fixed on `main`). Cloudflare
-  Preview Deploy from `main` ([run 44669231783]) was refused before it started: the `NexusRAG-Candidate-Preview`
-  environment does not allow `main` to deploy. The preview gateway runs `81bab63` (same gateway code as `main`).
-- **Rehearsal database** (`ukgjygzfhyvnrsecdcuu`): five migrations pending: `20261113210000_account_deletion`,
-  `20261114090000_research_calculation_runs`, `20261114120000_storage_reconciliation`,
-  `20261117090000_ranked_keyword_search` and `20261117120000_foreign_key_indexes`.
-- **Supabase Auth URLs are unset.** Probed on 20 November (section 4): production's Site URL is the September
-  frontend Worker's `workers.dev` address and rehearsal's is the candidate frontend's; neither accepts its
-  `pages.dev` address. Until they do, Google sign-in from a public address returns to the old address.
-- **Gemini.** The `Preview` GitHub environment's `GOOGLE_API_KEY` works (live validation READY on 20 November). The
-  key the owner pasted into the build session answers HTTP 402. The keys in `Production` and
-  `NexusRAG-Candidate-Preview` are present but untested.
-- **The Supabase access token** saved on this cloud environment for `api.supabase.com` is refused (401, "JWT could
-  not be decoded"): it is not a personal access token.
-- **Ledger.** PROGRESS.md "Ledger status" sorts every NX item. NX-48 and NX-49 were resolved upstream on 18 and 19
-  November.
+- **Both targets run `main`, each at one address.** Production Deploy ([run 44751846631]) released `2845818` to
+  https://nexusrag.pages.dev (smoke tests and 52 browser tests passed); Cloudflare Preview Deploy released `c56ec45`
+  to https://nexusrag-preview.pages.dev. Each front door serves its app and its API; the Workers' `workers.dev` and
+  version preview addresses are off, and both Supabase projects accept sign-in returns only on their `pages.dev`
+  address.
+- **Databases.** Production has every migration: 35 were applied at 13:37 UTC by a preview run whose
+  `SUPABASE_DB_URL` named production (PROGRESS.md "Done log"); `release.py preflight` now refuses that before any
+  database is touched. Rehearsal has every migration too (13:55 UTC).
+- **Providers.** The owner's new `GOOGLE_API_KEY` answers real requests (live validation on `main`, 14:25 UTC) and
+  Qdrant answers both gateways with the owner's new key. Production's collection `nexusrag-v6-preview` is empty.
+- **Not done yet:** the owner's provider review (no document can be processed until it is recorded), the live
+  journeys (phase B step 2 and phase C), the owner's walkthrough, the ledger decisions and the credential rotation.
+- **Ledger.** PROGRESS.md "Ledger status" sorts every NX item; NX-01 is now fixed live.
 
-[run 44669070315]: https://github.com/Anupam0202/NexusRAG/actions/runs/44669070315
-[run 44669231783]: https://github.com/Anupam0202/NexusRAG/actions/runs/44669231783
+[run 44751846631]: https://github.com/Anupam0202/NexusRAG/actions/runs/44751846631
 
 ## 2. The owner's standing grant
 
@@ -144,6 +125,8 @@ GitHub's settings, never chat.
 
 ### Phase A: production, as soon as input 1 is in
 
+Status 20 November: steps 1 and 2 done (run 44751846631); step 3 waits on the owner's provider review.
+
 1. Run Production Deploy with `release_sha` = current `main`. Follow the snapshot, migrations, gateway and frontend
    releases and their smoke tests; on failure, read the log, fix the cause on a branch, merge, and run it again.
 2. Verify: `/ready` READY; `python3 scripts/migration_status.py status` shows nothing pending; the browser check of
@@ -155,6 +138,8 @@ GitHub's settings, never chat.
 
 ### Phase B: the preview, as soon as input 2 is in
 
+Status 20 November: step 1 done (runs 44750157831 and 44756110282); step 2 is next.
+
 1. Run Cloudflare Preview Deploy from `main` with "Deploy this branch to the candidate preview". It applies the five
    migrations when `SUPABASE_DB_URL` is set, releases both Workers and runs the deployed browser tests.
 2. Then the full live journey (CONTINUATION_PROMPT phase B steps 2 to 7): advisors, grants, reconciliation, public
@@ -163,6 +148,11 @@ GitHub's settings, never chat.
    two-user isolation, and chat timing p50/p95 over 20 answers.
 
 ### Phase B2: one address per target, after phases A and B
+
+Status 20 November: steps 1 and 3 done. Step 2 is done apart from the frontend Worker's redirect from its
+`workers.dev` address (`static-document-worker.ts`), which can no longer trigger; remove it with the next
+frontend change. In step 4 the repository's website setting waits on the owner; old addresses remain only in
+historical records.
 
 1. Check that no page or API call reaches a `workers.dev` address: both public addresses serve their pages
    themselves (no redirect) and the browser check shows API calls only to the public address and Supabase.
