@@ -21,6 +21,13 @@ ENV = {"SUPABASE_URL": SUPABASE, "SUPABASE_SERVICE_ROLE_KEY": "synthetic-service
        "QDRANT_URL": INDEX + "/", "QDRANT_API_KEY": "synthetic-index-key-do-not-log"}
 WORKSPACE = "11111111-1111-4111-8111-111111111111"
 KEPT, GONE_A, GONE_B = (f"{letter * 8}-0000-4000-8000-000000000000" for letter in "abc")
+# Entries written before NX-36 hold the passage and the file's name; the tool asks the index to count and clear them.
+TEXT_FILTER = {"should": [{"must_not": [{"is_empty": {"key": "content"}}]}, {"must_not": [{"is_empty": {"key": "filename"}}]}]}
+
+
+def holds_text(point):
+    """Qdrant's is_empty: a key that is missing, null or an empty list is empty."""
+    return any(point["payload"].get(key) not in (None, []) for key in ("content", "filename"))
 
 
 class World:
@@ -37,6 +44,7 @@ class World:
         self.calls = []
         self.refuse = {}                            # part of a URL -> status to answer with
         self.undeletable = set()                    # files storage claims to delete but keeps
+        self.text_kept = False                      # the index claims to clear the text but keeps it
 
     def http(self, method, url, headers, body=None, timeout=60):
         self.calls.append((method, url, body, dict(headers)))
@@ -73,6 +81,17 @@ class World:
             page = self.points[start:start + body["limit"]]
             following = start + body["limit"]
             return 200, {"result": {"points": page, "next_page_offset": following if following < len(self.points) else None}}
+        if path == f"/collections/{COLLECTION}/points/count":
+            if COLLECTION not in self.collections:
+                return 404, None
+            assert body == {"filter": TEXT_FILTER, "exact": True}, body
+            return 200, {"result": {"count": sum(1 for point in self.points if holds_text(point))}, "status": "ok"}
+        if path == f"/collections/{COLLECTION}/points/payload/delete":
+            assert body == {"keys": ["content", "filename"], "filter": TEXT_FILTER}, body
+            for point in [] if self.text_kept else self.points:
+                for key in ("content", "filename"):
+                    point["payload"].pop(key, None)
+            return 200, {"result": {"status": "completed"}, "status": "ok"}
         if path == f"/collections/{COLLECTION}/points/delete":
             chosen = set(body["filter"]["must"][0]["match"]["any"])
             self.points = [point for point in self.points if point["payload"].get("version_id") not in chosen]
@@ -102,7 +121,9 @@ def out_of_step():
     world.originals_gone = [{"workspace_id": WORKSPACE, "document_id": "doc-lost-original", "version_id": None}]
     world.answerable = {"doc-kept": KEPT, "doc-unindexed": "dddddddd-0000-4000-8000-000000000000"}
     world.versions = {KEPT, "dddddddd-0000-4000-8000-000000000000"}
-    world.points += [{"id": 10 + n, "payload": {"version_id": GONE_A}} for n in range(4)]
+    world.points[0]["payload"]["filename"] = "kept-report.pdf"  # written after NX-36 removed the passage, before the name went
+    world.points += [{"id": 10 + n, "payload": {"version_id": GONE_A, "filename": "payroll-2026.pdf", "content": "synthetic payroll passage"}}
+                     for n in range(4)]
     world.points += [{"id": 20, "payload": {"version_id": GONE_B}}, {"id": 30, "payload": {}}, {"id": 31, "payload": {"version_id": None}}]
     return world
 
@@ -116,10 +137,12 @@ class ReportTests(unittest.TestCase):
         code, out, err = world.run("report", "--target", "candidate")
         self.assertEqual((code, err), (0, ""))
         for row in ("| Stored files that no document names | 0 |", "| Documents whose original file is gone | 0 |",
-                    "| Index entries of versions that no longer exist | 0 |", "| Answerable documents the index holds nothing of | 0 |"):
+                    "| Index entries of versions that no longer exist | 0 |", "| Answerable documents the index holds nothing of | 0 |",
+                    "| Index entries that still hold document text or file names | 0 |"):
             self.assertIn(row, out)
         self.assertNotIn("What to do", out)
-        self.assertEqual([call[0] for call in world.calls], ["POST", "GET", "POST", "POST"], "a report only reads")
+        self.assertEqual([call[0] for call in world.calls], ["POST", "GET", "POST", "POST", "POST"], "a report only reads")
+        self.assertEqual(world.sent("POST", "points/count")[0][2], {"filter": TEXT_FILTER, "exact": True}, "the index counts; no text is read")
 
     def test_everything_out_of_step_is_counted_without_naming_anything(self):
         world = out_of_step()
@@ -132,16 +155,19 @@ class ReportTests(unittest.TestCase):
         for row in ("| Stored files that no document names | 2 (4.1 kB) |", "| Documents whose original file is gone | 1 |",
                     "| Index entries of versions that no longer exist | 2 versions, 5 entries |",
                     "| Answerable documents the index holds nothing of | 1 |",
+                    "| Index entries that still hold document text or file names | 5 |",
                     "Index entries that name no version at all: 2.",
                     "`python3 scripts/reconciliation.py remove-files --target candidate --expect 2`",
                     "`python3 scripts/reconciliation.py remove-index-entries --target candidate --expect 2`",
+                    "`python3 scripts/reconciliation.py remove-index-text --target candidate --expect 5`",
                     "choose Re-index"):
             self.assertIn(row, out)
         self.assertEqual(written.strip(), out.strip())
         # A workflow log is public: no file name, identifier or key may reach it.
         for private in PRIVATE:
             self.assertNotIn(private, out + err, private)
-        self.assertFalse(world.sent("DELETE", "") or world.sent("POST", "points/delete"), "a report removes nothing")
+        self.assertFalse(world.sent("DELETE", "") or world.sent("POST", "points/delete") or world.sent("POST", "payload/delete"), "a report removes nothing")
+        self.assertTrue(all(call[2]["with_payload"] == ["version_id"] for call in world.sent("POST", "points/scroll")), "no text leaves the index")
 
     def test_details_name_what_was_found_but_never_in_a_workflow(self):
         code, out, _ = out_of_step().run("report", "--target", "candidate", "--details")
@@ -164,7 +190,7 @@ class ReportTests(unittest.TestCase):
         world.files, world.originals_gone = {}, []
         code, out, _ = world.run("report", "--target", "candidate", env={**ENV, "QDRANT_URL": "", "QDRANT_API_KEY": ""})
         self.assertEqual(code, 0)
-        self.assertEqual(out.count("| not checked |"), 2)
+        self.assertEqual(out.count("| not checked |"), 3)
         self.assertIn("The search index was not checked", out)
         self.assertEqual(len(world.calls), 1)
 
@@ -186,6 +212,7 @@ class ReportTests(unittest.TestCase):
         code, out, _ = world.run("report", "--target", "candidate")
         self.assertEqual(code, 1)
         self.assertIn("| Answerable documents the index holds nothing of | 1 |", out)
+        self.assertIn("| Index entries that still hold document text or file names | 0 |", out)
         self.assertFalse(world.sent("POST", "points/scroll"), "another deployment's collection is never read")
 
     def test_entries_without_a_version_are_noted_but_are_not_a_finding(self):
@@ -284,6 +311,52 @@ class RemovalTests(unittest.TestCase):
         self.assertEqual(code, 1)
         self.assertIn("The search index refused to delete (HTTP 503) after 0 of 2 versions", err)
 
+    def test_text_is_removed_from_index_entries_only_with_the_count_of_a_fresh_report(self):
+        world = out_of_step()
+        code, out, err = world.run("remove-index-text", "--target", "candidate", "--expect", "4")
+        self.assertEqual((code, out), (1, ""))
+        self.assertIn("The report now counts 5 index entries with document text or file names, not 4.", err)
+        self.assertIn("Nothing was removed", err)
+        self.assertFalse(world.sent("POST", "payload/delete"))
+
+        code, out, err = world.run("remove-index-text", "--target", "candidate", "--expect", "5")
+        self.assertEqual((code, err), (0, ""))
+        self.assertEqual(out.strip(), "Removed document text and file names from 5 index entries; the entries stay searchable.")
+        removal = world.sent("POST", "payload/delete")
+        self.assertEqual([call[2] for call in removal], [{"keys": ["content", "filename"], "filter": TEXT_FILTER}])
+        self.assertIn("wait=true", removal[0][1])
+        self.assertFalse(any(holds_text(point) for point in world.points))
+        self.assertEqual([point["payload"].get("version_id") for point in world.points], [KEPT] * 3 + [GONE_A] * 4 + [GONE_B, None, None],
+                         "every entry stays, with its identifiers")
+        for private in PRIVATE:
+            self.assertNotIn(private, out + err, private)
+        code, out, _ = world.run("remove-index-text", "--target", "candidate", "--expect", "0")
+        self.assertEqual(code, 0)
+        self.assertIn("No index entry holds document text or a file name. Nothing was removed.", out)
+        self.assertEqual(len(world.sent("POST", "payload/delete")), 1)
+
+    def test_an_index_that_keeps_the_text_fails_the_removal(self):
+        world = out_of_step()
+        world.refuse = {"payload/delete": 503}
+        code, _, err = world.run("remove-index-text", "--target", "candidate", "--expect", "5")
+        self.assertEqual(code, 1)
+        self.assertIn("The search index refused to remove the text (HTTP 503)", err)
+        world = out_of_step()
+        world.text_kept = True
+        code, _, err = world.run("remove-index-text", "--target", "candidate", "--expect", "5")
+        self.assertEqual(code, 1)
+        self.assertIn("After the removal the index still counts 5 entries with document text or file names", err)
+        # Without the index settings there is nothing to clear; an index that was reset holds nothing.
+        code, _, err = world.run("remove-index-text", "--target", "candidate", "--expect", "5", env={**ENV, "QDRANT_API_KEY": ""})
+        self.assertEqual(code, 1)
+        self.assertIn("QDRANT_URL and QDRANT_API_KEY are needed", err)
+        world = World()
+        world.collections = ["another-deployment"]
+        code, out, _ = world.run("remove-index-text", "--target", "candidate", "--expect", "0")
+        self.assertEqual(code, 0)
+        self.assertIn("Nothing was removed", out)
+        self.assertFalse(world.sent("POST", "payload/delete"))
+
 
 class SafetyTests(unittest.TestCase):
     def test_settings_are_checked_before_anything_is_asked(self):
@@ -295,7 +368,8 @@ class SafetyTests(unittest.TestCase):
         self.assertIn("SUPABASE_URL names another one", err)
         for argv, message in ((("report", "--target", "candidate", "--grace-minutes", "5"), "at least 10"),
                               (("remove-files", "--target", "candidate"), "needs --expect"),
-                              (("remove-index-entries", "--target", "candidate", "--expect", "-1"), "needs --expect")):
+                              (("remove-index-entries", "--target", "candidate", "--expect", "-1"), "needs --expect"),
+                              (("remove-index-text", "--target", "candidate"), "needs --expect")):
             code, _, err = world.run(*argv)
             self.assertEqual(code, 1)
             self.assertIn(message, err)
@@ -320,7 +394,8 @@ class SafetyTests(unittest.TestCase):
                                 ({"rpc/nexus_storage_reconciliation": 401}, "did not accept the service role key"),
                                 ({"rpc/nexus_index_reconciliation": 500}, "The database refused the report (HTTP 500)"),
                                 ({"/collections": 403}, "The search index did not accept its key"),
-                                ({"points/scroll": 502}, "The search index did not list its entries (HTTP 502)")):
+                                ({"points/scroll": 502}, "The search index did not list its entries (HTTP 502)"),
+                                ({"points/count": 502}, "The search index did not count the entries that hold document text (HTTP 502)")):
             world = out_of_step()
             world.refuse = refuse
             code, out, err = world.run("report", "--target", "candidate")
@@ -361,12 +436,14 @@ class WorkflowTests(unittest.TestCase):
         self.assertEqual(set(triggers), {"workflow_dispatch"})
         self.assertEqual(workflow["permissions"], {"contents": "read"})
         inputs = triggers["workflow_dispatch"]["inputs"]
-        self.assertEqual((inputs["action"]["default"], inputs["action"]["options"]), ("report", ["report", "remove-files", "remove-index-entries"]))
+        self.assertEqual((inputs["action"]["default"], inputs["action"]["options"]),
+                         ("report", ["report", "remove-files", "remove-index-entries", "remove-index-text"]))
         self.assertEqual(inputs["target"]["options"], sorted(release.TARGETS))
         job = workflow["jobs"]["reconcile"]
         self.assertIn("'Production'", job["environment"])
         self.assertIn("'NexusRAG-Candidate-Preview'", job["environment"])
         self.assertNotIn("--details", text)
+        self.assertIn("remove-files|remove-index-entries|remove-index-text)", text, "every removal takes the expected count")
         self.assertNotIn("${{ inputs.", "".join(step.get("run", "") for step in job["steps"]), "inputs reach the script through the environment only")
         for step in job["steps"]:
             if "uses" in step:

@@ -1107,7 +1107,7 @@ test("outgoing requests per invocation stay within the free plan's 50, and an an
   }
 });
 
-test("index entries carry no passage text: answers quote it from the database, checked against its hash", async (t) => {
+test("index entries carry no passage text or file name: answers take both from the database, the passage checked against its hash", async (t) => {
   const fixture = localAppFixture();
   t.mock.method(globalThis, "fetch", fixture.fetch);
   const headers = { authorization: "Bearer synthetic-oauth-token", "x-nexus-workspace-id": workspace };
@@ -1124,7 +1124,8 @@ test("index entries carry no passage text: answers quote it from the database, c
   assert.equal(fixture.points.size, fixture.expectedChunks);
   for (const point of fixture.points.values()) {
     assert.equal(Object.hasOwn(point.payload, "content"), false, "the index holds identifiers and positions, not the passage");
-    assert.deepEqual(Object.keys(point.payload).sort(), ["chunk_id", "chunk_index", "document_id", "filename", "index_generation", "location", "page_number", "version_id", "workspace_id"]);
+    assert.equal(Object.hasOwn(point.payload, "filename"), false, "nor the name people gave the file");
+    assert.deepEqual(Object.keys(point.payload).sort(), ["chunk_id", "chunk_index", "document_id", "index_generation", "location", "page_number", "version_id", "workspace_id"]);
   }
   const response = await handle(new Request("https://gateway.invalid/api/v1/chat", {
     method: "POST", headers: { ...headers, "content-type": "application/json", "idempotency-key": crypto.randomUUID() },
@@ -1134,5 +1135,6 @@ test("index entries carry no passage text: answers quote it from the database, c
   assert.equal(response.status, 200, JSON.stringify(answer));
   assert.match(answer.answer, /30-day retention policy/);
   assert.ok(answer.sources.length > 0 && answer.sources.every((source) => source.content.length > 0 && source.metadata.authority === "SUPABASE_HASH_VERIFIED"));
+  assert.ok(answer.sources.every((source) => source.filename === "retention-policy.txt"), "sources still name the file, from the database");
   assert.match(JSON.stringify(fixture.outbound), /sets evidence retention at 30 days/, "the model still reads the passages");
 });
