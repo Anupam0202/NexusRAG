@@ -1,0 +1,17 @@
+# Keeps the GitHub Actions current (NX-38). Every workflow pins its actions to a commit with the version in a
+# comment, and Dependabot updates both. One grouped pull request a week; it needs the same required checks as any
+# other change before it can merge (GOAL.md section 4).
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      github-actions:
+        patterns: ["*"]
+    commit-message:
+      prefix: ci
+      include: scope
+    open-pull-requests-limit: 3
