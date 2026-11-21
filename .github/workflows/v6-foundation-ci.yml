@@ -25,32 +25,6 @@ jobs:
       - run: python3 scripts/verify_v6_migrations.py
       - run: python3 -m pip install -r tests/scripts/requirements.txt
       - run: python3 -m unittest discover -s tests/scripts -p 'test_*.py'
-  backend-isolated:
-    name: Backend isolated regressions
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
-      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
-        with: {python-version: "3.13"}
-      - run: python3 -m compileall -q src tests
-        working-directory: backend
-      - run: python3 scripts/run_isolated.py
-        working-directory: backend
-  backend-full:
-    name: Backend complete offline suite
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
-      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
-        with:
-          python-version: "3.13"
-          cache: pip
-          cache-dependency-path: backend/requirements-test.txt
-      - run: python3 -m pip install --upgrade "pip>=26.2"
-      - run: python3 -m pip install -r backend/requirements-test.txt
-      - run: python3 backend/scripts/run_full_tests.py
   evaluation-inventory:
     name: Evaluation inventory
     runs-on: ubuntu-latest
@@ -60,14 +34,12 @@ jobs:
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with: {python-version: "3.13"}
       - run: python3 evals/build_v6_dataset.py --output-dir /tmp/nexusrag-v6-evals
-        working-directory: backend
       - name: Score fixed synthetic contract gates
         run: |
           python3 evals/score_v6_contracts.py \
             --labeled /tmp/nexusrag-v6-evals/v6-labeled.jsonl \
             --heldout /tmp/nexusrag-v6-evals/v6-heldout.jsonl \
             --output /tmp/nexusrag-v6-evals/v6-contract-score.json
-        working-directory: backend
       - name: Validate required counts and held-out separation
         run: |
           python3 - <<'PY'
@@ -332,14 +304,12 @@ jobs:
   required-summary:
     name: Required foundation summary
     if: always()
-    needs: [migration-integrity,backend-isolated,backend-full,evaluation-inventory,cloudflare-foundation,frontend,dependency-review,supply-chain,self-managed-runtime]
+    needs: [migration-integrity,evaluation-inventory,cloudflare-foundation,frontend,dependency-review,supply-chain,self-managed-runtime]
     runs-on: ubuntu-latest
     steps:
       - name: Fail unless required jobs passed
         env:
           MIGRATION_RESULT: ${{ needs.migration-integrity.result }}
-          BACKEND_RESULT: ${{ needs.backend-isolated.result }}
-          BACKEND_FULL_RESULT: ${{ needs.backend-full.result }}
           EVALUATION_RESULT: ${{ needs.evaluation-inventory.result }}
           CLOUDFLARE_RESULT: ${{ needs.cloudflare-foundation.result }}
           FRONTEND_RESULT: ${{ needs.frontend.result }}
@@ -348,10 +318,8 @@ jobs:
           CONTAINER_RESULT: ${{ needs.self-managed-runtime.result }}
         run: |
           set -euo pipefail
-          printf 'migration=%s backend=%s evaluation=%s cloudflare=%s frontend=%s dependency=%s supply_chain=%s\n' "$MIGRATION_RESULT" "$BACKEND_RESULT" "$EVALUATION_RESULT" "$CLOUDFLARE_RESULT" "$FRONTEND_RESULT" "$DEPENDENCY_RESULT" "$SUPPLY_CHAIN_RESULT"
+          printf 'migration=%s evaluation=%s cloudflare=%s frontend=%s dependency=%s supply_chain=%s\n' "$MIGRATION_RESULT" "$EVALUATION_RESULT" "$CLOUDFLARE_RESULT" "$FRONTEND_RESULT" "$DEPENDENCY_RESULT" "$SUPPLY_CHAIN_RESULT"
           test "$MIGRATION_RESULT" = success
-          test "$BACKEND_RESULT" = success
-          test "$BACKEND_FULL_RESULT" = success
           test "$EVALUATION_RESULT" = success
           test "$CLOUDFLARE_RESULT" = success
           test "$FRONTEND_RESULT" = success

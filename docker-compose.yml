@@ -1,45 +1,16 @@
+# The optional self-managed frontend image (frontend/Dockerfile). The API is the gateway Worker on Cloudflare
+# (apps/gateway), which Compose cannot run: set NEXT_PUBLIC_API_URL to its address, or to `wrangler dev`'s.
 services:
-  backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-    ports:
-      - "8000:8000"
-    env_file:
-      - ./backend/.env
-    environment:
-      - API_CORS_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
-      - LOG_FORMAT=console
-    volumes:
-      - backend_data:/app/data
-      - ./backend/src:/app/src
-      - ./backend/main.py:/app/main.py
-      - ./backend/config:/app/config
-    healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=5).read()"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 60s
-    restart: unless-stopped
-
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        # Browser requests need the host URL, not Docker's internal backend DNS.
-        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:?Set NEXT_PUBLIC_API_URL to the gateway address}
         NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-http://localhost:3000}
         NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL:-}
         NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY:-}
-        NEXT_PUBLIC_OAUTH_PROVIDERS: ${NEXT_PUBLIC_OAUTH_PROVIDERS:-google,github}
+        NEXT_PUBLIC_OAUTH_PROVIDERS: ${NEXT_PUBLIC_OAUTH_PROVIDERS:-google}
     ports:
       - "3000:3000"
-    depends_on:
-      backend:
-        condition: service_healthy
     restart: unless-stopped
-
-volumes:
-  backend_data:

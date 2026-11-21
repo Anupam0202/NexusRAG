@@ -42,26 +42,28 @@ class ImageReceiptTests(unittest.TestCase):
 
     def test_unknown_image_scope_is_rejected(self):
         self.assertNotEqual(self.run_report({'frontend': self.report()}, images='database').returncode, 0)
+        # The Python backend image is gone (NX-31), so asking for its scan is an error, not a pass.
+        self.assertNotEqual(self.run_report({'frontend': self.report()}, images='backend,frontend').returncode, 0)
 
     def test_missing_scan_never_turns_green(self):
-        result = self.run_report({'backend': self.report()})
+        result = self.run_report({})
         self.assertNotEqual(result.returncode, 0)
         self.assertIn('SCAN_RESULT_UNAVAILABLE', result.stdout)
 
     def test_medium_findings_fail_including_without_a_fix(self):
-        result = self.run_report({'backend': self.report('Medium'), 'frontend': self.report()})
+        result = self.run_report({'frontend': self.report('Medium')})
         self.assertNotEqual(result.returncode, 0)
 
     def test_suppressed_findings_are_rejected(self):
         report = self.report(); report['ignoredMatches'] = [{'synthetic': 'ignored'}]
-        self.assertNotEqual(self.run_report({'backend': report, 'frontend': self.report()}).returncode, 0)
+        self.assertNotEqual(self.run_report({'frontend': report}).returncode, 0)
 
     def test_wrong_source_type_is_not_an_image_gate(self):
         report = self.report(); report['source']['type'] = 'directory'
-        self.assertNotEqual(self.run_report({'backend': report, 'frontend': self.report()}).returncode, 0)
+        self.assertNotEqual(self.run_report({'frontend': report}).returncode, 0)
 
     def test_low_findings_remain_visible_not_suppressed(self):
-        result = self.run_report({'backend': self.report('Low'), 'frontend': self.report()})
+        result = self.run_report({'frontend': self.report('Low')})
         self.assertEqual(result.returncode, 0)
         self.assertIn('SYNTHETIC-TEST', result.stdout)
         self.assertIn('Low', result.stdout)
@@ -71,7 +73,7 @@ class ImageReceiptTests(unittest.TestCase):
         report['matches'][0]['vulnerability']['fix'] = {'state': 'fixed', 'versions': ['2']}
         report['matches'][0]['artifact']['locations'] = [{'path': '/synthetic/native/library'}]
         report['matches'] *= 21
-        result = self.run_report({'backend': report, 'frontend': self.report()})
+        result = self.run_report({'frontend': report})
         self.assertNotEqual(result.returncode, 0)
         self.assertEqual(sum(line.startswith('IMAGE_FINDING ') for line in result.stdout.splitlines()), 21)
         self.assertIn('/synthetic/native/library', result.stdout)
@@ -82,7 +84,7 @@ class ImageReceiptTests(unittest.TestCase):
         critical = self.report('Critical')['matches'][0]
         critical['vulnerability']['id'] = 'SYNTHETIC-CRITICAL'
         report['matches'].append(critical)
-        result = self.run_report({'backend': report, 'frontend': self.report()})
+        result = self.run_report({'frontend': report})
         self.assertIn('- SYNTHETIC-CRITICAL:', result.stdout)
         self.assertNotEqual(result.returncode, 0)
 
@@ -96,7 +98,7 @@ class ImageProvenanceTests(unittest.TestCase):
         report = self.report('High')
         report['matches'][0]['artifact'].update({'locations': [{'path': '/synthetic/library', 'layerID': 'synthetic-layer'}], 'metadata': {'sourceName': 'synthetic-source', 'sourceVersion': '1'}})
         report['matches'][0]['vulnerability'].update({'namespace': 'synthetic-distro', 'dataSource': 'https://example.invalid/synthetic-advisory'})
-        result = self.run_report({'backend': report, 'frontend': self.report()})
+        result = self.run_report({'frontend': report})
         self.assertNotEqual(result.returncode, 0)
         self.assertIn('synthetic-layer', result.stdout)
         self.assertIn('synthetic-source', result.stdout)

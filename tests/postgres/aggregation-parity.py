@@ -5,8 +5,8 @@ from pathlib import Path
 import subprocess
 import sys
 
-sys.path.insert(0,str(Path(__file__).resolve().parents[2]/'backend'))
-from src.domain.deterministic_calculations import AggregationOperation, Quantity, aggregate
+sys.path.insert(0,str(Path(__file__).resolve().parent))
+from deterministic_calculations import AggregationOperation, Quantity, aggregate
 
 cases=[]
 for operation in AggregationOperation:

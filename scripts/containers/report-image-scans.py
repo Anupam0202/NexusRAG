@@ -7,13 +7,13 @@ from pathlib import Path
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--report-dir', type=Path, default=Path('/tmp'))
-parser.add_argument('--images', default='backend,frontend',
-                    help='Comma-separated images whose scans are required (the backend is optional, D4)')
+parser.add_argument('--images', default='frontend',
+                    help='Comma-separated images whose scans are required; the self-managed frontend is the only image')
 args = parser.parse_args()
 failed = False
 lines = ["## Full image vulnerability receipts", ""]
 images = [name.strip() for name in args.images.split(',') if name.strip()]
-if not images or any(name not in ('backend', 'frontend') for name in images):
+if not images or any(name != 'frontend' for name in images):
     raise SystemExit(f'Unknown --images value: {args.images}')
 for name in images:
     path = args.report_dir / f"nexusrag-{name}-grype.json"
