@@ -1,5 +1,6 @@
 import { assessAnswer } from "./answer-evidence.js";
 import modes from "../../../frontend/src/lib/research-modes.json" with { type: "json" };
+import { parseModelJson } from "./model-json.js";
 
 const limits=modes.DEEP_RESEARCH;
 const fail=(code,message)=>Object.assign(new Error(message),{code});
@@ -65,7 +66,7 @@ export function deepResult(work,documents,sources,consulted,generated) {
     throw fail("INVALID_SCOPE","Deep Research coverage does not match the saved scope.");
   let value={answer:"No indexed evidence was available for this research question.",limitations:[],gaps:["NO_INDEXED_EVIDENCE"]};
   if(generated) {
-    try {value=JSON.parse(generated.answer);}catch {throw fail("PROVIDER_INVALID_RESPONSE","The provider did not return a complete Deep Research report.");}
+    try {value=parseModelJson(generated.answer);}catch {throw fail("PROVIDER_INVALID_RESPONSE","The provider did not return a complete Deep Research report.");}
     const bounded=entries=>Array.isArray(entries)&&entries.length<=8&&entries.every(item=>typeof item==="string"&&item.trim()&&Array.from(item).length<=500);
     if(!value||typeof value.answer!=="string"||!value.answer.trim()||value.answer.length>16000||!bounded(value.limitations)||!bounded(value.gaps))
       throw fail("PROVIDER_INVALID_RESPONSE","The Deep Research report fields were incomplete or exceeded their bounds.");

@@ -261,6 +261,8 @@ function generationSetup(env, context) {
   return { apiKey, temperature, outputTokens: context?.outputTokens === 4096 ? 4096 : 1024 };
 }
 
+// With context.json, Gemini is asked for JSON output: without it, replies to "return only JSON" came wrapped in
+// Markdown code fences live (issue #29). Callers still read replies with parseModelJson (model-json.js).
 async function generateAnswer(env, prompt, context) {
   const { apiKey, temperature, outputTokens } = generationSetup(env, context);
   let model;
@@ -269,7 +271,7 @@ async function generateAnswer(env, prompt, context) {
     const thinkingConfig = thinkingConfigFor(candidate);
     return geminiCall(env, { ...context, provider: "gemini" }, { requests: 1, input_tokens: new TextEncoder().encode(prompt).length, output_tokens: outputTokens }, () => providerJson(
       `https:${"//"}generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(candidate)}:generateContent`,
-      { method: "POST", signal: context?.signal, headers: { "content-type": "application/json", "x-goog-api-key": apiKey }, body: JSON.stringify({ contents: [{ role: "user", parts: [{ text: prompt }] }], generationConfig: { temperature, maxOutputTokens: outputTokens, candidateCount: 1, ...(thinkingConfig ? { thinkingConfig } : {}) } }) },
+      { method: "POST", signal: context?.signal, headers: { "content-type": "application/json", "x-goog-api-key": apiKey }, body: JSON.stringify({ contents: [{ role: "user", parts: [{ text: prompt }] }], generationConfig: { temperature, maxOutputTokens: outputTokens, candidateCount: 1, ...(context?.json ? { responseMimeType: "application/json" } : {}), ...(thinkingConfig ? { thinkingConfig } : {}) } }) },
       25_000,
     ));
   });

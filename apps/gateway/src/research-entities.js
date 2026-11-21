@@ -1,4 +1,5 @@
 import modes from "../../../frontend/src/lib/research-modes.json" with {type:"json"};
+import { parseModelJson } from "./model-json.js";
 
 const limits=modes.ENTITY_INVESTIGATION;
 const optional=["jurisdiction","valid_from","valid_to"],lists=["identifiers","aliases","filings"];
@@ -86,7 +87,7 @@ export function entityResult(work,documents,sources,generated) {
     return {document_id:original.source.document_id,citation_id:value.citation_id,quote:value.quote,quote_start:start,quote_end:end};
   };
   let proposed=[];
-  if(generated){let value;try{value=JSON.parse(generated.answer);}catch{throw invalid();}
+  if(generated){let value;try{value=parseModelJson(generated.answer);}catch{throw invalid();}
     if(!Array.isArray(value?.candidates)||value.candidates.length>12)throw invalid();proposed=expand(value,sources);}
   const candidates=[],rejections=[],seen=new Set();
   for(const [index,row] of proposed.entries()) {

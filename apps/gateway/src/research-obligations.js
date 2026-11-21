@@ -1,4 +1,5 @@
 import modes from "../../../frontend/src/lib/research-modes.json" with {type:"json"};
+import { parseModelJson } from "./model-json.js";
 
 const limits=modes.OBLIGATION_ANALYSIS;
 const fields=["authority","jurisdiction","actor","action","applicability","deadline","valid_from","valid_to"];
@@ -82,7 +83,7 @@ export function obligationResult(work,documents,sources,generated) {
     throw fail("INVALID_SCOPE","The retrieved Obligation Analysis scope is invalid.");
   let proposed=[];
   if(generated) {
-    let value;try {value=JSON.parse(generated.answer);}catch {throw invalid();}
+    let value;try {value=parseModelJson(generated.answer);}catch {throw invalid();}
     if(!Array.isArray(value?.candidates)||value.candidates.length>12)throw invalid();
     proposed=wireCandidates(value,sources);
   }
