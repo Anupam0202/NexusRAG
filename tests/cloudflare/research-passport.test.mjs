@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {passportWork,passportPrompt,passportResult,passportKinds,passportStatuses} from "../../apps/gateway/src/research-passport.js";
+import { ANCHOR_RULE } from "../../apps/gateway/src/research-anchors.js";
 
 function fixture(count=2) {
   const documents=Array.from({length:count},(_,i)=>({id:`doc-${i}`,filename:`Synthetic certificate ${i}.txt`}));
@@ -117,6 +118,8 @@ test("malformed wire, missing qualifications and over-limit properties never bec
 
 test("prompt preserves exact declared product, full source scope and no-certification/version limitations",()=>{
   const {work,documents,sources}=fixture(60),prompt=passportPrompt(work,documents,sources);
+  // Live, offsets Gemini counted pointed at the wrong words (issue #29): prompts ask for exact wording only.
+  assert.ok(prompt.includes(ANCHOR_RULE));assert.doesNotMatch(prompt,/CODEPOINT|\["S\d+",\d+,\d+\]/);
   assert.ok(prompt.includes(JSON.stringify(work.subject)));assert.equal(JSON.parse(prompt.split("\nEVIDENCE:\n")[1]).length,60);
   assert.match(prompt,/different version/);assert.match(prompt,/NOT certification/);assert.match(prompt,/Never remove qualifications/);
 });
