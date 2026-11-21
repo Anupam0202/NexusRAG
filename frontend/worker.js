@@ -5,4 +5,4 @@ import { createDocumentStaticWorker } from "./src/lib/static-document-worker";
 // Preserve OpenNext's Durable Object exports; this profile binds none.
 export * from "./.open-next/worker.js";
 
-export default createDocumentStaticWorker(nextWorker, pagePolicy.connect, pagePolicy.site ?? null);
+export default createDocumentStaticWorker(nextWorker, pagePolicy.connect);
