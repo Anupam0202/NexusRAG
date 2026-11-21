@@ -287,7 +287,10 @@ function localAppFixture() {
           for (const row of body.p_chunks) {
             const existing = stored.find((item) => item.chunk_index === row.ordinal);
             if (existing) assert.equal(existing.original_content_hash, row.original_content_hash);
-            else stored.push({ id: row.chunk_id, workspace_id: row.workspace_id, document_id: row.document_id, version_id: row.version_id, chunk_index: row.ordinal, content: row.original_text, original_content_hash: row.original_content_hash, metadata: { filename: docs.get(row.document_id).filename, content: row.retrieval_text }, page_number: 0 });
+            else {
+              assert.ok(row.page_number === undefined || (Number.isInteger(row.page_number) && row.page_number >= 1 && row.page_number <= 10_000), `page number ${row.page_number}`);
+              stored.push({ id: row.chunk_id, workspace_id: row.workspace_id, document_id: row.document_id, version_id: row.version_id, chunk_index: row.ordinal, content: row.original_text, original_content_hash: row.original_content_hash, metadata: { filename: docs.get(row.document_id).filename, content: row.retrieval_text }, page_number: row.page_number ?? null });
+            }
           }
           chunks.set(body.p_version, stored);
           return json({ count: stored.length, expected_chunks: body.p_total_chunks, manifest_hash: "a".repeat(64), next_offset: body.p_offset + body.p_chunks.length });
@@ -295,7 +298,9 @@ function localAppFixture() {
         if (rpc === "workbench_finalize_chunk_stage") return json({ count: chunks.get(body.p_version)?.length || 0, manifest_hash: "a".repeat(64), index_generation: versions.get(body.p_version).index_generation });
         if (rpc === "workbench_publish_version") {
           const version = versions.get(body.p_version); const doc = docs.get(version.document_id); const job = jobs.get(body.p_job);
+          const pages = version.extraction_manifest?.page_count;
           version.publication_state = "ready"; doc.active_version_id = version.id; doc.status = "ready"; doc.chunk_count = chunks.get(version.id)?.length || 0; job.status = "completed";
+          doc.page_count = Number.isInteger(pages) && pages >= 1 && pages <= 10_000 ? pages : 0;
           extractionManifests.delete(body.p_job); extractionChunks.delete(body.p_job);
           return json({ state: "ready", chunks: doc.chunk_count });
         }
@@ -1135,4 +1140,52 @@ test("index entries carry no passage text: answers quote it from the database, c
   assert.match(answer.answer, /30-day retention policy/);
   assert.ok(answer.sources.length > 0 && answer.sources.every((source) => source.content.length > 0 && source.metadata.authority === "SUPABASE_HASH_VERIFIED"));
   assert.match(JSON.stringify(fixture.outbound), /sets evidence retention at 30 days/, "the model still reads the passages");
+});
+
+test("a PDF's pages reach each passage, its index entry, page filters and the document's page count", async (t) => {
+  const fixture = localAppFixture();
+  t.mock.method(globalThis, "fetch", fixture.fetch);
+  // Gemini marks each page it reads as [PAGE N]; page 3 holds the figure asked about.
+  const filler = (district) => Array.from({ length: 24 }, (_, n) => `${district} maintenance note ${n + 1} records routine work.`).join(" ");
+  fixture.setGeneratedAnswer([`[PAGE 1]\n${filler("North district")}`, `[PAGE 2]\n${filler("East district")}`,
+    `[PAGE 3]\nThe Northgate culvert survey recorded a flow of 913 litres per second. ${filler("South district")}`].join("\n\n"));
+  const headers = { authorization: "Bearer synthetic-oauth-token", "x-nexus-workspace-id": workspace };
+  const form = new FormData();
+  form.set("file", new File(["%PDF-1.4 synthetic"], "inspection.pdf", { type: "application/pdf" }));
+  form.set("data_classification", "non_sensitive"); form.set("non_sensitive_attested", "true");
+  const upload = await handle(new Request("https://gateway.invalid/api/v1/documents/upload", {
+    method: "POST", headers: { ...headers, "idempotency-key": crypto.randomUUID() }, body: form }), fixture.env);
+  assert.equal(upload.status, 202, await upload.clone().text());
+  const { document } = await upload.json();
+  while (fixture.queue.sent.length) {
+    await handleQueue({ messages: [{ body: fixture.queue.sent.shift(), ack() {}, retry() { assert.fail("a batch was retried"); } }] }, fixture.env);
+  }
+  const stored = fixture.docs.get(document.document_id);
+  assert.equal(stored.status, "ready");
+  assert.equal(stored.page_count, 3, "the document counts the pages its reading found");
+  const passages = fixture.chunks.get(stored.active_version_id).sort((a, b) => a.chunk_index - b.chunk_index);
+  assert.ok(passages.length >= 3, `${passages.length} passages`);
+  const pages = passages.map((passage) => passage.page_number);
+  assert.ok(pages.every((page, index) => Number.isInteger(page) && page >= 1 && page <= 3 && (index === 0 || page >= pages[index - 1])), `pages ${pages}`);
+  assert.deepEqual([pages[0], pages.at(-1)], [1, 3]);
+  // Passages overlap, so the figure can also sit at the end of a passage that is mostly page 2; one is page 3's.
+  assert.ok(passages.some((passage) => passage.content.includes("913 litres") && passage.page_number === 3));
+  for (const passage of passages) {
+    assert.equal(fixture.points.get(passage.id).payload.page_number, passage.page_number, "the index entry names the same page");
+  }
+
+  const listed = await handle(new Request("https://gateway.invalid/api/v1/documents", { headers }), fixture.env);
+  assert.equal((await listed.json()).documents.find((item) => item.document_id === document.document_id).page_count, 3);
+
+  fixture.setGeneratedAnswer("The Northgate culvert survey recorded a flow of 913 litres per second. [S1]");
+  const asked = await handle(new Request("https://gateway.invalid/api/v1/chat", {
+    method: "POST", headers: { ...headers, "content-type": "application/json", "idempotency-key": crypto.randomUUID() },
+    body: JSON.stringify({ question: "What flow did the Northgate culvert survey record?", non_sensitive_attested: true,
+      document_ids: [document.document_id], min_page: 3, max_page: 3, top_k: 8 }),
+  }), fixture.env);
+  const answer = await asked.json();
+  assert.equal(asked.status, 200, JSON.stringify(answer));
+  assert.ok(answer.sources.length > 0, "a page filter finds the passages on that page");
+  assert.ok(answer.sources.every((source) => source.page_number === 3), `cited pages ${answer.sources.map((source) => source.page_number)}`);
+  assert.ok(answer.sources.some((source) => source.content.includes("913 litres")));
 });

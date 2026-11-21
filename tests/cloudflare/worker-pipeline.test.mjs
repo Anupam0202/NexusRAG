@@ -4,6 +4,7 @@ import {
   MAX_WORKER_UPLOAD_BYTES,
   chunkText,
   groundedPrompt,
+  pageCount,
   qdrantFilter,
   safeFilename,
   sha256,
@@ -32,6 +33,18 @@ test("chunking is deterministic, bounded, and overlapping", () => {
   assert.ok(first.length <= 400);
   assert.equal(first[0].chunk_index, 0);
   assert.ok(first[1].start < first[0].end);
+});
+
+test("a reading's page markers give the page count and each passage the page its middle is on", () => {
+  assert.equal(pageCount("[PAGE 1] intro [page 2] body [Page 3] end"), 3, "markers are read whatever their case");
+  assert.equal(pageCount("[PAGE 0] none [PAGE 10001] too high [PAGE x] not a number"), 0);
+  assert.equal(pageCount("a text file has no pages"), 0);
+  const paragraph = (word) => `${word} `.repeat(150).trim();
+  const passages = chunkText(`Scanned by the office.\n[PAGE 4]\n${paragraph("alpha")}\n\n[PAGE 5]\n${paragraph("beta")}`, 600, 80);
+  assert.equal(passages[0].page_number, 4, "text before the first marker belongs to that page");
+  assert.equal(passages.at(-1).page_number, 5);
+  assert.ok(passages.every((passage) => passage.page_number === 4 || passage.page_number === 5));
+  assert.ok(chunkText(paragraph("gamma"), 600, 80).every((passage) => !Object.hasOwn(passage, "page_number")), "no markers, no page");
 });
 
 test("Qdrant filters always fence workspace and bound document scope", () => {
