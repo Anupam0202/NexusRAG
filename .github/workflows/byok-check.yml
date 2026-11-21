@@ -1,0 +1,47 @@
+name: BYOK Check
+# Live check of users' own Gemini keys on the preview (NX-24): a test account stores a key, asks past its free chats
+# at its own cost, and removes the key (scripts/byok_check.py). The key is the preview environment's own Gemini key,
+# used here as the test account's; the script always removes it and restores the account's usage count.
+#
+# Run it by hand; nothing here runs on a schedule or on push. The log is public, so the script prints statuses only.
+
+on:
+  workflow_dispatch:
+    inputs:
+      email:
+        description: Test account (must end in @nexusrag.test)
+        required: true
+        default: nexus-e2e-b@nexusrag.test
+        type: string
+      question:
+        description: A question one of that account's ready documents answers
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: byok-check
+  cancel-in-progress: false
+
+jobs:
+  byok:
+    name: BYOK key round trip on the preview
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: NexusRAG-Candidate-Preview
+    env:
+      SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      BYOK_TEST_KEY: ${{ secrets.GOOGLE_API_KEY }}
+      CHECK_EMAIL: ${{ inputs.email }}
+      CHECK_QUESTION: ${{ inputs.question }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with: {python-version: "3.13"}
+      - name: Store a key, ask past the free chats, remove the key
+        run: |
+          set -euo pipefail
+          python3 scripts/byok_check.py --gateway https://nexusrag-preview.pages.dev --email "$CHECK_EMAIL" --question "$CHECK_QUESTION"

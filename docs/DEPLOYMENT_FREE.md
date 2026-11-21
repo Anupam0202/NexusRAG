@@ -41,6 +41,20 @@ The release checks `/health` and `/ready` on the new version and rolls back when
 whether the gateway reached its database and its search index. Add `--allow-index-down` to release while the
 index does not answer.
 
+## Checking users' own Gemini keys
+
+Run **Actions → BYOK Check → Run workflow** with a test account and a question that one of that account's ready
+documents answers. `scripts/byok_check.py` signs the account in through Supabase Auth's admin API (its password is
+not changed), marks its five free chats as used, and checks the following:
+
+1. A question is refused with `BYOK_REQUIRED`.
+2. The environment's own Gemini key, stored as the account's key, answers at the account's cost
+   (`provider_cost_owner: USER_GOOGLE_PROJECT`).
+3. Questions are refused again once the key is removed.
+
+It always removes the key and restores the usage count, refuses any gateway but the preview's and any account
+outside `@nexusrag.test`, and prints statuses only.
+
 Free-tier limits to remember: Qdrant suspends a free cluster after a week without use and deletes it after
 four weeks (the gateway's daily cron run asks the index one question, which counts as use); Supabase pauses a
 free project after a week of low activity; Cloudflare Queues keep messages for 24 hours.
