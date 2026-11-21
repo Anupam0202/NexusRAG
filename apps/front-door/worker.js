@@ -7,9 +7,9 @@
  * binding, so the app and its API share this one address and neither Worker needs an address of its own. Everything
  * else goes to the frontend Worker through the APP binding, so the browser keeps the public address. A page
  * request is first checked against the build the Worker serves: its /_nexus-build.json names the address it was made
- * for (`site_url`), and sign-in returns only to that address. When that is not this one (a build from before the
- * front door, or a misrouted binding), the visitor is sent there instead (FALLBACK_ORIGIN for builds that name no
- * address), so this address switches over by itself when a build made for it is released.
+ * for (`site_url`), and sign-in returns only to that address. When that is not this one (a misrouted binding), the
+ * visitor is sent there instead. A build that names no address is served here: the Workers have no address of their
+ * own (their workers.dev addresses are off).
  *
  * The app has this one address (PUBLIC_ORIGIN). Every Pages deployment also answers at its own
  * <id>.<project>.pages.dev address, and plain http:// reaches the project too, so a request on any other address is
@@ -53,10 +53,9 @@ export function isPageRequest(request) {
 }
 
 /**
- * The origin the served build was made for: its `site_url`, else FALLBACK_ORIGIN. A build without the identity file
- * (404) predates it and was made for the Worker's own address; every release since publishes it, and a release whose
- * identity is missing is rolled back (scripts/release.py). Null (serve here) when the file cannot be read for any
- * other reason, so a passing fault never turns into a redirect, and never into a loop with the Worker's own redirect.
+ * The origin the served build was made for: its `site_url`. Null (serve here) when the build names none, has no
+ * identity file (every release publishes one, and a release whose identity is missing is rolled back by
+ * scripts/release.py), or the file cannot be read, so a passing fault never turns into a redirect.
  */
 export async function buildAddress(request, env) {
   let response;
@@ -65,7 +64,6 @@ export async function buildAddress(request, env) {
   } catch {
     return null;
   }
-  if (response.status === 404) return httpsOrigin(env.FALLBACK_ORIGIN);
   if (!response.ok) return null;
   let identity;
   try {
@@ -74,7 +72,7 @@ export async function buildAddress(request, env) {
     return null;
   }
   if (identity === null || typeof identity !== "object") return null;
-  return httpsOrigin(identity.site_url) ?? httpsOrigin(env.FALLBACK_ORIGIN);
+  return httpsOrigin(identity.site_url);
 }
 
 function httpsOrigin(value) {
