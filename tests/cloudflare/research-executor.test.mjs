@@ -121,7 +121,9 @@ async function fixture(t,options={}) {
       if(url.pathname.endsWith(":batchEmbedContents"))return json({embeddings:JSON.parse(init.body).requests.map(()=>({values:Array(8).fill(0.1)}))});
       if(options.providerError)return new Response("synthetic provider interruption",{status:503});
       const prompt=JSON.parse(init.body).contents[0].parts[0].text;
-      if(prompt.startsWith("RESEARCH_QUERY_VARIANTS"))return json({candidates:[{finishReason:"STOP",content:{parts:[{text:JSON.stringify({queries:options.variantQueries||[]})}]}}]});
+      // Live, Gemini often wraps a JSON reply in a Markdown code fence unless the request asks for JSON output.
+      const reply=text=>options.fenced?`\`\`\`json\n${text}\n\`\`\``:text;
+      if(prompt.startsWith("RESEARCH_QUERY_VARIANTS"))return json({candidates:[{finishReason:"STOP",content:{parts:[{text:reply(JSON.stringify({queries:options.variantQueries||[]}))}]}}]});
       const sources=options.procurement||options.passport||options.documentCount||options.contradiction||options.obligation?JSON.parse(prompt.split("\nEVIDENCE:\n")[1]):null;
       const procurementSources=options.procurement?[sources[0],sources.at(-1)].filter((source,i,items)=>i===0||source.citation_id!==items[0].citation_id):[];
       const answer=options.procurement?JSON.stringify({schema_version:"research-procurement-wire/1",
@@ -141,7 +143,7 @@ async function fixture(t,options={}) {
       })}:{cells:run.source_snapshot.map(s=>({document_id:s.document_id,answer:sources.some(item=>item.document_id===s.document_id)?`30 days [${sources.find(item=>item.document_id===s.document_id).citation_id}].`:""}))}):options.timeline?JSON.stringify({documents:[{document_id:doc,events:[
         {citation_id:"S1",quote:"The synthetic policy took effect on 2024-02-29.",date_text:"2024-02-29",date_role:"EFFECTIVE"},
         {citation_id:"S1",quote:"It was published in 2024-02.",date_text:"2024-02",date_role:"PUBLISHED"}]}]}):options.compare?JSON.stringify({cells:[{document_id:doc,answer:"30 days [S1]."},{document_id:token,answer:"30 days [S2]."}]}):"The retention period is 30 days [S1].";
-      return json({candidates:[{finishReason:options.incomplete?"MAX_TOKENS":"STOP",content:{parts:[{text:answer}]}}],usageMetadata:{promptTokenCount:20,candidatesTokenCount:12}});
+      return json({candidates:[{finishReason:options.incomplete?"MAX_TOKENS":"STOP",content:{parts:[{text:reply(options.replyText??answer)}]}}],usageMetadata:{promptTokenCount:20,candidatesTokenCount:12}});
     }
     if(url.hostname==="qdrant.invalid") {
       const points=options.noDense?[]:[{id:chunk,score:0.9,payload:{workspace_id:ws,document_id:doc,version_id:version,index_generation:"generation-one",chunk_id:chunk}}];
@@ -369,6 +371,53 @@ test("actual research executor retrieves, rehydrates, generates and commits one 
   assert.equal(saved.review_state,"COMPLETION_CRITERIA_NOT_AUTOMATICALLY_VERIFIED");
   assert.equal(provider.filter(p=>p.url.endsWith(":generateContent")&&!JSON.parse(p.body).contents[0].parts[0].text.startsWith("RESEARCH_QUERY_VARIANTS")).length,1);
   assert.ok(provider.every(p=>p.signal instanceof AbortSignal));
+});
+
+// Live on 2026-11-21, every research mode that expects JSON from Gemini stopped with PROVIDER_INVALID_RESPONSE and
+// every query expansion fell back to the original question (issue #29): the requests did not ask for JSON output,
+// and Gemini wrapped its replies in Markdown code fences.
+const generationConfigs=provider=>provider.filter(call=>call.url.endsWith(":generateContent"))
+  .map(call=>({prompt:JSON.parse(call.body).contents[0].parts[0].text,config:JSON.parse(call.body).generationConfig}));
+for(const [name,options,key] of [
+  ["Compare",{compare:true},"comparison"],
+  ["Timeline",{timeline:true,noDense:true},"timeline"],
+  ["Contradiction Analysis",{contradiction:true,noDense:true},"contradiction"],
+  ["Obligation Analysis",{obligation:true,documentCount:50,noDense:true,more:true,pageNumber:null},"obligations"],
+  ["Deep Research",{deep:true,documentCount:60,more:true,noDense:true},"deep"],
+  ["Due Diligence",{diligence:true,documentCount:60,noDense:true,more:true,pageNumber:null},"diligence"],
+  ["Product Passport",{passport:true,documentCount:60,noDense:true,more:true,pageNumber:null},"passport"],
+  ["Procurement Research",{procurement:true,documentCount:50,noDense:true,more:true,pageNumber:null},"procurement"],
+]) test(`${name} asks Gemini for JSON and reads a reply wrapped in a code fence`,async t=>{
+  const {env,db,calls,provider}=await fixture(t,{...options,fenced:true});
+  await processResearchMessage(env,message,db);
+  const saved=calls.find(call=>call.p_operation==="commit")?.p_result;
+  assert.ok(saved?.[key]?.schema_version,`${name} commits its ${key} result`);
+  const requests=generationConfigs(provider);
+  assert.ok(requests.length>=1);
+  for(const {config} of requests)assert.equal(config.responseMimeType,"application/json");
+});
+test("query expansion asks Gemini for JSON and reads a reply wrapped in a code fence; a prose answer is not asked for JSON",async t=>{
+  const alternative="Which retention period does the synthetic policy set?";
+  const {env,db,calls,provider}=await fixture(t,{variantQueries:[alternative],fenced:true});
+  assert.equal((await processResearchMessage(env,message,db))?.state,"completed");
+  const receipt=calls.find(call=>call.p_operation==="commit").p_result.query_retrieval;
+  assert.equal(receipt.expansion_status,"EXPANDED");
+  assert.deepEqual(receipt.queries,["What is the synthetic retention period?",alternative]);
+  const requests=generationConfigs(provider);
+  assert.equal(requests.find(({prompt})=>prompt.startsWith("RESEARCH_QUERY_VARIANTS")).config.responseMimeType,"application/json");
+  assert.equal(requests.find(({prompt})=>!prompt.startsWith("RESEARCH_QUERY_VARIANTS")).config.responseMimeType,undefined);
+});
+test("a reply a mode refuses is logged by its shape, never by its text",async t=>{
+  const logged=[];t.mock.method(console,"log",line=>logged.push(String(line)));
+  const secret="Confidential clause wording. ".repeat(10);
+  const {env,db,calls}=await fixture(t,{compare:true,replyText:JSON.stringify({cells:[{document_id:doc,answer:secret}]})});
+  await processResearchMessage(env,message,db);
+  assert.equal(calls.find(call=>call.p_operation==="commit"),undefined,"the refused step is not committed");
+  const event=logged.map(line=>{try {return JSON.parse(line);} catch {return null;}}).find(entry=>entry?.event==="research_reply_refused");
+  assert.equal(event?.mode,"COMPARE");assert.equal(event.position,0);
+  assert.match(event.reason,/did not match the saved source scope/);
+  assert.deepEqual(event.reply,{parsed:true,shape:{cells:{length:1,first:[{document_id:"string(36)",answer:`string(${secret.length})`}]}}});
+  assert.ok(!logged.join("\n").includes("Confidential"));
 });
 
 test("comparison execution persists one separately cited cell for every selected document",async t=>{

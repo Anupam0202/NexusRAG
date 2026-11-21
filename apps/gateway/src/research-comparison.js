@@ -1,4 +1,5 @@
 import { assessAnswer } from "./answer-evidence.js";
+import { parseModelJson } from "./model-json.js";
 
 export const COMPARISON_BATCH_SIZE=8;
 const fail=(code,message)=>Object.assign(new Error(message),{code});
@@ -26,7 +27,7 @@ export function comparisonResult(work,documents,sources,generated) {
   let cells=[];
   if(generated) {
     let value;
-    try {value=JSON.parse(generated.answer);}catch {throw fail("PROVIDER_INVALID_RESPONSE","The provider did not return a complete comparison matrix.");}
+    try {value=parseModelJson(generated.answer);}catch {throw fail("PROVIDER_INVALID_RESPONSE","The provider did not return a complete comparison matrix.");}
     if(!Array.isArray(value?.cells)||value.cells.length!==documents.length||value.cells.some((cell,i)=>
       cell?.document_id!==documents[i].id||typeof cell.answer!=="string"||cell.answer.length>240))
       throw fail("PROVIDER_INVALID_RESPONSE","The comparison cells did not match the saved source scope.");

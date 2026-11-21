@@ -1,4 +1,5 @@
 import modes from "../../../frontend/src/lib/research-modes.json" with {type:"json"};
+import { parseModelJson } from "./model-json.js";
 
 const limits=modes.PRODUCT_PASSPORT;
 const fields={product_id:128,product_name:256,product_version:128,supplier:256};
@@ -59,7 +60,7 @@ export function passportResult(work,documents,sources,generated) {
     return {document_id:original.source.document_id,citation_id:value.citation_id,quote:value.quote,quote_start:start,quote_end:end};
   };
   let value={schema_version:"research-passport-wire/1",anchors:[],texts:[],claims:[],gaps:[]};
-  if(generated){try{value=JSON.parse(generated.answer);}catch{throw invalid();}}
+  if(generated){try{value=parseModelJson(generated.answer);}catch{throw invalid();}}
   if(value?.schema_version!=="research-passport-wire/1"||!Array.isArray(value.anchors)||value.anchors.length>48
     ||!Array.isArray(value.texts)||value.texts.length>84||value.texts.some(item=>!text(item,240))
     ||!Array.isArray(value.claims)||value.claims.length>12||!Array.isArray(value.gaps)||value.gaps.length>12)throw invalid();

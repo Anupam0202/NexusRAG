@@ -1,3 +1,4 @@
+import { parseModelJson } from "./model-json.js";
 const fail=()=>Object.assign(new Error("The provider did not return a complete source-aligned timeline."),{code:"PROVIDER_INVALID_RESPONSE"});
 const roles=new Set(["EVENT","EFFECTIVE","PUBLISHED","OBSERVED","UNKNOWN"]);
 // Only standard ISO forms have deterministic bounds. Other source wording stays
@@ -36,7 +37,7 @@ EVIDENCE:\n${JSON.stringify(sources.map(s=>({citation_id:s.citation_id,document_
 export function timelineResult(work,documents,sources,generated) {
   let rows=documents.map(d=>({document_id:d.id,events:[]}));
   if(generated) {
-    let value;try{value=JSON.parse(generated.answer);}catch{throw fail();}
+    let value;try{value=parseModelJson(generated.answer);}catch{throw fail();}
     if(!Array.isArray(value?.documents)||value.documents.length!==documents.length||value.documents.some((d,i)=>
       d?.document_id!==documents[i].id||!Array.isArray(d.events)||d.events.length>2))throw fail();
     rows=value.documents;

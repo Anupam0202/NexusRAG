@@ -17,9 +17,21 @@ import { diligenceWork,diligencePrompt,diligenceResult } from "./research-dilige
 import { passportWork,passportPrompt,passportResult } from "./research-passport.js";
 import { procurementWork,procurementPrompt,procurementResult } from "./research-procurement.js";
 import { CALCULATION_RUN_LIMITS,calculationRunWork,calculationRunPrompt,calculationRunResult } from "./research-calculation-runs.js";
+import { replyShape } from "./model-json.js";
 
 const uuid=/^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i;
 const fail=(code,message)=>Object.assign(new Error(message),{code});
+// A reply that a mode refuses is logged by its shape (keys, counts and string lengths, never text), so a failure
+// against the real model can be read from the Worker's logs (issue #29). The step is refused as before.
+function readReply(run,generated,build) {
+  try {return build();}
+  catch(error) {
+    if(error?.code==="PROVIDER_INVALID_RESPONSE"&&generated)
+      console.log(JSON.stringify({event:"research_reply_refused",mode:run.mode,run_id:run.id,position:run.position,
+        model:generated.model||null,reason:error.message,reply:replyShape(generated.answer)}));
+    throw error;
+  }
+}
 const columns="id,workspace_id,document_id,version_id,chunk_index,page_number,content,original_text,original_content_hash,location,metadata";
 async function answerQuestion(env,run,db,signal,context) {
   const read=path=>db(env,path,{signal}), workspace=run.workspace_id;
@@ -57,7 +69,7 @@ async function answerQuestion(env,run,db,signal,context) {
   else if(credentialMode!=="platform_trial")throw fail("BYOK_REQUIRED","The run has no confirmed provider admission.");
   signal.throwIfAborted();
   const providerContext={workspaceId:workspace,priority:"interactive",dataClassification:"non_sensitive",actorId:run.owner_id,userApiKey,credentialMode,signal};
-  const expansion=lexicalRows.length?await generateAnswer(env,queryVariantPrompt(question,run.mode||"QUICK_LOOKUP",investigating||diligence?work.targets:[],passport?work.subject:undefined),{...providerContext,requireComplete:true,temperature:0}):null;
+  const expansion=lexicalRows.length?await generateAnswer(env,queryVariantPrompt(question,run.mode||"QUICK_LOOKUP",investigating||diligence?work.targets:[],passport?work.subject:undefined),{...providerContext,requireComplete:true,temperature:0,json:true}):null;
   const queryRetrieval=expansion?queryVariants(question,run.mode||"QUICK_LOOKUP",expansion):null;
   const queries=queryRetrieval?.queries||[question];
   const hitLists=lexicalRows.length?await searchChunkVariants(env,{workspaceId:workspace,queries,documentIds:selectedDocuments,versionIds:selectedVersions,
@@ -123,19 +135,23 @@ async function answerQuestion(env,run,db,signal,context) {
     generated=await generateAnswer(env,comparing?comparisonPrompt(work,selection.documents,sources):timelining?timelinePrompt(work,selection.documents,sources):contradicting?contradictionPrompt(work,selection.documents,sources):deepening?deepPrompt(work,sources):obligating?obligationPrompt(work,selection.documents,sources):investigating?entityPrompt(work,selection.documents,sources):diligence?diligencePrompt(work,selection.documents,sources):passport?passportPrompt(work,selection.documents,sources):procurement?procurementPrompt(work,selection.documents,sources):calculating?calculationRunPrompt(work,selection.documents,sources):groundedPrompt(question,fused),{workspaceId:workspace,priority:"interactive",dataClassification:"non_sensitive",
       // Locating figures is not a creative task: calculation runs ask at temperature 0.
       actorId:run.owner_id,userApiKey,credentialMode,signal,requireComplete:true,temperature:calculating?0:runtimeOptions.llm_temperature,
-      ...(scoped||deepening||calculating?{outputTokens:4096}:{})});
+      ...(scoped||deepening||calculating?{outputTokens:4096,json:true}:{})});
     if(!scoped&&!deepening&&!calculating)checked=assessAnswer(generated.answer,sources);
   }
-  const comparison=comparing?comparisonResult(work,selection.documents,sources,generated):null;
-  const timeline=timelining?timelineResult(work,selection.documents,sources,generated):null;
-  const contradiction=contradicting?contradictionResult(work,selection.documents,sources,generated):null;
-  const deep=deepening?deepResult(work,selection.documents,sources,[...sparse.map(sourceFrom),...priorSources],generated):null;
-  const obligations=obligating?obligationResult(work,selection.documents,sources,generated):null;
-  const entities=investigating?entityResult(work,selection.documents,sources,generated):null;
-  const diligenceAnalysis=diligence?diligenceResult(work,selection.documents,sources,generated):null;
-  const passportAnalysis=passport?passportResult(work,selection.documents,sources,generated):null;
-  const procurementAnalysis=procurement?procurementResult(work,selection.documents,sources,generated):null;
-  const calculationAnalysis=calculating?calculationRunResult(work,selection.documents,sources,generated):null;
+  const checkedReply=build=>readReply(run,generated,build);
+  const comparison=comparing?checkedReply(()=>comparisonResult(work,selection.documents,sources,generated)):null;
+  const timeline=timelining?checkedReply(()=>timelineResult(work,selection.documents,sources,generated)):null;
+  const contradiction=contradicting?checkedReply(()=>contradictionResult(work,selection.documents,sources,generated)):null;
+  const deep=deepening?checkedReply(()=>deepResult(work,selection.documents,sources,[...sparse.map(sourceFrom),...priorSources],generated)):null;
+  const obligations=obligating?checkedReply(()=>obligationResult(work,selection.documents,sources,generated)):null;
+  const entities=investigating?checkedReply(()=>entityResult(work,selection.documents,sources,generated)):null;
+  const diligenceAnalysis=diligence?checkedReply(()=>diligenceResult(work,selection.documents,sources,generated)):null;
+  const passportAnalysis=passport?checkedReply(()=>passportResult(work,selection.documents,sources,generated)):null;
+  const procurementAnalysis=procurement?checkedReply(()=>procurementResult(work,selection.documents,sources,generated)):null;
+  const calculationAnalysis=calculating?checkedReply(()=>calculationRunResult(work,selection.documents,sources,generated)):null;
+  if(calculationAnalysis?.diagnostics.length)
+    console.log(JSON.stringify({event:"research_calculation_rejections",mode:run.mode,run_id:run.id,position:run.position,
+      model:generated?.model||null,rejections:calculationAnalysis.diagnostics}));
   if(deep)checked=deep.checked;
   if(contradiction){sources=contradiction.sources;checked=contradiction.checked;}
   if(obligations){sources=obligations.sources;checked=obligations.checked;}
