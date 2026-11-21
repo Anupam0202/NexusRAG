@@ -85,7 +85,7 @@ begin
       item->>'original_content_hash',coalesce(item->>'retrieval_text',item->>'original_text'),
       coalesce(item->'location','{}'::jsonb),p_space,item->>'chunk_id',
       jsonb_build_object('extraction',coalesce(item->'extraction','{}'::jsonb)),
-      case when jsonb_typeof(item->'page_number') = 'number' then (item->>'page_number')::integer end
+      case when jsonb_typeof(item->'page_number') = 'number' then (item->>'page_number')::numeric::integer end
     ) on conflict do nothing;
     select * into strict existing from public.document_chunks
       where workspace_id=p_workspace and version_id=p_version and chunk_index=p_offset+i;
@@ -128,7 +128,7 @@ begin
   pages := case when coalesce(jsonb_typeof(v.extraction_manifest->'page_count'),'null') <> 'number' then 0
                 when (v.extraction_manifest->>'page_count')::numeric between 1 and 10000
                      and (v.extraction_manifest->>'page_count')::numeric = trunc((v.extraction_manifest->>'page_count')::numeric)
-                  then (v.extraction_manifest->>'page_count')::integer
+                  then (v.extraction_manifest->>'page_count')::numeric::integer
                 else 0 end;
   update public.document_versions set publication_state='ready',published_at=clock_timestamp()where workspace_id=p_workspace and id=p_version;
   update public.documents set active_version_id=p_version,status='ready',chunk_count=total,page_count=pages,file_size_bytes=v.original_bytes,storage_bucket=v.original_bucket,storage_path=v.original_key,sha256=v.original_hash,revision=revision+1,error_message=null where workspace_id=p_workspace and id=j.document_id and lifecycle_state='active' and lifecycle_epoch=p_epoch;

@@ -27,7 +27,8 @@ BEGIN
  IF (second_batch->>'count')::int<>4 THEN RAISE EXCEPTION 'second batch: %',second_batch; END IF;
  replay_batch := public.workbench_stage_chunk_batch('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb','11111111-1111-4111-8111-111111111111','pg-worker',7,'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',1,'test-space','batch-index','{"mime_type":"application/pdf","page_count":7}'::jsonb,4,0,jsonb_build_array(rows->0,rows->1));
  IF replay_batch->>'manifest_hash'<>second_batch->>'manifest_hash' OR (replay_batch->>'count')::int<>4 THEN RAISE EXCEPTION 'idempotent replay mismatch'; END IF;
- -- A page number is a whole number from 1 to 10000, or absent.
+ -- A page number is a whole number from 1 to 10000, or absent; JSON may write a whole number as 1.0.
+ PERFORM public.workbench_stage_chunk_batch('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb','11111111-1111-4111-8111-111111111111','pg-worker',7,'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',1,'test-space','batch-index','{"mime_type":"application/pdf","page_count":7}'::jsonb,4,0,jsonb_build_array(rows->0 || '{"page_number":1.0}'::jsonb,rows->1));
  FOR bad IN SELECT value FROM jsonb_array_elements('[0, -1, 1.5, 10001, "2", true]'::jsonb) LOOP
    BEGIN
      PERFORM public.workbench_stage_chunk_batch('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb','11111111-1111-4111-8111-111111111111','pg-worker',7,'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',1,'test-space','batch-index','{"mime_type":"application/pdf","page_count":7}'::jsonb,4,0,jsonb_build_array(rows->0 || jsonb_build_object('page_number',bad),rows->1));
