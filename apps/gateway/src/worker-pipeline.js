@@ -80,8 +80,20 @@ async function providerJson(url, init, timeout = 18_000) {
   return response.json();
 }
 
+// Gemini's own word for a failure (INTERNAL, UNAVAILABLE, ...) and the start of its message. They describe the
+// error, not the request, so callers may log them (as gemini_read does); they are never returned to a user.
+function geminiReason(detail) {
+  try {
+    const failure = JSON.parse(detail)?.error || {};
+    return {
+      ...(typeof failure.status === "string" && failure.status ? { providerReason: failure.status.slice(0, 40) } : {}),
+      ...(typeof failure.message === "string" && failure.message ? { providerMessage: failure.message.slice(0, 160) } : {}),
+    };
+  } catch { return {}; }
+}
+
 // Says which provider failed and what a person can do about it. `status` 0 means no answer came at all.
-// Provider response text is used only to classify the failure; it is never returned or logged.
+// Provider response text is used only to classify the failure and, for Gemini, to keep its own short reason for logs.
 function providerFailure(url, status, detail) {
   if (!String(url).includes("generativelanguage.googleapis.com")) return indexFailure(indexStateFor(status), status);
   // A retired or unsupported Gemini model lets the caller try the next candidate (D24).
@@ -96,7 +108,7 @@ function providerFailure(url, status, detail) {
       : status === 401 || status === 403 || /api[ _-]?key|API_KEY_INVALID/i.test(detail)
         ? pipelineError("PROVIDER_KEY_REJECTED", "Gemini rejected the API key. If you added your own key, check it in Settings; it must be a valid Gemini API key from Google AI Studio.", 502, false)
         : pipelineError("PROVIDER_UNAVAILABLE", status ? `Gemini is unavailable right now (HTTP ${status}). Try again shortly.` : "Gemini did not answer in time. Try again shortly.", 503, true);
-  return Object.assign(failure, { providerStatus: status, modelUnavailable });
+  return Object.assign(failure, { providerStatus: status, modelUnavailable, ...geminiReason(detail) });
 }
 
 async function embedText(env, text, taskType, context) {

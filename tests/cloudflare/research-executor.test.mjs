@@ -119,7 +119,8 @@ async function fixture(t,options={}) {
     if(url.hostname==="generativelanguage.googleapis.com") {
       if(url.pathname.endsWith(":embedContent"))return json({embedding:{values:Array(8).fill(0.1)}});
       if(url.pathname.endsWith(":batchEmbedContents"))return json({embeddings:JSON.parse(init.body).requests.map(()=>({values:Array(8).fill(0.1)}))});
-      if(options.providerError)return new Response("synthetic provider interruption",{status:503});
+      if(options.providerError)return options.providerError===true?new Response("synthetic provider interruption",{status:503})
+        :new Response(JSON.stringify(options.providerError.body),{status:options.providerError.status});
       const prompt=JSON.parse(init.body).contents[0].parts[0].text;
       // Live, Gemini often wraps a JSON reply in a Markdown code fence unless the request asks for JSON output.
       const reply=text=>options.fenced?`\`\`\`json\n${text}\n\`\`\``:text;
@@ -418,6 +419,19 @@ test("a reply a mode refuses is logged by its shape, never by its text",async t=
   assert.match(event.reason,/did not match the saved source scope/);
   assert.deepEqual(event.reply,{parsed:true,shape:{cells:{length:1,first:[{document_id:"string(36)",answer:`string(${secret.length})`}]}}});
   assert.ok(!logged.join("\n").includes("Confidential"));
+});
+
+test("a step Gemini fails is logged with its HTTP status and Gemini's own short reason, never with the question or sources",async t=>{
+  const warned=[];t.mock.method(console,"warn",line=>warned.push(String(line)));
+  const reason="An internal error has occurred. Please retry or report in https://developers.generativeai.google/guide/troubleshooting";
+  const {env,db,calls}=await fixture(t,{diligence:true,providerError:{status:500,body:{error:{code:500,message:reason,status:"INTERNAL"}}}});
+  assert.equal(await processResearchMessage(env,message,db),null);
+  assert.equal(calls.find(call=>call.p_operation==="interrupt")?.p_error,"PROVIDER_UNAVAILABLE");
+  const event=warned.map(line=>{try {return JSON.parse(line);} catch {return null;}}).find(entry=>entry?.event==="research_step_failed");
+  assert.deepEqual({mode:event?.mode,position:event?.position,code:event?.code,status:event?.provider_status,reason:event?.provider_reason},
+    {mode:"DUE_DILIGENCE",position:0,code:"PROVIDER_UNAVAILABLE",status:500,reason:"INTERNAL"});
+  assert.equal(event.provider_message,reason.slice(0,160));
+  assert.ok(!warned.join("\n").includes("synthetic"),"neither the question nor any source passage is logged");
 });
 
 test("comparison execution persists one separately cited cell for every selected document",async t=>{
