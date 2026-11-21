@@ -344,16 +344,21 @@ async function storageWrite(env, key, file) {
   if (!response.ok) throw Object.assign(new Error("Private original storage rejected the upload."), { status: 503, code: "PERSISTENCE_UNAVAILABLE" });
 }
 
+// Supabase Storage answers a request for an object that is not there with HTTP 400 and NoSuchKey in the body.
+async function objectMissing(response) {
+  if (response.status === 404) return true;
+  if (response.status !== 400) return false;
+  const detail = await response.json().catch(() => ({}));
+  return detail?.code === "NoSuchKey" || detail?.error === "not_found";
+}
+
 async function storageDelete(env, key) {
   const url = `${env.SUPABASE_URL}/storage/v1/object/documents/${storagePath(key)}`;
   const response = await apiFetch(url, { method: "DELETE", headers: serviceHeaders(env) });
-  if (!response.ok && response.status !== 404) throw Object.assign(new Error("Private original deletion failed."), { status: 503, code: "STORAGE_DELETE_FAILED", retryable: true });
+  // A file that is already gone is what a deletion wants; it must not keep the document's deletion open for good.
+  if (!response.ok && !(await objectMissing(response))) throw Object.assign(new Error("Private original deletion failed."), { status: 503, code: "STORAGE_DELETE_FAILED", retryable: true });
   const verification = await apiFetch(url, { headers: serviceHeaders(env) });
-  let missing = verification.status === 404;
-  if (!missing && verification.status === 400) {
-    const detail = await verification.json().catch(() => ({}));
-    missing = detail?.code === "NoSuchKey" || detail?.error === "not_found";
-  }
+  const missing = await objectMissing(verification);
   if (!missing) throw Object.assign(new Error("Private original deletion could not be verified."), { status: 503, code: "STORAGE_DELETE_UNVERIFIED", retryable: true });
 }
 
