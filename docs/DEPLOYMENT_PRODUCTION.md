@@ -140,16 +140,22 @@ or a store that lost data, leaves them out of step. Four things can then be true
 | Documents whose original file is gone | They can be read and asked about, but not downloaded or re-indexed | Their uploaders delete them and upload the files again |
 | Answerable documents the index holds nothing of | Questions about them find nothing | Open each in Documents and choose Re-index |
 
+The report also counts **index entries that still hold document text or file names**. Entries hold identifiers and
+positions only since NX-36; older entries keep a copy of the passage (written before 2026-11-18) or of the file's
+name, which the app never reads, because answers take both from the database. Action `remove-index-text` clears
+the copies and keeps the entries, so search is unaffected. Qdrant counts and clears them itself; no text passes
+through the workflow.
+
 The gateway counts these in the first cron run of every day and writes one line to its log
 (`store_reconciliation`, a warning when anything is found; Cloudflare dashboard → the gateway Worker → Logs). To
 see the counts at any time, run **Actions → Store Reconciliation → Run workflow** with action `report`: it changes
 nothing, prints counts only (that log is public; file names are not) and fails when anything is out of step.
 
-To remove leftovers, run the same workflow with action `remove-files` or `remove-index-entries` and, in
-`expect`, the count the report showed. A removal makes a fresh report first and stops if its count differs, so it
-deletes exactly what you looked at; it also refuses to touch the index while documents are missing from it,
-because a database compared with the wrong index looks like that. To see file names and identifiers, run the
-report in your own terminal:
+To remove leftovers, run the same workflow with action `remove-files`, `remove-index-entries` or
+`remove-index-text` and, in `expect`, the count the report showed. A removal makes a fresh report first and stops
+if its count differs, so it deletes exactly what you looked at; it also refuses to touch the index while documents
+are missing from it, because a database compared with the wrong index looks like that. To see file names and
+identifiers, run the report in your own terminal:
 
 ```bash
 python3 scripts/reconciliation.py report --target production --details

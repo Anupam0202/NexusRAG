@@ -2,7 +2,8 @@ name: Store Reconciliation
 # Compares file storage and the search index with the database (NX-27): a stored file or index entries that no
 # document names are a deleted document's content that is still there; a document whose original or passages are
 # gone can no longer be downloaded, re-indexed or answered from. The gateway logs the counts once a day as
-# `store_reconciliation`; this workflow shows them and removes leftovers.
+# `store_reconciliation`; this workflow shows them and removes leftovers. It also counts index entries that still hold
+# a copy of document text or a file name (written before NX-36) and can clear those copies, keeping the entries.
 #
 # Run it by hand; nothing here runs on a schedule or on push. A report changes nothing, prints counts only (this
 # log is public and file names are not) and fails when anything is out of step. A removal deletes only what a
@@ -21,7 +22,7 @@ on:
         required: true
         default: report
         type: choice
-        options: [report, remove-files, remove-index-entries]
+        options: [report, remove-files, remove-index-entries, remove-index-text]
       expect:
         description: For a removal - the count the latest report shows for it
         required: false
@@ -58,7 +59,7 @@ jobs:
           case "$RECONCILE_ACTION" in
             report)
               python3 scripts/reconciliation.py report --target "$RECONCILE_TARGET" ;;
-            remove-files|remove-index-entries)
+            remove-files|remove-index-entries|remove-index-text)
               [[ "$RECONCILE_EXPECT" =~ ^[0-9]+$ ]] || { echo "::error::Enter the count the latest report shows in \"expect\"."; exit 1; }
               python3 scripts/reconciliation.py "$RECONCILE_ACTION" --target "$RECONCILE_TARGET" --expect "$RECONCILE_EXPECT" ;;
             *)

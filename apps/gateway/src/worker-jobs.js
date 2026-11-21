@@ -224,7 +224,7 @@ async function processIngestionMessage(env, message) {
 
     const points = await indexChunks(env, {
       workspaceId: job.workspace_id, documentId: job.document_id, versionId: job.version_id,
-      generation, filename: document.filename, chunks: batch, initializeIndex: offset === 0,
+      generation, chunks: batch, initializeIndex: offset === 0,
       dataClassification: version.data_classification, actorId: document.uploaded_by, userApiKey, credentialMode,
     });
     const stagedChunks = await Promise.all(points.map(async (point, index) => {
