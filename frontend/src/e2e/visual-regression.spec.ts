@@ -10,11 +10,13 @@ for (const target of pages) {
     await page.emulateMedia({ reducedMotion: "reduce" });
     await page.goto(target.path, { waitUntil: "networkidle" });
     if (target.name === "home") {
+      // Signed out: the page asks the visitor to sign in, with nothing to attest before a question can be sent.
+      await expect(page.getByRole("link", { name: "Sign in" }).first()).toBeVisible();
       await expect(
         page.getByRole("checkbox", {
           name: /This question contains no personal, confidential, regulated, or other sensitive information/i,
         })
-      ).toBeVisible();
+      ).toHaveCount(0);
     }
     await expect(page).toHaveScreenshot(`${target.name}.png`, {
       animations: "disabled",

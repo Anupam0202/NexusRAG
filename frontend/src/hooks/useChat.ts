@@ -1,5 +1,6 @@
 "use client";
 
+import { hasPublicSupabaseConfig } from "@/lib/supabase/config";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ApiRequestError, chatQuery, getSessionMessages } from "@/lib/api";
 import { useStore } from "@/hooks/useStore";
@@ -127,7 +128,9 @@ export function useChat() {
 
   useEffect(() => {
     if (!canAccessWorkspaceApi) {
-      store.setConnectionStatus(store.authMode === "loading" ? "checking" : "auth_setup_required");
+      // A signed-out visitor only needs to sign in; setup is missing only when the build has no Supabase settings.
+      store.setConnectionStatus(store.authMode === "loading" ? "checking"
+        : hasPublicSupabaseConfig() ? "auth_required" : "auth_setup_required");
       return;
     }
 

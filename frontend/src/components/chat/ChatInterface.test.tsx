@@ -98,3 +98,12 @@ describe("chat filter controls (synthetic component state, not live OAuth accept
     expect(fixture.sendMessage).not.toHaveBeenCalled();
   });
 });
+
+describe("signed out", () => {
+  it("asks a signed-out visitor to sign in, not to attest a question they cannot send", () => {
+    useStore.setState({ ...useStore.getInitialState(), authMode: "signed_out" });
+    render(<ChatInterface />);
+    expect(screen.queryByRole("checkbox", { name: /This question contains no personal/ })).toBeNull();
+    expect(screen.getByRole("link", { name: "Sign in" })).toHaveAttribute("href", "/auth/login?next=/chat");
+  });
+});
