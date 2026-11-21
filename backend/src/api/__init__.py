@@ -1,1 +1,0 @@
-"""API layer: REST routes, WebSocket, middleware, dependency injection."""

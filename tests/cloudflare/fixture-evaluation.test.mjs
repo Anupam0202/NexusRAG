@@ -4,7 +4,7 @@ import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { handle } from "../../apps/gateway/src/preview-worker.js";
 import { evaluateFixtureCase, runFixtureEvaluation } from "../../apps/gateway/src/fixture-evaluation.js";
-import dataset from "../../backend/evals/datasets/sample_corpus.json" with { type: "json" };
+import dataset from "../../evals/datasets/sample_corpus.json" with { type: "json" };
 
 const workspace = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
 const user = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
@@ -135,7 +135,7 @@ for item in items:
     out.append(evaluate_case(answer=item['answer'], sources=[RetrievedSource(**s) for s in item['sources']],
         **{k: c[k] for k in ('expected_sources', 'expected_answer', 'expected_terms', 'workspace_id', 'forbidden_sources') if k in c}).as_dict())
 json.dump(out, sys.stdout)
-`], { cwd: fileURLToPath(new URL("../../backend/", import.meta.url)), input: JSON.stringify(cases), encoding: "utf8", timeout: 10000 });
+`], { cwd: fileURLToPath(new URL("../../", import.meta.url)), input: JSON.stringify(cases), encoding: "utf8", timeout: 10000 });
   assert.equal(reference.status, 0, reference.stderr || reference.error?.message);
   const expected = JSON.parse(reference.stdout);
   for (const [i, item] of cases.entries()) {

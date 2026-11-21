@@ -110,7 +110,7 @@ icons. More detail: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) and [docs/SECUR
 | `tests/postgres/` | SQL assertions and the full local database replay |
 | `tests/scripts/` | Tests for the release and migration tooling |
 | `scripts/` | Release, migration, provider-review and smoke-test tools |
-| `backend/` | The original FastAPI implementation, kept as a local research tool; it is not deployed |
+| `evals/` | The synthetic evaluation inventory CI scores, and the reference metrics the gateway's fixture evaluation is checked against |
 | `docs/` | Architecture, security, deployment guides and the completion plan |
 
 ## Running it locally

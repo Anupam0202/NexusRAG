@@ -4,7 +4,6 @@ import { resolve } from "node:path";
 
 const root = resolve(import.meta.dirname, "..");
 const lock = JSON.parse(await readFile(resolve(root, "frontend/package-lock.json"), "utf8"));
-const pyproject = await readFile(resolve(root, "backend/pyproject.toml"), "utf8");
 const outputDir = resolve(root, "artifacts");
 await mkdir(outputDir, { recursive: true });
 
@@ -33,26 +32,7 @@ const npmComponents = Object.entries(lock.packages ?? {})
     };
   });
 
-const dependencyBlock = pyproject.match(/\ndependencies\s*=\s*\[([\s\S]*?)\n\]/)?.[1] ?? "";
-const pythonComponents = [...dependencyBlock.matchAll(/"([^"\n]+)"/g)].map((match) => {
-  const declaration = match[1];
-  const name = declaration.split(/[<>=!~\[]/, 1)[0].trim();
-  const versionRange = declaration.slice(name.length).trim() || "unspecified";
-  return {
-    type: "library",
-    name,
-    version: versionRange,
-    purl: `pkg:pypi/${encodeURIComponent(name.toLowerCase())}`,
-    licenses: [],
-    properties: [
-      { name: "nexusrag:ecosystem", value: "pypi" },
-      { name: "nexusrag:declaration", value: declaration },
-      { name: "nexusrag:license", value: "UNKNOWN" },
-    ],
-  };
-});
-
-const components = [...npmComponents, ...pythonComponents].sort((a, b) =>
+const components = [...npmComponents].sort((a, b) =>
   `${a.purl}:${a.version}`.localeCompare(`${b.purl}:${b.version}`),
 );
 const sourceDigest = createHash("sha256")
@@ -94,7 +74,7 @@ const licenseInventory = {
   unknown_license_count: licenses.filter((item) => item.license === "UNKNOWN").length,
   forbidden,
   entries: licenses,
-  caveat: "Declared Python dependencies require resolved-environment licence enrichment before release.",
+  caveat: "Licences come from the frontend lockfile; components without one need a manual check before release.",
 };
 
 await writeFile(resolve(outputDir, "nexusrag.cdx.json"), `${JSON.stringify(bom, null, 2)}\n`);
