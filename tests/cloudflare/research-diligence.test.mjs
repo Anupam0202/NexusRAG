@@ -4,6 +4,7 @@ import {confirmedRun} from "../../apps/gateway/src/research-runs.js";
 import {diligenceWork,diligencePrompt,diligenceResult} from "../../apps/gateway/src/research-diligence.js";
 import {queryVariantPrompt} from "../../apps/gateway/src/research-query-retrieval.js";
 import {validateResearchPlan} from "../../apps/gateway/src/research-plans.js";
+import { ANCHOR_RULE } from "../../apps/gateway/src/research-anchors.js";
 
 const id="11111111-1111-4111-8111-111111111111";
 const source_snapshot=Array.from({length:60},(_,i)=>({document_id:`10000000-0000-4000-8000-${String(i+1).padStart(12,"0")}`,
@@ -93,6 +94,8 @@ test("malformed provider output and missing qualifications fail without a mislea
 });
 test("the review prompt keeps actual full source/subject scope and explicit identity and adverse-decision limitations",()=>{
   const {work,documents,sources}=fixture(60),prompt=diligencePrompt(work,documents,sources);
+  // Live, offsets Gemini counted pointed at the wrong words (issue #29): prompts ask for exact wording only.
+  assert.ok(prompt.includes(ANCHOR_RULE));assert.doesNotMatch(prompt,/CODEPOINT|\["S\d+",\d+,\d+\]/);
   assert.match(prompt,/NOT_VERIFIED_IDENTITIES/);assert.match(prompt,/Do not drop qualifiers/);
   assert.equal(JSON.parse(prompt.split("\nEVIDENCE:\n")[1]).length,60);
   assert.ok(prompt.includes(JSON.stringify(work.targets)));assert.match(prompt,/risk scores/);

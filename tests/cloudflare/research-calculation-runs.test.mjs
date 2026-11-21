@@ -4,6 +4,7 @@ import { handle } from "../../apps/gateway/src/preview-worker.js";
 import { confirmedRun } from "../../apps/gateway/src/research-runs.js";
 import { calculateBinary, calculationRunPrompt, calculationRunResult, calculationRunWork, locateNumber, locateUnit,
   normalizeQuotedNumber, plainText } from "../../apps/gateway/src/research-calculation-runs.js";
+import { ANCHOR_RULE } from "../../apps/gateway/src/research-anchors.js";
 
 const input=(operation,left,right,precision=2,units=["USD","USD"])=>({operation,precision,
   left:{value:left,unit:units[0],evidence_ids:["Q1"]},right:{value:right,unit:units[1],evidence_ids:["Q2"]}});
@@ -160,6 +161,8 @@ test("figures without a computed result, or no figures at all, answer nothing", 
 
 test("the prompt asks only for figures and operations, with the plan's requested calculations as guidance", () => {
   const {work,documents,sources}=fixture(),prompt=calculationRunPrompt(work,documents,sources);
+  // Live, offsets Gemini counted pointed at the wrong words (issue #29): prompts ask for exact wording only.
+  assert.ok(prompt.includes(ANCHOR_RULE));assert.doesNotMatch(prompt,/CODEPOINT|\["S\d+",\d+,\d+\]/);
   assert.match(prompt,/Do not calculate anything yourself/);
   assert.match(prompt,/Never convert units or currencies, never rescale/);
   assert.ok(prompt.includes(`REQUESTED_CALCULATIONS (from the plan; guidance, not evidence):\n${JSON.stringify(work.requested)}`));

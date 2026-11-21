@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {createHash} from "node:crypto";
 import {entityWork,entityPrompt,entityResult} from "../../apps/gateway/src/research-entities.js";
 import {entityCapacity,entityWire} from "../fixtures/research-entity-data.mjs";
+import { ANCHOR_RULE } from "../../apps/gateway/src/research-anchors.js";
 
 function fixture() {
   const documents=[{id:"doc-one",filename:"Synthetic registry.txt"},{id:"doc-two",filename:"Synthetic amendment.txt"}];
@@ -104,6 +105,8 @@ test("ordinary malformed or incomplete structured responses fail explicitly rath
 
 test("the evidence prompt includes every requested target, real source scope and explicit uncertainty",()=>{
   const {work,documents,sources}=fixture(),prompt=entityPrompt(work,documents,sources);
+  // Live, offsets Gemini counted pointed at the wrong words (issue #29): prompts ask for exact wording only.
+  assert.ok(prompt.includes(ANCHOR_RULE));assert.doesNotMatch(prompt,/CODEPOINT|\["S\d+",\d+,\d+\]/);
   assert.ok(prompt.includes(JSON.stringify(work.targets)));assert.ok(prompt.includes("NOT_VERIFIED_IDENTITIES"));
   assert.ok(prompt.includes("Do not drop qualifiers"));assert.ok(prompt.includes("no source-anchored candidate"));
   assert.equal(JSON.parse(prompt.split("\nEVIDENCE:\n")[1]).length,2);
