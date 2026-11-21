@@ -1,6 +1,7 @@
 import modes from "../../../frontend/src/lib/research-modes.json" with { type: "json" };
 import { hybridFuse } from "./worker-lifecycle.js";
 import { confirmedPassportSubject } from "./research-passport.js";
+import { parseModelJson } from "./model-json.js";
 
 export function queryVariantPrompt(question,mode,entityTargets=[],passportSubject) {
   const maximum=modes[mode]?.max_query_variants;
@@ -52,7 +53,7 @@ function containsLiteral(query,literal) {
 export function queryVariants(question,mode,generated) {
   const maximum=modes[mode].max_query_variants,queries=[question],seen=new Set([question.trim().toLowerCase()]);
   let entries,status="ORIGINAL_ONLY",rejected=0;
-  try {entries=JSON.parse(generated.answer).queries;}catch {status="INVALID_RESPONSE_ORIGINAL_ONLY";}
+  try {entries=parseModelJson(generated.answer).queries;}catch {status="INVALID_RESPONSE_ORIGINAL_ONLY";}
   if(!Array.isArray(entries)||entries.length>maximum-1)status="INVALID_RESPONSE_ORIGINAL_ONLY";
   else {
     const literals=requiredLiterals(question);

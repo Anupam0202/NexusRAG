@@ -119,6 +119,27 @@ test("figures are kept only where the passage states them, and results are compu
   assert.equal(result.analysis.interpretation,"FIGURES_QUOTED_FROM_SOURCES_RESULTS_COMPUTED_BY_DATABASE");
 });
 
+// Live on 2026-11-21 every figure Gemini returned was refused, and the stored reasons alone could not say why
+// (issue #29). The structure behind each refusal goes to the Worker's log; no passage text and no label does.
+test("each refused figure is explained by its structure, never by its text, and nothing of it is stored", () => {
+  const {work,documents,sources,wire,generated}=fixture();
+  const missed={label:"Offsets that miss the figure",anchor:["S4",0,10],value:"1,100.0",unit:"EUR"};
+  const numeric={label:"A number, not text",anchor:{citation_id:"S4",quote:"EUR 1,234.5 million"},value:1234.5,unit:"EUR"};
+  const unknown={label:"An unknown passage",anchor:{citation_id:"S9",quote:"EUR 1,234.5 million"},value:"1,234.5",unit:"EUR"};
+  const result=calculationRunResult(work,documents,sources,generated({...wire,quantities:[...wire.quantities,missed,numeric,unknown]}));
+  const byIndex=new Map(result.diagnostics.filter(d=>d.kind==="QUANTITY").map(d=>[d.index,d]));
+  assert.deepEqual(byIndex.get(7),{kind:"QUANTITY",index:7,reason:"VALUE_NOT_IN_QUOTE",anchor:"offsets",passage_found:true,value_type:"string",
+    value_form:"number",value_in_passage:true,unit_type:"string",period_type:"undefined",label_characters:Array.from(missed.label).length});
+  assert.deepEqual(byIndex.get(8),{kind:"QUANTITY",index:8,reason:"INVALID_QUANTITY",anchor:"quote",passage_found:true,value_type:"number",
+    value_form:null,value_in_passage:false,unit_type:"string",period_type:"undefined",label_characters:Array.from(numeric.label).length});
+  assert.deepEqual([byIndex.get(9).reason,byIndex.get(9).passage_found,byIndex.get(9).value_in_passage],["UNCONFIRMED_SOURCE_ANCHOR",false,false]);
+  assert.equal(byIndex.get(4).value_in_passage,false,"a digit of a year is not a figure anywhere in the passage");
+  // One diagnosis per refusal, in the same order; none of it is text from a passage or a label.
+  assert.deepEqual(result.diagnostics.map(d=>[d.kind,d.index,d.reason]),result.analysis.rejections.map(r=>[r.kind,r.index,r.reason]));
+  for(const text of ["Revenue","Offsets","EUR","fiscal"])assert.ok(!JSON.stringify(result.diagnostics).includes(text),text);
+  assert.equal(JSON.stringify(result.analysis).includes("value_in_passage"),false);
+});
+
 test("figures without a computed result, or no figures at all, answer nothing", () => {
   const {work,documents,sources,wire,generated}=fixture();
   const onlyRefused=calculationRunResult(work,documents,sources,generated({...wire,calculations:[wire.calculations[2]]}));

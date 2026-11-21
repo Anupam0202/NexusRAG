@@ -1,4 +1,5 @@
 import modes from "../../../frontend/src/lib/research-modes.json" with {type:"json"};
+import { parseModelJson } from "./model-json.js";
 
 // CALCULATION research runs (NX-17). Gemini only points at figures that the retrieved passages state: the
 // passage, the number, its unit and the period it refers to, each exactly as written there. It never does
@@ -161,8 +162,23 @@ EVIDENCE:\n${JSON.stringify(sources.map(source=>({citation_id:source.citation_id
 }
 
 function parseWire(answer) {
-  const body=answer.trim().replace(/^```(?:json)?\s*/i,"").replace(/\s*```$/,"");
-  try {return JSON.parse(body);} catch {throw invalid();}
+  try {return parseModelJson(answer);} catch {throw invalid();}
+}
+/**
+ * Why a quoted figure was refused, without its text, for the Worker's logs (issue #29): the anchor's form, whether
+ * its passage exists, the value's type and form, whether that value stands anywhere in the cited passage as a whole
+ * number, and the types of the unit and period. Never stored: the database checks only the analysis.
+ */
+function quantityShape(row,originals) {
+  const anchor=row&&typeof row==="object"?row.anchor:undefined;
+  const citation=Array.isArray(anchor)?anchor[0]:anchor&&typeof anchor==="object"?anchor.citation_id:undefined;
+  const source=typeof citation==="string"?originals.get(citation)?.source:undefined;
+  const value=typeof row?.value==="string"?row.value.trim():null,form=value!==null&&QUOTED_NUMBER.test(value);
+  return {anchor:Array.isArray(anchor)?"offsets":anchor===null?"null":typeof anchor==="object"?"quote":typeof anchor,
+    passage_found:Boolean(source),value_type:row?.value===null?"null":typeof row?.value,
+    value_form:value===null?null:form?"number":"other",value_in_passage:Boolean(source&&form&&locateNumber(source.content,value)),
+    unit_type:Array.isArray(row?.unit)?"list":row?.unit===null?"null":typeof row?.unit,
+    period_type:row?.period===null?"null":typeof row?.period,label_characters:typeof row?.label==="string"?chars(row.label).length:null};
 }
 const QUANTITY_REASONS=Object.freeze(["INVALID_QUANTITY","UNCONFIRMED_SOURCE_ANCHOR","VALUE_NOT_IN_QUOTE","UNIT_NOT_IN_QUOTE","PERIOD_NOT_IN_QUOTE","REPEATED_QUANTITY"]);
 const CALCULATION_REASONS=Object.freeze(["INVALID_CALCULATION","QUANTITY_UNAVAILABLE","REPEATED_CALCULATION"]);
@@ -193,9 +209,9 @@ export function calculationRunResult(work,documents,sources,generated) {
   if(!wire||typeof wire!=="object"||wire.schema_version!=="research-calculation-wire/1"||!Array.isArray(wire.quantities)
     ||wire.quantities.length>CALCULATION_RUN_LIMITS.max_quantities||!Array.isArray(wire.calculations)
     ||wire.calculations.length>CALCULATION_RUN_LIMITS.max_calculations)throw invalid();
-  const kept=[],byIndex=new Map(),rejections=[],seen=new Set();
+  const kept=[],byIndex=new Map(),rejections=[],seen=new Set(),diagnostics=[];
   for(const [index,row] of wire.quantities.entries()) {
-    const reject=reason=>rejections.push({kind:"QUANTITY",index,reason});
+    const reject=reason=>{rejections.push({kind:"QUANTITY",index,reason});diagnostics.push({kind:"QUANTITY",index,reason,...quantityShape(row,originals)});};
     if(!row||typeof row!=="object"||Array.isArray(row)||!text(row.label,200)||typeof row.value!=="string"
       ||!(typeof row.unit==="string"||Array.isArray(row.unit))||!(row.period==null||typeof row.period==="string")){reject("INVALID_QUANTITY");continue;}
     const located=anchor(row.anchor);
@@ -219,7 +235,7 @@ export function calculationRunResult(work,documents,sources,generated) {
   }
   const calculations=[],pairs=new Set();
   for(const [index,row] of wire.calculations.entries()) {
-    const reject=reason=>rejections.push({kind:"CALCULATION",index,reason});
+    const reject=reason=>{rejections.push({kind:"CALCULATION",index,reason});diagnostics.push({kind:"CALCULATION",index,reason});};
     if(!row||typeof row!=="object"||Array.isArray(row)||!text(row.label,200)||!CALCULATION_OPERATIONS.includes(row.operation)
       ||!Number.isInteger(row.precision)||row.precision<0||row.precision>18||!Number.isInteger(row.left)||!Number.isInteger(row.right)){reject("INVALID_CALCULATION");continue;}
     const left=byIndex.get(row.left),right=byIndex.get(row.right);
@@ -259,5 +275,6 @@ export function calculationRunResult(work,documents,sources,generated) {
     quantities:kept,calculations,rejections,documents:scoped,interpretation:"FIGURES_QUOTED_FROM_SOURCES_RESULTS_COMPUTED_BY_DATABASE",
     coverage:"BOUNDED_RETRIEVAL_NOT_EXHAUSTIVE",rounding:"ROUND_HALF_EVEN"},
     sources:keptSources.map((source,i)=>({...source,citation_id:`S${i+1}`})),
-    checked:{answer,claim_state:computed?"REVIEW_REQUIRED":"UNSUPPORTED",abstained:!computed,citations:keptSources.map((_,i)=>i+1)}};
+    checked:{answer,claim_state:computed?"REVIEW_REQUIRED":"UNSUPPORTED",abstained:!computed,citations:keptSources.map((_,i)=>i+1)},
+    diagnostics};
 }

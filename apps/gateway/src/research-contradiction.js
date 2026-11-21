@@ -1,4 +1,5 @@
 import modes from "../../../frontend/src/lib/research-modes.json" with {type:"json"};
+import { parseModelJson } from "./model-json.js";
 
 const limits=modes.CONTRADICTION_ANALYSIS;
 const relationships=new Set(["POTENTIAL_CONFLICT","DIFFERENT_CONTEXT","TEMPORAL_CHANGE","INSUFFICIENT_CONTEXT"]);
@@ -38,7 +39,7 @@ export function contradictionResult(work,documents,sources,generated) {
     throw fail("INVALID_SCOPE","The retrieved contradiction-analysis scope is invalid.");
   let proposed=[];
   if(generated) {
-    let value;try{value=JSON.parse(generated.answer);}catch{throw invalid();}
+    let value;try{value=parseModelJson(generated.answer);}catch{throw invalid();}
     if(!Array.isArray(value?.pairs)||value.pairs.length>6)throw invalid();
     proposed=value.pairs;
   }

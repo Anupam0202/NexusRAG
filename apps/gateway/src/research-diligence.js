@@ -1,4 +1,5 @@
 import modes from "../../../frontend/src/lib/research-modes.json" with {type:"json"};
+import { parseModelJson } from "./model-json.js";
 
 const limits=modes.DUE_DILIGENCE;
 const topics=new Set(["IDENTITY","OWNERSHIP","FILINGS","OBLIGATIONS","OPERATIONS","SOURCE_DISCREPANCY","OTHER"]);
@@ -51,7 +52,7 @@ export function diligenceResult(work,documents,sources,generated) {
     return {document_id:original.source.document_id,citation_id:value.citation_id,quote:value.quote,quote_start:start,quote_end:end};
   };
   let value={schema_version:"research-diligence-wire/1",anchors:[],texts:[],observations:[],gaps:[]};
-  if(generated){try{value=JSON.parse(generated.answer);}catch{throw invalid();}}
+  if(generated){try{value=parseModelJson(generated.answer);}catch{throw invalid();}}
   if(value?.schema_version!=="research-diligence-wire/1"||!Array.isArray(value.anchors)||value.anchors.length>48
     ||!Array.isArray(value.texts)||value.texts.length>72||value.texts.some(item=>!text(item,240))
     ||!Array.isArray(value.observations)||value.observations.length>12||!Array.isArray(value.gaps)||value.gaps.length>12)throw invalid();
