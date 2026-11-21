@@ -266,6 +266,28 @@ test("storage deletion accepts Supabase NoSuchKey absence verification", async (
   }
 });
 
+test("deleting an original that is already gone counts as gone, so the document's deletion can finish", async () => {
+  // Supabase Storage answers a DELETE of a missing object with HTTP 400 and NoSuchKey, not 404. Live on production
+  // (20 November) a document whose file had disappeared stayed in deletion for good: every retry stopped here.
+  const originalFetch = globalThis.fetch;
+  const calls = [];
+  const missing = () => new Response(JSON.stringify({ statusCode: "404", error: "not_found", message: "Object not found", code: "NoSuchKey" }), { status: 400, headers: { "content-type": "application/json" } });
+  globalThis.fetch = async (url, init = {}) => { calls.push(init.method || "GET"); return missing(); };
+  try {
+    await storageDelete(configured, "workspace/document/version/file.txt");
+    assert.deepEqual(calls, ["DELETE", "GET"]);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+  // Any other refusal of the DELETE is still a failure worth retrying.
+  globalThis.fetch = async () => new Response(JSON.stringify({ statusCode: "403", error: "Unauthorized", message: "Invalid key" }), { status: 400, headers: { "content-type": "application/json" } });
+  try {
+    await assert.rejects(storageDelete(configured, "workspace/document/version/file.txt"), (error) => error.code === "STORAGE_DELETE_FAILED");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test("storage deletion rejects an unrelated 400 verification response", async () => {
   const originalFetch = globalThis.fetch;
   let calls = 0;
