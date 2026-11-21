@@ -1,58 +1,66 @@
 # NexusRAG completion progress
-Last updated: 2026-11-20 (late: front doors redeployed from `main`, master goal version 2). The goal and the ordered
+Last updated: 2026-11-21 (fixes for issues #26 to #28 and #29's first half released and verified; phase 2 journeys live). The goal and the ordered
 remaining work are in `docs/completion/GOAL.md`.
 
-## Handoff 2026-11-20 (late)
-`main` has every pull request through the master goal's version 2 (`docs/completion/GOAL.md`, which says what is
-left and in what order); each merge had every required check green on its exact head. Released: production runs
-`2845818` at https://nexusrag.pages.dev and the preview runs `c56ec45` at https://nexusrag-preview.pages.dev, both
-`/ready` READY; `main` differs from them only in release tooling, Worker configs and documents.
-Done since the evening Handoff:
-- the one-address pull request merged (`ce70830`); both front doors redeployed from `main`, their stale
-  `FALLBACK_ORIGIN` variable removed (a deploy now removes the settings it no longer sets) and their older
-  deployments deleted;
-- the Provider Review workflow masks the reviewer's email before any step runs (the repository's logs are public);
-- the owner signed in with Google on production and wrote "I have read the terms and accept best recommendations"
-  (their decisions are under "Ledger status");
-- found live: NX-50, erasure waits on the provider review. Production's document `6e799056`, marked for deletion on
-  23 September, is still stored; every cron attempt logs `document_deletion_open` with `PROVIDER_REVIEW_REQUIRED`.
-Agent work next (GOAL.md phase 1): release `main` with the Gemini terms address migration, then record production's
-provider review unless a session already has, check that the stuck deletion finishes, fix NX-50, release `main` to both targets and rerun both journeys; then phase 2.
-Owner actions (GOAL.md section 5): the walkthrough after phase 2; the Supabase secret keys before the end of 2026;
-the repository's website and branch settings; revoking the Supabase tokens pasted into the chat; whether the 13:37
-snapshot schema may be dropped.
+## Handoff 2026-11-21
+`main` is `63e0dc6`. Since the last Handoff, pull requests #19 to #21, #25, #30 and #31 merged, each with every
+required check green on its exact head. Released: production runs `fd11feb` (Production Deploy run 44856548225) and
+the preview runs `5975b51` (Cloudflare Preview Deploy run 44858793101), both `/ready` READY.
+Done and verified live on 21 November (details in the done log):
+- NX-50: erasure no longer waits on the provider review (lapsed review, deletion finished with receipts).
+- Issues #26 to #28 (PR #25), each closed with its evidence:
+  - #26: no stale error on a processed document.
+  - #27: 30- and 60-page PDFs reach Ready, and their late pages answer.
+  - #28: production's stuck deletion `dbcc76fa` finished at 07:15 UTC with seven receipts.
+- Issue #29, first half (PR #30): Compare, Timeline, Deep Research, Contradiction and Obligation runs now complete
+  live.
+- Phase 2 journeys:
+  - NX-04, NX-05, NX-16 (retention), NX-20, NX-22's long PDF, NX-24 (BYOK Check workflow) and NX-27 (account
+    deletion);
+  - the browser check of every page, signed out and signed in, at desktop and mobile widths;
+  - grants and advisors on both projects.
+Blocked (owner decisions asked in chat on 21 November, see "Blockers"):
+- The required image scan has been red on `main` and every pull request since 07:29 UTC: new OpenSSL advisories in
+  the optional self-managed frontend image, with no Alpine fix yet. Nothing can merge until a fix ships or the owner
+  accepts a dated exception.
+- NX-51: release snapshot schemas keep deleted data; the owner decides which may be dropped and whether a 7-day
+  rule may be added.
+Waiting on that gate:
+- PR #32: issue #29's second half, anchors by quote. Calculation, Entity, Due Diligence and Passport runs still
+  refuse Gemini's offset anchors.
+- PR #34: issue #33. Accepting an invitation fails because a trigger reads only `request.jwt.claim.role`; this also
+  blocks the second-member review of a finding and so the evidence package.
+Agent work next: merge #32 and #34 once the gate is green, release both targets, rerun all twelve research modes and
+the findings journey, then phase 3 (`GOAL.md`).
 
 ## Current state
-- `main`: every pull request through the master goal's version 2 (20 November); new work goes on a branch from
-  `main` and a pull request.
+- `main`: `63e0dc6` (21 November). Open pull requests #32 and #34 wait only on the image scan.
 - Production, https://nexusrag.pages.dev: gateway `nexusrag-v6-preview-gateway` and frontend
-  `nexusrag-v6-frontend-preview` at `2845818` (Production Deploy run 44751846631, 20 November); Supabase
-  `fcjaomiceajcdownarel` with every migration (81 recorded, the last `20261120133842`); 8 accounts; 8 documents from
-  June to September 2026: seven without a published version (shown as "Upload again", NX-03) and `6e799056`, marked
-  for deletion on 23 September (operation `dbcc76fa`, blocked by NX-50); Qdrant collection `nexusrag-v6-preview`; no
-  provider review recorded yet; snapshot schema `backup_20261120133700_2845818` kept until the owner decides.
+  `nexusrag-v6-frontend-preview` at `fd11feb` (Production Deploy run 44856548225, 21 November 02:33 UTC).
+  - Supabase `fcjaomiceajcdownarel`, with every migration through `20261120170000_erasure_admission`.
+  - Provider review recorded by the owner on 20 November, valid until 20 November 2027.
+  - No open deletion: `dbcc76fa` was verified on 21 November.
+  - Three snapshot schemas (NX-51).
+  - Qdrant collection `nexusrag-v6-preview`.
 - Preview, https://nexusrag-preview.pages.dev: gateway `nexusrag-v6-candidate-gateway` and frontend
-  `nexusrag-v6-candidate-frontend` at `c56ec45` (Cloudflare Preview Deploy run 44756110282); Supabase
-  `ukgjygzfhyvnrsecdcuu`, built from the baseline, with every later migration (59 recorded, the last
-  `20261120135522`); 4 accounts, no documents; provider reviews: a staging attestation by test account A, valid until
-  2027-11-12; Qdrant collection `nexusrag-v6-candidate`. Test accounts `nexus-e2e-a@nexusrag.test` and
-  `nexus-e2e-b@nexusrag.test`, each with an approved workspace; account A has used its trial document.
-- Front doors: Pages projects `nexusrag` (deployment `13344750`) and `nexusrag-preview` (deployment `e2434644`),
-  deployed from `main` with `scripts/front_door.py` on 20 November. Each binds its frontend Worker as `APP` and its
-  gateway Worker as `GATEWAY`, has one variable (`PUBLIC_ORIGIN`) and keeps only that deployment, whose own
-  `<id>.<project>.pages.dev` address answers 308 to the public one.
+  `nexusrag-v6-candidate-frontend` at `5975b51` (Cloudflare Preview Deploy run 44858793101).
+  - Supabase `ukgjygzfhyvnrsecdcuu`, with every migration through `20261120170000_erasure_admission`.
+  - Three snapshot schemas.
+  - Qdrant collection `nexusrag-v6-candidate`.
+  - Test account A holds the two supply-agreement documents and the 60-page PDF; test account B holds the 30-page
+    PDF.
+  - The preview gateway's log sampling was raised to 100% for the live checks; the next release resets it to the
+    config.
+- Front doors: Pages projects `nexusrag` and `nexusrag-preview`, unchanged since 20 November; each serves its
+  public address only.
 - Cloudflare: Workers `nexusrag-v6-preview-gateway`, `nexusrag-v6-frontend-preview`, `nexusrag-v6-candidate-gateway`
-  and `nexusrag-v6-candidate-frontend`, none with a `workers.dev` or version preview address (error 1042); queues
-  `nexusrag-v6-preview-ingestion`, `nexusrag-v6-candidate-ingestion` and their DLQs; the two Pages projects. No KV,
-  D1, R2, Hyperdrive or zones.
-- Supabase Auth: each project's Site URL and redirect list name only its `pages.dev` address (set by the owner on
-  20 November; the probe refuses the old `workers.dev`, `vercel.app` and PR3 addresses).
-- Providers: Gemini answers with the owner's key of 20 November in all three GitHub environments (live validation on
-  `main`; the preview journey used `gemini-3.5-flash-lite` and `gemini-embedding-001`). Qdrant cluster
-  `fc0c77d2-d9fd-4648-8459-09fa74372f16` (AWS eu-west-2), with the owner's key of 20 November, is READY on both
-  gateways and kept awake by the daily cron.
-- Live journeys on the preview, 20 November: core 26 of 26 (Ready in 10 s, a cited answer, isolation, deletion with
-  receipts); workspace deletion stopped at account A's free-trial limit (BYOK_REQUIRED), as expected.
+  and `nexusrag-v6-candidate-frontend`, none with a `workers.dev` or version preview address; the two ingestion queues
+  and their DLQs; the two Pages projects.
+- Supabase Auth: each project's Site URL and redirect list name only its `pages.dev` address.
+- Providers: Gemini (`gemini-3.5-flash-lite`, `gemini-embedding-001`) and the Qdrant cluster answer on both
+  gateways; live validation passed on every merged head.
+- CI: the required "Full self-managed runtime images" job fails on `main` since 07:29 UTC on 21 November (see
+  "Blockers"); everything else is green.
 - Plan: `docs/completion/MASTER_PROMPT.md`; goal: `docs/completion/GOAL.md`; repository notes: `CLAUDE.md`.
 
 ## Optimization budgets (F8), measured 2026-11-17
@@ -79,22 +87,29 @@ gzip -9. Live figures are Workers Logs and Cloudflare's analytics for the 7 days
 | CI wall-clock | 19m41s to 23m52s for V6 Foundation CI (12 October) | V6 Foundation CI 20m56s, V6 Database Rehearsal 7m30s (`729c4ec`) | — | No regression |
 | Chat time to first token and total time, p50 and p95 | — | not measured | — | The key works since 20 November; measured over 20 answers in GOAL.md phase 2 |
 
-## Ledger status, 2026-11-20
+## Ledger status, 2026-11-21
 Section 13 needs every ledger item (MASTER_PROMPT Part 2, section D) fixed and verified, or accepted by the owner
 in chat with a reason. Where each one stands:
-- Closed, fixed and verified live: NX-02 (both targets released on 20 November), NX-07, NX-08 (production has every
-  migration), NX-12 and NX-13 (both deploy workflows ran end to end on 20 November), NX-16, NX-23, NX-40 (both Auth
-  allow-lists name only `pages.dev`), and NX-47 on the preview. Fixed and verified in CI: NX-09, NX-10, NX-11.
-  Checked on both hosted projects, with a replay assertion that keeps it so: NX-19 (re-run after each migration
-  batch). Resolved: NX-43, NX-48, NX-49.
-- Released on both targets and passing the releases' browser tests; GOAL.md phase 2's check of every page closes
-  them: NX-01, NX-28, NX-30.
-- Released; the live check is in GOAL.md phase 2: NX-03, NX-04, NX-05 (the core journey's isolation checks passed on
-  20 November; the two-tab check is left), NX-06 (live validation passed; production runs the model policy before
-  1 December), NX-14, NX-17, NX-18 (each release installs its environment's encryption secret, and Production Deploy
-  refuses to run without it), NX-20, NX-21, NX-22's long PDF, NX-24, NX-27, NX-36.
-- Open: NX-50 (erasure waits on the provider review; GOAL.md phase 1); NX-47 on production (finishes once the review
-  is recorded); NX-26 (the Supabase secret keys, an owner input before the end of 2026).
+- **Closed, fixed and verified live:**
+  - Earlier: NX-02, NX-07, NX-08, NX-12, NX-13, NX-23, NX-40 and NX-47 (production's stuck deletion finished on
+    21 November).
+  - On 21 November: NX-04, NX-05, NX-16 (workspace deletion and a retention run), NX-20, NX-24, NX-27 (account
+    deletion and reconciliation) and NX-50.
+  - In CI: NX-09, NX-10, NX-11.
+  - On both hosted projects, rechecked on 21 November, with a replay assertion that keeps it so: NX-19.
+  - Resolved: NX-43, NX-48, NX-49.
+- **Released and passing on every page:** the 21 November browser check covered every page, signed out and signed
+  in, at desktop and mobile widths: no policy violation, failed request or overflow. This closes NX-01, NX-28 and
+  NX-30. NX-21's streamed answers were used throughout by the browser checks.
+- **Released, live check partly done:**
+  - NX-17: five run modes complete live. Calculation and three others wait on PR #32 (issue #29).
+  - NX-22's long PDF is verified (60 pages Ready with a full read). Its page count is not recorded (shown as "-").
+  - NX-36's payload check is not yet done.
+  - NX-03, NX-06, NX-14, NX-18.
+- **Open:**
+  - NX-26: the Supabase secret keys, an owner input before the end of 2026.
+  - NX-51: release snapshots keep deleted data; the owner is asked.
+  - Issue #33 (PR #34).
 - The owner's decisions, 20 November ("I have read the terms and accept best recommendations"):
   - accepted as they are: NX-22's remainder (no PDF text layer or page splitting on the free plan), NX-25 (the
     per-user limit is approximate; a strict one needs a Durable Object), NX-32 (claims are safe while each
@@ -179,6 +194,14 @@ in chat with a reason. Where each one stands:
 | 2026-11-20 | Phase C checks while waiting on the owner: Workers logs show no error event in the last day for either gateway and none in six hours for the production frontend; the preview frontend's only exceptions are NX-01's (`Unexpected loadManifest(/.next/server/preview-props.json)`), raised by bots probing paths such as `/phpinfo.php`, and fixed on `main` for its next release. Supabase Auth still sends both `pages.dev` returns to the old Site URLs (probe), the saved Supabase token is still refused (401), and the repository's website still names the candidate's `workers.dev` address (owner action 6). | n/a | n/a |
 | 2026-11-20 | PR #12 merged into `main` as `90d1b80` (squash, 217 commits), at the owner's request. The merge first named two missing requirements, "Bounded gemini validation" and a successful `Preview` deployment; the trusted push of the exact head to `release/production-20261120` (D2) ran V6 Live Provider Validation, whose Gemini and Qdrant checks passed (the `Preview` environment's Gemini key works) and recorded the deployment, and the merge then went through | CI on the head ([foundation](https://github.com/Anupam0202/NexusRAG/actions/runs/44495098342), [rehearsal](https://github.com/Anupam0202/NexusRAG/actions/runs/44495098492)) and [live provider validation](https://github.com/Anupam0202/NexusRAG/actions/runs/44667324802); the merge commit's tree equals the head's | `90d1b80` |
 | 2026-11-20 | Production Deploy of `90d1b80` stopped safely at its configuration check: `SUPABASE_DB_URL` is missing from the `Production` environment; nothing was changed. Cloudflare Preview Deploy from `main` was refused because its environment does not allow `main`. In Chromium, production (September build) shows "Backend offline" and GitHub-only sign-in, and the preview's October frontend still crashes with Error 1101 off the prerendered pages. Neither Supabase project accepts its `pages.dev` address as a sign-in return | [production run](https://github.com/Anupam0202/NexusRAG/actions/runs/44669070315), [preview run](https://github.com/Anupam0202/NexusRAG/actions/runs/44669231783); browser screenshots in the session; the Auth probe in GOAL.md section 4 | n/a (records only) |
+| 2026-11-21 | NX-50 verified live on the preview after releasing `c9e1354`: with rehearsal's Qdrant review lapsed (`nexus_provider_rights_current('qdrant')` false), deleting account B's ZIP returned DELETED in 2.4 s with five receipts (Qdrant, Supabase Storage, three database), the Qdrant reservation was admitted as erasure, and the review was restored to its recorded time | 4 | `c9e1354` (#21) |
+| 2026-11-21 | PR #25 rebase-merged (`014ba03`, `16475c9`, `fd11feb`) and released to both targets. Issue #26: a completed job given a leftover error in the database showed none on either status endpoint. Issue #27: the 30- and 60-page PDFs, retried from their failed jobs, reached Ready in 95 s and 115 s (20 and 40 passages); `gemini_read` logged a first read cut off at 8,188 tokens and a full read that finished (9,304 tokens, 19.6 s); page 28's "4.7 bar" and page 57's "913 litres per second" were answered with keyword coverage RANKED. Issue #28: production's deletion `dbcc76fa` was verified at 07:15:55 UTC with seven receipts. All three issues closed | 4 | `fd11feb` |
+| 2026-11-21 | Issue #29 found live: every research mode that expects JSON failed (`PROVIDER_INVALID_RESPONSE`), and every query expansion fell back to the original question, because the requests never asked Gemini for JSON and the parsers refused fenced replies. PR #30 (`5975b51`) asks for JSON, reads one fence and logs refused replies by shape only. Released: Compare, Timeline, Deep Research, Contradiction and Obligation runs completed live, and so did Quick Lookup and Evidence Answer. The new logs showed why Calculation, Entity, Due Diligence and Passport still refuse replies: every anchor came as code-point offsets that pointed at the wrong words. PR #32 asks for quotes instead | 4 for seven modes; 3 for #32 | `5975b51`, #32 |
+| 2026-11-21 | NX-24 live: the BYOK Check workflow (#31, `63e0dc6`; run 44880329015) passed all 11 steps on the preview. Without a key, a question past the free chats was refused (402 `BYOK_REQUIRED`). The preview's own Gemini key, stored as test account B's key, was checked with Google and sealed, and answered with 10 sources at `USER_GOOGLE_PROJECT`. After removal, questions were refused again; the key row's ciphertext, nonce, fingerprint and consent are cleared, and B's usage count was restored | 4 | `63e0dc6` |
+| 2026-11-21 | Phase 2 journeys on the preview. NX-04: a summary of `harbor-supply-amendment.md` cited only that document. NX-05: after a second tab moved the shared selection to another workspace, the first tab's question still named its own workspace and was answered from it, while account B, asking at the same time, got nothing of A's. NX-27: a throwaway account's workspace, document, chat and sign-in were erased (record `verified` 2 s after the request; sign-in refused afterwards). NX-16: a 7-day retention run removed a back-dated document (erased by the cron 41 s later with five receipts) and two old messages. Browser: 30 page loads signed out and in, at desktop and mobile widths, with no policy violation, failed request or horizontal overflow. Grants rechecked on both projects (72 tables each, no client privilege); security advisors: only leaked-password protection (NX-41, accepted). Store Reconciliation on 20 November: zero on all four counts for both targets | 4 | `fd11feb`, `5975b51` |
+| 2026-11-21 | Findings live: a research result saved as a finding, its export review recorded for its two source versions, and self-approval refused (403). The evidence package needs a second member's approval, and inviting one fails (issue #33) | 4 (partial) | `5975b51` |
+| 2026-11-21 | Issue #33 found: accepting a workspace invitation fails live with 42501 (`Insufficient workspace member permissions.`). The membership trigger, and four more functions, recognise the service role only by `request.jwt.claim.role`, which hosted PostgREST no longer sets. Reproduced on rehearsal's database inside blocks that end in an error, so nothing was kept. PR #34 reads the role from either setting; its replay assertion, run under exactly the hosted setting, fails before the migration with the live error and passes after it | 3 | #34 |
+| 2026-11-21 | Required image scan red on `main` from 07:29 UTC: new OpenSSL advisories (10 High, 4 Medium) against Alpine 3.24's `libssl3`/`libcrypto3` 3.5.9-r1 in the optional self-managed frontend image. Alpine records no fix in 3.24 or edge, and Node bundles the same OpenSSL version, so removing the system libraries would only hide it. The owner is asked for a dated exception, or to wait for Alpine as with NX-49 on 19 November | n/a | — |
 | 2026-11-19 | NX-49 fixed without a change here, found by the scheduled check: Alpine 3.24 published OpenSSL `3.5.9-r1` (`libssl3` and `libcrypto3`, built 18 November 23:31 UTC), the Dockerfile's `apk upgrade` took it, and the scanner no longer matches the five CVEs. OpenSSL's own 3.5.10 is still unreleased. V6 Foundation CI is green in full again, with both of 18 November's red scans cleared upstream and neither gate loosened. The same check found `npm audit` clean and the saved Supabase access token still refused | CI: the re-run of the failed jobs on `9ba33ef` ([run 44408142054](https://github.com/Anupam0202/NexusRAG/actions/runs/44408142054), attempt 2): every job passes; the image scan reports `Findings: {}` with no match ignored | n/a (records only) |
 | 2026-11-18 | NX-48 resolved without a change, and NX-49 rechecked (the scheduled check, run at 20:55 UTC after a session restart). GitHub withdrew GHSA-fc5q-39xc-vjpf on 18 November, after the `picomatch` maintainers disputed it as not a vulnerability, and VulnCheck withdrew its record too; it had been published on 19 October and reviewed by GitHub on 17 November, when npm audit began reporting it. `npm audit` now reports nothing at any severity. NX-49 stays: OpenSSL published the five CVEs on 10 November and rates them Low (the scan reports NVD's scores); their fix is in OpenSSL's source for 3.5.10, which has no release date, so Alpine 3.24 still ships `3.5.9-r0`. Also corrected the dates recorded earlier ("published on 18 November") and added the trusted push (D2), which `main`'s protection reportedly needs, to the merge steps in the handoff and phase B | CI: the re-run of the failed jobs on `a30d62f` ([run 44309859367](https://github.com/Anupam0202/NexusRAG/actions/runs/44309859367), attempt 2) passed the audit gate with the lockfile unchanged; the image scan failed with the same ten OpenSSL findings | n/a (records only) |
 | 2026-11-18 | Dependencies checked ahead of the scheduled check: `picomatch` 4.0.7 is still the latest release, so NX-48 stays open. Three moderate advisories published in October had fixes within the ranges `package.json` allows, but the audit gate fails only on high findings, so they had stayed: two in `@vitest/mocker` (fixed by vitest 4.1.12) and one in `minimatch`, which typescript-eslint reached (fixed by 8.73.0, which needs minimatch 11.0.1 or later). All 12 findings left are the one `picomatch` advisory. The lockfile is now written with npm 11 on Node 24, as in CI; npm 10 crashes in `npm update` on this tree | 1 (lint, type-check and the 839 frontend unit tests; `npm audit`: no moderate findings, 12 high, all GHSA-fc5q-39xc-vjpf) | `8315b8e` |
@@ -239,6 +262,16 @@ twelfth, "ingestion completes", fails with the gateway's own explanation: "Gemin
 the API key's project has no prepaid credit left."
 
 ## Blockers and owner decisions
+Decisions asked in chat on 21 November (each blocks work until answered):
+- The required image scan: accept a dated exception, or wait for Alpine's next OpenSSL package (as NX-49 resolved on
+  19 November). The exception would cover exactly the seven CVEs on `libssl3` and `libcrypto3` in the self-managed
+  frontend image, for 30 days, and the gate would fail again after that date. Until then nothing can merge.
+- NX-51: which of the six release snapshot schemas may be dropped. Production has `backup_20261120133700_2845818`,
+  `backup_20261120163535_c02627f` and `backup_20261121023339_fd11feb`; rehearsal has
+  `backup_20261120135513_2845818`, `backup_20261120163009_c02627f` and `backup_20261121020028_c9e1354`. They keep
+  rows that have since been deleted. Also asked: whether a rule may drop a release's snapshot seven days after a
+  newer release passes.
+
 Owner actions, in order (GOAL.md section 5 has each step):
 1. The walkthrough on production once GOAL.md phase 2 passes (checklist: `docs/completion/OWNER_WALKTHROUGH.md`),
    confirmed in chat.
@@ -268,11 +301,11 @@ Decisions (D25 delegates product and technical decisions; exceptions in `MASTER_
 
 ## Next steps (exact commands)
 GOAL.md section 6 sets the order; these are the commands.
-1. Provider review (production): Actions → Provider Review → target `production`, action `status`. If a provider is
-   not current: action `record`, `reviewer_email` = the owner's account (the most recent Google sign-in in
-   production's `auth.users`; never repeat it anywhere), `i_have_read_the_terms` ticked. Then the stuck deletion:
-   `select state, verified_at from public.deletion_operations where id = 'dbcc76fa-f348-46a3-91b3-83b879f353e8'`
-   (read-only, through the connector), until it is `verified`.
+1. When the image scan is green (or the owner accepts the exception): merge PR #32, then update PR #34's branch and
+   merge it (`main` requires an up-to-date branch: push the head to the next `release/production-<yyyymmdd>-<n>`,
+   mark the pull request ready, wait for the ready-for-review run, then merge with `expectedHeadSha`). Release, then
+   rerun the research modes (`phase2/research.py` in the session scratchpad: one plan and run per mode over two
+   documents) and the findings journey (A invites B, B approves, A builds the evidence package).
 2. Releases: Actions → Cloudflare Preview Deploy → branch `main`, `deploy_candidate_preview` ticked; then Actions →
    Production Deploy → `release_sha` = the current `main` commit. Check `/ready` on both addresses afterwards.
 3. Journeys: on rehearsal, delete the two test accounts' rows in `public.nexus_account_operations` and

@@ -122,7 +122,18 @@ addition:
     validation", "Bounded qdrant validation" and a successful `Preview` deployment. It also requires linear history.
   - Push the pull request's head: `git push origin <head-sha>:refs/heads/release/production-<yyyymmdd>-<n>`, using
     the next unused `n`. That starts V6 Live Provider Validation, which can run alongside CI. When every check is
-    green, mark the pull request ready and merge with `merge_method: squash` and `expectedHeadSha`.
+    green, mark the pull request ready and merge with `merge_method: squash` and `expectedHeadSha`. A pull request
+    whose commits should stay separate (several fixes) can use `rebase`.
+  - **Up to date:** branch protection is strict, so the head must contain the current `main`. Merge one pull request
+    at a time.
+    - Update the next one with the "update branch" API, which merges `main` in without rewriting history. Its CI then
+      runs again on the new head.
+    - Push that new head to a new `release/production-…-<n>`. A newer push deactivates the older `Preview`
+      deployments, so push only the head about to merge.
+  - **Ready for review:** marking a pull request ready starts another Cloudflare Preview Deploy run for it (its deploy
+    jobs are skipped). Merge only after that run has finished, or GitHub refuses the merge.
+  - **Superseded heads:** a run on a head that the branch has since moved past may fail because the newer run
+    cancelled it. That is not a failure of the pull request.
   - A transient `PROVIDER_UNAVAILABLE` from Gemini gets one rerun of the failed job.
   - Do not merge while Production Deploy is running: its frontend job checks that the release is still the current
     `main` commit.
