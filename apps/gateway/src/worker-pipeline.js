@@ -36,8 +36,35 @@ function safeFilename(value) {
   return (cleaned || "document.txt").slice(0, 180).replace(/[\uD800-\uDBFF]$/, "");
 }
 
+// Gemini marks every page of a PDF or image it reads as [PAGE N] (extractGemini). Text, DOCX and archives have no
+// pages, so their passages carry none.
+const PAGE_MARKER = /\[PAGE\s+(\d{1,5})\]/gi;
+const MAX_PAGE = 10_000;
+function pageMarkers(text) {
+  const markers = [];
+  for (const match of String(text || "").matchAll(PAGE_MARKER)) {
+    const page = Number(match[1]);
+    if (page >= 1 && page <= MAX_PAGE) markers.push({ offset: match.index, page });
+  }
+  return markers;
+}
+// The page of the marker last seen at an offset; text before the first marker belongs to that marker's page.
+function pageAt(markers, offset) {
+  let page = markers[0].page;
+  for (const marker of markers) {
+    if (marker.offset > offset) break;
+    page = marker.page;
+  }
+  return page;
+}
+/** How many pages a reading found: the highest page marker in its text, or 0 without markers. */
+function pageCount(text) {
+  return pageMarkers(text).reduce((highest, marker) => Math.max(highest, marker.page), 0);
+}
+
 function chunkText(input, size = 1_600, overlap = 240) {
   const text = String(input || "").replace(/\r\n?/g, "\n").trim();
+  const markers = pageMarkers(text);
   if (!text) return [];
   if (size < 200 || overlap < 0 || overlap >= size) throw new TypeError("Invalid chunk bounds.");
   const chunks = [];
@@ -50,7 +77,9 @@ function chunkText(input, size = 1_600, overlap = 240) {
       if (boundary > offset + Math.floor(size * 0.55)) end = boundary;
     }
     const content = text.slice(offset, end).trim();
-    if (content) chunks.push({ content, start: offset, end, chunk_index: chunks.length });
+    // Passages overlap, so one often starts in the previous page's last lines: it takes the page its middle is on.
+    if (content) chunks.push({ content, start: offset, end, chunk_index: chunks.length,
+      ...(markers.length ? { page_number: pageAt(markers, Math.floor((offset + end) / 2)) } : {}) });
     if (end >= text.length) break;
     offset = Math.max(offset + 1, end - overlap);
   }
@@ -189,7 +218,7 @@ async function indexChunks(env, { workspaceId, documentId, versionId, generation
       const vector = await embedText(env, chunk.content, "RETRIEVAL_DOCUMENT", context);
       const id = await deterministicPointId(`${workspaceId}:${documentId}:${versionId}:${generation}:${chunk.chunk_index}`);
       // No passage text: answers and research read it from the database and check its hash (NX-36).
-      points.push({ id, vector, payload: { workspace_id: workspaceId, document_id: documentId, version_id: versionId, index_generation: generation, filename, chunk_id: id, chunk_index: chunk.chunk_index, page_number: 0, location: { char_start: chunk.start, char_end: chunk.end } } });
+      points.push({ id, vector, payload: { workspace_id: workspaceId, document_id: documentId, version_id: versionId, index_generation: generation, filename, chunk_id: id, chunk_index: chunk.chunk_index, page_number: chunk.page_number || 0, location: { char_start: chunk.start, char_end: chunk.end } } });
     }
     const { base, headers } = await ensureQdrant(env, points[0].vector.length, initializeIndex);
     await providerJson(`${base}/points?wait=true`, { method: "PUT", headers, body: JSON.stringify({ points }) }, 30_000);
@@ -360,6 +389,7 @@ export {
   SUPPORTED_WORKER_MIME,
   TOO_LONG_TO_INDEX,
   chunkText,
+  pageCount,
   generateAnswer,
   generateAnswerStream,
   groundedPrompt,

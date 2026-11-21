@@ -1,4 +1,4 @@
-import { chunkText, indexChunks, MAX_DOCUMENT_CHUNKS, MAX_INDEX_BATCH_CHUNKS, sha256, TOO_LONG_TO_INDEX } from "./worker-pipeline.js";
+import { chunkText, indexChunks, MAX_DOCUMENT_CHUNKS, MAX_INDEX_BATCH_CHUNKS, pageCount, sha256, TOO_LONG_TO_INDEX } from "./worker-pipeline.js";
 import { deleteQdrantGeneration, extractFileText, verifyQdrantGeneration } from "./worker-lifecycle.js";
 import { loadUserGeminiKey } from "./user-gemini-key.js";
 import { embeddingModel } from "./gemini-models.js";
@@ -175,6 +175,7 @@ async function processIngestionMessage(env, message) {
         content: chunk.original_text,
         start: Number(chunk.location?.char_start),
         end: Number(chunk.location?.char_end),
+        ...(Number.isInteger(chunk.location?.page) ? { page_number: chunk.location.page } : {}),
       }));
     } else {
       if (offset !== 0) throw err("VERSION_CONFLICT", "Durable extraction staging is missing for a resumed batch.");
@@ -189,13 +190,16 @@ async function processIngestionMessage(env, message) {
       const chunks = chunkText(extracted.text);
       if (!chunks.length) throw err("EMPTY_DOCUMENT", "The document contains no indexable text.");
       if (chunks.length > MAX_DOCUMENT_CHUNKS) throw err("CAPACITY_REACHED", TOO_LONG_TO_INDEX);
-      extractionManifest = { ...(extracted.manifest || {}), method: extracted.method };
+      // The page count goes with the manifest onto the version, and publication copies it to the document.
+      const pages = pageCount(extracted.text);
+      extractionManifest = { ...(extracted.manifest || {}), method: extracted.method, ...(pages ? { page_count: pages } : {}) };
       totalChunks = chunks.length;
       const extractionRows = await Promise.all(chunks.map(async (chunk) => ({
         ordinal: chunk.chunk_index,
         original_text: chunk.content,
         original_content_hash: await sha256(chunk.content),
-        location: { char_start: chunk.start, char_end: chunk.end },
+        // Staged extraction keeps a passage's page in its location, so a resumed batch knows it too.
+        location: { char_start: chunk.start, char_end: chunk.end, ...(chunk.page_number ? { page: chunk.page_number } : {}) },
       })));
       const stored = await rpc(env, "workbench_store_extracted_chunks", {
         ...extractionIdentity,
@@ -234,6 +238,7 @@ async function processIngestionMessage(env, message) {
         version_id: job.version_id, ordinal: chunk.chunk_index, original_text: chunk.content,
         original_content_hash: await sha256(chunk.content), retrieval_text: chunk.content,
         location: point.payload.location, extraction: { method: extractionManifest.method || "worker-extracted", filename: document.filename },
+        ...(chunk.page_number ? { page_number: chunk.page_number } : {}),
       };
     }));
     const staged = await rpc(env, "workbench_stage_chunk_batch", {
