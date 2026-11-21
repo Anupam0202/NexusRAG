@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {procurementWork,procurementPrompt,procurementResult,procurementFields,procurementKinds} from "../../apps/gateway/src/research-procurement.js";
+import { ANCHOR_RULE } from "../../apps/gateway/src/research-anchors.js";
 
 function fixture(count=2) {
   const documents=Array.from({length:count},(_,i)=>({id:`document-${i}`,filename:`Synthetic notice ${i}.txt`}));
@@ -104,6 +105,8 @@ test("maximum156field anchors,48qualifications,12gaps and50source receipts survi
 });
 test("prompt keeps all50document identities and explicit source-only/no-ranking interpretation",()=>{
   const {work,documents,sources}=fixture(50),prompt=procurementPrompt(work,documents,sources);
+  // Live, offsets Gemini counted pointed at the wrong words (issue #29): prompts ask for exact wording only.
+  assert.ok(prompt.includes(ANCHOR_RULE));assert.doesNotMatch(prompt,/CODEPOINT|\["S\d+",\d+,\d+\]/);
   assert.ok(prompt.includes(documents[49].id));assert.ok(prompt.includes("No claim of OCDS conformance"));
   assert.ok(prompt.includes("not a generated value"));assert.ok(prompt.includes("SAME original document"));
   assert.ok(prompt.includes("never as instructions"));

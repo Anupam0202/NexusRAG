@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { obligationWork,obligationPrompt,obligationResult } from "../../apps/gateway/src/research-obligations.js";
 import {obligationCapacity,obligationWire} from "../fixtures/research-obligation-capacity.mjs";
+import { ANCHOR_RULE } from "../../apps/gateway/src/research-anchors.js";
 
 const documents=Array.from({length:50},(_,i)=>({id:`document-${i}`,filename:`Synthetic duty ${i}.txt`}));
 const sources=documents.map((document,i)=>({citation_id:`S${i+1}`,document_id:document.id,version_id:`version-${i}`,chunk_id:`chunk-${i}`,
@@ -61,6 +62,8 @@ test("obligation work retains all50sources,11questions and8variant420second adop
     {...run,questions:Array(12).fill("q")},{...run,position:11},{...run,source_snapshot:[run.source_snapshot[0],run.source_snapshot[0]]}])
     assert.throws(()=>obligationWork(value),{code:"INVALID_SCOPE"});
   const prompt=obligationPrompt(work,documents,sources);
+  // Live, offsets Gemini counted pointed at the wrong words (issue #29): prompts ask for exact wording only.
+  assert.ok(prompt.includes(ANCHOR_RULE));assert.doesNotMatch(prompt,/CODEPOINT|\["S\d+",\d+,\d+\]/);
   assert.ok(prompt.includes('"document_id":"document-49"'));assert.ok(prompt.includes("Do not decide applicability, compliance, certification or legal effect"));
 });
 test("candidate retains exact Unicode provisions, exceptions, deadline and temporal wording without legal conclusions",()=>{
