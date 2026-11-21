@@ -10,6 +10,7 @@
 - Release a Worker (deploy, smoke test, automatic rollback): `python3 scripts/release.py gateway|frontend --target candidate|production --sha <commit>`; `plan` prints a target. Runbooks: `docs/DEPLOYMENT_FREE.md`, `docs/DEPLOYMENT_PRODUCTION.md`
 - Provider reviews (needed before any document can be processed): `SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... python3 scripts/provider_review.py status|record`, or the Provider Review workflow
 - Live two-account journey test on the preview: `python3 scripts/preview_smoke.py` (environment variables in its docstring)
+- Users' own Gemini keys, live on the preview: the BYOK Check workflow (`scripts/byok_check.py`; it uses the preview environment's Gemini key as a test account's own, then removes it)
 - Hosted migration status: `python3 scripts/migration_status.py status --applied <list_migrations JSON>`; with a database URL, `apply --snapshot-label <label>` snapshots, applies and records pending files
 - File storage and index against the database: `python3 scripts/reconciliation.py report --target candidate|production` (environment variables in its docstring), or the Store Reconciliation workflow
 
