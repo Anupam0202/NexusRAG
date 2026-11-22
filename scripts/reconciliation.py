@@ -18,8 +18,8 @@ identifiers and positions only since NX-36, and the app never read the copies (i
 `report` changes nothing and exits 1 when anything is out of step. It prints counts only, so its output can go to a
 public workflow log; `--details` adds file names and identifiers and is for your own terminal. A removal deletes
 only what a fresh report lists, and only when `--expect` is the count that report shows: read the report, then pass
-its count. `remove-index-text` clears the copies and keeps the entries; the index counts and clears them itself, so no
-text is read. Without the Qdrant settings only file storage is checked.
+its count. `remove-index-text` clears the copies by entry id and keeps the entries; the report finds them by the file
+name each holds, never reading the passage text. Without the Qdrant settings only file storage is checked.
 """
 from __future__ import annotations
 
@@ -42,10 +42,12 @@ BATCH = 100
 PAGE = 1000
 MAX_INDEX_ENTRIES = 2_000_000
 MIGRATION = "20261114120000_storage_reconciliation"
-# Index entries written before NX-36 hold the passage (`content`) and the file's name (`filename`). Qdrant's is_empty
-# matches a key that is missing, null or an empty list, so this filter selects entries that still hold either.
 TEXT_KEYS = ["content", "filename"]
-TEXT_FILTER = {"should": [{"must_not": [{"is_empty": {"key": key}}]} for key in TEXT_KEYS]}
+# Entries written before NX-36 hold the passage and the file's name, later ones until #36 the name alone: an entry holds
+# either exactly when it holds a file name. Qdrant Cloud's strict mode refuses a filter on a key without a payload
+# index (live, 2026-11-22: HTTP 400), so the entries are found by reading that one key while the index is read, and
+# cleared by id. The passage text is never read, and no name read here is printed.
+TEXT_MARKER = "filename"
 
 
 class ReconcileError(RuntimeError):
@@ -118,8 +120,9 @@ class Stores:
             raise ReconcileError("The database's report is not in the expected form.") from None
         return report
 
-    def indexed_versions(self) -> tuple[list[dict], int]:
-        """What the index holds, as the database's report expects it, and how many entries name no version."""
+    def indexed_versions(self) -> tuple[list[dict], int, list]:
+        """What the index holds, as the database's report expects it, how many entries name no version, and the ids
+        of the entries that still hold document text or a file name."""
         status, body = http("GET", f"{self.index}/collections", self.index_headers)
         if status in (401, 403):
             raise ReconcileError("The search index did not accept its key.")
@@ -128,29 +131,33 @@ class Stores:
         except (KeyError, TypeError):
             raise ReconcileError(f"The search index did not list its collections (HTTP {status}).") from None
         if self.collection_name not in names:
-            return [], 0  # reset or never filled: it holds nothing
+            return [], 0, []  # reset or never filled: it holds nothing
         counts: dict[str, int] = {}
         unversioned = seen = 0
+        holding: list = []
         offset = None
         while True:
-            page = {"limit": PAGE, "with_payload": ["version_id"], "with_vector": False, **({} if offset is None else {"offset": offset})}
+            page = {"limit": PAGE, "with_payload": ["version_id", TEXT_MARKER], "with_vector": False, **({} if offset is None else {"offset": offset})}
             status, body = http("POST", f"{self.collection}/points/scroll", self.index_headers, page)
             try:
                 points, offset = body["result"]["points"], body["result"].get("next_page_offset")
             except (KeyError, TypeError):
                 raise ReconcileError(f"The search index did not list its entries (HTTP {status}).") from None
             for point in points:
-                version = (point.get("payload") or {}).get("version_id")
+                payload = point.get("payload") or {}
+                version = payload.get("version_id")
                 if isinstance(version, str) and version:
                     counts[version] = counts.get(version, 0) + 1
                 else:
                     unversioned += 1
+                if payload.get(TEXT_MARKER) not in (None, "", []):
+                    holding.append(point.get("id"))
             seen += len(points)
             if offset is None or not points:
                 break
             if seen > MAX_INDEX_ENTRIES:
                 raise ReconcileError("The index holds more entries than this tool reads in one run.")
-        return [{"value": version, "count": count} for version, count in sorted(counts.items())], unversioned
+        return [{"value": version, "count": count} for version, count in sorted(counts.items())], unversioned, holding
 
     def index_report(self, versions: list[dict]) -> dict:
         report = self.rpc("nexus_index_reconciliation", {"p_indexed": versions, "p_complete": True, "p_limit": LIST_LIMIT})
@@ -169,26 +176,16 @@ class Stores:
             if status != 200:
                 raise ReconcileError(f"File storage refused to delete (HTTP {status}) after {start} of {len(names)} files. Run the report again.")
 
-    def entries_with_text(self) -> int:
-        """How many index entries still hold document text or a file name. The index counts them; no text is read."""
-        status, body = http("POST", f"{self.collection}/points/count", self.index_headers, {"filter": TEXT_FILTER, "exact": True})
-        if status == 404:
-            return 0  # reset or never filled: it holds nothing
-        if status in (401, 403):
-            raise ReconcileError("The search index did not accept its key.")
-        try:
-            count = body["result"]["count"] if status == 200 else None
-        except (KeyError, TypeError):
-            count = None
-        if isinstance(count, bool) or not isinstance(count, int) or count < 0:
-            raise ReconcileError(f"The search index did not count the entries that hold document text (HTTP {status}).")
-        return count
+    def entries_with_text(self) -> list:
+        """The ids of the index entries that still hold document text or a file name (see TEXT_MARKER)."""
+        return self.indexed_versions()[2]
 
-    def remove_text(self) -> None:
-        chosen = {"keys": TEXT_KEYS, "filter": TEXT_FILTER}
-        status, _ = http("POST", f"{self.collection}/points/payload/delete?wait=true", self.index_headers, chosen)
-        if status != 200:
-            raise ReconcileError(f"The search index refused to remove the text (HTTP {status}). Run the report again.")
+    def remove_text(self, ids: list) -> None:
+        for start in range(0, len(ids), BATCH):
+            chosen = {"keys": TEXT_KEYS, "points": ids[start:start + BATCH]}
+            status, _ = http("POST", f"{self.collection}/points/payload/delete?wait=true", self.index_headers, chosen)
+            if status != 200:
+                raise ReconcileError(f"The search index refused to remove the text (HTTP {status}) after {start} of {len(ids)} entries. Run the report again.")
 
     def delete_index_entries(self, versions: list[str]) -> None:
         for start in range(0, len(versions), BATCH):
@@ -214,9 +211,9 @@ def plural(count: int, noun: str) -> str:
 def gather(stores: Stores, grace_minutes: int) -> dict:
     found = {"storage": stores.storage_report(grace_minutes), "index": None, "unversioned": 0, "text": None}
     if stores.has_index:
-        versions, found["unversioned"] = stores.indexed_versions()
+        versions, found["unversioned"], holding = stores.indexed_versions()
         found["index"] = stores.index_report(versions)
-        found["text"] = stores.entries_with_text()
+        found["text"] = len(holding)
     return found
 
 
@@ -347,15 +344,16 @@ def remove_index_entries(stores: Stores, expect: int) -> int:
 def remove_index_text(stores: Stores, expect: int) -> int:
     if not stores.has_index:
         raise ReconcileError("QDRANT_URL and QDRANT_API_KEY are needed to remove text from index entries.")
-    held = stores.entries_with_text()
+    holding = stores.entries_with_text()
+    held = len(holding)
     if held != expect:
         raise ReconcileError(f"The report now counts {plural(held, 'index entry')} with document text or file names, not {expect}. "
                              "Read it again, then pass its count. Nothing was removed.")
     if not held:
         print("No index entry holds document text or a file name. Nothing was removed.")
         return 0
-    stores.remove_text()
-    still = stores.entries_with_text()
+    stores.remove_text(holding)
+    still = len(stores.entries_with_text())
     if still:
         raise ReconcileError(f"After the removal the index still counts {plural(still, 'entry')} with document text or file names. Run the report again.")
     print(f"Removed document text and file names from {plural(held, 'index entry')}; the entries stay searchable.")

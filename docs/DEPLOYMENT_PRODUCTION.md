@@ -143,8 +143,8 @@ or a store that lost data, leaves them out of step. Four things can then be true
 The report also counts **index entries that still hold document text or file names**. Entries hold identifiers and
 positions only since NX-36; older entries keep a copy of the passage (written before 2026-11-18) or of the file's
 name, which the app never reads, because answers take both from the database. Action `remove-index-text` clears
-the copies and keeps the entries, so search is unaffected. Qdrant counts and clears them itself; no text passes
-through the workflow.
+the copies and keeps the entries, so search is unaffected. The report finds them by the file name each one holds; the
+passage text is never read, and nothing read is printed.
 
 The gateway counts these in the first cron run of every day and writes one line to its log
 (`store_reconciliation`, a warning when anything is found; Cloudflare dashboard → the gateway Worker → Logs). To

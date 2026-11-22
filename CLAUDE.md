@@ -34,8 +34,11 @@
 - `QDRANT_COLLECTION` has no default (NX-36): without it the gateway reports the index as not configured, because the old
   fallback was production's collection. Test fixtures name `nexusrag-test`. Index entries hold identifiers and positions only,
   no passage and no file name; every passage reaches the model from the database, checked against its hash
-  (`retrieval-authority.js`). Older entries may still hold copies: the reconciliation report counts them with Qdrant's own
-  count (an `is_empty` filter, so no text is read) and `remove-index-text` clears them, keeping the entries.
+  (`retrieval-authority.js`). Older entries may still hold copies: the reconciliation report finds them while it reads
+  the index, by the file name every such entry holds (it never reads the passage text), and `remove-index-text`
+  clears both by entry id, keeping the entries. Qdrant Cloud's strict mode refuses any filter on a key without a
+  payload index (HTTP 400, live on 2026-11-22), so filter only on `workspace_id`, `document_id`, `version_id`,
+  `index_generation` or `chunk_id`.
 - Embeddings are `gemini-embedding-001` at 768 dimensions; changing model or dimension needs a new Qdrant collection and a re-index. The Python backend's embeddings are a different space and must never share a collection.
 - `GEMINI_USER_KEY_ENCRYPTION_SECRET` seals users' Gemini keys, each bound to its user and to the secret's id (`v2:<id>:...`; unprefixed keys are the older format). To rotate it, put the new secret there and the old one in `GEMINI_USER_KEY_ENCRYPTION_SECRET_PREVIOUS`; the daily cron re-seals keys (`reencryptUserGeminiKeys`, logged as `byok_reencryption`), then the old one can go. Never just replace it.
 - `SUPABASE_SERVICE_ROLE_KEY` may hold a secret key (`sb_secret_...`) or the legacy `service_role` JWT, which Supabase stops accepting at the end of 2026. A secret key is refused as a Bearer token, so build service headers only with `serviceHeaders` (`supabase-keys.js`); the deploy workflows and `provider_review.py` follow the same rule.
