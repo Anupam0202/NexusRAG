@@ -67,6 +67,11 @@ export async function handleInvitations(args) {
     if (['TimeoutError','AbortError','TypeError'].includes(error?.name) && typeof error?.code !== 'string')
       return fail(request,env,'PERSISTENCE_UNAVAILABLE','Invitation outcome is unknown. Refresh and retry with the same code; do not create a replacement yet.',503,true);
     if (error?.code==='TENANT_QUOTA_EXCEEDED') error.status=429;
+    // Storage answers these with VERSION_CONFLICT; say which, since reloading changes nothing.
+    if (error?.code==='VERSION_CONFLICT') error.message=accept
+      ? 'This code was already used, revoked or expired, or you are already a member of this workspace. Ask an administrator for a new code if you still need access.'
+      : request.method==='DELETE' ? 'This invitation was already accepted, revoked or expired. Refresh the list.'
+      : 'This address already has a pending invitation or is already a member. Revoke the pending invitation in the list to issue a new code.';
     if (error?.code==='PERSISTENCE_UNAVAILABLE'&&['PGRST202','42883'].includes(error.storageCode))
       return capabilities ? json(request,env,{invitation_supported:false,state:'MIGRATION_REQUIRED'}) : fail(request,env,'MIGRATION_REQUIRED','Recipient-bound invitation storage is unavailable. Verify migration 040.',503);
     throw error;
