@@ -2,8 +2,8 @@
 
 ## Commands
 - Gateway tests (repo root): `npm run test:cloudflare`; bundle check: `npx wrangler deploy --dry-run --config apps/gateway/wrangler.preview.jsonc`
-- Script tests: `python3 -m unittest discover -s tests/scripts -p 'test_*.py'` (needs PyYAML; `test_offline_network` fails only in sandboxes without IPv6)
-- Backend (legacy, not deployed): `pip install -r backend/requirements-test.txt && python3 backend/scripts/run_full_tests.py`
+- Script tests: `python3 -m unittest discover -s tests/scripts -p 'test_*.py'` (needs PyYAML)
+- Evaluation inventory, as CI runs it: `python3 evals/build_v6_dataset.py --output-dir <dir>`, then `evals/score_v6_contracts.py`. `evals/metrics.py` is the reference the gateway's fixture metrics are checked against
 - Gemini models still served: `GOOGLE_API_KEY=... python3 scripts/check_gemini_models.py`
 - Frontend: `cd frontend && npm ci --ignore-scripts && npm run lint && npx tsc --noEmit && npm test && npm run build && npm run cf:build`
 - Database replay: install PostgreSQL 17 + pgvector as in `.github/workflows/v6-database-rehearsal.yml`, then `bash tests/postgres/local-rehearsal.sh`
@@ -29,12 +29,12 @@
 - Products still in development (Radar, Evidence API, Evaluations) are hidden from navigation unless `NEXT_PUBLIC_FEATURES` names them (`frontend/src/lib/features.ts`, decision D10); the deploy workflows pass it from a repository variable.
 - Visual baselines (`frontend/src/e2e/baselines/*.b64`) must come from the Chromium build CI installs. The frontend pins Playwright 1.63.0, which matches the Chromium preinstalled in Claude cloud containers; with another version, baselines made there fail in CI. Regenerate with `npx playwright test visual-regression.spec.ts --update-snapshots=all` against `npm run start` of a CI-style build, then `base64 -w 0` each PNG into `baselines/`.
 - Gemini model policy (D24): generation `gemini-3.5-flash-lite` → `gemini-3.1-flash-lite` → `gemini-flash-latest` with fallback on model-unavailable errors; embeddings pinned to `gemini-embedding-001` (768) per index generation. `gemini-2.5-flash` shuts down on 2026-12-01.
-- The model chain lives only in `apps/gateway/src/gemini-models.js`; `scripts/gemini_model_policy.py` and the deploy workflows read it from there. Keep the Python backend's defaults in step by hand.
+- The model chain lives only in `apps/gateway/src/gemini-models.js`; `scripts/gemini_model_policy.py` and the deploy workflows read it from there.
 - PDFs and images are read by Gemini in `extractGemini` (`worker-lifecycle.js`): first with 8,192 output tokens, and again with the model's published limit (`modelLimits` in `gemini-models.js`; 8,192 for an unlisted model) only when that read was cut off, so short documents stay cheap on the shared key, whose budget is charged what was reserved. The job's lease is renewed every two minutes during a read (`whileHoldingLease`), so a first read may take four minutes and a full read ten (`READ_TIME_LIMITS`; live, a 30-page PDF ran past the old 55-second first-read limit); a read that is cut off or stopped by Gemini indexes nothing. Every read is logged as `gemini_read` (model, first or full, outcome, status, time, finish reason, token counts, and Gemini's own reason when it refuses), never with document text.
 - `QDRANT_COLLECTION` has no default (NX-36): without it the gateway reports the index as not configured, because the old
   fallback was production's collection. Test fixtures name `nexusrag-test`. Index entries hold identifiers and positions only;
   every passage reaches the model from the database, checked against its hash (`retrieval-authority.js`).
-- Embeddings are `gemini-embedding-001` at 768 dimensions; changing model or dimension needs a new Qdrant collection and a re-index. The Python backend's embeddings are a different space and must never share a collection.
+- Embeddings are `gemini-embedding-001` at 768 dimensions; changing model or dimension needs a new Qdrant collection and a re-index. The retired Python backend's 384-dimension embeddings are a different space; never write them into a collection.
 - `GEMINI_USER_KEY_ENCRYPTION_SECRET` seals users' Gemini keys, each bound to its user and to the secret's id (`v2:<id>:...`; unprefixed keys are the older format). To rotate it, put the new secret there and the old one in `GEMINI_USER_KEY_ENCRYPTION_SECRET_PREVIOUS`; the daily cron re-seals keys (`reencryptUserGeminiKeys`, logged as `byok_reencryption`), then the old one can go. Never just replace it.
 - `SUPABASE_SERVICE_ROLE_KEY` may hold a secret key (`sb_secret_...`) or the legacy `service_role` JWT, which Supabase stops accepting at the end of 2026. A secret key is refused as a Bearer token, so build service headers only with `serviceHeaders` (`supabase-keys.js`); the deploy workflows and `provider_review.py` follow the same rule.
 - Qdrant Free clusters suspend when idle; Supabase Free projects pause after a week of low activity. The gateway's first cron run of each day probes the index (`search-index.js`), which keeps it awake.
@@ -63,6 +63,7 @@
 - From a Claude cloud session the gateway can be released with the saved Cloudflare token (`CLOUDFLARE_API_TOKEN=proxy-injected`), but the frontend cannot: its asset upload sends a short-lived upload token in the header the proxy overwrites. Deploy the frontend with the Cloudflare Preview Deploy workflow.
 - Tests must not depend on the wall clock: pass `now` explicitly (a fixed date in a test broke the suite a day later).
 - `NexusRAG-Recovery` was deleted on 2026-11-09; never reference it.
+- The Python backend was removed on 2026-11-21 (NX-31): the app is the gateway Worker, the frontend Worker and the database. What the tests still need from it lives on: the SQL parity oracle in `tests/postgres/deterministic_calculations.py`, and the evaluation scripts, metrics and sample corpus in `evals/`.
 - The plan is `docs/completion/MASTER_PROMPT.md`; progress is in `docs/completion/PROGRESS.md`; the session goal and
   the ordered remaining work are in `docs/completion/GOAL.md` (it replaces CONTINUATION_PROMPT.md).
 

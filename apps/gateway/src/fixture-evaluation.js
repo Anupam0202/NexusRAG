@@ -1,4 +1,4 @@
-import dataset from "../../../backend/evals/datasets/sample_corpus.json" with { type: "json" };
+import dataset from "../../../evals/datasets/sample_corpus.json" with { type: "json" };
 import { hybridFuse } from "./worker-lifecycle.js";
 
 const stopwords = new Set("a an and are as at be by for from in is it of on or the to with".split(" "));
@@ -21,7 +21,7 @@ function tokenF1(reference, candidate) {
   return overlap ? round(2 * overlap / (ref.length + cand.length)) : 0;
 }
 
-// Same deterministic metric definitions as backend/evals/metrics.py, not entailment.
+// Deterministic metric definitions (the retired Python backend's evals/metrics.py), not entailment.
 export function evaluateFixtureCase(caseItem, sources, answer) {
   const expected = (caseItem.expected_sources || []).filter(Boolean);
   const relevant = sources.map(s => expected.some(e => matches(e, s)));

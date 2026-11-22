@@ -5,8 +5,8 @@ from pathlib import Path
 import re
 import subprocess
 import sys
-sys.path.insert(0,str(Path(__file__).resolve().parents[2]/'backend'))
-from src.domain.deterministic_calculations import Quantity, convert_unit
+sys.path.insert(0,str(Path(__file__).resolve().parent))
+from deterministic_calculations import Quantity, convert_unit
 cases=[]
 for value in ['0.1','1.005','1.015','-1.005','9007199254740993.1','1e128','1e-128']:
     for factor in ['1','1000','0.001','1e128','1e-128']:

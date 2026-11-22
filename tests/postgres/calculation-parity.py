@@ -7,8 +7,8 @@ import subprocess
 import sys
 
 root=Path(__file__).resolve().parents[2]
-sys.path.insert(0,str(root/'backend'))
-from src.domain.deterministic_calculations import CalculationOperation, Quantity, calculate
+sys.path.insert(0,str(Path(__file__).resolve().parent))
+from deterministic_calculations import CalculationOperation, Quantity, calculate
 
 cases=[]
 for operation in CalculationOperation:

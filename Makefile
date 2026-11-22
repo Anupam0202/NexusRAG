@@ -1,38 +1,26 @@
-.PHONY: help install dev backend frontend docker test lint clean
+.PHONY: help install dev test lint docker clean
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | \
 		awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
 
-install: ## Install all dependencies
-	cd backend && pip install -e ".[dev]"
-	cd frontend && npm install
+install: ## Install the frontend's dependencies (the gateway's tests need none)
+	cd frontend && npm ci --ignore-scripts
 
-dev: ## Run both backend and frontend in dev mode
-	@echo "Starting backend on :8000..."
-	cd backend && uvicorn main:app --reload --host 0.0.0.0 --port 8000 &
-	@echo "Starting frontend on :3000..."
-	cd frontend && npm run dev &
-	@echo "Backend:  http://localhost:8000"
-	@echo "Frontend: http://localhost:3000"
-
-backend: ## Run backend only
-	cd backend && uvicorn main:app --reload --host 0.0.0.0 --port 8000
-
-frontend: ## Run frontend only
+dev: ## Run the frontend in development mode; it calls the gateway at NEXT_PUBLIC_API_URL
 	cd frontend && npm run dev
 
-docker: ## Build and run with Docker Compose
+test: ## Run the gateway, script and frontend tests
+	npm run test:cloudflare
+	python3 -m unittest discover -s tests/scripts -p 'test_*.py'
+	cd frontend && npm test
+
+lint: ## Lint and type-check the frontend
+	cd frontend && npm run lint && npx tsc --noEmit
+
+docker: ## Build and run the optional self-managed frontend image
 	docker compose up --build
 
-test: ## Run backend tests
-	cd backend && pytest -v --cov=src --cov-report=term-missing
-
-lint: ## Lint and format
-	cd backend && ruff check src/ --fix && ruff format src/
-
-clean: ## Clean generated files
+clean: ## Remove generated files
 	find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
-	find . -type d -name .pytest_cache -exec rm -rf {} + 2>/dev/null || true
-	rm -rf backend/data/vector_store 2>/dev/null || true
-	rm -rf frontend/.next 2>/dev/null || true
+	rm -rf frontend/.next frontend/.open-next 2>/dev/null || true
