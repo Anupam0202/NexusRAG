@@ -21,8 +21,19 @@ ENV = {"SUPABASE_URL": SUPABASE, "SUPABASE_SERVICE_ROLE_KEY": "synthetic-service
        "QDRANT_URL": INDEX + "/", "QDRANT_API_KEY": "synthetic-index-key-do-not-log"}
 WORKSPACE = "11111111-1111-4111-8111-111111111111"
 KEPT, GONE_A, GONE_B = (f"{letter * 8}-0000-4000-8000-000000000000" for letter in "abc")
-# Entries written before NX-36 hold the passage and the file's name; the tool asks the index to count and clear them.
-TEXT_FILTER = {"should": [{"must_not": [{"is_empty": {"key": "content"}}]}, {"must_not": [{"is_empty": {"key": "filename"}}]}]}
+# Entries written before NX-36 hold the passage and the file's name, later ones until #36 the name alone. Qdrant Cloud's
+# strict mode refuses a filter on a key without a payload index (live, 2026-11-22: HTTP 400), and only these are indexed.
+INDEXED = {"workspace_id", "document_id", "version_id", "index_generation", "chunk_id"}
+
+
+def filtered_keys(clause):
+    """Every payload key a Qdrant filter names, however deeply nested."""
+    if isinstance(clause, dict):
+        return ({clause["key"]} if isinstance(clause.get("key"), str) else set()) | {
+            key for value in clause.values() for key in filtered_keys(value)}
+    if isinstance(clause, list):
+        return {key for value in clause for key in filtered_keys(value)}
+    return set()
 
 
 def holds_text(point):
@@ -76,21 +87,21 @@ class World:
             return 200, [{"name": name} for name in body["prefixes"]]
         if method == "GET" and url == f"{INDEX}/collections":
             return 200, {"result": {"collections": [{"name": name} for name in self.collections]}, "status": "ok"}
+        if "filter" in (body or {}) and not filtered_keys(body["filter"]) <= INDEXED:
+            return 400, {"status": {"error": "Bad request: Index required but not found"}}
         if path == f"/collections/{COLLECTION}/points/scroll":
             start = body.get("offset") or 0
-            page = self.points[start:start + body["limit"]]
+            page = [{**point, "payload": {key: value for key, value in point["payload"].items() if key in body["with_payload"]}}
+                    for point in self.points[start:start + body["limit"]]]
             following = start + body["limit"]
             return 200, {"result": {"points": page, "next_page_offset": following if following < len(self.points) else None}}
-        if path == f"/collections/{COLLECTION}/points/count":
-            if COLLECTION not in self.collections:
-                return 404, None
-            assert body == {"filter": TEXT_FILTER, "exact": True}, body
-            return 200, {"result": {"count": sum(1 for point in self.points if holds_text(point))}, "status": "ok"}
         if path == f"/collections/{COLLECTION}/points/payload/delete":
-            assert body == {"keys": ["content", "filename"], "filter": TEXT_FILTER}, body
+            assert body["keys"] == ["content", "filename"] and set(body) == {"keys", "points"}, body
+            chosen = set(body["points"])
             for point in [] if self.text_kept else self.points:
-                for key in ("content", "filename"):
-                    point["payload"].pop(key, None)
+                if point["id"] in chosen:
+                    for key in ("content", "filename"):
+                        point["payload"].pop(key, None)
             return 200, {"result": {"status": "completed"}, "status": "ok"}
         if path == f"/collections/{COLLECTION}/points/delete":
             chosen = set(body["filter"]["must"][0]["match"]["any"])
@@ -141,8 +152,8 @@ class ReportTests(unittest.TestCase):
                     "| Index entries that still hold document text or file names | 0 |"):
             self.assertIn(row, out)
         self.assertNotIn("What to do", out)
-        self.assertEqual([call[0] for call in world.calls], ["POST", "GET", "POST", "POST", "POST"], "a report only reads")
-        self.assertEqual(world.sent("POST", "points/count")[0][2], {"filter": TEXT_FILTER, "exact": True}, "the index counts; no text is read")
+        self.assertEqual([call[0] for call in world.calls], ["POST", "GET", "POST", "POST"], "a report only reads")
+        self.assertFalse(world.sent("POST", "points/count"), "Qdrant Cloud refuses a count filtered on an unindexed key")
 
     def test_everything_out_of_step_is_counted_without_naming_anything(self):
         world = out_of_step()
@@ -167,7 +178,8 @@ class ReportTests(unittest.TestCase):
         for private in PRIVATE:
             self.assertNotIn(private, out + err, private)
         self.assertFalse(world.sent("DELETE", "") or world.sent("POST", "points/delete") or world.sent("POST", "payload/delete"), "a report removes nothing")
-        self.assertTrue(all(call[2]["with_payload"] == ["version_id"] for call in world.sent("POST", "points/scroll")), "no text leaves the index")
+        self.assertTrue(all(call[2]["with_payload"] == ["version_id", "filename"] for call in world.sent("POST", "points/scroll")),
+                        "the passage text is never read; file names only mark the entries, and are never printed")
 
     def test_details_name_what_was_found_but_never_in_a_workflow(self):
         code, out, _ = out_of_step().run("report", "--target", "candidate", "--details")
@@ -201,7 +213,7 @@ class ReportTests(unittest.TestCase):
         self.assertIn("| Index entries of versions that no longer exist | 2 versions, 5 entries |", out)
         scrolls = world.sent("POST", "points/scroll")
         self.assertEqual([call[2].get("offset") for call in scrolls], [None, 2, 4, 6, 8])
-        self.assertTrue(all(call[2]["with_payload"] == ["version_id"] and call[2]["with_vector"] is False for call in scrolls))
+        self.assertTrue(all(call[2]["with_payload"] == ["version_id", "filename"] and call[2]["with_vector"] is False for call in scrolls))
         compared = world.sent("POST", "nexus_index_reconciliation")[0][2]
         self.assertEqual(compared["p_indexed"], [{"value": KEPT, "count": 3}, {"value": GONE_A, "count": 4}, {"value": GONE_B, "count": 1}])
         self.assertIs(compared["p_complete"], True)
@@ -323,7 +335,8 @@ class RemovalTests(unittest.TestCase):
         self.assertEqual((code, err), (0, ""))
         self.assertEqual(out.strip(), "Removed document text and file names from 5 index entries; the entries stay searchable.")
         removal = world.sent("POST", "payload/delete")
-        self.assertEqual([call[2] for call in removal], [{"keys": ["content", "filename"], "filter": TEXT_FILTER}])
+        self.assertEqual([call[2]["keys"] for call in removal], [["content", "filename"]])
+        self.assertTrue(all("filter" not in call[2] for call in removal), "entries are chosen by id, never by an unindexed filter")
         self.assertIn("wait=true", removal[0][1])
         self.assertFalse(any(holds_text(point) for point in world.points))
         self.assertEqual([point["payload"].get("version_id") for point in world.points], [KEPT] * 3 + [GONE_A] * 4 + [GONE_B, None, None],
@@ -334,6 +347,16 @@ class RemovalTests(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertIn("No index entry holds document text or a file name. Nothing was removed.", out)
         self.assertEqual(len(world.sent("POST", "payload/delete")), 1)
+
+    def test_many_entries_are_cleared_in_batches_by_id(self):
+        world = World()
+        world.points += [{"id": 100 + n, "payload": {"version_id": KEPT, "filename": "Synthetic notes.pdf"}} for n in range(2 * tool.BATCH + 7)]
+        code, out, err = world.run("remove-index-text", "--target", "candidate", "--expect", str(2 * tool.BATCH + 7))
+        self.assertEqual((code, err), (0, ""), out)
+        removal = world.sent("POST", "payload/delete")
+        self.assertEqual([len(call[2]["points"]) for call in removal], [tool.BATCH, tool.BATCH, 7])
+        self.assertFalse(any(holds_text(point) for point in world.points))
+        self.assertNotIn("Synthetic notes.pdf", out + err)
 
     def test_an_index_that_keeps_the_text_fails_the_removal(self):
         world = out_of_step()
@@ -395,7 +418,7 @@ class SafetyTests(unittest.TestCase):
                                 ({"rpc/nexus_index_reconciliation": 500}, "The database refused the report (HTTP 500)"),
                                 ({"/collections": 403}, "The search index did not accept its key"),
                                 ({"points/scroll": 502}, "The search index did not list its entries (HTTP 502)"),
-                                ({"points/count": 502}, "The search index did not count the entries that hold document text (HTTP 502)")):
+                                ):
             world = out_of_step()
             world.refuse = refuse
             code, out, err = world.run("report", "--target", "candidate")
