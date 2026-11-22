@@ -45,6 +45,17 @@ test("document route methods and malformed identifiers fail closed", async ({ re
   expect(await head.body()).toHaveLength(0);
 });
 
+// Every page but /auth/confirm/verify is prerendered. Rendering it again on each request cost 20-40 ms of CPU, and
+// under a burst Cloudflare stopped requests for exceeding the Free plan's limit, which visitors saw as errors (issue #45).
+test("prerendered pages are answered from the build's output with their policy, not rendered again", async ({ request }) => {
+  for (const path of ["/", "/auth/login", "/research", "/evidence-os", "/settings/privacy"]) {
+    const response = await request.get(path);
+    expect(response.status(), path).toBe(200);
+    expect(response.headers()["x-opennext-cache"], path).toBe("HIT");
+    expect(response.headers()["content-security-policy"], path).toMatch(/script-src 'self'( 'sha256-[A-Za-z0-9+/=]+')+/);
+  }
+});
+
 test("missing assets and unknown routes return 404 instead of crashing the server adapter", async ({ request }) => {
   for (const path of ["/favicon.ico", "/__nexusrag_readonly_missing_route"]) {
     const response = await request.get(path);
