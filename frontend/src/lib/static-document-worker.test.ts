@@ -84,3 +84,37 @@ describe("pages asked for on the Worker's own address", () => {
     expect(await response.text()).toBe("Delegate fixture");
   });
 });
+describe("revalidation of pages OpenNext answers from the build's output (issue #45)", () => {
+  const page = (headers: Record<string, string> = {}) => new Response("<!doctype html><title>Synthetic</title>", {
+    headers: { "Content-Type": "text/html; charset=utf-8", ETag: '"synthetic-etag"', "Cache-Control": "s-maxage=31536000", Vary: "rsc", ...headers },
+  });
+  const ask = (headers: Record<string, string>, method = "GET", answer = page()) =>
+    createDocumentStaticWorker({ fetch: vi.fn().mockResolvedValue(answer) }, ["https://gateway.invalid"])
+      .fetch(new Request(`${origin}/auth/login`, { method, headers }), {}, {});
+  it("answers a matching If-None-Match with 304, no body and no policy, keeping the validators", async () => {
+    for (const condition of ['"synthetic-etag"', 'W/"synthetic-etag"', '"other", "synthetic-etag"', "*"]) {
+      const response = await ask({ "If-None-Match": condition });
+      expect(response.status, condition).toBe(304);
+      expect(response.body, condition).toBeNull();
+      expect(response.headers.get("Content-Security-Policy"), condition).toBeNull();
+      expect(response.headers.get("ETag")).toBe('"synthetic-etag"');
+      expect(response.headers.get("Cache-Control")).toBe("s-maxage=31536000");
+      expect(response.headers.get("Vary")).toBe("rsc");
+      expect(response.headers.get("Content-Type")).toBeNull();
+    }
+    expect((await ask({ "If-None-Match": '"synthetic-etag"' }, "HEAD")).status).toBe(304);
+  });
+  it("serves the page with its policy when the condition does not match or does not apply", async () => {
+    for (const [headers, method, answer] of [
+      [{ "If-None-Match": '"other"' }, "GET", page()],
+      [{}, "GET", page()],
+      [{ "If-None-Match": '"synthetic-etag"' }, "GET", page({ ETag: "" })],
+      [{ "If-None-Match": '"synthetic-etag"' }, "GET", new Response("missing", { status: 404, headers: { "Content-Type": "text/html", ETag: '"synthetic-etag"' } })],
+    ] as const) {
+      const response = await ask(headers, method, answer);
+      expect(response.status).toBe(answer.status);
+      expect(await response.text()).not.toBe("");
+      expect(response.headers.get("Content-Security-Policy")).toContain("connect-src 'self' https://gateway.invalid");
+    }
+  });
+});

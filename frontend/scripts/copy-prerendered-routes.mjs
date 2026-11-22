@@ -52,6 +52,26 @@ const destination = path.join(staticAssets, documentShell);
 await mkdir(path.dirname(destination), { recursive: true });
 await copyFile(path.join(appOutput, documentShell), destination);
 
+// The Worker answers prerendered pages from these copies (open-next.config.ts) instead of rendering them again on
+// every request, which ran past the Workers Free plan's CPU limit under load (issue #45). Only the Worker can read
+// cdn-cgi/ assets.
+async function cachedPages(directory) {
+  const pages = [];
+  for (const entry of await readdir(directory, { withFileTypes: true, recursive: true })) {
+    if (!entry.isFile() || !entry.name.endsWith(".cache")) continue;
+    const relative = path.relative(directory, path.join(entry.parentPath, entry.name)).split(path.sep).join("/");
+    const page = relative.match(/^[^/]+\/route-cache\/APP_PAGE\/[0-9a-f]+\/\$\/(.+)\.cache$/)?.[1];
+    if (page) pages.push(`${page}.html`);
+  }
+  return new Set(pages);
+}
+const cacheDirectory = path.join(staticAssets, "cdn-cgi", "_next_cache");
+const cached = await cachedPages(cacheDirectory).catch(() => new Set());
+const uncached = requiredPrerendered.filter((page) => !cached.has(page));
+if (uncached.length) {
+  throw new Error(`These prerendered pages would be rendered again on every request: ${uncached.join(", ")}`);
+}
+
 const published = await walk(staticAssets);
 const unexpected = published.filter((page) => page !== documentShell);
 if (unexpected.length) {

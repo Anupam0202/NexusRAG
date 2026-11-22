@@ -63,5 +63,26 @@ async function route(nextWorker: Delegate, request: Request, env: AssetEnvironme
   if (url.pathname.startsWith("/documents/")) {
     return new Response("Document route not found", { status: 404 });
   }
-  return nextWorker.fetch(request, env, context);
+  return notModified(request, await nextWorker.fetch(request, env, context));
+}
+
+/**
+ * OpenNext answers a prerendered page from the build's output with its ETag, but never with 304 (issue #45). A
+ * browser revalidating a page it stored gets 304 here, as it did from Next.js: no body, and so no policy
+ * (withSecurityHeaders), with the validators and caching headers a 200 would carry. If-None-Match uses the weak
+ * comparison (RFC 9110, section 13.1.2).
+ */
+export function notModified(request: Request, response: Response): Response {
+  const etag = response.headers.get("ETag");
+  const condition = request.headers.get("If-None-Match");
+  if (!["GET", "HEAD"].includes(request.method) || response.status !== 200 || !etag || !condition) return response;
+  const opaque = (tag: string) => tag.trim().replace(/^W\//, "");
+  if (condition.trim() !== "*" && !condition.split(",").some(tag => opaque(tag) === opaque(etag))) return response;
+  void response.body?.cancel();
+  const headers = new Headers();
+  for (const name of ["Cache-Control", "Content-Location", "Date", "ETag", "Expires", "Vary", "Last-Modified"]) {
+    const value = response.headers.get(name);
+    if (value !== null) headers.set(name, value);
+  }
+  return new Response(null, { status: 304, headers });
 }
