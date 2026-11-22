@@ -82,14 +82,14 @@ TARGETS = {
 
 # PR-specific preview configs were retired in October 2026; deployments must not bring them back.
 RETIRED_CONFIGS = ("frontend/wrangler.pr3.jsonc", "apps/gateway/wrangler.pr3-preview.jsonc")
-# The frontend Worker wraps the OpenNext Worker so document links are served from the shell, every page gets its
-# script and connection policy (NX-28), and pages opened on the Worker's own address go to the public one.
+# The frontend Worker wraps the OpenNext Worker so document links are served from the shell and every page gets its
+# script and connection policy (NX-28).
 FRONTEND_WRAPPER = (
     'import nextWorker from "./.open-next/worker.js"',
     'import pagePolicy from "./.open-next/page-policy.json"',
     'from "./src/lib/static-document-worker"',
     'export * from "./.open-next/worker.js"',
-    "export default createDocumentStaticWorker(nextWorker, pagePolicy.connect, pagePolicy.site ?? null)",
+    "export default createDocumentStaticWorker(nextWorker, pagePolicy.connect)",
 )
 
 
