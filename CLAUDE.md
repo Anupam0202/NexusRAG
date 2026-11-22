@@ -15,7 +15,7 @@
 - File storage and index against the database: `python3 scripts/reconciliation.py report --target candidate|production` (environment variables in its docstring), or the Store Reconciliation workflow
 
 ## Facts the code does not make obvious
-- The real gateway is `apps/gateway/src/preview-worker.js`, also used in production; `apps/gateway/src/index.ts` is an unused stub.
+- The real gateway is `apps/gateway/src/preview-worker.js`, also used in production (both Wrangler configs in `apps/gateway/`).
 - Fresh databases come from `supabase/baseline/001_v6_zero_cost_baseline.sql` plus migrations 026 onward; numbered 001–025 do not replay. Hosted projects record different version numbers, so match migrations by name.
 - A new migration file must also be added to `tests/postgres/local-rehearsal.sh` and the `cp` list in `v6-database-rehearsal.yml`; `tests/scripts/test_migration_status.py` fails otherwise. Every public table needs row security and at least one policy (`security-assertions.sql`).
 - `next` is pinned because the OpenNext adapter must support Next's manifest format; after changing either, build the Worker and check that an unknown path returns 404.

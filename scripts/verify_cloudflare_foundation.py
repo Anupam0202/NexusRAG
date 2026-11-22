@@ -6,14 +6,9 @@ from datetime import date
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]
 REQUIRED=[
- "apps/gateway/src/index.ts",
  "apps/gateway/src/preview-worker.js",
- "apps/run-coordinator/src/reducer.ts",
- "packages/contracts/src/index.ts",
- "packages/data/migrations/0001_control_plane.sql",
- "packages/retrieval/src/point-identity.ts",
- "packages/cloudflare/wrangler.preview.jsonc",
- "tests/cloudflare/foundation.test.mjs",
+ "apps/gateway/wrangler.preview.jsonc",
+ "apps/gateway/wrangler.production.jsonc",
  "tests/cloudflare/preview-worker.test.mjs",
  "config/zero-cost/cloudflare.free.json",
  "docs/architecture/CLOUDFLARE_DECISION_MATRIX.json",

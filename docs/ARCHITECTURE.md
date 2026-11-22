@@ -23,7 +23,7 @@ Vercel and Render are retired from the active deployment configuration. Their re
 
 - `frontend/open-next.config.ts`
 - `frontend/wrangler.jsonc`
-- `packages/cloudflare/wrangler.preview.jsonc`
+- `apps/gateway/wrangler.preview.jsonc` and `apps/gateway/wrangler.production.jsonc`
 - `.github/workflows/cloudflare-preview-deploy.yml`
 - `.github/workflows/v6-live-provider-validation.yml`
 - `supabase/baseline/001_v6_zero_cost_baseline.sql`
