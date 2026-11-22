@@ -90,6 +90,15 @@ class ContainerVerificationTests(unittest.TestCase):
         self.assertIn('apk del alpine-baselayout busybox busybox-binsh ssl_client', dockerfile)
         self.assertLess(dockerfile.index('apk add --no-cache alpine-baselayout-data'),
                         dockerfile.index('apk del alpine-baselayout busybox'))
+        # No package manager at runtime: apk-tools and libapk are the only users of the system OpenSSL, which Node
+        # does not link (it carries its own), so their advisories never apply to the app (NX-52).
+        self.assertIn('apk add --no-cache alpine-baselayout-data ca-certificates-bundle', dockerfile)
+        self.assertIn('apk del alpine-baselayout busybox busybox-binsh ssl_client apk-tools', dockerfile)
+        runtime = (ROOT / 'scripts/containers/verify-runtime.sh').read_text()
+        self.assertIn('"/sbin/apk","/usr/bin/ssl_client"', runtime)
+        self.assertIn('P:(apk-tools|libapk|ssl_client|libssl3|libcrypto3)', runtime)
+        self.assertIn('Node TLS unavailable', runtime)
+        self.assertIn('CA bundle missing', runtime)
         self.assertIn('fs.chmodSync("/tmp",0o1777)', dockerfile)
         self.assertIn('ENTRYPOINT ["node"]', dockerfile)
         self.assertIn('CMD ["server.js"]', dockerfile)

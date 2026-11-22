@@ -27,12 +27,16 @@ WORKDIR /app
 # alpine-baselayout depends on /bin/sh and otherwise silently retains BusyBox.
 # Retain its independent data package (passwd/group/network configuration),
 # remove the shell-dependent init layout, and recreate the temporary directory
-# with Node after removal. Keep APK metadata for truthful runtime scans.
+# with Node after removal. The package manager goes too: apk-tools and libapk
+# are the only users of the system OpenSSL (libssl3, libcrypto3), while Node
+# links its own, so removing them keeps advisories for code that never runs out
+# of the image. ca-certificates-bundle is an apk-tools dependency, so it is
+# named explicitly to stay. Keep APK metadata for truthful runtime scans.
 RUN apk upgrade --no-cache && \
     rm -rf /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/corepack /opt/yarn-* && \
     rm -f /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack /usr/local/bin/yarn /usr/local/bin/yarnpkg /usr/local/bin/docker-entrypoint.sh && \
-    apk add --no-cache alpine-baselayout-data && \
-    apk del alpine-baselayout busybox busybox-binsh ssl_client && \
+    apk add --no-cache alpine-baselayout-data ca-certificates-bundle && \
+    apk del alpine-baselayout busybox busybox-binsh ssl_client apk-tools && \
     /usr/local/bin/node -e 'const fs=require("fs");fs.mkdirSync("/tmp",{recursive:true});fs.chmodSync("/tmp",0o1777);if(!fs.readFileSync("/etc/passwd","utf8").includes("node:"))throw Error("Runtime identity missing");for(const p of ["/bin/sh","/bin/busybox"])if(fs.existsSync(p))throw Error("Shell removal failed")'
 ENV NODE_ENV=production PORT=3000 HOSTNAME=0.0.0.0 NEXT_TELEMETRY_DISABLED=1
 COPY --from=builder --chown=node:node /app/.next/standalone ./
