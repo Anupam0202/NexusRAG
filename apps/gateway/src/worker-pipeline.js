@@ -178,7 +178,7 @@ async function deterministicPointId(identity) {
   return `${hex.slice(0,8)}-${hex.slice(8,12)}-${hex.slice(12,16)}-${hex.slice(16,20)}-${hex.slice(20)}`;
 }
 
-async function indexChunks(env, { workspaceId, documentId, versionId, generation, filename, chunks, priority = "background", initializeIndex = true, dataClassification = "unknown", actorId, userApiKey, credentialMode }) {
+async function indexChunks(env, { workspaceId, documentId, versionId, generation, chunks, priority = "background", initializeIndex = true, dataClassification = "unknown", actorId, userApiKey, credentialMode }) {
   if (!chunks.length || chunks.length > MAX_INDEX_BATCH_CHUNKS) throw pipelineError("CAPACITY_REACHED", "Indexing accepts a maximum of three chunks per bounded Worker batch.", 413);
   if (dataClassification !== "non_sensitive") throw pipelineError("RIGHTS_BLOCKED", "Only explicitly attested non-sensitive documents may be indexed.", 403);
   const context = { workspaceId, priority, dataClassification, actorId, userApiKey, credentialMode };
@@ -188,8 +188,9 @@ async function indexChunks(env, { workspaceId, documentId, versionId, generation
     for (const chunk of chunks) {
       const vector = await embedText(env, chunk.content, "RETRIEVAL_DOCUMENT", context);
       const id = await deterministicPointId(`${workspaceId}:${documentId}:${versionId}:${generation}:${chunk.chunk_index}`);
-      // No passage text: answers and research read it from the database and check its hash (NX-36).
-      points.push({ id, vector, payload: { workspace_id: workspaceId, document_id: documentId, version_id: versionId, index_generation: generation, filename, chunk_id: id, chunk_index: chunk.chunk_index, page_number: 0, location: { char_start: chunk.start, char_end: chunk.end } } });
+      // Identifiers and positions only: answers and research read the passage, checked against its hash, and the
+      // file's name from the database (NX-36).
+      points.push({ id, vector, payload: { workspace_id: workspaceId, document_id: documentId, version_id: versionId, index_generation: generation, chunk_id: id, chunk_index: chunk.chunk_index, page_number: 0, location: { char_start: chunk.start, char_end: chunk.end } } });
     }
     const { base, headers } = await ensureQdrant(env, points[0].vector.length, initializeIndex);
     await providerJson(`${base}/points?wait=true`, { method: "PUT", headers, body: JSON.stringify({ points }) }, 30_000);

@@ -6,17 +6,20 @@ A crash between two steps of an upload or a deletion, or a store that lost data,
   a document whose original file is gone              (it cannot be downloaded or processed again)
   an answerable document the index holds nothing of   (questions about it find nothing)
 The gateway counts these once a day and logs them as `store_reconciliation`. This tool shows them and removes the
-first two kinds.
+first two kinds. It also counts index entries that still hold a copy of document text or a file name: entries hold
+identifiers and positions only since NX-36, and the app never read the copies (it takes both from the database).
 
   SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... QDRANT_URL=... QDRANT_API_KEY=... \\
       python3 scripts/reconciliation.py report --target candidate [--details]
   ... python3 scripts/reconciliation.py remove-files --target candidate --expect 3
   ... python3 scripts/reconciliation.py remove-index-entries --target candidate --expect 2
+  ... python3 scripts/reconciliation.py remove-index-text --target candidate --expect 5
 
 `report` changes nothing and exits 1 when anything is out of step. It prints counts only, so its output can go to a
 public workflow log; `--details` adds file names and identifiers and is for your own terminal. A removal deletes
 only what a fresh report lists, and only when `--expect` is the count that report shows: read the report, then pass
-its count. Without the Qdrant settings only file storage is checked.
+its count. `remove-index-text` clears the copies and keeps the entries; the index counts and clears them itself, so no
+text is read. Without the Qdrant settings only file storage is checked.
 """
 from __future__ import annotations
 
@@ -39,6 +42,10 @@ BATCH = 100
 PAGE = 1000
 MAX_INDEX_ENTRIES = 2_000_000
 MIGRATION = "20261114120000_storage_reconciliation"
+# Index entries written before NX-36 hold the passage (`content`) and the file's name (`filename`). Qdrant's is_empty
+# matches a key that is missing, null or an empty list, so this filter selects entries that still hold either.
+TEXT_KEYS = ["content", "filename"]
+TEXT_FILTER = {"should": [{"must_not": [{"is_empty": {"key": key}}]} for key in TEXT_KEYS]}
 
 
 class ReconcileError(RuntimeError):
@@ -162,6 +169,27 @@ class Stores:
             if status != 200:
                 raise ReconcileError(f"File storage refused to delete (HTTP {status}) after {start} of {len(names)} files. Run the report again.")
 
+    def entries_with_text(self) -> int:
+        """How many index entries still hold document text or a file name. The index counts them; no text is read."""
+        status, body = http("POST", f"{self.collection}/points/count", self.index_headers, {"filter": TEXT_FILTER, "exact": True})
+        if status == 404:
+            return 0  # reset or never filled: it holds nothing
+        if status in (401, 403):
+            raise ReconcileError("The search index did not accept its key.")
+        try:
+            count = body["result"]["count"] if status == 200 else None
+        except (KeyError, TypeError):
+            count = None
+        if isinstance(count, bool) or not isinstance(count, int) or count < 0:
+            raise ReconcileError(f"The search index did not count the entries that hold document text (HTTP {status}).")
+        return count
+
+    def remove_text(self) -> None:
+        chosen = {"keys": TEXT_KEYS, "filter": TEXT_FILTER}
+        status, _ = http("POST", f"{self.collection}/points/payload/delete?wait=true", self.index_headers, chosen)
+        if status != 200:
+            raise ReconcileError(f"The search index refused to remove the text (HTTP {status}). Run the report again.")
+
     def delete_index_entries(self, versions: list[str]) -> None:
         for start in range(0, len(versions), BATCH):
             chosen = {"filter": {"must": [{"key": "version_id", "match": {"any": versions[start:start + BATCH]}}]}}
@@ -184,10 +212,11 @@ def plural(count: int, noun: str) -> str:
 
 
 def gather(stores: Stores, grace_minutes: int) -> dict:
-    found = {"storage": stores.storage_report(grace_minutes), "index": None, "unversioned": 0}
+    found = {"storage": stores.storage_report(grace_minutes), "index": None, "unversioned": 0, "text": None}
     if stores.has_index:
         versions, found["unversioned"] = stores.indexed_versions()
         found["index"] = stores.index_report(versions)
+        found["text"] = stores.entries_with_text()
     return found
 
 
@@ -199,6 +228,7 @@ def counts(found: dict) -> dict:
         "versions": index["orphaned_entries"]["versions"] if index else None,
         "entries": index["orphaned_entries"]["entries"] if index else None,
         "unindexed": index["unindexed_versions"]["count"] if index else None,
+        "text": found["text"],
     }
 
 
@@ -208,10 +238,10 @@ def render(stores: Stores, found: dict, details: bool) -> tuple[str, bool]:
     command = f"python3 scripts/reconciliation.py {{}} --target {stores.name} --expect {{}}"
     files = f"{n['files']} ({size(n['bytes'])})" if n["files"] else "0"
     if found["index"] is None:
-        entries = unindexed = "not checked"
+        entries = unindexed = text = "not checked"
     else:
         entries = f"{plural(n['versions'], 'version')}, {plural(n['entries'], 'entry')}" if n["versions"] else "0"
-        unindexed = str(n["unindexed"])
+        unindexed, text = str(n["unindexed"]), str(n["text"])
     lines = [
         f"## Reconciliation of the {stores.name} deployment", "",
         "| What | Found |", "|---|---|",
@@ -219,6 +249,7 @@ def render(stores: Stores, found: dict, details: bool) -> tuple[str, bool]:
         f"| Documents whose original file is gone | {n['originals']} |",
         f"| Index entries of versions that no longer exist | {entries} |",
         f"| Answerable documents the index holds nothing of | {unindexed} |",
+        f"| Index entries that still hold document text or file names | {text} |",
     ]
     if found["index"] is None:
         lines += ["", "The search index was not checked: QDRANT_URL and QDRANT_API_KEY are not set."]
@@ -229,6 +260,9 @@ def render(stores: Stores, found: dict, details: bool) -> tuple[str, bool]:
         todo.append(f"- Stored files: a deleted or never finished upload left them. Remove them with `{command.format('remove-files', n['files'])}`.")
     if n["versions"]:
         todo.append(f"- Index entries: a deleted document's passages are still searchable by nobody. Remove them with `{command.format('remove-index-entries', n['versions'])}`.")
+    if n["text"]:
+        todo.append("- Text in the index: older entries keep a copy of passage text or the file's name, which the app never reads "
+                    f"(it takes both from the database). Remove the copies, keeping the entries, with `{command.format('remove-index-text', n['text'])}`.")
     if n["originals"]:
         todo.append("- Originals gone: the documents can still be read and asked about, but not downloaded or re-indexed. Their uploaders have to delete them and upload the files again.")
     if n["unindexed"]:
@@ -251,7 +285,7 @@ def render(stores: Stores, found: dict, details: bool) -> tuple[str, bool]:
             if found["index"]["unindexed_versions"]["rows"]:
                 lines += ["", "### Answerable documents the index holds nothing of", *(
                     f"- workspace {row.get('workspace_id')}, document {row.get('document_id')}" for row in found["index"]["unindexed_versions"]["rows"])]
-    return "\n".join(lines), any(n[key] for key in ("files", "originals", "versions", "unindexed"))
+    return "\n".join(lines), any(n[key] for key in ("files", "originals", "versions", "unindexed", "text"))
 
 
 def report(stores: Stores, grace_minutes: int, details: bool) -> int:
@@ -310,9 +344,27 @@ def remove_index_entries(stores: Stores, expect: int) -> int:
     return 0
 
 
+def remove_index_text(stores: Stores, expect: int) -> int:
+    if not stores.has_index:
+        raise ReconcileError("QDRANT_URL and QDRANT_API_KEY are needed to remove text from index entries.")
+    held = stores.entries_with_text()
+    if held != expect:
+        raise ReconcileError(f"The report now counts {plural(held, 'index entry')} with document text or file names, not {expect}. "
+                             "Read it again, then pass its count. Nothing was removed.")
+    if not held:
+        print("No index entry holds document text or a file name. Nothing was removed.")
+        return 0
+    stores.remove_text()
+    still = stores.entries_with_text()
+    if still:
+        raise ReconcileError(f"After the removal the index still counts {plural(still, 'entry')} with document text or file names. Run the report again.")
+    print(f"Removed document text and file names from {plural(held, 'index entry')}; the entries stay searchable.")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("command", choices=["report", "remove-files", "remove-index-entries"])
+    parser.add_argument("command", choices=["report", "remove-files", "remove-index-entries", "remove-index-text"])
     parser.add_argument("--target", required=True, choices=sorted(TARGETS))
     parser.add_argument("--expect", type=int, help="for a removal: the count the latest report shows")
     parser.add_argument("--details", action="store_true", help="for report: also list file names and identifiers (not in a workflow)")
@@ -334,6 +386,8 @@ def main(argv: list[str] | None = None) -> int:
             return report(stores, args.grace_minutes, args.details)
         if args.command == "remove-files":
             return remove_files(stores, args.expect, args.grace_minutes)
+        if args.command == "remove-index-text":
+            return remove_index_text(stores, args.expect)
         return remove_index_entries(stores, args.expect)
     except ReconcileError as exc:
         print(f"::error::{exc}", file=sys.stderr)
