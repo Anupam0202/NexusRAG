@@ -506,7 +506,8 @@ function WorkspaceChat() {
                 </p>
               </div>
             )}
-            <label className="mb-2 flex items-start gap-2 text-[11px] leading-4 text-[var(--text-muted)]">
+            {/* Nothing to attest before signing in: the visitor cannot send a question yet. */}
+            {store.authMode !== "signed_out" && <label className="mb-2 flex items-start gap-2 text-[11px] leading-4 text-[var(--text-muted)]">
               <input
                 type="checkbox"
                 checked={nonSensitiveAttested}
@@ -517,7 +518,7 @@ function WorkspaceChat() {
               <span>
                 This question contains no personal, confidential, regulated, or other sensitive information. I understand Gemini processing still requires separate workspace-owner approval.
               </span>
-            </label>
+            </label>}
             <div className="glass-input flex items-end gap-2 rounded-2xl px-4 py-2.5">
               <textarea
                 ref={inputRef}
