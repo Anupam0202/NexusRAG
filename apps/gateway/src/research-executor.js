@@ -204,6 +204,11 @@ export async function processResearchMessage(env,message,db) {
     return saved.run;
   } catch(error) {
     const code=/^[A-Z_]{1,64}$/.test(error.code||"")?error.code:error.name==="TimeoutError"?"RUN_DEADLINE":"EXECUTION_UNCONFIRMED";
+    // Why a step stopped, for the operator: the code the run keeps and, when a provider refused, its HTTP status and
+    // Gemini's own short reason. Never the question, the sources or the reply.
+    console.warn(JSON.stringify({event:"research_step_failed",mode:run.mode||"QUICK_LOOKUP",run_id:run.id,position:run.position,code,
+      ...(Number.isInteger(error.providerStatus)?{provider_status:error.providerStatus}:{}),
+      ...(error.providerReason?{provider_reason:error.providerReason}:{}),...(error.providerMessage?{provider_message:error.providerMessage}:{})}));
     await step("interrupt",{p_token:token,p_error:code});
     // The run owns the durable failure. Never automatically repeat a provider call.
     return null;
