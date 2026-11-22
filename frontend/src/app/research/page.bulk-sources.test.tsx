@@ -33,33 +33,33 @@ it("selects and clears only ready filename matches while retaining selections ou
   expect((await save()).private_source_ids).toEqual([library.documents[0].document_id]);
 });
 it("selects all sixty accepted sources in one action and persists every exact ID",async()=>{
-  library.documents=[...Array.from({length:60},(_,i)=>doc(i+1,`Passport evidence ${i+1}.txt`)),doc(61,"Unrelated.txt"),doc(62,"Passport not ready.txt","processing")];
+  library.documents=[...Array.from({length:60},(_,i)=>doc(i+1,`Policy evidence ${i+1}.txt`)),doc(61,"Unrelated.txt"),doc(62,"Policy not ready.txt","processing")];
   await ready();fireEvent.change(screen.getByLabelText("Mode"),{target:{value:"DEEP_RESEARCH"}});
-  fireEvent.change(screen.getByRole("searchbox",{name:"Find private documents"}),{target:{value:"Passport"}});
+  fireEvent.change(screen.getByRole("searchbox",{name:"Find private documents"}),{target:{value:"Policy"}});
   const bulk=screen.getByRole("checkbox",{name:"Select matching documents"});expect(bulk).toBeEnabled();fireEvent.click(bulk);
   expect(bulk).toBeChecked();expect((await save()).private_source_ids).toEqual(library.documents.slice(0,60).map(doc=>doc.document_id));
 });
 it("does not silently select an arbitrary first sixty when all matching sources exceed the mode limit",async()=>{
-  library.documents=Array.from({length:61},(_,i)=>doc(i+1,`Passport evidence ${i+1}.txt`));await ready();
+  library.documents=Array.from({length:61},(_,i)=>doc(i+1,`Policy evidence ${i+1}.txt`));await ready();
   fireEvent.change(screen.getByLabelText("Mode"),{target:{value:"DEEP_RESEARCH"}});
   const bulk=screen.getByRole("checkbox",{name:"Select matching documents"});expect(bulk).toBeDisabled();
   expect(bulk).toHaveAttribute("title",expect.stringContaining("60"));fireEvent.click(bulk);
-  fireEvent.click(screen.getByRole("checkbox",{name:"Passport evidence 1.txt"}));expect(bulk).toBeDisabled();
+  fireEvent.click(screen.getByRole("checkbox",{name:"Policy evidence 1.txt"}));expect(bulk).toBeDisabled();
   expect((await save()).private_source_ids).toEqual([library.documents[0].document_id]);
 });
 it("preserves sixty existing selections after a lower-limit mode change and permits explicit clearing",async()=>{
-  library.documents=Array.from({length:60},(_,i)=>doc(i+1,`Passport evidence ${i+1}.txt`));await ready();
+  library.documents=Array.from({length:60},(_,i)=>doc(i+1,`Policy evidence ${i+1}.txt`));await ready();
   fireEvent.change(screen.getByLabelText("Mode"),{target:{value:"DEEP_RESEARCH"}});const bulk=screen.getByRole("checkbox",{name:"Select matching documents"});fireEvent.click(bulk);
   fireEvent.change(screen.getByLabelText("Mode"),{target:{value:"QUICK_LOOKUP"}});expect(bulk).toBeChecked();expect(bulk).toBeEnabled();
   expect(screen.getByText(`60 selected / ${modeLimits.QUICK_LOOKUP.max_sources} limit`)).toBeVisible();
   fireEvent.click(bulk);expect((await save()).private_source_ids).toEqual([]);
 });
 it("permits explicit clearing of partial matches even when selecting the whole result would exceed the cap",async()=>{
-  library.documents=Array.from({length:61},(_,i)=>doc(i+1,`Passport evidence ${i+1}.txt`));await ready();
-  fireEvent.change(screen.getByLabelText("Mode"),{target:{value:"DEEP_RESEARCH"}});fireEvent.click(screen.getByRole("checkbox",{name:"Passport evidence 1.txt"}));
+  library.documents=Array.from({length:61},(_,i)=>doc(i+1,`Policy evidence ${i+1}.txt`));await ready();
+  fireEvent.change(screen.getByLabelText("Mode"),{target:{value:"DEEP_RESEARCH"}});fireEvent.click(screen.getByRole("checkbox",{name:"Policy evidence 1.txt"}));
   expect(screen.getByRole("checkbox",{name:"Select matching documents"})).toBeDisabled();
   const clear=screen.getByRole("button",{name:"Clear matching selection"});expect(clear).toBeEnabled();fireEvent.click(clear);
-  expect(screen.getByRole("checkbox",{name:"Passport evidence 1.txt"})).not.toBeChecked();expect((await save()).private_source_ids).toEqual([]);
+  expect(screen.getByRole("checkbox",{name:"Policy evidence 1.txt"})).not.toBeChecked();expect((await save()).private_source_ids).toEqual([]);
 });
 it("retains unavailable copied references when clearing matching ready sources",async()=>{
   const stored={...record,plan:{...record.plan,private_source_ids:["unavailable-document",library.documents[1].document_id]}};

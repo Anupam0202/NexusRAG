@@ -16,20 +16,9 @@ it("sends a stable create key and preserves all draft fields", async () => {
   expect(getApiHeaders).toHaveBeenCalledWith(context);
   expect(fetch.mock.calls[0][1]).toMatchObject({method: "POST", headers: {"Idempotency-Key": "same-key"}, body: JSON.stringify(plan)});
 });
-it("confirms the exact declared product identity regardless of JSONB key order",async()=>{
-  const subject={product_id:"synthetic-id",product_name:"Synthetic sensor",product_version:"2.1",supplier:"Synthetic supplier"};
-  const passport={...plan,mode:"PRODUCT_PASSPORT" as const,passport_subject:subject};
-  const receipt={...record,plan:{...passport,passport_subject:Object.fromEntries(Object.entries(subject).reverse())},limits:modeLimits.PRODUCT_PASSPORT};
-  respond(receipt);await expect(createResearchPlan(passport,"passport-key",context)).resolves.toEqual(receipt);
-  for(const value of [{...receipt,plan:{...passport,passport_subject:undefined}},
-    {...receipt,plan:{...passport,passport_subject:{...subject,product_version:"3.0"}}},
-    {...receipt,plan:{...passport,passport_subject:{...subject,verified:true}}}]){
-    respond(value);await expect(createResearchPlan(passport,"passport-key",context)).rejects.toMatchObject({code:"PERSISTENCE_UNCONFIRMED"});
-  }
-});
-it("keeps legacy Product Passport drafts readable without inventing product identity",async()=>{
-  const legacy={...record,plan:{...plan,mode:"PRODUCT_PASSPORT"},limits:modeLimits.PRODUCT_PASSPORT};
-  respond(legacy);await expect(readResearchPlan(record.id,context)).resolves.toEqual(legacy);
+it.each(["PRODUCT_PASSPORT","PROCUREMENT_RESEARCH"])("does not confirm a plan in the removed %s mode",async mode=>{
+  respond({...record,plan:{...plan,mode},limits:modeLimits.DEEP_RESEARCH});
+  await expect(readResearchPlan(record.id,context)).rejects.toMatchObject({code:"PERSISTENCE_UNCONFIRMED"});
 });
 it.each([null, {}, {...record, execution_supported: true}, {...record, plan: {...plan, subquestions: null}}, {...record, limits: {...record.limits, max_sources: 100}}])(
   "does not report unconfirmed plan persistence for %j", async value => {
@@ -78,10 +67,9 @@ it("accepts lightweight comparison list progress but requires complete detail an
   expect(JSON.parse(fetch.mock.calls[0][1]!.body as string)).toEqual({non_sensitive_attested:true,execution_mode:"COMPARE"});
 });
 
-it.each(["PRODUCT_PASSPORT","PROCUREMENT_RESEARCH"])("sends %s execution-mode preflight on create and resume and confirms the same mode",async mode=>{
+it.each(["OBLIGATION_ANALYSIS","DEEP_RESEARCH"])("sends %s execution-mode preflight on create and resume and confirms the same mode",async mode=>{
   const id=record.id,run={id,plan_id:id,workspace_id:id,owner_id:id,schema_version:"research-run/1",persistence_state:"PERSISTED",state:"queued",generation:1,
     mode,source_snapshot:[{document_id:id,version_id:id,index_generation:"synthetic-generation",lifecycle_epoch:1}],
-    ...(mode==="PRODUCT_PASSPORT"?{passport_subject:{product_id:"synthetic-product",product_name:"Synthetic sensor",product_version:"2.1",supplier:"Synthetic supplier"}}:{}),
     total_steps:1,position:0,questions:["Synthetic criterion?"],results:[],source_state:"CURRENT",error_code:null,created_at:"2026-10-25T00:00:00Z"};
   for(const operation of ["create","resume"] as const){
     const fetch=respond(run);

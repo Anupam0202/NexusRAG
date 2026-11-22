@@ -40,7 +40,7 @@ class RehearsalAndRoutingGuardTests(unittest.TestCase):
     def test_research_capacity_appendices_have_disjoint_fixture_ids(self):
         repository = Path(__file__).resolve().parents[2]
         namespaces = []
-        for name in ("diligence", "passport"):
+        for name in ("diligence", "entity"):
             source = (repository / f"tests/postgres/research-{name}-integration.mjs").read_text()
             prefixes = set(re.findall(r'"(ff[0-9a-f]{6}-0000-4000-8100-)"', source))
             self.assertTrue(prefixes, f"Missing {name} appendix fixture namespace")

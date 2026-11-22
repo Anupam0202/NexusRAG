@@ -175,7 +175,7 @@ test("a calculation run takes one question and up to six more over at most thirt
   run.questions=Array.from({length:7},(_,i)=>`Calculation ${i+1}`);run.position=6;
   assert.equal(calculationRunWork(run).question,"Calculation 7");
   for(const changed of [{questions:[...run.questions,"extra"]},{source_snapshot:[...run.source_snapshot,{document_id:"extra"}]},{position:7},
-    {requested_calculations:[""]},{requested_calculations:Array(51).fill("x")},{mode:"PROCUREMENT_RESEARCH"},
+    {requested_calculations:[""]},{requested_calculations:Array(51).fill("x")},{mode:"DUE_DILIGENCE"},
     {source_snapshot:[run.source_snapshot[0],run.source_snapshot[0]]}])
     assert.throws(()=>calculationRunWork({...run,...changed}),{code:"INVALID_SCOPE"});
   assert.deepEqual(calculationRunWork({...run,requested_calculations:undefined}).requested,[]);

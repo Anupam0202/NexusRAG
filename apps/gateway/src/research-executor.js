@@ -14,8 +14,6 @@ import { deepWork, deepSources, deepPrompt, deepResult } from "./research-deep.j
 import { obligationWork, obligationPrompt, obligationResult } from "./research-obligations.js";
 import { entityWork,entityPrompt,entityResult } from "./research-entities.js";
 import { diligenceWork,diligencePrompt,diligenceResult } from "./research-diligence.js";
-import { passportWork,passportPrompt,passportResult } from "./research-passport.js";
-import { procurementWork,procurementPrompt,procurementResult } from "./research-procurement.js";
 import { CALCULATION_RUN_LIMITS,calculationRunWork,calculationRunPrompt,calculationRunResult } from "./research-calculation-runs.js";
 import { replyShape } from "./model-json.js";
 
@@ -35,8 +33,8 @@ function readReply(run,generated,build) {
 const columns="id,workspace_id,document_id,version_id,chunk_index,page_number,content,original_text,original_content_hash,location,metadata";
 async function answerQuestion(env,run,db,signal,context) {
   const read=path=>db(env,path,{signal}), workspace=run.workspace_id;
-  const comparing=run.mode==="COMPARE",timelining=run.mode==="TIMELINE",contradicting=run.mode==="CONTRADICTION_ANALYSIS",deepening=run.mode==="DEEP_RESEARCH",obligating=run.mode==="OBLIGATION_ANALYSIS",investigating=run.mode==="ENTITY_INVESTIGATION",diligence=run.mode==="DUE_DILIGENCE",passport=run.mode==="PRODUCT_PASSPORT",procurement=run.mode==="PROCUREMENT_RESEARCH",calculating=run.mode==="CALCULATION",batched=comparing||timelining,scoped=batched||contradicting||obligating||investigating||diligence||passport||procurement;
-  const work=comparing?comparisonWork(run):timelining?sourceBatchWork(run):contradicting?contradictionWork(run):deepening?deepWork(run):obligating?obligationWork(run):investigating?entityWork(run):diligence?diligenceWork(run):passport?passportWork(run):procurement?procurementWork(run):calculating?calculationRunWork(run):null;
+  const comparing=run.mode==="COMPARE",timelining=run.mode==="TIMELINE",contradicting=run.mode==="CONTRADICTION_ANALYSIS",deepening=run.mode==="DEEP_RESEARCH",obligating=run.mode==="OBLIGATION_ANALYSIS",investigating=run.mode==="ENTITY_INVESTIGATION",diligence=run.mode==="DUE_DILIGENCE",calculating=run.mode==="CALCULATION",batched=comparing||timelining,scoped=batched||contradicting||obligating||investigating||diligence;
+  const work=comparing?comparisonWork(run):timelining?sourceBatchWork(run):contradicting?contradictionWork(run):deepening?deepWork(run):obligating?obligationWork(run):investigating?entityWork(run):diligence?diligenceWork(run):calculating?calculationRunWork(run):null;
   const scope=work?.snapshot||run.source_snapshot;
   // Calculation runs rank passages across every selected document and keep the excerpts short enough to quote.
   const sourceLimit=scoped||deepening||calculating?scope.length:20,excerpted=scoped||deepening||calculating;
@@ -53,7 +51,7 @@ async function answerQuestion(env,run,db,signal,context) {
   const settings=(await read(`workspace_settings?workspace_id=eq.${workspace}&select=retrieval_top_k,hybrid_search_alpha,llm_temperature&limit=1`))?.[0];
   const runtimeOptions={retrieval_top_k:persistedSetting(settings,"retrieval_top_k",{min:1,max:12,integer:true}),
     hybrid_search_alpha:persistedSetting(settings,"hybrid_search_alpha",{min:0,max:1}),llm_temperature:persistedSetting(settings,"llm_temperature",{min:0,max:1})};
-  const selection=scoped||deepening||calculating?{documents:scope.map(s=>initial.documents.find(d=>d.id===s.document_id)),reason:comparing?"COMPARISON_ALL_BATCH_DOCUMENTS":timelining?"TIMELINE_ALL_BATCH_DOCUMENTS":deepening?"DEEP_RESEARCH_ALL_DOCUMENTS":obligating?"OBLIGATION_ALL_DOCUMENTS":investigating?"ENTITY_ALL_DOCUMENTS":diligence?"DILIGENCE_ALL_DOCUMENTS":passport?"PASSPORT_ALL_DOCUMENTS":procurement?"PROCUREMENT_ALL_DOCUMENTS":calculating?"CALCULATION_ALL_DOCUMENTS":"CONTRADICTION_ALL_DOCUMENTS"}:resolveSummaryDocuments(question,initial.documents,false);
+  const selection=scoped||deepening||calculating?{documents:scope.map(s=>initial.documents.find(d=>d.id===s.document_id)),reason:comparing?"COMPARISON_ALL_BATCH_DOCUMENTS":timelining?"TIMELINE_ALL_BATCH_DOCUMENTS":deepening?"DEEP_RESEARCH_ALL_DOCUMENTS":obligating?"OBLIGATION_ALL_DOCUMENTS":investigating?"ENTITY_ALL_DOCUMENTS":diligence?"DILIGENCE_ALL_DOCUMENTS":calculating?"CALCULATION_ALL_DOCUMENTS":"CONTRADICTION_ALL_DOCUMENTS"}:resolveSummaryDocuments(question,initial.documents,false);
   const selectedDocuments=selection.documents.map(d=>d.id), selectedVersions=selection.documents.map(d=>d.active_version_id);
   let candidates;
   try {candidates=await db(env,"rpc/nexus_research_candidates",{method:"POST",signal,body:JSON.stringify({p_context:context,p_id:run.id,
@@ -69,7 +67,7 @@ async function answerQuestion(env,run,db,signal,context) {
   else if(credentialMode!=="platform_trial")throw fail("BYOK_REQUIRED","The run has no confirmed provider admission.");
   signal.throwIfAborted();
   const providerContext={workspaceId:workspace,priority:"interactive",dataClassification:"non_sensitive",actorId:run.owner_id,userApiKey,credentialMode,signal};
-  const expansion=lexicalRows.length?await generateAnswer(env,queryVariantPrompt(question,run.mode||"QUICK_LOOKUP",investigating||diligence?work.targets:[],passport?work.subject:undefined),{...providerContext,requireComplete:true,temperature:0,json:true}):null;
+  const expansion=lexicalRows.length?await generateAnswer(env,queryVariantPrompt(question,run.mode||"QUICK_LOOKUP",investigating||diligence?work.targets:[]),{...providerContext,requireComplete:true,temperature:0,json:true}):null;
   const queryRetrieval=expansion?queryVariants(question,run.mode||"QUICK_LOOKUP",expansion):null;
   const queries=queryRetrieval?.queries||[question];
   const hitLists=lexicalRows.length?await searchChunkVariants(env,{workspaceId:workspace,queries,documentIds:selectedDocuments,versionIds:selectedVersions,
@@ -96,7 +94,7 @@ async function answerQuestion(env,run,db,signal,context) {
     const ranked=fuse(denseLists.map(list=>list.filter(hit=>hit.payload.document_id===id)),sparseRows.filter(hit=>hit.document_id===id),1);
     // An overview request need not repeat literal event wording. Its explicit
     // document scope still permits one current, hash-verified source excerpt.
-    return ranked.length||!(timelining||contradicting||obligating||investigating||diligence||passport||procurement)?ranked:sparse.filter(hit=>hit.payload.document_id===id).slice(0,1);
+    return ranked.length||!(timelining||contradicting||obligating||investigating||diligence)?ranked:sparse.filter(hit=>hit.payload.document_id===id).slice(0,1);
   })
     :fuse(denseLists,sparseRows,calculating?CALCULATION_RUN_LIMITS.context_passages:runtimeOptions.retrieval_top_k);
   // Durable receipts keep storage metadata, not retrieval's page0 display sentinel.
@@ -132,7 +130,7 @@ async function answerQuestion(env,run,db,signal,context) {
   let checked={answer:"The selected evidence does not provide enough information to answer reliably.",claim_state:"UNSUPPORTED",abstained:true,citations:[]}, generated=null;
   if(sources.length) {
     signal.throwIfAborted();
-    generated=await generateAnswer(env,comparing?comparisonPrompt(work,selection.documents,sources):timelining?timelinePrompt(work,selection.documents,sources):contradicting?contradictionPrompt(work,selection.documents,sources):deepening?deepPrompt(work,sources):obligating?obligationPrompt(work,selection.documents,sources):investigating?entityPrompt(work,selection.documents,sources):diligence?diligencePrompt(work,selection.documents,sources):passport?passportPrompt(work,selection.documents,sources):procurement?procurementPrompt(work,selection.documents,sources):calculating?calculationRunPrompt(work,selection.documents,sources):groundedPrompt(question,fused),{workspaceId:workspace,priority:"interactive",dataClassification:"non_sensitive",
+    generated=await generateAnswer(env,comparing?comparisonPrompt(work,selection.documents,sources):timelining?timelinePrompt(work,selection.documents,sources):contradicting?contradictionPrompt(work,selection.documents,sources):deepening?deepPrompt(work,sources):obligating?obligationPrompt(work,selection.documents,sources):investigating?entityPrompt(work,selection.documents,sources):diligence?diligencePrompt(work,selection.documents,sources):calculating?calculationRunPrompt(work,selection.documents,sources):groundedPrompt(question,fused),{workspaceId:workspace,priority:"interactive",dataClassification:"non_sensitive",
       // Locating figures is not a creative task: calculation runs ask at temperature 0.
       actorId:run.owner_id,userApiKey,credentialMode,signal,requireComplete:true,temperature:calculating?0:runtimeOptions.llm_temperature,
       ...(scoped||deepening||calculating?{outputTokens:4096,json:true}:{})});
@@ -146,8 +144,6 @@ async function answerQuestion(env,run,db,signal,context) {
   const obligations=obligating?checkedReply(()=>obligationResult(work,selection.documents,sources,generated)):null;
   const entities=investigating?checkedReply(()=>entityResult(work,selection.documents,sources,generated)):null;
   const diligenceAnalysis=diligence?checkedReply(()=>diligenceResult(work,selection.documents,sources,generated)):null;
-  const passportAnalysis=passport?checkedReply(()=>passportResult(work,selection.documents,sources,generated)):null;
-  const procurementAnalysis=procurement?checkedReply(()=>procurementResult(work,selection.documents,sources,generated)):null;
   const calculationAnalysis=calculating?checkedReply(()=>calculationRunResult(work,selection.documents,sources,generated)):null;
   if(calculationAnalysis?.diagnostics.length)
     console.log(JSON.stringify({event:"research_calculation_rejections",mode:run.mode,run_id:run.id,position:run.position,
@@ -157,8 +153,6 @@ async function answerQuestion(env,run,db,signal,context) {
   if(obligations){sources=obligations.sources;checked=obligations.checked;}
   if(entities){sources=entities.sources;checked=entities.checked;}
   if(diligenceAnalysis){sources=diligenceAnalysis.sources;checked=diligenceAnalysis.checked;}
-  if(passportAnalysis){sources=passportAnalysis.sources;checked=passportAnalysis.checked;}
-  if(procurementAnalysis){sources=procurementAnalysis.sources;checked=procurementAnalysis.checked;}
   if(calculationAnalysis){sources=calculationAnalysis.sources;checked=calculationAnalysis.checked;}
   if(timeline)checked={answer:timeline.events.length?timeline.events.map(event=>`${event.date_text||"Undated"} (${event.date_role}): ${event.quote} [${event.citation_id}]`).join("\n"):"No source-anchored events were returned from the bounded retrieved evidence.",
     claim_state:timeline.events.length?"REVIEW_REQUIRED":"UNSUPPORTED",abstained:!timeline.events.length,
@@ -174,8 +168,8 @@ async function answerQuestion(env,run,db,signal,context) {
   return {question,answer:checked.answer,claim_state:checked.claim_state,abstained:checked.abstained,sources,
     validated_citation_ids:checked.citations.map(index=>`S${index}`),model:generated?.model||null,usage:generated?.usage||{},
     selection:{reason:selection.reason,document_ids:selectedDocuments},coverage:{chunks_considered:lexical.length,lexical_limit_reached:lexicalLimited,
-      retrieval:timelining||contradicting||obligating||investigating||diligence||passport||procurement?"BOUNDED_DENSE_LEXICAL_SCOPED_OVERVIEW":"BOUNDED_DENSE_LEXICAL",completeness:"NOT_EXHAUSTIVE",evidence_authority:"SUPABASE_HASH_VERIFIED"},
-    ...(queryRetrieval?{query_retrieval:queryRetrieval}:{}),...(comparison?{comparison}:{}),...(timeline?{timeline}:{}),...(contradiction?{contradiction:contradiction.analysis}:{}),...(deep?{deep:deep.analysis}:{}),...(obligations?{obligations:obligations.analysis}:{}),...(entities?{entities:entities.analysis}:{}),...(diligenceAnalysis?{diligence:diligenceAnalysis.analysis}:{}),...(passportAnalysis?{passport:passportAnalysis.analysis}:{}),...(procurementAnalysis?{procurement:procurementAnalysis.analysis}:{}),...(calculationAnalysis?{calculation:calculationAnalysis.analysis}:{}),runtime_options:runtimeOptions,provider_cost_status:generated||expansion?"UNKNOWN":"NOT_CALLED",paid_fallback:false,review_state:"COMPLETION_CRITERIA_NOT_AUTOMATICALLY_VERIFIED"};
+      retrieval:timelining||contradicting||obligating||investigating||diligence?"BOUNDED_DENSE_LEXICAL_SCOPED_OVERVIEW":"BOUNDED_DENSE_LEXICAL",completeness:"NOT_EXHAUSTIVE",evidence_authority:"SUPABASE_HASH_VERIFIED"},
+    ...(queryRetrieval?{query_retrieval:queryRetrieval}:{}),...(comparison?{comparison}:{}),...(timeline?{timeline}:{}),...(contradiction?{contradiction:contradiction.analysis}:{}),...(deep?{deep:deep.analysis}:{}),...(obligations?{obligations:obligations.analysis}:{}),...(entities?{entities:entities.analysis}:{}),...(diligenceAnalysis?{diligence:diligenceAnalysis.analysis}:{}),...(calculationAnalysis?{calculation:calculationAnalysis.analysis}:{}),runtime_options:runtimeOptions,provider_cost_status:generated||expansion?"UNKNOWN":"NOT_CALLED",paid_fallback:false,review_state:"COMPLETION_CRITERIA_NOT_AUTOMATICALLY_VERIFIED"};
 }
 
 export async function processResearchMessage(env,message,db) {

@@ -16,13 +16,13 @@ test("an accepted Unicode question saves and copies without half-length truncati
   await save.click();
   await expect(page.getByRole("alert")).toHaveText("Question must contain at most 10000 characters.");
 });
-for (const theme of ["light","dark"]) test(`${theme}: save, reload, inspect and copy a twelve-mode research draft`, async ({page}, testInfo) => {
+for (const theme of ["light","dark"]) test(`${theme}: save, reload, inspect and copy a ten-mode research draft`, async ({page}, testInfo) => {
   const errors: string[]=[];
   page.on("pageerror", error => errors.push(error.message));
   await page.goto(`/?theme=${theme}&actor=${randomUUID()}`);
   const save=page.getByRole("button",{name: "Save plan",exact: true});
   await expect(save).toBeEnabled();
-  await expect(page.getByLabel("Mode").locator("option")).toHaveCount(12);
+  await expect(page.getByLabel("Mode").locator("option")).toHaveCount(10);
   const question=`Synthetic research ${theme} ${testInfo.project.name}`;
   await page.getByLabel("Mode").selectOption("COMPARE");
   await page.getByLabel("Question",{exact: true}).fill(question);

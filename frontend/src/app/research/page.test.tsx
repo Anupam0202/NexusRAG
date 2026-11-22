@@ -39,10 +39,10 @@ it("retains the10000character boundary and the draft when an ordinary question i
   expect(api.createResearchPlan).not.toHaveBeenCalled();
   expect(screen.getByLabelText("Question")).toHaveValue("x".repeat(10001));
 });
-it("shows all twelve modes, saves selected sources, and reports only draft persistence", async () => {
+it("shows all ten modes, saves selected sources, and reports only draft persistence", async () => {
   render(<ResearchPage />);
   await waitFor(() => expect(screen.getByRole("button", {name: "Save plan"})).toBeEnabled());
-  expect(screen.getAllByRole("option")).toHaveLength(12);
+  expect(screen.getAllByRole("option")).toHaveLength(10);
   fireEvent.change(screen.getByLabelText("Question"), {target: {value: "Synthetic question"}});
   fireEvent.change(screen.getByLabelText("Completion criteria"), {target: {value: "Inspect the source."}});
   fireEvent.click(screen.getByRole("checkbox", {name: "Synthetic policy.txt"}));
