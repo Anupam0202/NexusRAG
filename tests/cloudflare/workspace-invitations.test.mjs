@@ -90,3 +90,14 @@ test('a stalled stream cancellation cannot delay oversized invitation denial',as
   assert.equal(calls.some(c=>c.u.pathname.endsWith('/nexus_accept_workspace_invitation')),false);
  } finally {clearTimeout(timer);}
 });
+// Storage refuses a second pending invitation to an address, an invitation to a member, a used or expired code and
+// revoking an accepted invitation with VERSION_CONFLICT; "The record changed" sent people to reload for nothing.
+for(const [path,method,body,bind,wanted] of [
+  ['/api/v1/workspaces/current/invitations','POST',{recipient_email:'person@example.invalid',role:'viewer',token,idempotency_key:'new-request'},true,/already has a pending invitation or is already a member.*Revoke/],
+  ['/api/v1/workspaces/invitations/accept','POST',{token},false,/already used, revoked or expired, or you are already a member/],
+  [`/api/v1/workspaces/current/invitations/${id}`,'DELETE',undefined,true,/already accepted, revoked or expired/],
+])test(`an invitation conflict says what it is: ${method} ${path.split('/').at(-1)}`,async t=>{
+ fixture(t,{denial:'VERSION_CONFLICT'});const r=await handle(request(path,method,body,bind),env);const value=await r.json();
+ assert.equal(r.status,409);assert.equal(value.error.code,'VERSION_CONFLICT');assert.match(value.error.message,wanted);
+ assert.doesNotMatch(value.error.message,/record changed/i);
+});
