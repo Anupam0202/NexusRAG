@@ -29,7 +29,7 @@ begin
     raise exception 'Changed retry overwrote a saved plan';
   exception when others then if sqlerrm<>'NR:VERSION_CONFLICT' then raise; end if; end;
   foreach mode in array array['QUICK_LOOKUP','EVIDENCE_ANSWER','DEEP_RESEARCH','COMPARE','TIMELINE','CONTRADICTION_ANALYSIS',
-    'CALCULATION','OBLIGATION_ANALYSIS','ENTITY_INVESTIGATION','DUE_DILIGENCE','PRODUCT_PASSPORT','PROCUREMENT_RESEARCH'] loop
+    'CALCULATION','OBLIGATION_ANALYSIS','ENTITY_INVESTIGATION','DUE_DILIGENCE'] loop
     perform public.nexus_research_plan(ctx,'create',p_plan=>plan||jsonb_build_object('mode',mode,'plan_id','mode-'||mode),p_key=>'mode-'||mode);
   end loop;
   page=public.nexus_research_plan(ctx,'list',p_limit=>2);
@@ -54,4 +54,4 @@ begin
   if exists(select 1 from public.query_runs) or exists(select 1 from public.usage_reservations) or exists(select 1 from public.ingestion_jobs)
     then raise exception 'Planning started execution or reserved processing quota'; end if;
 end; $$;
-select 'RESEARCH_PLAN_SQL_PASS: persisted/read/retry/conflict/twelve-modes/calendar/paging/capacity; no execution or usage';
+select 'RESEARCH_PLAN_SQL_PASS: persisted/read/retry/conflict/ten-modes/calendar/paging/capacity; no execution or usage';

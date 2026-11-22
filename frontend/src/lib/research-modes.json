@@ -68,19 +68,5 @@
     "max_query_variants": 8,
     "max_runtime_seconds": 600,
     "requires_review": true
-  },
-  "PRODUCT_PASSPORT": {
-    "max_subquestions": 12,
-    "max_sources": 60,
-    "max_query_variants": 8,
-    "max_runtime_seconds": 600,
-    "requires_review": true
-  },
-  "PROCUREMENT_RESEARCH": {
-    "max_subquestions": 10,
-    "max_sources": 50,
-    "max_query_variants": 8,
-    "max_runtime_seconds": 420,
-    "requires_review": true
   }
 }

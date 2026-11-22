@@ -1,6 +1,6 @@
 import {
   Activity, AlertTriangle, Beaker, BookOpenCheck, Building2, Calculator, CloudCog, Code2, FileCheck2, FileSearch,
-  FileText, Landmark, MessageSquare, Network, PackageCheck, Scale, ShieldCheck,
+  FileText, MessageSquare, Network, Scale, ShieldCheck,
 } from "lucide-react";
 import Link from "@/components/layout/StaticLink";
 import { enabledFeatures } from "@/lib/features";
@@ -17,9 +17,7 @@ const AVAILABLE = [
 const IN_DEVELOPMENT = [
   { name: "API Terms & Quota Radar", description: "Notices when a provider changes its terms, quotas, prices or deprecations.", icon: Activity, status: "partly built", feature: "radar", href: "/radar" },
   { name: "Regulatory Obligation Compiler", description: "Turns regulations into reviewable obligations, each linked to its source text.", icon: Scale, status: "in development" },
-  { name: "Procurement Intelligence Graph", description: "Tenders, buyers, suppliers and awards, each linked to its notice.", icon: Landmark, status: "waiting for a data-source review" },
   { name: "Counterparty Evidence Graph", description: "Organizations tracked over time, keeping verified facts apart from uncertain ones.", icon: Building2, status: "in development" },
-  { name: "Product Evidence Passport", description: "A portable, reviewable record of what is known about a product, and what is not.", icon: PackageCheck, status: "in development" },
   { name: "Scientific Evidence Workbench", description: "Papers, registries and datasets, with corrections and retractions kept in view.", icon: Beaker, status: "waiting for data connections" },
   { name: "Open-Source Assurance Graph", description: "Supplied SBOM, licence and advisory data with references and review.", icon: Code2, status: "waiting for a data-source review" },
   { name: "Infrastructure & Public Risk", description: "Watchlists of authoritative public-risk sources, with change alerts.", icon: CloudCog, status: "waiting for a data-source review" },

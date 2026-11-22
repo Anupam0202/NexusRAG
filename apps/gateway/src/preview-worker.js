@@ -73,8 +73,6 @@ const READ_ROUTES = Object.freeze({
   "/api/v2/entities": { table: "graph_entities", capability: "counterparty:read" },
   "/api/v2/relationships": { table: "graph_relationships", capability: "counterparty:read" },
   "/api/v2/obligations": { table: "findings", capability: "obligation:read" },
-  "/api/v2/procurement": { table: "findings", capability: "procurement:read" },
-  "/api/v2/passports": { table: "evidence_exports", capability: "passport:read" },
   "/api/v2/findings": { table: "findings", capability: "finding:read" },
   "/api/v2/monitors": { table: "monitors", capability: "monitor:read" },
 });
@@ -86,17 +84,15 @@ const MCP_OPERATIONS = Object.freeze({
   entity_lookup: READ_ROUTES["/api/v2/entities"],
   relationship_lookup: READ_ROUTES["/api/v2/relationships"],
   obligation_lookup: READ_ROUTES["/api/v2/obligations"],
-  procurement_lookup: READ_ROUTES["/api/v2/procurement"],
-  passport_retrieval: READ_ROUTES["/api/v2/passports"],
   finding_retrieval: READ_ROUTES["/api/v2/findings"],
   monitor_status: READ_ROUTES["/api/v2/monitors"],
 });
 
 const ROLE_CAPABILITIES = Object.freeze({
-  viewer: ["evidence:read", "finding:read", "monitor:read", "obligation:read", "procurement:read", "counterparty:read", "passport:read"],
-  editor: ["evidence:read", "research:run", "finding:read", "finding:write", "monitor:read", "monitor:write", "obligation:read", "procurement:read", "counterparty:read", "passport:read", "passport:write", "export:create"],
-  admin: ["evidence:read", "research:run", "finding:read", "finding:write", "monitor:read", "monitor:write", "obligation:read", "obligation:review", "procurement:read", "counterparty:read", "passport:read", "passport:write", "export:create", "admin:usage"],
-  owner: ["evidence:read", "research:run", "finding:read", "finding:write", "monitor:read", "monitor:write", "obligation:read", "obligation:review", "procurement:read", "counterparty:read", "passport:read", "passport:write", "export:create", "admin:usage"],
+  viewer: ["evidence:read", "finding:read", "monitor:read", "obligation:read", "counterparty:read"],
+  editor: ["evidence:read", "research:run", "finding:read", "finding:write", "monitor:read", "monitor:write", "obligation:read", "counterparty:read", "export:create"],
+  admin: ["evidence:read", "research:run", "finding:read", "finding:write", "monitor:read", "monitor:write", "obligation:read", "obligation:review", "counterparty:read", "export:create", "admin:usage"],
+  owner: ["evidence:read", "research:run", "finding:read", "finding:write", "monitor:read", "monitor:write", "obligation:read", "obligation:review", "counterparty:read", "export:create", "admin:usage"],
 });
 
 const buckets = new Map();
@@ -905,8 +901,6 @@ async function handle(request, env = {}) {
       if (!(ROLE_CAPABILITIES[member.role] || []).includes(spec.capability)) throw Object.assign(new Error("The required capability is not granted."), { status: 403, code: "FORBIDDEN" });
       if(operation==="obligation_lookup")return await handleObligationEvidence({request,env,user,workspace:id,member,serviceRequest,json},body);
       const limit = Math.min(Math.max(Number.parseInt(String(body?.limit || 20), 10) || 20, 1), 50);
-      if (["procurement_lookup", "passport_retrieval"].includes(operation))
-        return fail(request, env, "CAPABILITY_UNAVAILABLE", "This product operation is not implemented.", 501);
       const rows = spec.table === "findings"
         ? (await listFindings({ request, env, user, workspace: id, member, serviceRequest, json }, limit)).items
         : await userRequest(request, env, `${spec.table}?workspace_id=eq.${id}&select=*&limit=${limit}`);
@@ -1353,9 +1347,6 @@ async function handle(request, env = {}) {
       const limit = Math.min(Math.max(Number.parseInt(url.searchParams.get("limit") || "20", 10) || 20, 1), 50);
       if (["/api/v2/claims", "/api/v2/findings"].includes(url.pathname)) {
         return await handleWorkbench({ request, env, user, workspace: id, member, serviceRequest, json });
-      }
-      if (["/api/v2/procurement", "/api/v2/passports"].includes(url.pathname)) {
-        return fail(request, env, "CAPABILITY_UNAVAILABLE", "This product lookup is not implemented in this runtime.", 501);
       }
       const rows = await userRequest(request, env, `${route.table}?workspace_id=eq.${id}&select=*&limit=${limit}`);
       await audit(env, request, user.id, id, `${route.capability}.list`, route.table);

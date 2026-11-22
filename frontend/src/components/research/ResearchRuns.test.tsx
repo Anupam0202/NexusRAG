@@ -45,7 +45,7 @@ it("ordinary viewer inspection never enables run mutations",async()=>{
   expect(screen.getByRole("checkbox")).toBeDisabled();expect(screen.getByRole("button",{name:"Start research"})).toBeDisabled();
   expect(api.researchRunCommand).not.toHaveBeenCalled();
 });
-it.each(["QUICK_LOOKUP","PROCUREMENT_RESEARCH"] as const)("does not silently ignore date-constrained %s plans",async mode=>{
+it.each(["QUICK_LOOKUP","OBLIGATION_ANALYSIS"] as const)("does not silently ignore date-constrained %s plans",async mode=>{
   render(<ResearchRuns {...props} plan={{...plan,plan:{...plan.plan,mode,date_from:"2026-10-15"},limits:modeLimits[mode]}}/>);
   await screen.findByText(/constraints that execution cannot yet honor/);
   fireEvent.click(screen.getByRole("checkbox"));expect(screen.getByRole("button",{name:"Start research"})).toBeDisabled();

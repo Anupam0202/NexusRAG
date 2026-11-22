@@ -83,7 +83,7 @@ function Reader({context,action}:{context:ApiRequestContext;action:ServingAction
     </div>
     <details className="rounded-xl border border-[var(--border)] p-4 text-sm"><summary className="cursor-pointer font-semibold">Machine-client request</summary><p className="my-2">Use your own Supabase session token and current workspace binding. Never paste a token into this page.</p>
       <pre className="overflow-x-auto rounded-lg bg-[var(--bg-secondary)] p-3 text-xs" aria-label="Machine request example">{action==="SERVE_API"?"GET /api/v2/obligations?limit=20\nAuthorization: Bearer <your-session-token>\nX-Workspace-ID: <current-workspace>":'POST /api/v2/mcp/execute\nAuthorization: Bearer <your-session-token>\nX-Workspace-ID: <current-workspace>\nContent-Type: application/json\n\n{"operation":"obligation_lookup","limit":20}'}</pre>
-      <p className="mt-2 text-xs text-[var(--text-muted)]">Custom MCP uses the nexusrag-evidence-mcp/1 HTTP envelope. Standard MCP client interoperability has not been verified. Procurement and Passport domain readers remain unavailable.</p>
+      <p className="mt-2 text-xs text-[var(--text-muted)]">Custom MCP uses the nexusrag-evidence-mcp/1 HTTP envelope. Standard MCP client interoperability has not been verified.</p>
     </details>
   </>;
 }

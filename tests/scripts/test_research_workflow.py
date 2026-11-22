@@ -1,5 +1,6 @@
 """Keep the ordinary draft persistence workflow in source and required CI."""
 import json
+import re
 from pathlib import Path
 import shutil
 import subprocess
@@ -42,49 +43,25 @@ class ResearchWorkflowTests(unittest.TestCase):
         limits=json.loads((ROOT/"frontend/src/lib/finding-package-limits.json").read_text())
         self.assertEqual(limits["max_manifest_bytes"],33554432)
 
-    def test_procurement_database_and_browser_paths_are_required_not_mock_only(self):
-        migration="20261025003900_research_procurement_execution.sql"
+    def test_removed_passport_and_procurement_modes_stay_removed(self):
+        migration="20261122090000_remove_passport_and_procurement.sql"
         workflow=(ROOT/".github/workflows/v6-database-rehearsal.yml").read_text()
         rehearsal=(ROOT/"tests/postgres/local-rehearsal.sh").read_text()
         self.assertIn(migration,workflow)
         self.assertIn(migration,rehearsal)
-        self.assertIn('NEXUS_DISPOSABLE_SQL=1 node "$TESTS/research-procurement-integration.mjs"',rehearsal)
-        self.assertIn("grep -F 'REAL_SQL_PROCUREMENT_EXECUTOR_RECOVERY_REVIEW_PASS'",workflow)
-        self.assertIn("research-procurement.spec.ts",(ROOT/".github/workflows/v6-foundation-ci.yml").read_text())
-
-    def test_procurement_native_capacity_uses_actual_worker_in_required_ci(self):
-        workflow=yaml.safe_load((ROOT/".github/workflows/v6-foundation-ci.yml").read_text())
-        matching=[step for step in workflow["jobs"]["frontend"]["steps"]
-                  if step.get("run")=="node scripts/test-research-procurement-worker.mjs"]
-        self.assertEqual(len(matching),1)
-        self.assertEqual(matching[0].get("working-directory"),"frontend")
-        wrapper=(ROOT/"frontend/scripts/test-research-procurement-worker.mjs").read_text()
-        self.assertIn('process.env.NEXUS_NATIVE_RESEARCH_MODE="PROCUREMENT_RESEARCH"',wrapper)
-        self.assertIn('await import("./test-research-obligation-worker.mjs")',wrapper)
-        self.assertTrue((ROOT/"tests/fixtures/research-procurement-data.mjs").is_file())
-
-    def test_passport_executor_native_capacity_runs_with_the_actual_worker_in_required_ci(self):
-        workflow=yaml.safe_load((ROOT/".github/workflows/v6-foundation-ci.yml").read_text())
-        matching=[step for step in workflow["jobs"]["frontend"]["steps"]
-                  if step.get("run")=="node scripts/test-research-passport-worker.mjs"]
-        self.assertEqual(len(matching),1)
-        self.assertEqual(matching[0].get("working-directory"),"frontend")
-        wrapper=(ROOT/"frontend/scripts/test-research-passport-worker.mjs").read_text()
-        self.assertIn('process.env.NEXUS_NATIVE_RESEARCH_MODE="PRODUCT_PASSPORT"',wrapper)
-        self.assertIn('await import("./test-research-obligation-worker.mjs")',wrapper)
-        self.assertTrue((ROOT/"tests/fixtures/research-passport-data.mjs").is_file())
-
-    def test_declared_passport_identity_persistence_and_browser_journey_run_in_required_ci(self):
-        migration="20261023123558_research_passport_subject.sql"
-        workflow=(ROOT/".github/workflows/v6-database-rehearsal.yml").read_text()
-        rehearsal=(ROOT/"tests/postgres/local-rehearsal.sh").read_text()
-        self.assertIn(migration,workflow)
-        self.assertIn(migration,rehearsal)
-        for file in ("research-passport-subject-assertions.sql","research-passport-subject-concurrency.sh"):
-            self.assertIn(file,rehearsal)
-        for marker in ("RESEARCH_PASSPORT_SUBJECT_SQL_PASS","POSTGRES_PASSPORT_SUBJECT_CONCURRENT_RETRY_PASS"):
-            self.assertIn(f"grep -F '{marker}'",workflow)
-        self.assertIn("research-passport-subject.spec.ts",(ROOT/".github/workflows/v6-foundation-ci.yml").read_text())
+        self.assertIn('"$TESTS/research-mode-removal-assertions.sql"',rehearsal)
+        self.assertIn("grep -F 'RESEARCH_MODE_REMOVAL_SQL_PASS'",workflow)
+        modes=json.loads((ROOT/"frontend/src/lib/research-modes.json").read_text())
+        self.assertEqual(len(modes),10)
+        foundation=(ROOT/".github/workflows/v6-foundation-ci.yml").read_text()
+        for mode in ("PRODUCT_PASSPORT","PROCUREMENT_RESEARCH"):
+            self.assertNotIn(mode,modes)
+        for removed in ("apps/gateway/src/research-passport.js","apps/gateway/src/research-procurement.js",
+                        "frontend/src/lib/product-passport-subject.ts","tests/fixtures/research-passport-data.mjs",
+                        "tests/fixtures/research-procurement-data.mjs","frontend/scripts/test-research-passport-worker.mjs",
+                        "frontend/scripts/test-research-procurement-worker.mjs"):
+            self.assertFalse((ROOT/removed).exists(),removed)
+            self.assertNotIn(Path(removed).name,foundation+workflow+rehearsal)
 
     def test_diligence_persistence_capacity_native_and_browser_journeys_are_in_required_ci(self):
         migration="20261022120413_research_diligence_execution.sql"
@@ -263,12 +240,13 @@ class ResearchWorkflowTests(unittest.TestCase):
         self.assertIn("research-plan-concurrency.sh", rehearsal)
         self.assertIn("POSTGRES_RESEARCH_PLAN_CONCURRENT_RETRY_PASS", workflow)
 
-    def test_twelve_shared_modes_are_present_in_the_sql_contract(self):
+    def test_the_ten_shared_modes_are_exactly_the_modes_of_the_current_sql_contract(self):
         modes = json.loads((ROOT / "frontend/src/lib/research-modes.json").read_text())
-        sql = (ROOT / "supabase/migrations/20261014194036_research_plan_persistence.sql").read_text()
-        self.assertEqual(len(modes), 12)
-        for name in modes:
-            self.assertIn("when '" + name + "'", sql)
+        # The plan limits were last defined when Product Passport and Procurement Research were removed (NX-15).
+        sql = (ROOT / "supabase/migrations/20261122090000_remove_passport_and_procurement.sql").read_text()
+        limits = sql[sql.index("create or replace function public.nexus_research_plan_limits"):]
+        self.assertEqual(len(modes), 10)
+        self.assertEqual(sorted(re.findall(r"when '([A-Z_]+)' then array", limits)), sorted(modes))
 
     def test_browser_fixture_uses_the_production_page_client_and_gateway(self):
         fixture = (ROOT / "frontend/scripts/research-browser-fixture.mjs").read_text()

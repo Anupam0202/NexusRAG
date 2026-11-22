@@ -62,7 +62,7 @@ test("missing RPC is migration-required",async t=>{
 });
 test("available discovery adds only the implemented typed domain operation",async t=>{
   peer(t);const response=await handle(request("/api/v2/mcp/operations"),env);assert.equal(response.status,200);const value=await response.json();assert.deepEqual(value.operations.map(row=>row.name).sort(),["claim_retrieval","finding_retrieval","obligation_lookup"]);
-  assert.equal(value.obligation_evidence.available,true);assert.ok(value.unavailable_operations.includes("procurement_lookup"));assert.ok(value.unavailable_operations.includes("passport_retrieval"));
+  assert.equal(value.obligation_evidence.available,true);for(const removed of ["procurement_lookup","passport_retrieval"])assert.equal(value.unavailable_operations.includes(removed),false);
 });
 for(const path of [rest("?limit=0"),rest("?limit=51"),rest("?limit=1.2"),rest("?after=invalid"),rest(`/${ids.finding}`),rest(`/${ids.finding}?revision=0`),rest("?revision=3")])test(`invalid selection ${path} fails before storage`,async t=>{
   const calls=peer(t),response=await handle(request(path),env);assert.equal(response.status,422);assert.equal(calls.some(row=>row.url.pathname.includes("/rpc/")),false);

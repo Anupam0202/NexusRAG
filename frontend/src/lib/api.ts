@@ -38,7 +38,6 @@ import type {
 import { getApiHeaders } from "@/lib/api-context";
 import { buildBackendUrl } from "@/lib/backend-url";
 import { modeLimits, researchModes, type ResearchPlanInput, type ResearchPlanRecord } from "@/lib/research-plan";
-import { passportSubjectIdentity } from "@/lib/product-passport-subject";
 import { confirmedResearchRun, type ResearchRun } from "@/lib/research-run";
 import {confirmedRadarSource,confirmedRadarSnapshot,confirmedRadarChange,confirmedRadarChangeDetail,confirmedRadarPage,confirmedRadarChunks,confirmedRadarRights,confirmedRadarReview,confirmedRadarRuns,confirmedRadarFindingCreation,radarUuid,
   type RadarSource,type RadarSourceDetail,type RadarCapture,type RadarChangeDetail,type RadarKind,type RadarProvider,type RadarChunks,type RadarReview,type RadarOrigin} from "@/lib/radar";
@@ -547,10 +546,6 @@ export async function getCurrentWorkspace(context: ApiRequestContext = {}): Prom
 function confirmedResearchPlan(value: unknown): value is ResearchPlanRecord {
   if (!value || typeof value !== "object") return false;
   const row = value as ResearchPlanRecord;
-  if(row.plan&&Object.hasOwn(row.plan,"passport_subject")) {
-    if(row.plan.mode!=="PRODUCT_PASSPORT")return false;
-    try { passportSubjectIdentity(row.plan.passport_subject); } catch { return false; }
-  }
   return typeof row.id === "string" && typeof row.workspace_id === "string" && typeof row.owner_id === "string" &&
     row.schema_version === "research-plan/1" && row.persistence_state === "PERSISTED" && row.state === "planned" &&
     row.execution_supported === false && typeof row.plan?.question === "string" && typeof row.plan.plan_id === "string" &&
@@ -577,10 +572,7 @@ export async function createResearchPlan(body: ResearchPlanInput, key: string, c
   const result = await request<ResearchPlanRecord>("/api/v2/research/plans", {
     method: "POST", headers: { "Idempotency-Key": key }, body: JSON.stringify(body),
   }, context);
-  let subjectMatches=false;
-  try { subjectMatches=Object.hasOwn(body,"passport_subject")===Object.hasOwn(result?.plan||{},"passport_subject")
-    &&(!Object.hasOwn(body,"passport_subject")||passportSubjectIdentity(body.passport_subject)===passportSubjectIdentity(result?.plan?.passport_subject)); } catch { subjectMatches=false; }
-  if (!confirmedResearchPlan(result) || result.plan.plan_id !== body.plan_id || !subjectMatches)
+  if (!confirmedResearchPlan(result) || result.plan.plan_id !== body.plan_id)
     throw new ApiRequestError("Research plan save was not confirmed. Refresh before retrying.", "PERSISTENCE_UNCONFIRMED");
   return result;
 }
@@ -592,7 +584,7 @@ export async function listResearchRuns(planId:string,context:ApiRequestContext,a
   return result;
 }
 export async function researchRunCommand(planId:string,context:ApiRequestContext,operation:"create"|"read"|"cancel"|"resume",runId?:string,key?:string,mode?:string) {
-  const expectsMode=["COMPARE","TIMELINE","CONTRADICTION_ANALYSIS","DEEP_RESEARCH","OBLIGATION_ANALYSIS","ENTITY_INVESTIGATION","DUE_DILIGENCE","PRODUCT_PASSPORT","PROCUREMENT_RESEARCH","CALCULATION"].includes(mode||"");
+  const expectsMode=["COMPARE","TIMELINE","CONTRADICTION_ANALYSIS","DEEP_RESEARCH","OBLIGATION_ANALYSIS","ENTITY_INVESTIGATION","DUE_DILIGENCE","CALCULATION"].includes(mode||"");
   const result=await request<ResearchRun>(`/api/v2/research/plans/${encodeURIComponent(planId)}/runs${runId?`/${encodeURIComponent(runId)}`:""}${["cancel","resume"].includes(operation)?`/${operation}`:""}`,
     operation==="read"?undefined:{method:"POST",headers:key?{"Idempotency-Key":key}:undefined,body:JSON.stringify({non_sensitive_attested:true,...(expectsMode?{execution_mode:mode}:{})})},context);
   if(!confirmedResearchRun(result,planId)||result.results_included===false||(runId&&result.id!==runId)||(expectsMode&&result.mode!==mode))throw new ApiRequestError("Research run was not confirmed. Refresh before retrying.","PERSISTENCE_UNCONFIRMED");
@@ -686,7 +678,7 @@ export interface FindingDetail extends FindingSummary {
   source_unavailable: boolean;
   radar_origin?:RadarOrigin|null;
   confirmed_creation?:import("./radar").RadarFindingCreation;
-  research_origin?: {run_id:string|null;result_index:number;plan_id:string|null;question:string|null;claim_state:string;source_state:string;comparison?:import("./research-run").ResearchComparison|null;timeline?:import("./research-run").ResearchTimeline|null;contradiction?:import("./research-run").ResearchContradiction|null;deep?:import("./research-run").ResearchDeep|null;obligations?:import("./research-obligations").ResearchObligations|null;entities?:import("./research-entities").ResearchEntities|null;diligence?:import("./research-diligence").ResearchDiligence|null;passport?:import("./research-passport").ResearchPassport|null;procurement?:import("./research-procurement").ResearchProcurement|null;calculation?:import("./research-calculation-run").ResearchCalculationRun|null;query_retrieval?:import("./research-run").ResearchQueryRetrieval|null};
+  research_origin?: {run_id:string|null;result_index:number;plan_id:string|null;question:string|null;claim_state:string;source_state:string;comparison?:import("./research-run").ResearchComparison|null;timeline?:import("./research-run").ResearchTimeline|null;contradiction?:import("./research-run").ResearchContradiction|null;deep?:import("./research-run").ResearchDeep|null;obligations?:import("./research-obligations").ResearchObligations|null;entities?:import("./research-entities").ResearchEntities|null;diligence?:import("./research-diligence").ResearchDiligence|null;calculation?:import("./research-calculation-run").ResearchCalculationRun|null;query_retrieval?:import("./research-run").ResearchQueryRetrieval|null};
   export_state?: "RIGHTS_REVIEW_REQUIRED";
   evidence: Array<{ id: string; document_id: string; version_id: string; original_text?: string; available: boolean; freshness: string;
     citation_id?:string;filename?:string;original_content_hash?:string;location?:unknown }>;
